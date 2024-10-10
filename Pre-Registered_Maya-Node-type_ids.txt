@@ -1,0 +1,157 @@
+// File: Pre-Registered_Maya-Node-type_ids.txt - a list of Maya Type ID's assigned by Alias specifically for
+// this X3D exporter.
+//
+//
+// Authors:	Aaron Bergstrom
+//         	UND Computational Research Center
+//         	UND DREAM Lab
+//         	http://dream.crc.und.edu/
+//
+
+Maya Type Id's: 0x00108F00 to 0x00108FFF
+
+All Type Id's are a full 10 characters
+
+//-------------------------------------
+//Type Id # reservations for X3D Nodes
+//Not all nodes will use their 
+//Maya type Id #'s
+//-------------------------------------
+
+* 00 - Anchor
+01 - Appearance ++
+02 - Arc2D +?
+03 - ArcClose2D +?
+04 - AudioClip +?
+05 - Background +?
+*06 - Billboard +?
+*07 - BooleanFilter +?
+*08 - BooleanSequencer +?
+*09 - BooleanToggle +?
+*0A - BooleanTrigger +?
+*0B - Box ++
+0C - Circle2D +?
+*0D - Collision +?
+*0E - Color +?
+*0F - ColorInterpolator
+*10 - ColorRGBA
+*11 - Cone
+12 - Contour2D
+13 - ContourPolyline2D
+*14 - Coordinate
+15 - CoordinateDouble
+*16 - CoordinateInterpolator
+17 - CoordinateInterpolator2D
+*18 - Cylinder
+*19 - CylinderSensor
+1A - DirectionalLight
+1B - Disk2D
+1C - ElevationGrid
+1D - EspduTransform
+1E - Extrusion
+1F - FillProperties
+20 - Fog
+21 - FontStyle
+22 - GeoCoordinate
+23 - GeoElevationGrid
+24 - GeoLocation
+25 - GeoLOD
+26 - GeoMetadata
+27 - GeoOrigin
+28 - GeoPositionInterpolator
+29 - GeoTouchSensor
+2A - GeoViewpoint
+*2B - Group
+2C - HAnimDisplacer
+2D - HAnimHumaniod
+2E - HAnimJoint
+2F - HAnimSegment
+30 - HAnimSite
+31 - ImageTexture
+32 - IndexedFaceSet
+33 - IndexedLineSet
+34 - IndexedTriangleFanSet
+35 - IndexedTriangleSet
+36 - IndexedTriangleStripSet
+37 - Inline
+*38 - IntegerSequencer
+*39 - IntegerTrigger
+*3A - KeySensor
+3B - LineProperties
+3C - LineSet
+*3D - LoadSensor
+*3E - LOD
+3F - Material
+*40 - MetadataDouble
+*41 - MetadataFloat
+*42 - MetadataInteger
+*43 - MetadataSet
+*44 - MetadataString
+45 - MovieTexture
+46 - MultiTexture
+47 - MultiTextureTransform
+*48 - NavigationInfo - x3dNavigationInfo: derived MPxLocatorNode (for maya display)
+*49 - Normal
+*4A - NormalInterpolator
+4B - NurbsCurve
+4C - NurbsCurve2D
+4D - NurbsOrientationInterpolator
+4E - NurbsPatchSurface
+4F - NurbsPositionInterpolator
+50 - NurbsSet
+51 - NurbsSurfaceInterpolator
+52 - NurbsSweptSurface
+53 - NurbsSwungSurface
+54 - NurbsTextureSurface
+55 - NurbsTrimmedSurface
+*56 - OrientationInterpolator - x3dOrientationInterpolator: derived MPxLocatorNode (for maya display)
+57 - PixelTexture
+*58 - PlaneSensor
+59 - PointLight
+5A - PointSet
+5B - Polyline2D
+5C - Polypoint2D
+*5D - PositionInterpolator - x3dPositionInterpolator: derived MPxLocatorNode (for maya display)
+//Change Interpolators to MPxTransform nodes
+5E - PositionInterpolator2D
+*5F - ProximitySensor
+60 - ReceiverPdu
+61 - Rectangle2D
+*62 - ScalarInterpolator
+*63 - Script - x3dScript: derived MPxLocatorNode (for maya display)
+64 - Shape
+65 - SignalPdu
+66 - Sound
+67 - Sphere
+*68 - SphereSensor
+69 - SpotLight
+6A - StaticGroup
+*6B - StringSensor
+*6C - Switch
+6D - Text
+6E - TextureBackground
+*6F - TextureCoordinate
+*70 - TextureCoordinateGenerator
+71 - TextureTransform
+*72 - TimeSensor - x3dTouchSensor: derived MPxLocatorNode (for maya display)
+*73 - TimeTrigger
+*74 - TouchSensor - x3dTimeSensor: derived MPxLocatorNode (for maya display)
+75 - Transform
+76 - TransmitterPdu
+77 - TriangleFanSet
+78 - TriangleSet
+79 - TriangleSet2D
+7A - TriangleStripSet
+*7B - Viewpoint - x3dViewpoint: derived MPxTransform (holds camera object and acts as transform)
+*7C - VisibilitySensor
+*7D - WorldInfo - x3dWorldInfo: derived MPxLocatorNode (for maya display)
+
+*7E - GamepadSensor - x3dGamepadSensor: derived MPxLocatorNode 
+//FF - x3dTest
+//-------------------------------------
+//Non-X3D Node Type Id Numbers for Maya
+//-------------------------------------
+*7E - x3dProximitySensorManip Manipulator Container - x3dProximitySensorManip: derrived MPxManipContainer
+*FE - x3dRoute: derived MPxNode (for route descriptions)
+//------------------------------
+*Type Id numbers actually used

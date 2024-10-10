@@ -1,0 +1,150 @@
+//
+// Copyright (C) 2004 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_script_tables.mel
+//
+// 
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftScriptX3D[];
+global string $inScriptX3D[];
+global string $outScriptX3D[];
+
+//---------------------------------
+//Array of Field Types for X3D Script - table
+//---------------------------------
+$ftScriptX3D[0] =  "SFNode";
+$ftScriptX3D[1] =  "MFString";
+
+//-----------------------------------
+//Array of event in names for X3D Script Field Types - table
+//-----------------------------------
+$inScriptX3D[0] =  "set_metadata";	//[in,out]
+$inScriptX3D[1] =  "set_url";		//[in,out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event out names for X3D Script Field Types - table
+//-----------------------------------
+$outScriptX3D[0] =  "metadata_changed";	//[in,out]
+$outScriptX3D[1] =  "url_changed";		//[in,out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event commands for X3D Script  - table
+//-----------------------------------
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//Script Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the Script eventOut submenu
+global proc buildScriptEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	//nScriptX3D[] size = 2 (0-1); eventOut fields are 0-1;
+	global string $ftScriptX3D[];
+	global string $outScriptX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 0; $esi < 2; $esi++){
+		menuItem -l $outScriptX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outScriptX3D[$esi] + " " + $ftScriptX3D[$esi] + " 0");
+	}
+
+	int $hbool = `objExists $highlighted`;
+	if($hbool == 1 && $highlighted != "HiddenNodes")
+	{
+		int $exEncoding = `optionVar -q "exEncoding"`;
+
+		string $customEO[];
+		int $fLength = `getAttr ($highlighted+".x3dfc")`;
+		for($esi = 0; $esi<$fLength; $esi++)
+		{
+			string $accChoice = `getAttr ($highlighted+".fieldAccess["+$esi+"]")`;
+			if( ($accChoice == "inputOutput" && $exEncoding != 3) || $accChoice == "outputOnly")
+			{
+				string $outName =  `getAttr ($highlighted+".fieldName["+$esi+"]")`;
+				string $oft = `getAttr ($highlighted+".fieldType["+$esi+"]")`;
+				menuItem -l $outName -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outName + " " + $oft + " 0");
+			}
+		}
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the Script eventIn submenu
+global proc buildScriptEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	//nScriptX3D[] size = 2 (0-1); eventIn fields are 0-1;
+	global string $ftScriptX3D[];
+	global string $inScriptX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<2;$esi++){
+		if($eoFieldTypeX3D == $ftScriptX3D[$esi])
+		{
+			menuItem -l $inScriptX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inScriptX3D[$esi] + " " + $ftScriptX3D[$esi] + " 1");
+		}
+	}
+	
+	int $hbool = `objExists $highlighted`;
+	if($hbool == 1 && $highlighted != "HiddenNodes")
+	{
+		int $exEncoding = `optionVar -q "exEncoding"`;
+
+		string $customEO[];
+		int $fLength = `getAttr ($highlighted+".x3dfc")`;
+		for($esi = 0; $esi<$fLength; $esi++)
+		{
+			string $accChoice = `getAttr ($highlighted+".fieldAccess["+$esi+"]")`;
+			if( ($accChoice == "inputOutput" && $exEncoding != 3) || $accChoice == "inputOnly")
+			{
+				string $inName =  `getAttr ($highlighted+".fieldName["+$esi+"]")`;
+				string $ift = `getAttr ($highlighted+".fieldType["+$esi+"]")`;
+				if($eoFieldTypeX3D == $ift) menuItem -l $inName -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inName + " " + $ift + " 1");
+			}
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+
+

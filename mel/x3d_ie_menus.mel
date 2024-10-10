@@ -1,0 +1,858 @@
+//
+// Copyright (C) 2004-2005 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_ie_menus.mel
+//
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $gX3DFromNodeName;
+global string $gX3DEventOutName;
+global string $gX3DToNodeName;
+global string $gX3DEventInName;
+global string $x3dTypeFrom;
+global string $x3dTypeTo;
+global string $routeWell;
+global string $mrMenu;
+global string $mrMenuTo;
+global string $eoMenu;
+global string $eiMenu;
+global int $routeGUIMode = 0;
+global int $emInt = 0;
+global string $eoFieldTypeX3D;
+global string $routeUserFeedbackEO;
+global string $routeUserFeedbackEI;
+global string $sgScrollListFrom;
+global string $sgScrollListTo;
+global string $rScrollList;
+global string $selectVal;
+global string $statusText;
+
+//-------------------------------------------------------------------------
+//Procedure that determines what menus are displayed when the routing popup
+//menu appears
+global proc x3dRoutingMenuDisplay(int $whichMenu)
+{
+	global string $sgScrollListFrom;
+	global string $sgScrollListTo;
+	global string $selectVal;
+	
+	global string $mrMenu;
+	global string $mrMenuTo;
+
+	global int $emInt;
+	
+	string $aString[];
+	if($whichMenu == 1)
+	{
+		 $aString = `textScrollList -q -si $sgScrollListFrom`;
+	}
+	else
+	{
+		 $aString = `textScrollList -q -si $sgScrollListTo`;
+	}
+	string $chopped[];
+	$selectVal = $aString[0];
+	tokenize($selectVal, $chopped);
+	
+	if($whichMenu == 1)
+	{
+		 popupMenu -e -dai $mrMenu;
+		 createEventOutMenu($chopped[0], $chopped[2]);
+	}
+	else
+	{
+		popupMenu -e -dai $mrMenuTo;
+		createEventInMenu($chopped[0], $chopped[2]);
+	}
+
+//	if($emInt > 0) createEventInMenu($chopped[0], $chopped[2]);
+//	else createEventOutMenu($chopped[0], $chopped[2]);
+}
+
+
+//-------------------------------------------------------------------------
+//Procedure for creating the EventOut PopupMenu
+global proc createEventOutMenu(string $nodetype, string $nodename)
+{
+	global string $mrMenu;
+	global string $eoMenu;
+	global string $x3dTypeFrom;
+
+	menuItem -divider true -parent $mrMenu;
+	
+	$eoMenu = `menuItem -l "Route Output From: " -subMenu true -parent $mrMenu`;
+
+	$x3dTypeFrom = $nodetype;
+	
+	switch($nodetype)
+	{
+		case "Transform":
+			buildTransformEOMenu($nodename);
+			break;
+			
+		case "Group":  //X3D Group Node
+			buildGroupEOMenu($nodename);
+			break;
+		
+		case "Billboard":
+			buildGroupEOMenu($nodename);
+			break;
+					
+		case "Viewpoint":  //X3D Viewpoint Node
+			buildViewpointEOMenu($nodename);
+			break;
+						
+		case "DirectionalLight":  //X3D Directional Light Node
+			buildDirectionalLightEOMenu($nodename);
+			break;
+				
+		case "SpotLight":  //X3D Spot Light Node
+			buildSpotLightEOMenu($nodename);
+			break;
+					
+		case "PointLight":  //X3D Point Light Node
+			buildPointLightEOMenu($nodename);
+			break;
+						
+		case "Switch":  //X3D Switch Node
+			buildSwitchEOMenu($nodename);
+			break;
+					
+		case "Collision":  //X3D Collision Node
+			buildCollisionEOMenu($nodename);
+			break;
+					
+		case "LOD":
+			buildLODEOMenu($nodename);
+			break;
+
+		case "ProximitySensor":
+			buildProximitySensorEOMenu($nodename);
+			break;
+
+		case "TouchSensor":
+			buildTouchSensorEOMenu($nodename);
+			break;
+
+		case "TimeSensor":
+			buildTimeSensorEOMenu($nodename);
+			break;
+
+		case "PositionInterpolator":
+			buildPositionInterpolatorEOMenu($nodename);
+			break;
+
+		case "OrientationInterpolator":
+			buildOrientationInterpolatorEOMenu($nodename);
+			break;
+
+		case "Script":
+			buildScriptEOMenu($nodename);
+			break;
+
+		case "NavigationInfo":
+			buildNavigationInfoEOMenu($nodename);
+			break;
+
+		case "WorldInfo":
+			buildWorldInfoEOMenu($nodename);
+			break;
+
+		case "MetadataDouble":
+			buildMetadataDoubleEOMenu($nodename);
+			break;
+
+		case "MetadataFloat":
+			buildMetadataFloatEOMenu($nodename);
+			break;
+
+		case "MetadataInteger":
+			buildMetadataIntegerEOMenu($nodename);
+			break;
+
+		case "MetadataSet":
+			buildMetadataSetEOMenu($nodename);
+			break;
+
+		case "MetadataString":
+			buildMetadtaStringEOMenu($nodename);
+			break;
+
+		case "IndexedFaceSet":
+			buildIndexedFaceSetEOMenu($nodename);
+			break;
+
+		case "Box":
+			buildBoxEOMenu($nodename);
+			break;
+
+		case "Sphere":
+			buildSphereEOMenu($nodename);
+			break;
+
+		case "Cone":
+			buildConeEOMenu($nodename);
+			break;
+
+		case "Cylinder":
+			buildCylinderEOMenu($nodename);
+			break;
+
+		case "Coordinate":
+			buildCoordinateEOMenu($nodename);
+			break;
+
+		case "TextureCoordinate":
+			buildTextureCoordinateEOMenu($nodename);
+			break;
+
+		case "Normal":
+			buildNormalEOMenu($nodename);
+			break;
+
+		case "Color":
+			buildColorEOMenu($nodename);
+			break;
+
+		case "ColorRGBA":
+			buildColorRGBAEOMenu($nodename);
+			break;
+
+		case "ImageTexture":
+			buildImageTextureEOMenu($nodename);
+			break;
+				
+		case "TextureTransform":
+			buildTextureTransformEOMenu($nodename);
+			break;
+
+		case "MovieTexture":
+			buildMovieTextureEOMenu($nodename);
+			break;
+
+		case "Appearance":
+			buildAppearanceEOMenu($nodename);
+			break;
+
+		case "Shape":
+			buildShapeEOMenu($nodename);
+			break;
+
+		case "Material":
+			buildMaterialEOMenu($nodename);
+			break;
+
+		case "Anchor":
+			buildAnchorEOMenu($nodename);
+			break;
+
+		case "Inline":
+			buildInlineEOMenu($nodename);
+			break;
+
+		case "ColorInterpolator":
+			buildColorInterpolatorEOMenu($nodename);
+			break;
+
+		case "CoordinateInterpolator":
+			buildCoordinateInterpolatorEOMenu($nodename);
+			break;
+
+		case "NormalInterpolator":
+			buildNormalInterpolatorEOMenu($nodename);
+			break;
+
+		case "ScalarInterpolator":
+			buildScalarInterpolatorEOMenu($nodename);
+			break;
+
+		case "BooleanSequencer":
+			buildBooleanSequencerEOMenu($nodename);
+			break;
+
+		case "IntegerSequencer":
+			buildIntegerSequencerEOMenu($nodename);
+			break;
+
+		case "BooleanTrigger":
+			buildBooleanTriggerEOMenu($nodename);
+			break;
+
+		case "BooleanToggle":
+			buildBooleanToggleEOMenu($nodename);
+			break;
+
+		case "IntegerTrigger":
+			buildIntegerTriggerEOMenu($nodename);
+			break;
+
+		case "TimeTrigger":
+			buildTimeTriggerEOMenu($nodename);
+			break;
+
+		case "CylinderSensor":
+			buildCylinderSensorEOMenu($nodename);
+			break;
+
+		case "KeySensor":
+			buildKeySensorEOMenu($nodename);
+			break;
+
+		case "LoadSensor":
+			buildLoadSensorEOMenu($nodename);
+			break;
+
+		case "PlaneSensor":
+			buildPlaneSensorEOMenu($nodename);
+			break;
+
+		case "SphereSensor":
+			buildSphereSensorEOMenu($nodename);
+			break;
+
+		case "StringSensor":
+			buildStringSensorEOMenu($nodename);
+			break;
+
+		case "VisibilitySensor":
+			buildVisibilitySensorEOMenu($nodename);
+			break;
+
+		case "PixelTexture":
+			buildPixelTextureEOMenu($nodename);
+			break;
+
+		case "AudioClip":
+			buildAudioClipEOMenu($nodename);
+			break;
+
+		case "Sound":
+			buildSoundEOMenu($nodename);
+			break;
+
+		case "BooleanFilter":
+			buildBooleanFilterEOMenu($nodename);
+			break;
+
+		case "MultiTextureCoordinate":
+			buildMultiTextureCoordinateEOMenu($nodename);
+			break;
+
+		case "MultiTextureTransform":
+			buildMultiTextureTransformEOMenu($nodename);
+			break;
+
+		case "MultiTexture":
+			buildMultiTextureEOMenu($nodename);
+			break;
+
+		case "CollidableShape":
+			buildCollidableShapeEOMenu($nodename);
+			break;
+			
+		case "HAnimHumanoid":
+			buildHAnimHumanoidEOMenu($nodename);
+			break;
+			
+		case "HAnimJoint":
+			buildHAnimJointEOMenu($nodename);
+			break;
+			
+		case "HAnimSite":
+			buildHAnimSiteEOMenu($nodename);
+			break;
+			
+		case "GamepadSensor":
+			buildGamepadSensorEOMenu($nodename);
+			break;
+			
+		case "RigidBodyCollection":
+			buildRigidBodyCollectionEOMenu($nodename);
+			break;
+
+		case "RigidBody":
+			buildRigidBodyEOMenu($nodename);
+			break;
+			
+		case "CollisionCollection":
+			buildCollisionCollectionEOMenu($nodename);
+			break;
+			
+		case "CollisionSensor":
+			buildCollisionSensorEOMenu($nodename);
+			break;
+			
+		case "CollisionSpace":
+			buildCollisionSpaceEOMenu($nodename);
+			break;
+			
+		default:
+			break;
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Procedure for creating the EventOut PopupMenu
+global proc createEventInMenu(string $nodetype, string $nodename)
+{
+	global string $mrMenuTo;
+	global string $x3dTypeTo;
+	global string $eiMenu;
+
+	menuItem -divider true -parent $mrMenuTo;
+	
+	$eiMenu = `menuItem -l "To Input: " -subMenu true -parent $mrMenuTo`;
+
+	$x3dTypeTo = $nodetype;
+	
+	switch($nodetype)
+	{
+		case "Transform":
+			buildTransformEIMenu($nodename);
+			break;
+			
+		case "Group":  //X3D Group Node
+			buildGroupEIMenu($nodename);
+			break;
+					
+		case "Billboard":
+			buildGroupEIMenu($nodename);
+			break;
+					
+		case "Viewpoint":  //X3D Viewpoint Node
+			buildViewpointEIMenu($nodename);
+			break;
+						
+		case "DirectionalLight":  //X3D Directional Light Node
+			buildDirectionalLightEIMenu($nodename);
+			break;
+				
+		case "SpotLight":  //X3D Spot Light Node
+			buildSpotLightEIMenu($nodename);
+			break;
+					
+		case "PointLight":  //X3D Point Light Node
+			buildPointLightEIMenu($nodename);
+			break;
+						
+		case "Switch":  //X3D Switch Node
+			buildSwitchEIMenu($nodename);
+			break;
+					
+		case "Collision":  //X3D Collision Node
+			buildCollisionEIMenu($nodename);
+			break;
+					
+		case "LOD":
+			buildLODEIMenu($nodename);
+			break;
+
+		case "ProximitySensor":
+			buildProximitySensorEIMenu($nodename);
+			break;
+
+		case "TouchSensor":
+			buildTouchSensorEIMenu($nodename);
+			break;
+
+		case "TimeSensor":
+			buildTimeSensorEIMenu($nodename);
+			break;
+
+		case "PositionInterpolator":
+			buildPositionInterpolatorEIMenu($nodename);
+			break;
+
+		case "OrientationInterpolator":
+			buildOrientationInterpolatorEIMenu($nodename);
+			break;
+
+		case "Script":
+			buildScriptEIMenu($nodename);
+			break;
+
+		case "NavigationInfo":
+			buildNavigationInfoEIMenu($nodename);
+			break;
+
+		case "WorldInfo":
+			buildWorldInfoEIMenu($nodename);
+			break;
+
+		case "MetadataDouble":
+			buildMetadataDoubleEIMenu($nodename);
+			break;
+
+		case "MetadataFloat":
+			buildMetadataFloatEIMenu($nodename);
+			break;
+
+		case "MetadataInteger":
+			buildMetadataIntegerEIMenu($nodename);
+			break;
+
+		case "MetadataSet":
+			buildMetadataSetEIMenu($nodename);
+			break;
+
+		case "MetadataString":
+			buildMetadtaStringEIMenu($nodename);
+			break;
+
+		case "IndexedFaceSet":
+			buildIndexedFaceSetEIMenu($nodename);
+			break;
+
+		case "Box":
+			buildBoxEIMenu($nodename);
+			break;
+
+		case "Sphere":
+			buildSphereEIMenu($nodename);
+			break;
+
+		case "Cone":
+			buildConeEIMenu($nodename);
+			break;
+
+		case "Cylinder":
+			buildCylinderEIMenu($nodename);
+			break;
+
+		case "Coordinate":
+			buildCoordinateEIMenu($nodename);
+			break;
+
+		case "TextureCoordinate":
+			buildTextureCoordinateEIMenu($nodename);
+			break;
+
+		case "Normal":
+			buildNormalEIMenu($nodename);
+			break;
+
+		case "Color":
+			buildColorEIMenu($nodename);
+			break;
+
+		case "ColorRGBA":
+			buildColorRGBAEIMenu($nodename);
+			break;
+
+		case "ImageTexture":
+			buildImageTextureEIMenu($nodename);
+			break;
+				
+		case "TextureTransform":
+			buildTextureTransformEIMenu($nodename);
+			break;
+
+		case "MovieTexture":
+			buildMovieTextureEIMenu($nodename);
+			break;
+
+		case "Appearance":
+			buildAppearanceEIMenu($nodename);
+			break;
+
+		case "Shape":
+			buildShapeEIMenu($nodename);
+			break;
+
+		case "Material":
+			buildMaterialEIMenu($nodename);
+			break;
+
+		case "Anchor":
+			buildAnchorEIMenu($nodename);
+			break;
+
+		case "Inline":
+			buildInlineEIMenu($nodename);
+			break;
+
+		case "ColorInterpolator":
+			buildColorInterpolatorEIMenu($nodename);
+			break;
+
+		case "CoordinateInterpolator":
+			buildCoordinateInterpolatorEIMenu($nodename);
+			break;
+
+		case "NormalInterpolator":
+			buildNormalInterpolatorEIMenu($nodename);
+			break;
+
+		case "ScalarInterpolator":
+			buildScalarInterpolatorEIMenu($nodename);
+			break;
+
+		case "BooleanSequencer":
+			buildBooleanSequencerEIMenu($nodename);
+			break;
+
+		case "IntegerSequencer":
+			buildIntegerSequencerEIMenu($nodename);
+			break;
+
+		case "BooleanTrigger":
+			buildBooleanTriggerEIMenu($nodename);
+			break;
+
+		case "BooleanToggle":
+			buildBooleanToggleEIMenu($nodename);
+			break;
+
+		case "IntegerTrigger":
+			buildIntegerTriggerEIMenu($nodename);
+			break;
+
+		case "TimeTrigger":
+			buildTimeTriggerEIMenu($nodename);
+			break;
+
+		case "CylinderSensor":
+			buildCylinderSensorEIMenu($nodename);
+			break;
+
+		case "KeySensor":
+			buildKeySensorEIMenu($nodename);
+			break;
+
+		case "LoadSensor":
+			buildLoadSensorEIMenu($nodename);
+			break;
+
+		case "PlaneSensor":
+			buildPlaneSensorEIMenu($nodename);
+			break;
+
+		case "SphereSensor":
+			buildSphereSensorEIMenu($nodename);
+			break;
+
+		case "StringSensor":
+			buildStringSensorEIMenu($nodename);
+			break;
+
+		case "VisibilitySensor":
+			buildVisibilitySensorEIMenu($nodename);
+			break;
+
+		case "PixelTexture":
+			buildPixelTextureEIMenu($nodename);
+			break;
+
+		case "AudioClip":
+			buildAudioClipEIMenu($nodename);
+			break;
+
+		case "Sound":
+			buildSoundEIMenu($nodename);
+			break;
+
+		case "BooleanFilter":
+			buildBooleanFilterEIMenu($nodename);
+			break;
+
+		case "MultiTextureCoordinate":
+			buildMultiTextureCoordinateEIMenu($nodename);
+			break;
+
+		case "MultiTextureTransform":
+			buildMultiTextureTransformEIMenu($nodename);
+			break;
+
+		case "MultiTexture":
+			buildMultiTextureEIMenu($nodename);
+			break;
+			
+		case "CollidableShape":
+			buildCollidableShapeEIMenu($nodename);
+			break;
+			
+		case "HAnimHumanoid":
+			buildHAnimHumanoidEIMenu($nodename);
+			break;
+			
+		case "HAnimJoint":
+			buildHAnimJointEIMenu($nodename);
+			break;
+			
+		case "HAnimSite":
+			buildHAnimSiteEIMenu($nodename);
+			break;
+
+		case "GamepadSensor":
+			buildGamepadSensorEIMenu($nodename);
+			break;
+
+		case "RigidBodyCollection":
+			buildRigidBodyCollectionEIMenu($nodename);
+			break;
+
+		case "RigidBody":
+			buildRigidBodyEIMenu($nodename);
+			break;
+			
+		case "CollisionCollection":
+			buildCollisionCollectionEIMenu($nodename);
+			break;
+			
+		case "CollisionSensor":
+			buildCollisionSensorEIMenu($nodename);
+			break;
+			
+		case "CollisionSpace":
+			buildCollisionSpaceEIMenu($nodename);
+			break;
+			
+		default:
+			break;
+	}
+}
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
+//
+//-------------------------------------------------------------------------
+global proc removeX3DUnderworld(string $parentNode)
+{
+	string $x3dChildren[] = `listRelatives -c $parentNode`;
+	delete $x3dChildren[0];
+}
+//-------------------------------------------------------------------------
+
+
+
+//-------------------------------------------------------------------------
+//Procedure to process eventIn/Out menu selection
+//global proc processMenuX3D(string $hNode, string $sEvent, string $fType, int $in_out)
+global proc processMenuX3D(string $nodename, string $sEvent, string $fType, int $in_out)
+{
+	global string $routeWell;
+	global string $routeUserFeedbackEO;
+	global string $routeUserFeedbackEI;
+	global string $x3dTypeFrom;
+	global string $x3dTypeTo;
+	global int $emInt;
+	global string $eoFieldTypeX3D;
+	global string $mrMenu;
+	global string $eoMenu;
+	global string $eiMenu;
+
+	int $sChoice = 0;
+	
+	string $tString;
+	if($in_out>0)
+	{
+		$routeUserFeedbackEI = $nodename+"."+$sEvent;
+		if($routeUserFeedbackEI == $routeUserFeedbackEO)
+		{
+			setX3DRouteEventIn("","");
+			setX3DRouteEventOut("","");
+			$sChoice = 1;
+		}
+		else
+		{
+			setX3DRouteEventIn($nodename, $sEvent);
+			addX3DRouteToScene();
+			$sChoice = 2;
+		}
+	}
+	else
+	{
+		$eoFieldTypeX3D = $fType;
+		
+		$routeUserFeedbackEO = $nodename+"."+$sEvent;
+		setX3DRouteEventOut($nodename, $sEvent);
+		
+		$routeUserFeedbackEI = "";
+		$x3dTypeTo = "";
+		setX3DRouteEventIn("","");
+		$emInt = 1;
+
+	}
+	$tString = $routeUserFeedbackEO + " To " + $routeUserFeedbackEI;
+	string $statusString = "";
+	switch($sChoice)
+	{
+		case 1:
+			$statusString = "You cannot route a field to itself";
+			$emInt = 0;
+			$eoFieldTypeX3D = "";
+			$routeUserFeedbackEI = "";
+			$routeUserFeedbackEO = "";
+			$x3dTypeFrom = "";
+			$x3dTypeTo = "";
+			break;
+
+		case 2:
+			$statusString = " Route " + $tString;
+			$emInt = 0;
+			$eoFieldTypeX3D = "";
+			$routeUserFeedbackEI = "";
+			$routeUserFeedbackEO = "";
+			$x3dTypeFrom = "";
+			$x3dTypeTo = "";
+			break;
+		default:
+			$statusString = " Route " + $tString;
+			break;
+	}
+	textField -e -text $statusString $routeWell;
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Procedure for reseting the route fields
+//-------------------------------------------------------------------------
+global proc resetX3DRoutes()
+{
+	global string $routeWell;
+	global string $routeUserFeedbackEO;
+	global string $routeUserFeedbackEI;
+	global string $eoFieldTypeX3D;
+	global int $emInt;
+	global string $statusText;	
+	global string $x3dTypeFrom;
+	global string $x3dTypeTo;
+	
+	$emInt = 0;
+	$eoFieldTypeX3D = "";
+	textField -e -text "" $routeWell;
+	$routeUserFeedbackEO = "";
+	$routeUserFeedbackEI = "";
+	$x3dTypeFrom = "";
+	$x3dTypeTo = "";
+	textField -e -text "" $statusText;
+	
+}
+//-------------------------------------------------------------------------
+

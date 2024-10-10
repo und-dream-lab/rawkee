@@ -1,0 +1,115 @@
+//
+// Copyright (C) 2004 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_cylinder_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftCylinderX3D[];
+global string $inCylinderX3D[];
+global string $outCylinderX3D[];
+
+//---------------------------------
+//Array of Field Types for X3D Cylinder - table
+//---------------------------------
+
+$ftCylinderX3D[0] =  "SFNode";
+
+
+
+//-----------------------------------
+//Array of event in names for X3D Cylinder Field Types - table
+//-----------------------------------
+
+$inCylinderX3D[0] =  "set_metadata";
+
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event out names for X3D Cylinder Field Types - table
+//-----------------------------------
+
+$outCylinderX3D[0] =  "metadata_changed";	
+
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event commands for X3D Cylinder  - table
+//-----------------------------------
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//Cylinder Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the Cylinder eventOut submenu
+global proc buildCylinderEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	//nCylinderX3D[] size = 1 (0); eventOut fields are 0;
+	global string $ftCylinderX3D[];
+	global string $outCylinderX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 0; $esi < 1; $esi++){
+		menuItem -l $outCylinderX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outCylinderX3D[$esi] + " " + $ftCylinderX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the Cylinder eventIn submenu
+global proc buildCylinderEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	//nCylinderX3D[] size =1 (0); eventIn fields are 0;
+	global string $ftCylinderX3D[];
+	global string $inCylinderX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<1;$esi++){
+		if($eoFieldTypeX3D == $ftCylinderX3D[$esi])
+		{
+			menuItem -l $inCylinderX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inCylinderX3D[$esi] + " " + $ftCylinderX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+
+

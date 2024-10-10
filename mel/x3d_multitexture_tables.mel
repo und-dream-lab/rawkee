@@ -1,0 +1,124 @@
+//
+// Copyright (C) 2004-2005 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_multitexture_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftMultiTextureX3D[];
+global string $inMultiTextureX3D[];
+global string $outMultiTextureX3D[];
+
+//---------------------------------
+//Array of Field Types for X3D MultiTexture - table
+//---------------------------------
+$ftMultiTextureX3D[0] =  "SFFloat";
+$ftMultiTextureX3D[1] =  "SFColor";
+$ftMultiTextureX3D[2] =  "MFString";
+$ftMultiTextureX3D[3] =  "SFNode";
+$ftMultiTextureX3D[4] =  "MFString";
+$ftMultiTextureX3D[5] =  "MFString";
+$ftMultiTextureX3D[6] =  "MFNode";
+
+//-----------------------------------
+//Array of event in names for X3D MultiTexture Field Types - table
+//-----------------------------------
+$inMultiTextureX3D[0] =  "set_alpha";			//[in,out]
+$inMultiTextureX3D[1] =  "set_color";				//[in,out]
+$inMultiTextureX3D[2] =  "set_function";				//[in,out]
+$inMultiTextureX3D[3] =  "set_metadata";	//[out]
+$inMultiTextureX3D[4] =  "set_mode";		//[out]
+$inMultiTextureX3D[5] =  "set_source";	//[out]
+$inMultiTextureX3D[6] =  "set_texture";				//[out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event out names for X3D MultiTexture Field Types - table
+//-----------------------------------
+$outMultiTextureX3D[0] =  "alpha_changed";	//[in,out]
+$outMultiTextureX3D[1] =  "color_changed";		//[in,out]
+$outMultiTextureX3D[2] =  "function_changed";	//[in,out]
+$outMultiTextureX3D[3] =  "metadata_changed";	//[out]
+$outMultiTextureX3D[4] =  "mode_changed";	//[out]
+$outMultiTextureX3D[5] =  "source_changed";	//[out]
+$outMultiTextureX3D[6] =  "texture_changed";			//[out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event commands for X3D MultiTexture  - table
+//-----------------------------------
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//MultiTexture Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the MultiTexture eventOut submenu
+global proc buildMultiTextureEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	global string $ftMultiTextureX3D[];
+	global string $outMultiTextureX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 0; $esi < 7; $esi++){
+		menuItem -l $outMultiTextureX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outMultiTextureX3D[$esi] + " " + $ftMultiTextureX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the MultiTexture eventIn submenu
+global proc buildMultiTextureEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	global string $ftMultiTextureX3D[];
+	global string $inMultiTextureX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<7;$esi++){
+		if($eoFieldTypeX3D == $ftMultiTextureX3D[$esi])
+		{
+			menuItem -l $inMultiTextureX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inMultiTextureX3D[$esi] + " " + $ftMultiTextureX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+
+

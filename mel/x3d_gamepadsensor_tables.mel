@@ -1,0 +1,198 @@
+//
+// Copyright (C) 2004-2005 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_gamepadsensor_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftGamepadSensorX3D[];
+global string $inGamepadSensorX3D[];
+global string $outGamepadSensorX3D[];
+global string $ftX3DArray[];
+
+//---------------------------------
+//Array of Field Types for X3D GamepadSensor - table
+//---------------------------------
+$ftGamepadSensorX3D[0] =  "MFFloat";     //[in]     outputValue
+$ftGamepadSensorX3D[1] =  "SFFloat";     //[in]     rumblerX
+$ftGamepadSensorX3D[2] =  "SFFloat";     //[in]     rumblerY
+$ftGamepadSensorX3D[3] =  "SFBool";     //[in,out] enabled  TRUE
+$ftGamepadSensorX3D[4] =  "SFNode";     //[in,out] metadata NULL [X3DMetadataObject]
+$ftGamepadSensorX3D[5] =  "SFString";     ////[in,out] name ""
+$ftGamepadSensorX3D[6] =  "SFBool";     //[out]    isActive
+$ftGamepadSensorX3D[7] =  "MFFloat";     //[out]    axisValue
+$ftGamepadSensorX3D[8] =  "SFBool";     //[out]    l1Button
+$ftGamepadSensorX3D[9] =  "SFFloat";     //[out]    leftHatX
+$ftGamepadSensorX3D[10] =  "SFFloat";     //[out]    leftHatY
+$ftGamepadSensorX3D[11] =  "SFFloat";     //[out]    leftStickX
+$ftGamepadSensorX3D[12] =  "SFFloat";     //[out]    leftStickY
+$ftGamepadSensorX3D[13] =  "SFBool";     //[out]    r1Button
+$ftGamepadSensorX3D[14] =  "SFFloat";     //[out]    rightStickX
+$ftGamepadSensorX3D[15] =  "SFFloat";     //[out]    rightStickY
+$ftGamepadSensorX3D[16] =  "SFBool";     //[out]    startButton
+$ftGamepadSensorX3D[17] =  "SFFloat";     //[out]    throttleSlider
+$ftGamepadSensorX3D[18] =  "MFFloat";     //[out]    axisMinValue
+$ftGamepadSensorX3D[19] =  "MFFloat";     //[out]    axisMaxValue
+$ftGamepadSensorX3D[20] =  "MFString";     //[out]    axisName
+$ftGamepadSensorX3D[21] =  "MFFloat";     //[out]    axisResolution
+$ftGamepadSensorX3D[22] =  "MFBool";     //[out]    axisWrap
+$ftGamepadSensorX3D[23] =  "MFString";     //[out]    featuresAvailable
+$ftGamepadSensorX3D[24] =  "SFInt32";     //[out]    numAxes
+$ftGamepadSensorX3D[25] =  "SFInt32";     //[out]    numOutputs
+$ftGamepadSensorX3D[26] =  "MFString";     //[out]    outputName
+$ftGamepadSensorX3D[27] =  "MFFloat";     //[out]    outputMinValue
+$ftGamepadSensorX3D[28] =  "MFFloat";     //[out]    outputMaxValue
+$ftGamepadSensorX3D[29] =  "MFFloat";     //[out]    outputResolution
+$ftGamepadSensorX3D[30] =  "MFBool";     //[out]    outputWrap
+
+//-----------------------------------
+//Array of event names in for X3D GamepadSensor Field Types - table
+//-----------------------------------
+$inGamepadSensorX3D[0] =  "outputValue";     //[in]     outputValue
+$inGamepadSensorX3D[1] =  "rumblerX";     //[in]     rumblerX
+$inGamepadSensorX3D[2] =  "rumblerY";     //[in]     rumblerY
+$inGamepadSensorX3D[3] =  "set_enabled";     //[in,out] enabled  TRUE
+$inGamepadSensorX3D[4] =  "set_metadata";     //[in,out] metadata NULL [X3DMetadataObject]
+$inGamepadSensorX3D[5] =  "set_name";     ////[in,out] name ""
+$inGamepadSensorX3D[6] =  "isActive";     //[out]    isActive
+$inGamepadSensorX3D[7] =  "axisValue";     //[out]    axisValue
+$inGamepadSensorX3D[8] =  "l1Button";     //[out]    l1Button
+$inGamepadSensorX3D[9] =  "leftHatX";     //[out]    leftHatX
+$inGamepadSensorX3D[10] =  "leftHatY";     //[out]    leftHatY
+$inGamepadSensorX3D[11] =  "leftStickX";     //[out]    leftStickX
+$inGamepadSensorX3D[12] =  "leftStickY";     //[out]    leftStickY
+$inGamepadSensorX3D[13] =  "r1Button";     //[out]    r1Button
+$inGamepadSensorX3D[14] =  "rightStickX";     //[out]    rightStickX
+$inGamepadSensorX3D[15] =  "rightStickY";     //[out]    rightStickY
+$inGamepadSensorX3D[16] =  "startButton";     //[out]    startButton
+$inGamepadSensorX3D[17] =  "throttleSlider";     //[out]    throttleSlider
+$inGamepadSensorX3D[18] =  "axisMinValue";     //[out]    axisMinValue
+$inGamepadSensorX3D[19] =  "axisMaxValue";     //[out]    axisMaxValue
+$inGamepadSensorX3D[20] =  "axisName";     //[out]    axisName
+$inGamepadSensorX3D[21] =  "axisResolution";     //[out]    axisResolution
+$inGamepadSensorX3D[22] =  "axisWrap";     //[out]    axisWrap
+$inGamepadSensorX3D[23] =  "featuresAvailable";     //[out]    featuresAvailable
+$inGamepadSensorX3D[24] =  "numAxes";     //[out]    numAxes
+$inGamepadSensorX3D[25] =  "numOutputs";     //[out]    numOutputs
+$inGamepadSensorX3D[26] =  "outputName";     //[out]    outputName
+$inGamepadSensorX3D[27] =  "outputMinValue";     //[out]    outputMinValue
+$inGamepadSensorX3D[28] =  "outputMaxValue";     //[out]    outputMaxValue
+$inGamepadSensorX3D[29] =  "outputResolution";     //[out]    outputResolution
+$inGamepadSensorX3D[30] =  "outputWrap";     //[out]    outputWrap
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event names out for X3D GamepadSensor Field Types - table
+//-----------------------------------
+$outGamepadSensorX3D[0] =  "outputValue";     //[in]     outputValue
+$outGamepadSensorX3D[1] =  "rumblerX";     //[in]     rumblerX
+$outGamepadSensorX3D[2] =  "rumblerY";     //[in]     rumblerY
+$outGamepadSensorX3D[3] =  "enabled_changed";     //[in,out] enabled  TRUE
+$outGamepadSensorX3D[4] =  "metadata_changed";     //[in,out] metadata NULL [X3DMetadataObject]
+$outGamepadSensorX3D[5] =  "name_changed";     ////[in,out] name ""
+$outGamepadSensorX3D[6] =  "isActive";     //[out]    isActive
+$outGamepadSensorX3D[7] =  "axisValue";     //[out]    axisValue
+$outGamepadSensorX3D[8] =  "l1Button";     //[out]    l1Button
+$outGamepadSensorX3D[9] =  "leftHatX";     //[out]    leftHatX
+$outGamepadSensorX3D[10] =  "leftHatY";     //[out]    leftHatY
+$outGamepadSensorX3D[11] =  "leftStickX";     //[out]    leftStickX
+$outGamepadSensorX3D[12] =  "leftStickY";     //[out]    leftStickY
+$outGamepadSensorX3D[13] =  "r1Button";     //[out]    r1Button
+$outGamepadSensorX3D[14] =  "rightStickX";     //[out]    rightStickX
+$outGamepadSensorX3D[15] =  "rightStickY";     //[out]    rightStickY
+$outGamepadSensorX3D[16] =  "startButton";     //[out]    startButton
+$outGamepadSensorX3D[17] =  "throttleSlider";     //[out]    throttleSlider
+$outGamepadSensorX3D[18] =  "axisMinValue";     //[out]    axisMinValue
+$outGamepadSensorX3D[19] =  "axisMaxValue";     //[out]    axisMaxValue
+$outGamepadSensorX3D[20] =  "axisName";     //[out]    axisName
+$outGamepadSensorX3D[21] =  "axisResolution";     //[out]    axisResolution
+$outGamepadSensorX3D[22] =  "axisWrap";     //[out]    axisWrap
+$outGamepadSensorX3D[23] =  "featuresAvailable";     //[out]    featuresAvailable
+$outGamepadSensorX3D[24] =  "numAxes";     //[out]    numAxes
+$outGamepadSensorX3D[25] =  "numOutputs";     //[out]    numOutputs
+$outGamepadSensorX3D[26] =  "outputName";     //[out]    outputName
+$outGamepadSensorX3D[27] =  "outputMinValue";     //[out]    outputMinValue
+$outGamepadSensorX3D[28] =  "outputMaxValue";     //[out]    outputMaxValue
+$outGamepadSensorX3D[29] =  "outputResolution";     //[out]    outputResolution
+$outGamepadSensorX3D[30] =  "outputWrap";     //[out]    outputWrap
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event commands for X3D GamepadSensor  - table
+//-----------------------------------
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//GamepadSensor Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the GamepadSensor eventOut submenu
+global proc buildGamepadSensorEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	//nTranformX3D[] size = 31 (0-30); eventOut fields are 3-30;
+	global string $ftGamepadSensorX3D[];
+	global string $outGamepadSensorX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 3; $esi < 31; $esi++){
+		menuItem -l $outGamepadSensorX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outGamepadSensorX3D[$esi] + " " + $ftGamepadSensorX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the GamepadSensor eventIn submenu
+global proc buildGamepadSensorEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	//nGamepadSensorX3D[] size =31 (0-30); eventIn fields are 0-5;
+	global string $ftGamepadSensorX3D[];
+	global string $inGamepadSensorX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<6;$esi++){
+		if($eoFieldTypeX3D == $ftGamepadSensorX3D[$esi])
+		{
+			menuItem -l $inGamepadSensorX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inGamepadSensorX3D[$esi] + " " + $ftGamepadSensorX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+

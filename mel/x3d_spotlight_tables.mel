@@ -1,0 +1,131 @@
+//
+// Copyright (C) 2004 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_spotlight_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftSpotLightX3D[];
+global string $inSpotLightX3D[];
+global string $outSpotLightX3D[];
+
+//---------------------------------
+//Array of Field Types for X3D SpotLights - table
+//---------------------------------
+$ftSpotLightX3D[0] =  "SFFloat";
+$ftSpotLightX3D[1] =  "SFVec3f";
+$ftSpotLightX3D[2] =  "SFFloat";
+$ftSpotLightX3D[3] =  "SFColor";
+$ftSpotLightX3D[4] =  "SFFloat";
+$ftSpotLightX3D[5] =  "SFVec3f";
+$ftSpotLightX3D[6] =  "SFFloat";
+$ftSpotLightX3D[7] =  "SFVec3f";
+$ftSpotLightX3D[8] =  "SFNode";
+$ftSpotLightX3D[9] =  "SFBool";
+$ftSpotLightX3D[10] = "SFFloat";
+
+//-----------------------------------
+//Array of event names in for X3D SpotLight Field Types - table
+//-----------------------------------
+$inSpotLightX3D[0] =  "set_ambientIntensity";
+$inSpotLightX3D[1] =  "set_attenuation";
+$inSpotLightX3D[2] =  "set_beamWidth";
+$inSpotLightX3D[3] =  "set_color";
+$inSpotLightX3D[4] =  "set_cutOffAngle";
+$inSpotLightX3D[5] =  "set_direction";
+$inSpotLightX3D[6] =  "set_intensity";
+$inSpotLightX3D[7] =  "set_location";
+$inSpotLightX3D[8] =  "set_metadata";
+$inSpotLightX3D[9] =  "set_on";
+$inSpotLightX3D[10] = "set_radius";
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event names out for X3D SpotLight Field Types - table
+//-----------------------------------
+$outSpotLightX3D[0] =  "ambientIntensity_changed";   
+$outSpotLightX3D[1] =  "attenuation_changed"; 
+$outSpotLightX3D[2] =  "beamWidth_changed"; 
+$outSpotLightX3D[3] =  "color_changed";  
+$outSpotLightX3D[4] =  "cutOffAngle_changed"; 
+$outSpotLightX3D[5] =  "direction_changed"; 
+$outSpotLightX3D[6] =  "intensity_changed"; 
+$outSpotLightX3D[7] =  "location_changed"; 
+$outSpotLightX3D[8] =  "metadata_changed"; 
+$outSpotLightX3D[9] =  "on_changed"; 
+$outSpotLightX3D[10] = "radius_changed"; 
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//SpotLight Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the SpotLight eventOut submenu
+global proc buildSpotLightEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	
+	global string $ftSpotLightX3D[];
+	global string $outSpotLightX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 0; $esi < 8; $esi++){
+		menuItem -l $outSpotLightX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outSpotLightX3D[$esi] + " " + $ftSpotLightX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the SpotLight eventIn submenu
+global proc buildSpotLightEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	//nSpotLightX3D[] size =8 (0-7); eventIn fields are 0-7;
+	global string $ftSpotLightX3D[];
+	global string $inSpotLightX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<8;$esi++){
+		if($eoFieldTypeX3D == $ftSpotLightX3D[$esi])
+		{
+			menuItem -l $inSpotLightX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inSpotLightX3D[$esi] + " " + $ftSpotLightX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+

@@ -1,0 +1,130 @@
+//
+// Copyright (C) 2004-2005 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_generic_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftGenericX3D[];
+global string $inGenericX3D[];
+global string $outGenericX3D[];
+
+//---------------------------------
+//Array of Field Types for X3D Generic - table
+//---------------------------------
+$ftGenericX3D[0] =  "SFString";
+$ftGenericX3D[1] =  "SFBool";
+$ftGenericX3D[2] =  "SFNode";
+$ftGenericX3D[3] =  "SFVec3f";
+$ftGenericX3D[4] =  "SFVec3f";
+$ftGenericX3D[5] =  "SFVec2f";
+$ftGenericX3D[6] =  "SFBool";
+$ftGenericX3D[7] =  "SFBool";
+$ftGenericX3D[8] =  "SFTime";
+
+//-----------------------------------
+//Array of event in names for X3D Generic Field Types - table
+//-----------------------------------
+$inGenericX3D[0] =  "set_description";			//[in,out]
+$inGenericX3D[1] =  "set_enabled";				//[in,out]
+$inGenericX3D[2] =  "set_metadata";				//[in,out]
+$inGenericX3D[3] =  "hitNormal_changed";	//[out]
+$inGenericX3D[4] =  "hitPoint_changed";		//[out]
+$inGenericX3D[5] =  "hitTexCoord_changed";	//[out]
+$inGenericX3D[6] =  "isActive";				//[out]
+$inGenericX3D[7] =  "isOver";				//[out]
+$inGenericX3D[8] =  "touchTime";			//[out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event out names for X3D Generic Field Types - table
+//-----------------------------------
+$outGenericX3D[0] =  "description_changed";	//[in,out]
+$outGenericX3D[1] =  "enabled_changed";		//[in,out]
+$outGenericX3D[2] =  "metadata_changed";	//[in,out]
+$outGenericX3D[3] =  "hitNormal_changed";	//[out]
+$outGenericX3D[4] =  "hitPoint_changed";	//[out]
+$outGenericX3D[5] =  "hitTexCoord_changed";	//[out]
+$outGenericX3D[6] =  "isActive";			//[out]
+$outGenericX3D[7] =  "isOver";				//[out]
+$outGenericX3D[8] =  "touchTime";			//[out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event commands for X3D Generic  - table
+//-----------------------------------
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//Generic Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the Generic eventOut submenu
+global proc buildGenericEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	global string $ftGenericX3D[];
+	global string $outGenericX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 0; $esi < 9; $esi++){
+		menuItem -l $outGenericX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outGenericX3D[$esi] + " " + $ftGenericX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the Generic eventIn submenu
+global proc buildGenericEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	global string $ftGenericX3D[];
+	global string $inGenericX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<3;$esi++){
+		if($eoFieldTypeX3D == $ftGenericX3D[$esi])
+		{
+			menuItem -l $inGenericX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inGenericX3D[$esi] + " " + $ftGenericX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+
+

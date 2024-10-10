@@ -1,0 +1,118 @@
+//
+// Copyright (C) 2004 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_texturecoordinate_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftTextureCoordinateX3D[];
+global string $inTextureCoordinateX3D[];
+global string $outTextureCoordinateX3D[];
+
+//---------------------------------
+//Array of Field Types for X3D TextureCoordinate - table
+//---------------------------------
+
+$ftTextureCoordinateX3D[0] =  "SFNode";
+$ftTextureCoordinateX3D[1] =  "MFVec2f";
+
+
+
+//-----------------------------------
+//Array of event in names for X3D TextureCoordinate Field Types - table
+//-----------------------------------
+
+$inTextureCoordinateX3D[0] =  "set_metadata";
+$inTextureCoordinateX3D[1] =  "set_point";
+
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event out names for X3D TextureCoordinate Field Types - table
+//-----------------------------------
+
+$outTextureCoordinateX3D[0] =  "metadata_changed";	
+$outTextureCoordinateX3D[1] =  "point_changed";	
+
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event commands for X3D TextureCoordinate  - table
+//-----------------------------------
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//Coordinate Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the TextureCoordinate eventOut submenu
+global proc buildTextureCoordinateEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	//nTextureCoordinateX3D[] size = 2 (0-1); eventOut fields are 0-1;
+	global string $ftTextureCoordinateX3D[];
+	global string $outTextureCoordinateX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 0; $esi < 2; $esi++){
+		menuItem -l $outTextureCoordinateX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outTextureCoordinateX3D[$esi] + " " + $ftTextureCoordinateX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the TextureCoordinate eventIn submenu
+global proc buildTextureCoordinateEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	//nTextureCoordinateX3D[] size =2 (0-1); eventIn fields are 0-1;
+	global string $ftTextureCoordinateX3D[];
+	global string $inTextureCoordinateX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<2;$esi++){
+		if($eoFieldTypeX3D == $ftTextureCoordinateX3D[$esi])
+		{
+			menuItem -l $inTextureCoordinateX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inTextureCoordinateX3D[$esi] + " " + $ftTextureCoordinateX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+
+

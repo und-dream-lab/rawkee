@@ -1,0 +1,130 @@
+//
+// Copyright (C) 2004-2005 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_spheresensor_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftSphereSensorX3D[];
+global string $inSphereSensorX3D[];
+global string $outSphereSensorX3D[];
+
+//---------------------------------
+//Array of Field Types for X3D SphereSensor - table
+//---------------------------------
+$ftSphereSensorX3D[0] =  "SFBool";
+$ftSphereSensorX3D[1] =  "SFString";
+$ftSphereSensorX3D[2] =  "SFBool";
+$ftSphereSensorX3D[3] =  "SFNode";
+$ftSphereSensorX3D[4] =  "SFRotation";
+$ftSphereSensorX3D[5] =  "SFBool";
+$ftSphereSensorX3D[6] =  "SFBool";
+$ftSphereSensorX3D[7] =  "SFRotation";
+$ftSphereSensorX3D[8] =  "SFVec3f";
+
+//-----------------------------------
+//Array of event in names for X3D SphereSensor Field Types - table
+//-----------------------------------
+$inSphereSensorX3D[0] =  "set_autoOffset";			//[in,out]
+$inSphereSensorX3D[1] =  "set_description";				//[in,out]
+$inSphereSensorX3D[2] =  "set_enabled";				//[in,out]
+$inSphereSensorX3D[3] =  "set_metadata";	//[out]
+$inSphereSensorX3D[4] =  "set_offset";		//[out]
+$inSphereSensorX3D[5] =  "isActive";	//[out]
+$inSphereSensorX3D[6] =  "isOver";				//[out]
+$inSphereSensorX3D[7] =  "rotation_changed";				//[out]
+$inSphereSensorX3D[8] =  "trackPoint_changed";			//[out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event out names for X3D SphereSensor Field Types - table
+//-----------------------------------
+$outSphereSensorX3D[0] =  "autoOffset_changed";	//[in,out]
+$outSphereSensorX3D[1] =  "description_changed";		//[in,out]
+$outSphereSensorX3D[2] =  "enabled_changed";	//[in,out]
+$outSphereSensorX3D[3] =  "metadata_changed";	//[out]
+$outSphereSensorX3D[4] =  "offset_changed";	//[out]
+$outSphereSensorX3D[5] =  "isActive";	//[out]
+$outSphereSensorX3D[6] =  "isOver";			//[out]
+$outSphereSensorX3D[7] =  "rotation_changed";				//[out]
+$outSphereSensorX3D[8] =  "trackPoint_changed";			//[out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event commands for X3D SphereSensor  - table
+//-----------------------------------
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//SphereSensor Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the SphereSensor eventOut submenu
+global proc buildSphereSensorEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	global string $ftSphereSensorX3D[];
+	global string $outSphereSensorX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 0; $esi < 9; $esi++){
+		menuItem -l $outSphereSensorX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outSphereSensorX3D[$esi] + " " + $ftSphereSensorX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the SphereSensor eventIn submenu
+global proc buildSphereSensorEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	global string $ftSphereSensorX3D[];
+	global string $inSphereSensorX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<5;$esi++){
+		if($eoFieldTypeX3D == $ftSphereSensorX3D[$esi])
+		{
+			menuItem -l $inSphereSensorX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inSphereSensorX3D[$esi] + " " + $ftSphereSensorX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+
+

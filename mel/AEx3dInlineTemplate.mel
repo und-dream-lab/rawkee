@@ -1,0 +1,138 @@
+//
+// Copyright (C) 2004-2005 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: AEx3dInlineTemplate.mel
+//
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+global proc AEx3dInlineTemplateNew( string $attrName )
+{
+	string $nodeName[];
+	tokenize($attrName, ".", $nodeName);
+	setUITemplate -pst attributeEditorPresetsTemplate;
+	if($nodeName[1] == "url"){
+		buildURLBrowse($nodeName[0], $attrName);
+	}
+	setUITemplate -ppt;
+}
+
+global proc AEx3dInlineTemplateReplace( string $attrName )
+{
+	string $nodeName[];
+	tokenize($attrName, ".", $nodeName);
+	if($nodeName[1] == "url")
+	{
+		deleteUI -lay urlCol;
+		buildURLBrowse($nodeName[0], $attrName);
+	}
+}
+
+
+global proc AEx3dInlineTemplate( string $nodeName )
+{
+	editorTemplate -beginScrollLayout;
+		editorTemplate -addControl "load";
+		editorTemplate -callCustom "AEx3dInlineTemplateNew" "AEx3dInlineTemplateReplace" "url";
+		editorTemplate -suppress "url";
+		editorTemplate -beginLayout "Maya Transform Attributes" -collapse true;
+		 	editorTemplate -addControl "translate";
+		 	editorTemplate -addControl "rotate";
+	 		editorTemplate -addControl "scale";
+		 	editorTemplate -addControl "shear";
+		 	editorTemplate -addControl "rotatePivot";
+	 		editorTemplate -addControl "scalePivot";
+		editorTemplate -endLayout;
+		editorTemplate -aec -ecl "Extra Attributes";
+		x3dMPxTransformSuppression();
+		x3dOptionSuppression();
+	editorTemplate -endLayout;
+}
+
+global proc buildURLBrowse(string $nodeName, string $attrName)
+{
+	columnLayout urlCol;
+		textFieldButtonGrp -label "URL File" -text "" -buttonLabel "Browse" urlText;
+		string $attrText = `getAttr $attrName`;
+		textFieldButtonGrp -e -tx $attrText urlText;
+		string $tfbgText = `textFieldButtonGrp -q -tx urlText`;
+		if($tfbgText == "") textFieldButtonGrp -e -en true -eb true -bc ("getInlineFile "+$attrName+" "+$nodeName) urlText;
+		else {
+			textFieldButtonGrp -e -en false -eb false urlText;
+			rowLayout
+				-nc 4
+				-columnWidth4 160 100 130 10;
+				text -l " " -h 20 -fn "smallBoldLabelFont" -rs true -al "left";
+				button -l "Remove Reference" -h 20 -c ("removeInlineFile "+$attrName);
+				text -l " " -h 20 -fn "smallBoldLabelFont" -rs true -al "left";
+				text -l " " -h 20 -fn "smallBoldLabelFont" -rs true -al "left";
+			setParent ..;
+			rowLayout
+				-nc 1
+				-columnWidth1 400;
+				text -l " " -h 20 -fn "smallBoldLabelFont" -rs true -al "left";
+			setParent ..;
+		}
+	setParent ..;
+}
+
+global proc getInlineFile(string $attrName, string $nodeName)
+{
+	string $aFileName = `fileDialog -dm "*.mb"`;
+	string $refs[] = `ls -type "reference"`;
+	int $desInt = size($refs);
+	string $desig = "x3dInline_"+$desInt+"_";
+	if($aFileName != "")
+	{
+		string $refName = `file -r -type "mayaBinary" -gr -namespace $desig $aFileName`;
+		evalDeferred("moveUrlRefNodes "+$attrName+" "+$nodeName+" \""+$refName+"\" "+$desig);
+	}
+}
+
+global proc moveUrlRefNodes(string $attrName, string $nodeName, string $refName, string $desig)
+{
+		
+	if($refName != "")
+	{
+		connectAttr ($desig+"RN.message") ($nodeName+".isHistoricallyInteresting");
+		string $topParent = ($desig+"RNgroup");
+		string $inLines[] = `listRelatives -c $topParent`;
+
+		int $inlInt = size($inLines);
+		int $i;
+			for($i=0;$i<$inlInt;$i++)
+			{
+				parent -w $inLines[$i];
+				parent $inLines[$i] $nodeName;
+			}
+			delete $topParent;
+		select $nodeName;
+		setAttr $attrName -type "string" $refName;
+	}
+}
+
+global proc removeInlineFile(string $attrName)
+{
+	string $fileName = `getAttr $attrName`;
+	file -rr $fileName;
+	setAttr $attrName -type "string" "";
+}

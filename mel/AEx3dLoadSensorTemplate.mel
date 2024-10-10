@@ -1,0 +1,595 @@
+//
+// Copyright (C) 2004-2005 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: AEx3dLoadSensorTemplate.mel
+//
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+global proc AEx3dLoadSensorTemplateNew( string $attrName )
+{
+	string $nodeName[];
+	tokenize($attrName, ".", $nodeName);
+	setUITemplate -pst attributeEditorPresetsTemplate;
+	if($nodeName[1] == "images"){
+		buildLoadSensorImages($nodeName[0], $attrName);
+	}
+	if($nodeName[1] == "movies"){
+		buildLoadSensorMovies($nodeName[0], $attrName);
+	}
+	if($nodeName[1] == "audios"){
+		buildLoadSensorAudios($nodeName[0], $attrName);
+	}
+	if($nodeName[1] == "inlines"){
+		buildLoadSensorInlines($nodeName[0], $attrName);
+	}
+	setUITemplate -ppt;
+}
+
+global proc AEx3dLoadSensorTemplateReplace( string $attrName )
+{
+	string $nodeName[];
+	tokenize($attrName, ".", $nodeName);
+	if($nodeName[1] == "images"){
+		deleteUI -lay imCol;
+		buildLoadSensorImages($nodeName[0], $attrName);
+	}
+	if($nodeName[1] == "movies"){
+		deleteUI -lay moCol;
+		buildLoadSensorMovies($nodeName[0], $attrName);
+	}
+	if($nodeName[1] == "audios"){
+		deleteUI -lay auCol;
+		buildLoadSensorAudios($nodeName[0], $attrName);
+	}
+	if($nodeName[1] == "inlines"){
+		deleteUI -lay inCol;
+		buildLoadSensorInlines($nodeName[0], $attrName);
+	}
+//	if($nodeName[1] == "watchList")
+//	{
+//		deleteUI -lay wlRow;
+//		buildLoadSensorWatchList($nodeName[0], $attrName);
+//	}
+}
+
+
+global proc AEx3dLoadSensorTemplate( string $nodeName )
+{
+	editorTemplate -beginScrollLayout;
+		editorTemplate -addControl "enabled";
+		editorTemplate -addControl "timeOut";
+		
+		editorTemplate -as;
+		editorTemplate -beginLayout "ImageTexture Nodes To Watch" -collapse false;
+			editorTemplate -callCustom "AEx3dLoadSensorTemplateNew" "AEx3dLoadSensorTemplateReplace" "images";
+		editorTemplate -endLayout;
+		
+		editorTemplate -as;
+		editorTemplate -beginLayout "MovieTexture Nodes To Watch" -collapse false;
+			editorTemplate -callCustom "AEx3dLoadSensorTemplateNew" "AEx3dLoadSensorTemplateReplace" "movies";
+		editorTemplate -endLayout;
+		
+		editorTemplate -as;
+		editorTemplate -beginLayout "AudioClip Nodes To Watch" -collapse false;
+			editorTemplate -callCustom "AEx3dLoadSensorTemplateNew" "AEx3dLoadSensorTemplateReplace" "audios";
+		editorTemplate -endLayout;
+		
+		editorTemplate -as;
+		editorTemplate -beginLayout "Inline Nodes To Watch" -collapse false;
+			editorTemplate -callCustom "AEx3dLoadSensorTemplateNew" "AEx3dLoadSensorTemplateReplace" "inlines";
+		editorTemplate -endLayout;
+		
+		editorTemplate -aec -ecl "Extra Attributes";
+		editorTemplate -suppress "watchList";
+		editorTemplate -suppress "images";
+		editorTemplate -suppress "movies";
+		editorTemplate -suppress "audios";
+		editorTemplate -suppress "inlines";
+		x3dOptionSuppression();
+	editorTemplate -endLayout;
+}
+
+global proc setLSFirstRow()
+{
+       	rowLayout -nc 5 -cw5 190 10 50 10 190;
+       		text -l "Watched ";
+       		text -l " ";
+       		text -l " ";
+       		text -l " ";
+       		text -l "Unwatched";
+	setParent ..;
+}
+
+global proc setLSSensorLayout(string $nn, string $attr)
+{
+	text -l " ";
+        	columnLayout;
+        		button -l "<- All    " -c ("lsWatchAllNodes "+$nn+" "+$attr);
+        		button -l "<- Sel   " -c ("lsWatchSelectedNodes "+$nn+" "+$attr);
+        		text -l " ";
+        		button -l "   All -> " -c ("lsUnwatchAllNodes "+$nn+" "+$attr);
+        		button -l "   Sel ->" -c ("lsUnwatchSelectedNodes "+$nn+" "+$attr);
+        	setParent ..;
+	text -l " ";
+}
+
+global proc buildLoadSensorImages(string $nn, string $attr)
+{
+	columnLayout -rs 2 imCol;
+		setLSFirstRow();
+        	rowLayout -nc 5 -cw5 190 10 50 10 190 imRow;
+        		textScrollList -nr 10 -ams true wIMList;
+				setLSSensorLayout($nn, $attr);
+        		textScrollList -nr 10 -ams true uwIMList;
+        	setParent ..;
+	setParent ..;
+	setLSLeftScrollList($nn, $attr);
+	setLSRightScrollList($nn, $attr);
+}
+
+global proc buildLoadSensorMovies(string $nn, string $attr)
+{
+	columnLayout -rs 2 moCol;
+		setLSFirstRow();
+        	rowLayout -nc 5 -cw5 190 10 50 10 190 moRow;
+        		textScrollList -nr 10 -ams true wMOList;
+				setLSSensorLayout($nn, $attr);
+        		textScrollList -nr 10 -ams true uwMOList;
+        	setParent ..;
+	setParent ..;
+	setLSLeftScrollList($nn, $attr);
+	setLSRightScrollList($nn, $attr);
+}
+
+global proc buildLoadSensorAudios(string $nn, string $attr)
+{
+	columnLayout -rs 2 auCol;
+		setLSFirstRow();
+        	rowLayout -nc 5 -cw5 190 10 50 10 190;
+        		textScrollList -nr 10 -ams true wAUList;
+				setLSSensorLayout($nn, $attr);
+        		textScrollList -nr 10 -ams true uwAUList;
+        	setParent ..;
+	setParent ..;	
+	setLSLeftScrollList($nn, $attr);
+	setLSRightScrollList($nn, $attr);
+}
+
+global proc buildLoadSensorInlines(string $nn, string $attr)
+{
+	columnLayout -rs 2 inCol;
+		setLSFirstRow();
+        	rowLayout -nc 5 -cw5 190 10 50 10 190 inRow;
+        		textScrollList -nr 10 -ams true wINList;
+				setLSSensorLayout($nn, $attr);
+        		textScrollList -nr 10 -ams true uwINList;
+        	setParent ..;
+	setParent ..;	
+	setLSLeftScrollList($nn, $attr);
+	setLSRightScrollList($nn, $attr);
+}
+
+global proc setLSLeftScrollList(string $nn, string $attr)
+{
+	string $attr1[];
+	tokenize($attr, ".", $attr1);
+	
+	string $wstring = `getAttr $attr`;
+	string $wNames[];
+	tokenize($wstring, "*", $wNames);
+	
+	switch($attr1[1])
+	{
+		case "images":
+			textScrollList -e -ra wIMList;
+			break;
+		case "movies":
+			textScrollList -e -ra wMOList;
+			break;
+		case "audios":
+			textScrollList -e -ra wAUList;
+			break;
+		case "inlines":
+			textScrollList -e -ra wINList;
+			break;
+		default:
+			break;
+	}
+	
+	if($attr1[1] == "images" && $wstring!="" && $wstring != "*")
+	{
+		int $nu = false;
+		string $tString = "";
+		int $i;
+		for($i=0;$i<size($wNames);$i++)
+		{
+			print("System out: "+$wNames[$i]+"\n");
+			int $to = `getAttr ($wNames[$i]+".textureOption")`;
+			if(!$to)
+			{
+				$tString = $tString+$wNames[$i]+"*";
+			}
+			else
+			{
+				$nu = $to;
+			}
+		}
+		if($nu)
+		{
+			setAttr $attr $tString;
+			setLSLeftScrollList($nn, $attr);
+		}
+		else
+		{
+			for($i=0;$i<size($wNames);$i++)
+			{
+				string $x3dName = $wNames[$i];
+				string $tName = `nodeType $wNames[$i]`;
+				if($tName != "file")
+				{
+					$x3dName = $x3dName+"_rawkee_export";
+				}
+				textScrollList -e -append $x3dName wIMList;
+			}
+		}
+	}
+	else if($wstring!="" && $wstring != "*")
+	{
+		int $i;
+		for($i=0;$i<size($wNames);$i++)
+		{
+			if($attr1[1] == "movies")
+			{
+				textScrollList -e -append $wNames[$i] wMOList;
+			}
+			if($attr1[1] == "audios")
+			{
+				textScrollList -e -append $wNames[$i] wAUList;
+			}
+			if($attr1[1] == "inlines")
+			{
+				textScrollList -e -append $wNames[$i] wINList;
+			}
+		}
+	}
+}
+
+global proc setLSRightScrollList(string $nn, string $attr)
+{
+	string $attr1[];
+	tokenize($attr, ".", $attr1);
+	
+	string $wstring = `getAttr $attr`;
+	string $wNames[];
+	tokenize($wstring, "*", $wNames);
+	
+	string $allNodes[] = getX3DNodesInScene($attr);
+	
+	if(size($allNodes) != 0)
+	{
+	if($attr1[1] == "images")
+	{
+		textScrollList -e -ra uwIMList;
+		int $j;
+		int $i;
+		int $k = 0;
+		for($i=0;$i<size($allNodes); $i++)
+		{
+			int $found = false;
+			for($j=0;$j<size($wNames);$j++)
+			{
+				if($allNodes[$i] == $wNames[$j]) $found = true;
+			}
+			if(!$found)
+			{
+				int $to = `getAttr ($allNodes[$i]+".textureOption")`;
+				if(!$to)
+				{
+					string $x3dName = $allNodes[$i];
+					string $tName = `nodeType $allNodes[$i]`;
+					if($tName != "file")
+					{
+						$x3dName = $x3dName+"_rawkee_export";
+					}
+					textScrollList -e -append $x3dName uwIMList;
+				}
+			}
+		}
+	}
+	else
+	{
+		int $j;
+		int $i;
+		int $k = 0;
+		
+		switch($attr1[1])
+		{
+			case "movies":
+				textScrollList -e -ra uwMOList;
+				break;
+			case "audios":
+				textScrollList -e -ra uwAUList;
+				break;
+			case "inlines":
+				textScrollList -e -ra uwINList;
+				break;
+			default:
+				break;
+		}
+		for($i=0;$i<size($allNodes); $i++)
+		{
+			int $found = false;
+			for($j=0;$j<size($wNames);$j++)
+			{
+				if($allNodes[$i] == $wNames[$j]) $found = true;
+			}
+			if(!$found)
+			{
+				switch($attr1[1])
+				{
+					case "movies":
+						textScrollList -e -append $allNodes[$i] uwMOList;
+						break;
+					case "audios":
+						textScrollList -e -append $allNodes[$i] uwAUList;
+						break;
+					case "inlines":
+						textScrollList -e -append $allNodes[$i] uwINList;
+						break;
+					default:
+						break;
+				}
+			}
+		}
+	}	
+	}
+}
+
+global proc string[] getX3DNodesInScene(string $attr)
+{
+	string $allNodes[];
+	
+	string $attr1[];
+	tokenize($attr, ".", $attr1);
+	
+	switch($attr1[1])
+	{
+		case "images":
+			$allNodes = `ls -et "file" -et "bulge" -et "checker" -et "cloth" -et "fluidTexture2D" -et "fractal" -et "grid" -et "mountain" -et "noise" -et "ocean" -et "ramp" -et "water"`;
+			break;
+		case "movies":
+			$allNodes = `ls -et "movie"`;
+			break;
+		case "audios":
+			$allNodes = `ls -et "audio"`;
+			break;
+		case "inlines":
+			$allNodes = `ls -et "x3dInline"`;
+			break;
+		default:
+			break;
+	}
+		
+	return $allNodes;
+}
+global proc lsWatchAllNodes(string $nn, string $attr)
+{
+	string $allNodes[] = getX3DNodesInScene($attr);
+	
+	if(size($allNodes) !=0)
+	{
+		string $attr1[];
+		tokenize($attr, ".", $attr1);
+		int $j = 0;
+		if($attr1[1] == "images")
+		{
+			string $newNodes[];
+			int $i;
+			for($i=0;$i<size($allNodes);$i++)
+			{
+				int $to = `getAttr ($allNodes[$i]+".textureOption")`;
+				if(!$to)
+				{
+					$newNodes[$j] = $allNodes[$i];
+					$j = $j + 1;
+				}
+			}
+			$allNodes = $newNodes;
+		}
+		
+		string $newValue = "";
+		int $i;
+		for($i=0;$i<size($allNodes);$i++)
+		{
+			$newValue = $newValue + $allNodes[$i] + "*";
+		}
+		setAttr $attr -type "string" $newValue;
+		setLSLeftScrollList($nn, $attr);
+		setLSRightScrollList($nn, $attr);
+	}
+}
+
+global proc lsUnwatchAllNodes(string $nn, string $attr)
+{
+	setAttr $attr -type "string" "";
+	setLSLeftScrollList($nn, $attr);
+	setLSRightScrollList($nn, $attr);
+}
+
+global proc lsWatchSelectedNodes(string $nn, string $attr)
+{
+	print("Button Pressed\n");
+	string $tsl = "";
+	
+	string $attr1[];
+	tokenize($attr, ".", $attr1);
+	
+	switch($attr1[1])
+	{
+		case "images":
+			$tsl = "uwIMList";
+			break;
+		case "movies":
+			$tsl = "uwMOList";
+			break;
+		case "audios":
+			$tsl = "uwAUList";
+			break;
+		case "inlines":
+			$tsl = "uwINList";
+			break;
+		default:
+			break;
+	}
+	if($attr1[1] == "images")
+	{
+		string $someNodes[] = getX3DNodesInScene($attr);
+		string $oNodes[];
+		string $tNodes[];
+		int $i;
+		int $j = 0;
+		for($i=0;$i<size($someNodes);$i++)
+		{
+			int $to = `getAttr ($someNodes[$i]+".textureOption")`;
+			if(!$to)
+			{
+				$oNodes[$j] = $someNodes[$i];
+				$j = $j+1;
+			}
+		}
+		
+		for($i=0;$i<size($oNodes);$i++)
+		{
+			string $nt = `nodeType $oNodes[$i]`;
+			if($nt != "file")
+			{
+				$tNodes[$i] = $oNodes[$i]+"_rawkee_export";
+			}
+			else $tNodes[$i] = $oNodes[$i];
+		}
+		
+		string $attrValue = `getAttr $attr`;
+		string $values[] = `textScrollList -q -si $tsl`;
+		for($i=0;$i<size($values);$i++)
+		{
+			for($j=0;$j<size($tNodes);$j++)
+			{
+				if($values[$i] == $tNodes[$j]) $attrValue = $attrValue + $oNodes[$j]+ "*";
+			}
+		}
+		setAttr $attr -type "string" $attrValue;
+	}
+	else
+	{
+		string $values[] = `textScrollList -q -si $tsl`;
+		string $attrValue = `getAttr $attr`;
+		int $i;
+		for($i=0;$i<size($values);$i++)
+		{
+			$attrValue = $attrValue + $values[$i] + "*";
+		}
+		setAttr $attr -type "string" $attrValue;
+	}
+	
+	setLSLeftScrollList($nn, $attr);
+	setLSRightScrollList($nn, $attr);
+}
+
+global proc lsUnwatchSelectedNodes(string $nn, string $attr)
+{
+	string $attr1[];
+	tokenize($attr, ".", $attr1);
+	string $tsl = "";
+	switch($attr1[1])
+	{
+		case "images":
+			$tsl = "wIMList";
+			break;
+		case "movies":
+			$tsl = "wMOList";
+			break;
+		case "audios":
+			$tsl = "wAUList";
+			break;
+		case "inlines":
+			$tsl = "wINList";
+			break;
+		default:
+			break;
+	}
+	
+	string $values[] = `textScrollList -q -si $tsl`;
+	string $attrValue = `getAttr $attr`;
+	string $avChop[];
+	tokenize($attrValue, "*", $avChop);
+	
+	if($attr1[1] == "images")
+	{
+		string $oNodes[];
+		string $tNodes[];
+		int $i;
+		int $j = 0;
+		for($i=0;$i<size($avChop);$i++)
+		{
+			int $to = `getAttr ($avChop[$i]+".textureOption")`;
+			if(!$to)
+			{
+				$oNodes[$j] = $avChop[$i];
+				$j = $j+1;
+			}
+		}
+		
+		for($i=0;$i<size($oNodes);$i++)
+		{
+			string $nt = `nodeType $oNodes[$i]`;
+			if($nt != "file") $tNodes[$i] = $oNodes[$i]+"_rawkee_export";
+			else $tNodes[$i] = $oNodes[$i];
+		}
+		
+		$attrValue = "";
+		for($i=0;$i<size($tNodes);$i++)
+		{
+			int $doesMatch = false;
+			for($j=0;$j<size($values);$j++) if($tNodes[$i] == $values[$j]) $doesMatch = true;
+			if(!$doesMatch) $attrValue = $attrValue + $oNodes[$i]+ "*";
+		}
+		setAttr $attr -type "string" $attrValue;
+	}
+	else
+	{
+		$attrValue = "";
+		int $i;
+		for($i=0;$i<size($avChop);$i++)
+		{
+			int $j;
+			int $doesMatch = false;
+			for($j=0;$j<size($values);$j++) if($avChop[$i] == $values[$j]) $doesMatch = true;
+			if(!$doesMatch) $attrValue = $attrValue + $avChop[$i] + "*";
+		}
+		setAttr $attr -type "string" $attrValue;
+	}
+	setLSLeftScrollList($nn, $attr);
+	setLSRightScrollList($nn, $attr);
+}
+

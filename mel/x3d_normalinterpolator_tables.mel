@@ -1,0 +1,118 @@
+//
+// Copyright (C) 2004-2005 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_normalinterpolator_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftNormalInterpolatorX3D[];
+global string $inNormalInterpolatorX3D[];
+global string $outNormalInterpolatorX3D[];
+
+//---------------------------------
+//Array of Field Types for X3D NormalInterpolator - table
+//---------------------------------
+$ftNormalInterpolatorX3D[0] =  "SFFloat";
+$ftNormalInterpolatorX3D[1] =  "MFFloat";
+$ftNormalInterpolatorX3D[2] =  "MFVec3f";
+$ftNormalInterpolatorX3D[3] =  "SFNode";
+$ftNormalInterpolatorX3D[4] =  "MFVec3f";
+
+//-----------------------------------
+//Array of event in names for X3D NormalInterpolator Field Types - table
+//-----------------------------------
+$inNormalInterpolatorX3D[0] =  "set_fraction";			//[in,out]
+$inNormalInterpolatorX3D[1] =  "set_key";				//[in,out]
+$inNormalInterpolatorX3D[2] =  "set_keyValue";				//[in,out]
+$inNormalInterpolatorX3D[3] =  "set_metadata";	//[out]
+$inNormalInterpolatorX3D[4] =  "value_changed";		//[out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event out names for X3D NormalInterpolator Field Types - table
+//-----------------------------------
+$outNormalInterpolatorX3D[0] =  "set_fraction";	//[in,out]
+$outNormalInterpolatorX3D[1] =  "key_changed";		//[in,out]
+$outNormalInterpolatorX3D[2] =  "keyValue_changed";	//[in,out]
+$outNormalInterpolatorX3D[3] =  "metadata_changed";	//[out]
+$outNormalInterpolatorX3D[4] =  "value_changed";	//[out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event commands for X3D NormalInterpolator  - table
+//-----------------------------------
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//NormalInterpolator Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the NormalInterpolator eventOut submenu
+global proc buildNormalInterpolatorEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	global string $ftNormalInterpolatorX3D[];
+	global string $outNormalInterpolatorX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 1; $esi < 5; $esi++){
+		menuItem -l $outNormalInterpolatorX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outNormalInterpolatorX3D[$esi] + " " + $ftNormalInterpolatorX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the NormalInterpolator eventIn submenu
+global proc buildNormalInterpolatorEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	global string $ftNormalInterpolatorX3D[];
+	global string $inNormalInterpolatorX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<4;$esi++){
+		if($eoFieldTypeX3D == $ftNormalInterpolatorX3D[$esi])
+		{
+			menuItem -l $inNormalInterpolatorX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inNormalInterpolatorX3D[$esi] + " " + $ftNormalInterpolatorX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+
+

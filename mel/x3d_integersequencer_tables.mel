@@ -1,0 +1,124 @@
+//
+// Copyright (C) 2004-2005 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_integersequencer_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftIntegerSequencerX3D[];
+global string $inIntegerSequencerX3D[];
+global string $outIntegerSequencerX3D[];
+
+//---------------------------------
+//Array of Field Types for X3D IntegerSequencer - table
+//---------------------------------
+$ftIntegerSequencerX3D[0] =  "SFBool";
+$ftIntegerSequencerX3D[1] =  "SFBool";
+$ftIntegerSequencerX3D[2] =  "SFFloat";
+$ftIntegerSequencerX3D[3] =  "MFFloat";
+$ftIntegerSequencerX3D[4] =  "MFInt32";
+$ftIntegerSequencerX3D[5] =  "SFNode";
+$ftIntegerSequencerX3D[6] =  "SFBool";
+
+//-----------------------------------
+//Array of event in names for X3D IntegerSequencer Field Types - table
+//-----------------------------------
+$inIntegerSequencerX3D[0] =  "next";			//[in,out]
+$inIntegerSequencerX3D[1] =  "previous";				//[in,out]
+$inIntegerSequencerX3D[2] =  "set_fraction";				//[in,out]
+$inIntegerSequencerX3D[3] =  "set_key";	//[out]
+$inIntegerSequencerX3D[4] =  "set_keyValue";		//[out]
+$inIntegerSequencerX3D[5] =  "set_metadata";		//[out]
+$inIntegerSequencerX3D[6] =  "value_changed";		//[out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event out names for X3D IntegerSequencer Field Types - table
+//-----------------------------------
+$outIntegerSequencerX3D[0] =  "next";	//[in,out]
+$outIntegerSequencerX3D[1] =  "previous";		//[in,out]
+$outIntegerSequencerX3D[2] =  "set_fraction";	//[in,out]
+$outIntegerSequencerX3D[3] =  "key_changed";	//[out]
+$outIntegerSequencerX3D[4] =  "keyValue_changed";	//[out]
+$outIntegerSequencerX3D[5] =  "metadata_changed";	//[out]
+$outIntegerSequencerX3D[6] =  "value_changed";	//[out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event commands for X3D IntegerSequencer  - table
+//-----------------------------------
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//IntegerSequencer Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the IntegerSequencer eventOut submenu
+global proc buildIntegerSequencerEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	global string $ftIntegerSequencerX3D[];
+	global string $outIntegerSequencerX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 1; $esi < 7; $esi++){
+		menuItem -l $outIntegerSequencerX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outIntegerSequencerX3D[$esi] + " " + $ftIntegerSequencerX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the IntegerSequencer eventIn submenu
+global proc buildIntegerSequencerEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	global string $ftIntegerSequencerX3D[];
+	global string $inIntegerSequencerX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<6;$esi++){
+		if($eoFieldTypeX3D == $ftIntegerSequencerX3D[$esi])
+		{
+			menuItem -l $inIntegerSequencerX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inIntegerSequencerX3D[$esi] + " " + $ftIntegerSequencerX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+
+

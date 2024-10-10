@@ -1,0 +1,91 @@
+//
+// Copyright (C) 2004-2005 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: AEx3dSoundTemplate.mel
+//
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+global proc AEx3dSoundTemplateNew(string $attrName)
+{
+	string $nodeName[];
+	tokenize($attrName, ".", $nodeName);
+	setUITemplate -pst attributeEditorPresetsTemplate;
+	/*
+	if($nodeName[1] == "x3dCenter")
+	{
+		setCustomCenter($nodeName);
+	}
+	else if($nodeName[1] == "x3dSize")
+	{
+		setCustomSize($nodeName);
+	}
+	*/
+	setUITemplate -ppt;
+}
+
+global proc AEx3dSoundTemplateReplace(string $attrName)
+{
+	string $nodeName[];
+	tokenize($attrName, ".", $nodeName);
+	/*
+	if($nodeName[1] == "x3dCenter")
+	{
+		if(`rowLayout -q -exists centRow1`)
+		{
+			deleteUI centRow1;
+			deleteUI centRow2;
+			deleteUI centRow3;
+			setCustomCenter($nodeName);
+		}
+	}
+	else if($nodeName[1] == "x3dSize")
+	{
+		if(`rowLayout -q -exists sizeRow1`)
+		{
+			deleteUI sizeRow1;
+			deleteUI sizeRow2;
+			deleteUI sizeRow3;
+			setCustomSize($nodeName);
+		}
+	}
+	*/
+
+}
+
+global proc AEx3dSoundTemplate( string $nodeName )
+{
+     editorTemplate -beginScrollLayout;
+	 	editorTemplate -addControl "direction";
+	 	editorTemplate -addControl "intensity";
+		editorTemplate -addControl "location";
+		editorTemplate -addControl "maxBack";
+		editorTemplate -addControl "maxFront";
+		editorTemplate -addControl "minBack";
+		editorTemplate -addControl "minFront";
+		editorTemplate -addControl "priority";
+		editorTemplate -addControl "spatialize";
+		editorTemplate -aec -ecl "Extra Attributes";
+	 	x3dOptionSuppression();
+     editorTemplate -endLayout;
+}
+

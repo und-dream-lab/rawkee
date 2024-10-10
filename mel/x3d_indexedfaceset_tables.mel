@@ -1,0 +1,133 @@
+//
+// Copyright (C) 2004 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_indexedfaceset_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftIndexedFaceSetX3D[];
+global string $inIndexedFaceSetX3D[];
+global string $outIndexedFaceSetX3D[];
+
+//---------------------------------
+//Array of Field Types for X3D IndexedFaceSet - table
+//---------------------------------
+$ftIndexedFaceSetX3D[0] =  "MFInt32";
+$ftIndexedFaceSetX3D[1] =  "MFInt32";
+$ftIndexedFaceSetX3D[2] =  "MFInt32";
+$ftIndexedFaceSetX3D[3] =  "MFInt32";
+$ftIndexedFaceSetX3D[4] =  "SFNode";
+$ftIndexedFaceSetX3D[5] =  "SFNode";
+$ftIndexedFaceSetX3D[6] =  "SFNode";
+$ftIndexedFaceSetX3D[7] =  "SFNode";
+$ftIndexedFaceSetX3D[8] =  "SFNode";
+
+
+//-----------------------------------
+//Array of event in names for X3D IndexedFaceSet Field Types - table
+//-----------------------------------
+$inIndexedFaceSetX3D[0] =  "set_colorIndex";
+$inIndexedFaceSetX3D[1] =  "set_coordIndex";
+$inIndexedFaceSetX3D[2] =  "set_normalIndex";
+$inIndexedFaceSetX3D[3] =  "set_texCoordIndex";
+$inIndexedFaceSetX3D[4] =  "set_color";
+$inIndexedFaceSetX3D[5] =  "set_coord";
+$inIndexedFaceSetX3D[6] =  "set_metadata";
+$inIndexedFaceSetX3D[7] =  "set_normal";
+$inIndexedFaceSetX3D[8] =  "set_texCord";
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event out names for X3D IndexedFaceSet Field Types - table
+//-----------------------------------
+$outIndexedFaceSetX3D[0] =  "set_colorIndex";
+$outIndexedFaceSetX3D[1] =  "set_coordIndex";
+$outIndexedFaceSetX3D[2] =  "set_normalIndex";
+$outIndexedFaceSetX3D[3] =  "set_texCoordIndex";
+$outIndexedFaceSetX3D[4] =  "color_changed";
+$outIndexedFaceSetX3D[5] =  "coord_changed";
+$outIndexedFaceSetX3D[6] =  "metadata_changed";	
+$outIndexedFaceSetX3D[7] =  "normal_changed";
+$outIndexedFaceSetX3D[8] =  "texCoord_changed";
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event commands for X3D IndexedFaceSet  - table
+//-----------------------------------
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//IndexedFaceSet Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the IndexedFaceSet eventOut submenu
+global proc buildIndexedFaceSetEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	//nIndexedFaceSetX3D[] size = 9 (0-8); eventOut fields are 4-8;
+	global string $ftIndexedFaceSetX3D[];
+	global string $outIndexedFaceSetX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 4; $esi < 9; $esi++){
+		menuItem -l $outIndexedFaceSetX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outIndexedFaceSetX3D[$esi] + " " + $ftIndexedFaceSetX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the IndexedFaceSet eventIn submenu
+global proc buildIndexedFaceSetEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	//nIndexedFaceSetX3D[] size =9 (0-8); eventIn fields are 0-8;
+	global string $ftIndexedFaceSetX3D[];
+	global string $inIndexedFaceSetX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<9;$esi++){
+		if($eoFieldTypeX3D == $ftIndexedFaceSetX3D[$esi])
+		{
+			menuItem -l $inIndexedFaceSetX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inIndexedFaceSetX3D[$esi] + " " + $ftIndexedFaceSetX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+
+

@@ -1,0 +1,105 @@
+//
+// Copyright (C) 2004-2005 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: AEx3dColorTemplate.mel
+//
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+global proc AEx3dColorTemplateNew(string $attrName)
+{
+	string $nodeName[];
+	tokenize($attrName, ".", $nodeName);
+	setUITemplate -pst attributeEditorPresetsTemplate;
+	if($nodeName[1] == "color")
+	{
+		setUpColorDisplay($nodeName);
+	}
+	setUITemplate -ppt;
+}
+
+global proc AEx3dColorTemplateReplace(string $attrName)
+{
+	string $nodeName[];
+	tokenize($attrName, ".", $nodeName);
+	if($nodeName[1] == "color")
+	{
+		if(`rowLayout -q -exists colRow1`)
+		{
+			deleteUI colRow1;
+			deleteUI colRow2;
+			deleteUI colRow3;
+		}
+		setUpColorDisplay($nodeName);
+	}
+	
+}
+
+global proc AEx3dColorTemplate( string $nodeName )
+{
+     editorTemplate -beginScrollLayout;
+		editorTemplate -callCustom "AEx3dColorTemplateNew" "AEx3dColorTemplateReplace" "color";
+		editorTemplate -suppress "color";
+		editorTemplate -aec -ecl "Extra Attributes";
+		x3dMPxTransformSuppression();
+	 	x3dOptionSuppression();
+     editorTemplate -endLayout;
+}
+
+global proc setUpColorDisplay(string $nodeName[])
+{
+	rowLayout
+		-nc 3
+		-columnWidth3 10 400 40
+		-cl3 "left" "left" "left" colRow1;
+		text -l " ";
+		text -l " " -h 20 -fn "smallBoldLabelFont" -rs true -al "left";
+		text -l " ";
+	setParent ..;
+	
+	rowLayout
+		-nc 3
+		-columnWidth3 10 400 40
+		-cl3 "left" "left" "left" colRow2;
+		text -l " ";
+		text -l "List of Color Vectors" -h 20 -fn "smallBoldLabelFont" -rs true -al "left";
+		text -l " ";
+	setParent ..;
+	
+	rowLayout
+		-nc 3
+		-columnWidth3 10 400 40
+		-cl3 "left" "left" "left" colRow3;
+		text -l " ";
+		scrollField -tx "" -ww true -w 400 -h 100 colorScroll;
+		text -l " ";
+	setParent ..;
+	
+	string $ifsName[] = `listRelatives -p $nodeName[0]`; // gets IndexedFaceSet name
+	string $meshName[] = `listRelatives -p $ifsName[0]`; // gets mesh name
+
+//	string $colorList = checkTheColors($nodeName[0],0);
+	string $colorList = checkTheColors($meshName[0],0);
+	setAttr ($nodeName[0]+".color") -type "string" $colorList;
+	string $choppedList = chopColorList($colorList);
+	if(`scrollField -exists colorScroll`) scrollField -e -tx $choppedList -ww true -w 400 -h 100 colorScroll;
+}

@@ -1,0 +1,910 @@
+//
+// Copyright (C) 2004-2005 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_scenegraph_ui_tree.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+global string $mrMenu;
+global string $mrMenuTo;
+global string $eoMenu;
+global string $eiMenu;
+global string $sgScrollRowLayout;
+global string $statusText;
+global string $scrollLayout1;
+
+
+global string $sgScrollList;
+global string $rScrollList;
+global string $routeWell;
+
+global string $sgScrollListFrom;
+global string $sgScrollListTo;
+	
+createX3DIE_ScriptedPanelType();
+
+global proc deleteRouteListings()
+{
+	global string $sgScrollListFrom;
+	global string $sgScrollListTo;
+	global string $rScrollList;
+
+	string $toBeDeleted[] = `textScrollList -q -si $rScrollList`;
+
+	int $tbds = size($toBeDeleted);
+	int $i;
+	for($i=0;$i<$tbds;$i++)
+	{
+		if(`objExists $toBeDeleted[$i]`) delete $toBeDeleted[$i];
+	}
+	x3dListNodeRoutes();
+}
+
+global proc buildNewSGTree()
+{
+	global string $sgScrollList;
+	int $ue = `optionVar -q x3dUseEmpties`;
+	int $meta = `optionVar -q x3dExportMetadata`;
+	int $npv = `optionVar -q x3dNPV`;
+	int $format = `optionVar -q x3dEncoding`;
+	int $isfrom = `optionVar -q x3dIsFrom`;
+
+	int $rigid = `optionVar -q x3dRigidBodyExport`;
+	int $hAnim = `optionVar -q x3dHAnimExport`;
+	int $nsHAnim = `optionVar -q x3dNSHAnim`;
+	
+		
+	evalDeferred("createWeb3dTree -ue " + $ue + " -meta " + $meta + " -npv " + $npv + " -rb " + $rigid + " -ha "+ $hAnim + " -f " + $format + " -if " + $isfrom + " -upm 0 -nsha " + $nsHAnim); 
+}
+
+global proc loadFromNodeInterface(string $x3dTreeStrings)
+{
+	global string $sgScrollListFrom;
+	string $x3dTreeList[];
+	
+	tokenize($x3dTreeStrings, "*", $x3dTreeList);
+	int $i;
+	int $sizeSG = size($x3dTreeList);
+	if(`textScrollList -q -ex $sgScrollListFrom`)
+	{
+		textScrollList -e -ra $sgScrollListFrom;
+		for($i=0; $i<$sizeSG; $i++) textScrollList -e -append $x3dTreeList[$i] $sgScrollListFrom;
+	}
+}
+
+global proc loadToNodeInterface(string $x3dTreeStrings)
+{
+	global string $sgScrollListTo;
+	string $x3dTreeList[];
+
+	tokenize($x3dTreeStrings, "*", $x3dTreeList);
+	int $i;
+	int $sizeSG = size($x3dTreeList);
+	if(`textScrollList -q -ex $sgScrollListTo`)
+	{
+		textScrollList -e -ra $sgScrollListTo;
+		for($i=0; $i<$sizeSG; $i++) textScrollList -e -append $x3dTreeList[$i] $sgScrollListTo;
+	}
+}
+
+global proc x3dLoadToNodes()
+{
+	optionVar -iv x3dIsFrom 0;
+	buildNewSGTree();
+}
+
+global proc x3dLoadFromNodes()
+{
+	optionVar -iv x3dIsFrom 1;
+	buildNewSGTree();
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////
+// X3D Interaction Editor ScriptedPanel
+/////////////////////////////////////////////////////////////////////////////////////
+global proc createX3DIE_ScriptedPanelType()
+{
+	if ( ! `scriptedPanelType -q -exists x3dInteractionEditorPanelType` )
+	{
+		scriptedPanelType
+			-ccb x3dIECreate
+			-icb x3dIEInit
+			-acb x3dIEAdd
+			-rcb x3dIERemove
+			-dcb x3dIEDelete
+			-scb x3dIESave
+			-unique true
+			x3dInteractionEditorPanelType;
+	}
+	createX3DIE();
+}
+
+global proc createX3DIE()
+{
+	if(!`scriptedPanel -exists x3dInteractionEditorPanel`) scriptedPanel -unParent -mbv false -type x3dInteractionEditorPanelType -label "X3D Interaction Editor" x3dInteractionEditorPanel;
+}
+
+global proc x3dIECreate( string $panelName )
+{
+		global string $gRouteList;
+		global string $gRouteArray[];
+		global string $rStatus;
+		global string $hpPopUp;
+		
+		global int $x3dSGControlRow;
+		global int $x3dSGRouteListRow;
+		global string $sgScrollList;
+		global string $rScrollList;
+		global string $routeWell;
+		global string $mrMenu;
+		global string $mrMenuTo;
+		global string $sgScrollRowLayout;
+		global string $statusText;
+		global string $scrollLayout1;
+		global string $sgScrollListFrom;
+		global string $sgScrollListTo;
+
+}
+
+global proc x3dIEInit( string $panel )
+{
+		global string $gRouteList;
+		global string $gRouteArray[];
+		global string $rStatus;
+		global string $hpPopUp;
+		
+		global int $x3dSGControlRow;
+		global int $x3dSGRouteListRow;
+		global string $sgScrollList;
+		global string $rScrollList;
+		global string $routeWell;
+		global string $mrMenu;
+		global string $mrMenuTo;
+		global string $sgScrollRowLayout;
+		global string $statusText;
+		global string $scrollLayout1;
+		global string $sgScrollListFrom;
+		global string $sgScrollListTo;
+		
+
+}
+
+global proc x3dIEAdd( string $panelName )
+{
+		global string $gRouteList;
+		global string $gRouteArray[];
+		global string $rStatus;
+		global string $hpPopUp;
+		
+		global int $x3dSGControlRow;
+		global int $x3dSGRouteListRow;
+		global string $sgScrollList;
+		global string $rScrollList;
+		global string $routeWell;
+		global string $mrMenu;
+		global string $mrMenuTo;
+		global string $sgScrollRowLayout;
+		global string $statusText;
+		global string $scrollLayout1;
+		global string $sgScrollListFrom;
+		global string $sgScrollListTo;
+
+		string $ieForm = `formLayout`;
+		setParent $ieForm;
+		string $mbLayout = `menuBarLayout`;
+			menu -label "Options" optionsMenu;
+			setParent -menu optionsMenu;
+				menuItem -label "Show All Routes" -c "x3dShowAllRoutes";
+				menuItem -label "Show All Metadata" -c "x3dShowAllMetadata";
+				menuItem -label "Show All Materials" -c "x3dShowAllMaterials";
+				menuItem -label "Show All Textures" -c "x3dShowAllTextures";
+				menuItem -divider true;
+				menuItem -label "DAG Mode" -c ("showDAGLevel hyperGraphPanel1HyperGraphEd");
+				menuItem -label "DG Mode" -c ("showDGLevel hyperGraphPanel1HyperGraphEd");
+			setParent $mbLayout;
+			int $isTorn = `scriptedPanel -q -to x3dInteractionEditorPanel`;
+			if(!$isTorn)
+			{
+			menu -label "Panels";
+				menuItem -label "Tear off..." -c ("scriptedPanel -e -to x3dInteractionEditorPanel");
+			}
+		setParent $ieForm;
+ 			string $form = `formLayout`;
+			setParent $form;
+//			string $hyperX3D = `paneLayout -cn "vertical2" -p $form -ps 1 70 100 -ps 2 30 100 -st 2`; // -up hyperX3D;//-mbv true hyperX3D;
+			string $hyperX3D = `paneLayout -cn "single" -p $form`; // -up hyperX3D;//-mbv true hyperX3D;
+			setParent $form;
+
+			string $x3dSTL = `shelfTabLayout`;
+				shelfLayout -cw 35 -ch 35 Scene;
+					shelfButton -image1 "x3dViewpoint.bmp" -l "Viewpoint" -c "createX3DViewpoints"; //"x3dViewpoint.bmp" -l "Viewpoint" -c "createX3DViews"; 
+					shelfButton -image1 "x3dNavigationInfo.bmp" -l "NavigationInfo" -c "createX3DNavigationInfos";
+					shelfButton -image1 "x3dWorldInfo.bmp" -l "WorldInfo" -c "createX3DWorldInfos";
+					shelfButton -image1 "x3d_dirLight.bmp" -l "DirectionalLight" -c "createX3DDirectionalLights";
+					shelfButton -image1 "x3d_spotLight.bmp" -l "SpotLight" -c "createX3DSpotLights";
+					shelfButton -image1 "x3d_pointLight.bmp" -l "PointLight" -c "createX3DPointLights";
+				setParent ..;
+				shelfLayout -cw 35 -ch 35 Group;
+					shelfButton -image1 "x3d_trans.bmp" -l "Transform" -c "createX3DTransforms"; 
+					shelfButton -image1 "x3dGroup.bmp" -l "Group" -c "createX3DGroups";
+					shelfButton -image1 "x3dSwitch.bmp" -l "Switch" -c "createX3DSwitches";
+					shelfButton -image1 "x3dCollision.bmp" -l "Collision" -c "createX3DCollisions";
+					shelfButton -image1 "lodGroup.bmp" -l "LOD" -c "createX3DlodGroup";
+					shelfButton -image1 "x3dBillboard.bmp" -l "Billboard" -c "createX3DBillboards";
+				setParent ..;
+				shelfLayout -cw 35 -ch 35 Primitives;
+					shelfButton -image1 "x3dBox.bmp" -l "Box" -c "createX3DBoxes";
+					shelfButton -image1 "x3dCone.bmp" -l "Cone" -c "createX3DCones"; 
+					shelfButton -image1 "x3dCylinder.bmp" -l "Cylinder" -c "createX3DCylinders"; 
+					shelfButton -image1 "x3dSphere.bmp" -l "Sphere" -c "createX3DSpheres";
+					shelfButton -image1 "x3dIndexedFaceSet.bmp" -l "IndexedFaceSet" -c "createX3DIndexedFaceSets"; 
+				setParent ..;
+				shelfLayout -cw 35 -ch 35 Audio;
+					shelfButton -image1 "audioclip.bmp" -l "AudioClip" -c "createX3DAudioClips"; 
+					shelfButton -image1 "x3dSound.bmp" -l "Sound" -c "createX3DSounds"; 
+				setParent ..;
+				shelfLayout -cw 35 -ch 35 Networking;
+					shelfButton -image1 "x3dAnchor.bmp" -l "Anchor" -c "createX3DAnchors"; 
+					shelfButton -image1 "x3dInline.bmp" -l "Inline" -c "createX3DInlines"; 
+					shelfButton -image1 "x3dLoadSensor.bmp" -l "LoadSensor" -c "createX3DLoadSensors"; 
+				setParent ..;
+				shelfLayout -cw 35 -ch 35 "Event Utility";
+					shelfButton -image1 "x3dBooleanFilter.bmp" -l "BooleanFilter" -c "createX3DBooleanFilters"; 
+					shelfButton -image1 "x3dBooleanSequencer.bmp" -l "BooleanSequencer" -c "createX3DBooleanSequencers"; 
+					shelfButton -image1 "x3dBooleanToggle.bmp" -l "BooleanToggle" -c "createX3DBooleanToggles"; 
+					shelfButton -image1 "x3dBooleanTrigger.bmp" -l "BooleanTrigger" -c "createX3DBooleanTriggers"; 
+					shelfButton -image1 "x3dIntegerSequencer.bmp" -l "IntegerSequencer" -c "createX3DIntegerSequencers"; 
+					shelfButton -image1 "x3dIntegerTrigger.bmp" -l "IntegerTrigger" -c "createX3DIntegerTriggers"; 
+					shelfButton -image1 "x3dTimeTrigger.bmp" -l "TimeTrigger" -c "createX3DTimeTriggers"; 
+				setParent ..;
+//				shelfLayout -cw 35 -ch 35 X3D_HAnim;
+//				setParent ..;
+				shelfLayout -cw 35 -ch 35 Metadata;
+					shelfButton -image1 "x3dMetadataDouble.bmp" -l "MetadataDouble" -c "createX3DMetadataDoubles"; 
+					shelfButton -image1 "x3dMetadataFloat.bmp" -l "MetadataFloat" -c "createX3DMetadataFloats"; 
+					shelfButton -image1 "x3dMetadataInteger.bmp" -l "MetadataInteger" -c "createX3DMetadataIntegers"; 
+					shelfButton -image1 "x3dMetadataSet.bmp" -l "MetadataSet" -c "createX3DMetadataSets"; 
+					shelfButton -image1 "x3dMetadataString.bmp" -l "MetadataString" -c "createX3DMetadataStrings"; 
+				setParent ..;
+				shelfLayout -cw 35 -ch 35 Sensors;
+					shelfButton -image1 "x3dCylinderSensor.bmp" -l "CylinderSensor" -c "createX3DCylinderSensors";
+					shelfButton -image1 "x3dKeySensor.bmp" -l "KeySensor" -c "createX3DKeySensors";
+					shelfButton -image1 "x3dPlaneSensor.bmp" -l "PlaneSensor" -c "createX3DPlaneSensors";
+					shelfButton -image1 "x3dProximitySensor.bmp" -l "ProximitySensor" -c "createX3DProximitySensors";
+					shelfButton -image1 "x3dSphereSensor.bmp" -l "SphereSensor" -c "createX3DSphereSensors";
+					shelfButton -image1 "x3dStringSensor.bmp" -l "StringSensor" -c "createX3DStringSensors";
+					shelfButton -image1 "x3dTimesensor.bmp" -l "TimeSensor" -c "createX3DTimeSensors"; 
+					shelfButton -image1 "x3dTouchsensor.bmp" -l "TouchSensor" -c "createX3DTouchSensors";
+					shelfButton -image1 "x3dVisibilitySensor.bmp" -l "VisibilitySensor" -c "createX3DVisibilitySensors";
+					shelfButton -image1 "x3dGamepadSensor.bmp" -l "GamepadSensor" -c "createX3DGamepadSensors";
+				setParent ..;
+				shelfLayout -cw 35 -ch 35 Animation;
+					shelfButton -image1 "x3dColorInterpolator.bmp" -l "ColorInterpolator" -c "createX3DColorInterpolators"; 
+					shelfButton -image1 "x3dCoordinateInterpolator.bmp" -l "CoordinateInterpolator" -c "createX3DCoordinateInterpolators"; 
+					shelfButton -image1 "x3dNormalInterpolator.bmp" -l "NormalInterpolator" -c "createX3DNormalInterpolators"; 
+					shelfButton -image1 "x3dOrientationInterpolator.bmp" -l "OrientationInterpolator" -c "createX3DOrientationInterpolators"; 
+					shelfButton -image1 "x3dPositionInterpolator.bmp" -l "PositionInterpolator" -c "createX3DPositionInterpolators"; 
+					shelfButton -image1 "x3dScalarInterpolator.bmp" -l "ScalarInterpolator" -c "createX3DScalarInterpolators"; 
+				setParent ..;
+//				shelfLayout -cw 35 -ch 35 X3D_Geospatial;
+//				setParent ..;
+//				shelfLayout -cw 35 -ch 35 X3D_DIS;
+//				setParent ..;
+				shelfLayout -cw 35 -ch 35 "User Defined";
+					shelfButton -image1 "x3dScript.bmp" -l "Script" -c "createX3DScripts"; 
+				setParent ..;
+			setParent ..;
+			
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//
+//Routing User Interface changes for RawKee 1.0 Beta2
+//
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------			
+			
+		$x3dSGControlRow  = `optionVar -q "x3dSGControlRowValue"`;
+		$x3dSGRouteListRow = `optionVar -q "x3dSGRouteListRowValue"`;
+		
+		$statusText = `textField -tx ""`;
+		string $rwButton = `button -l " Clear Route Well " -w 100 -c "resetX3DRoutes"`;
+		$routeWell = `textField -tx "" -en false`;
+		
+		string $scrollForm = `formLayout`;
+		setParent $scrollForm;
+		
+		string $sgColumnLayout = `columnLayout -columnAttach "both" 5 -rowSpacing 10 -columnWidth 250`;
+		setParent $sgColumnLayout;
+		
+		string $sgColumn = `columnLayout -w 250`;
+		setParent $sgColumn;
+			string $sgLabel1 = `text -l "X3D Routing Interface" -al "left" -fn "boldLabelFont" -w 250`;
+			string $sgLabelSpace1 = `text -l " " -al "left" -fn "boldLabelFont" -w 250`;
+			string $sgLabelFrom = `text -l "From Node" -al "left" -fn "boldLabelFont" -w 250`;
+			$sgScrollListFrom = `textScrollList -nr 7 -w 220 -sc "x3dListNodeRoutes"`;		
+			rowLayout -nc 1 -ct1 "left" -cw1 250;
+				button -l "                        Load 'From' Node" -al "center" -w 240 -c "x3dLoadFromNodes";
+			setParent $sgColumn;
+			string $sgLabelSpace2 = `text -l " " -al "left" -fn "boldLabelFont" -w 250`;
+			string $sgLabelTo = `text -l "To Node" -al "left" -fn "boldLabelFont" -w 250`;
+			$sgScrollListTo = `textScrollList -nr 7 -w 220 -sc "x3dListNodeRoutes"`;		
+			rowLayout -nc 1 -ct1 "left" -cw1 250;
+				button -l "                          Load 'To' Node" -al "center" -w 240 -c "x3dLoadToNodes";
+			setParent $sgColumn;
+			string $sgLabelSpace3 = `text -l " " -al "left" -fn "boldLabelFont" -w 250`;
+			
+			string $sgLabel2 =`text -l "Route List" -w 100 -al "left" -fn "boldLabelFont"`;
+			$rScrollList = `textScrollList -nr 4 -w 220 -sc "displayRouteName" -dkc "deleteRouteListings"`;
+			
+			string $emptyText = `text -l " "`;
+
+			if ( `popupMenu -exists $mrMenu` )
+			{
+				popupMenu -e -dai $mrMenu;
+				deleteUI $mrMenu;
+			}
+
+			$mrMenu = `popupMenu -parent $sgScrollListFrom -pmc "x3dRoutingMenuDisplay 1"`;
+
+			if( `popupMenu -exists $mrMenuTo` )
+			{
+				popupMenu -e -dia $mrMenuTo;
+				deleteUI $mrMenuTo;
+			}
+			
+			$mrMenuTo = `popupMenu -parent $sgScrollListTo -pmc "x3dRoutingMenuDisplay 0"`;
+			
+		formLayout -e
+			-attachForm $sgColumnLayout "top" 0
+			-attachForm $sgColumnLayout "left" 0
+			-attachForm $sgColumnLayout "right" 0
+			-attachForm $sgColumnLayout "bottom" 0
+			$scrollForm;
+						
+		formLayout -e
+			-attachForm $mbLayout "top" 0
+			-attachForm $mbLayout "left" 0
+			-attachForm $mbLayout "right" 0
+			-attachNone $mbLayout "bottom"
+			
+			-attachControl $form "top" 1 $mbLayout
+			-attachForm $form "left" 0
+			-attachForm $form "right" 0
+			-attachForm $form "bottom" 0
+			$ieForm;
+		
+		formLayout -e -numberOfDivisions 100
+			-attachForm $x3dSTL "top" 0
+			-attachForm $x3dSTL "left" 0
+			-attachControl $x3dSTL "right" 2 $scrollForm
+			-attachNone $x3dSTL "bottom"
+			
+			-attachForm $scrollForm "top" 0
+			-attachNone $scrollForm "left"
+			-attachForm $scrollForm "right" 0
+			-attachControl $scrollForm "bottom" 0 $routeWell
+
+			-attachControl $hyperX3D "top" 2 $x3dSTL
+			-attachForm $hyperX3D "left" 0
+			-attachControl $hyperX3D "right" 2 $scrollForm
+			-attachControl $hyperX3D "bottom" 0 $rwButton
+
+			-attachNone $rwButton "top"
+			-attachForm $rwButton "left" 0
+			-attachNone $rwButton "right"
+			-attachControl $rwButton "bottom" 2 $statusText
+			
+			-attachNone $routeWell "top"
+			-attachControl $routeWell "left" 2 $rwButton
+			-attachForm $routeWell "right" 0
+			-attachControl $routeWell "bottom" 2 $statusText
+						
+			-attachNone $statusText "top"
+			-attachForm $statusText "left" 0
+			-attachForm $statusText "right" 0
+			-attachForm $statusText "bottom" 0
+		
+			$form;
+		
+		setParent ..;
+		shelfTabLayout -e -sti 2 $x3dSTL;
+		shelfTabLayout -e -sti 1 $x3dSTL;
+		scriptedPanel -e -up hyperGraphPanel1;
+		hyperGraph -edit -showShapes 1 hyperGraphPanel1HyperGraphEd;
+		hyperGraph -edit -showUnderworld  1 hyperGraphPanel1HyperGraphEd;
+		scriptedPanel -e -p $hyperX3D hyperGraphPanel1;
+		paneLayout -e -setPane hyperGraphPanel1 1 $hyperX3D;
+		
+//----------------------------------------------------------------------------
+//End RawKee 1.0 Beta2 Changes
+//----------------------------------------------------------------------------		
+}
+
+global proc x3dIERemove( string $panelName )
+{
+		global string $gRouteList;
+		global string $gRouteArray[];
+		global string $rStatus;
+		global string $hpPopUp;
+		
+		global int $x3dSGControlRow;
+		global int $x3dSGRouteListRow;
+		global string $sgScrollList;
+		global string $rScrollList;
+		global string $routeWell;
+		global string $mrMenu;
+		global string $mrMenuTo;
+		global string $sgScrollRowLayout;
+		global string $statusText;
+		global string $scrollLayout1;
+		global string $sgScrollListFrom;
+		global string $sgScrollListTo;
+}
+
+global proc x3dIEDelete( string $panelName )
+{
+		global string $gRouteList;
+		global string $gRouteArray[];
+		global string $rStatus;
+		global string $hpPopUp;
+		
+		global int $x3dSGControlRow;
+		global int $x3dSGRouteListRow;
+		global string $sgScrollList;
+		global string $rScrollList;
+		global string $routeWell;
+		global string $mrMenu;
+		global string $mrMenuTo;
+		global string $sgScrollRowLayout;
+		global string $statusText;
+		global string $scrollLayout1;
+		global string $sgScrollListFrom;
+		global string $sgScrollListTo;
+}
+
+global proc string x3dIESave( string $panelName )
+{
+		global string $gRouteList;
+		global string $gRouteArray[];
+		global string $rStatus;
+		global string $hpPopUp;
+		
+		global int $x3dSGControlRow;
+		global int $x3dSGRouteListRow;
+		global string $sgScrollList;
+		global string $rScrollList;
+		global string $routeWell;
+		global string $mrMenu;
+		global string $mrMenuTo;
+		global string $sgScrollRowLayout;
+		global string $statusText;
+		global string $scrollLayout1;
+		global string $sgScrollListFrom;
+		global string $sgScrollListTo;
+	return "";
+}
+
+global proc displayRouteName()
+{
+	global string $rScrollList;	
+	string $rNames[] = `textScrollList -q -si $rScrollList`;
+	if(size($rNames) > 0) x3dRouteInStatus($rNames[0]);
+}
+
+global proc x3dShowAllRoutes()
+{
+	select -cl;
+	string $rNodes[] = `ls -type "x3dRoute"`;
+	int $rnl = size($rNodes);
+	int $i;
+	for($i=0;$i<$rnl;$i++)
+	{
+		select -add $rNodes[$i];
+	}
+	hyperGraph -e -down hyperGraphPanel1HyperGraphEd;
+}
+
+global proc x3dShowAllMetadata()
+{
+	select -cl;
+	string $rNodes0[] = `ls -type "x3dMetadataDouble"`;
+	string $rNodes1[] = `ls -type "x3dMetadataFloat"`;
+	string $rNodes2[] = `ls -type "x3dMetadataInteger"`;
+	string $rNodes3[] = `ls -type "x3dMetadataSet"`;
+	string $rNodes4[] = `ls -type "x3dMetadataString"`;
+	int $rnl0 = size($rNodes0);
+	int $rnl1 = size($rNodes1);
+	int $rnl2 = size($rNodes2);
+	int $rnl3 = size($rNodes3);
+	int $rnl4 = size($rNodes4);
+	int $i;
+	for($i=0;$i<$rnl0;$i++)
+	{
+		select -add $rNodes0[$i];
+	}
+	
+	for($i=0;$i<$rnl1;$i++)
+	{
+		select -add $rNodes1[$i];
+	}
+	
+	for($i=0;$i<$rnl2;$i++)
+	{
+		select -add $rNodes2[$i];
+	}
+	
+	for($i=0;$i<$rnl3;$i++)
+	{
+		select -add $rNodes3[$i];
+	}
+	
+	for($i=0;$i<$rnl4;$i++)
+	{
+		select -add $rNodes4[$i];
+	}
+	
+	hyperGraph -e -down hyperGraphPanel1HyperGraphEd;
+}
+
+global proc x3dShowAllMaterials()
+{
+	select -cl;
+//	string $rNodes0[] = `ls -type "anisotropic"`;
+	string $rNodes1[] = `ls -type "blinn"`;
+	string $rNodes2[] = `ls -type "lambert"`;
+//	string $rNodes3[] = `ls -type "layeredShader"`;
+//	string $rNodes4[] = `ls -type "oceanShader"`;
+	string $rNodes5[] = `ls -type "phong"`;
+	string $rNodes6[] = `ls -type "phongE"`;
+//	string $rNodes7[] = `ls -type "rampShader"`;
+//	string $rNodes8[] = `ls -type "shadingMap"`;
+//	string $rNodes9[] = `ls -type "surfaceShader"`;
+//	string $rNodes10[] = `ls -type "useBackground"`;
+//	string $rNodes11[] = `ls -type "envFog"`;
+//	string $rNodes12[] = `ls -type "fluidShape"`;
+//	string $rNodes13[] = `ls -type "lightFog"`;
+//	string $rNodes14[] = `ls -type "particleCloud"`;
+//	string $rNodes15[] = `ls -type "volumeFog"`;
+//	string $rNodes16[] = `ls -type "volumeShader"`;
+//	string $rNodes17[] = `ls -type "displacement"`;
+	
+	int $i;
+/*	
+	int $rnl0 = size($rNodes0);
+	for($i=0;$i<$rnl0;$i++)
+	{
+		select -add $rNodes0[$i];
+	}
+	*/
+	int $rnl1 = size($rNodes1);
+	for($i=0;$i<$rnl1;$i++)
+	{
+		select -add $rNodes1[$i];
+	}
+	
+	int $rnl2 = size($rNodes2);
+	for($i=0;$i<$rnl2;$i++)
+	{
+		select -add $rNodes2[$i];
+	}
+/*	
+	int $rnl3 = size($rNodes3);
+	for($i=0;$i<$rn3;$i++)
+	{
+		select -add $rNodes3[$i];
+	}
+	
+	int $rnl4 = size($rNodes4);
+	for($i=0;$i<$rnl4;$i++)
+	{
+		select -add $rNodes4[$i];
+	}
+*/	
+	int $rnl5 = size($rNodes5);
+	for($i=0;$i<$rnl5;$i++)
+	{
+		select -add $rNodes5[$i];
+	}
+	
+	int $rnl6 = size($rNodes6);
+	for($i=0;$i<$rnl6;$i++)
+	{
+		select -add $rNodes6[$i];
+	}
+/*	
+	int $rnl7 = size($rNodes7);
+	for($i=0;$i<$rnl7;$i++)
+	{
+		select -add $rNodes7[$i];
+	}
+	
+	int $rnl8 = size($rNodes8);
+	for($i=0;$i<$rnl8;$i++)
+	{
+		select -add $rNodes8[$i];
+	}
+	
+	int $rnl9 = size($rNodes9);
+	for($i=0;$i<$rnl9;$i++)
+	{
+		select -add $rNodes9[$i];
+	}
+	
+	int $rnl10 = size($rNodes10);
+	for($i=0;$i<$rnl10;$i++)
+	{
+		select -add $rNodes10[$i];
+	}
+	
+	int $rnl11 = size($rNodes11);
+	for($i=0;$i<$rnl11;$i++)
+	{
+		select -add $rNodes11[$i];
+	}
+	
+	int $rnl12 = size($rNodes12);
+	for($i=0;$i<$rnl12;$i++)
+	{
+		select -add $rNodes12[$i];
+	}
+	
+	int $rnl13 = size($rNodes13);
+	for($i=0;$i<$rnl13;$i++)
+	{
+		select -add $rNodes13[$i];
+	}
+	
+	int $rnl14 = size($rNodes14);
+	for($i=0;$i<$rnl14;$i++)
+	{
+		select -add $rNodes14[$i];
+	}
+	
+	int $rnl15 = size($rNodes15);
+	for($i=0;$i<$rnl15;$i++)
+	{
+		select -add $rNodes15[$i];
+	}
+	
+	int $rnl16 = size($rNodes16);
+	for($i=0;$i<$rnl16;$i++)
+	{
+		select -add $rNodes16[$i];
+	}
+	
+	int $rnl17 = size($rNodes17);
+	for($i=0;$i<$rnl17;$i++)
+	{
+		select -add $rNodes17[$i];
+	}
+	*/
+	hyperGraph -e -down hyperGraphPanel1HyperGraphEd;
+	
+}
+
+global proc x3dListNodeRoutes()
+{
+	global string $sgScrollListFrom;
+	global string $sgScrollListTo;
+	global string $rScrollList;
+	
+	string $x3dFNName[] = `textScrollList -q -si $sgScrollListFrom`;
+	string $x3dTNName[] = `textScrollList -q -si $sgScrollListTo`;
+	
+	string $x3dRNames[] = `ls -type "x3dRoute"`;
+	string $x3dRNList[];
+	int $j=0;
+	int $i;
+	int $k = size($x3dRNames);
+	int $h1 = size($x3dFNName);
+	int $h2 = size($x3dTNName);
+	int $f;
+	int $t;
+	for($i=0;$i<$k;$i++)
+	{
+		int $found = 1;
+		for($f=0;$f<$h1;$f++)
+		{
+			string $chopName[];
+			tokenize($x3dFNName[$f], $chopName);
+			string $fromName = `getAttr ($x3dRNames[$i]+".fromNode")`;
+			string $toName = `getAttr ($x3dRNames[$i]+".toNode")`;
+			if($chopName[2] == $fromName || $chopName[2] == $toName)
+			{
+				$found = 0;
+				int $a = size($x3dRNList);
+				int $b;
+				for($b=0; $b<$a;$b++)
+				{
+					if($x3dRNList[$b]==$x3dRNames[$i]) $found = 1;
+				}
+			}
+		}
+		
+		for($t=0;$t<$h2;$t++)
+		{
+			string $chopName[];
+			tokenize($x3dTNName[$t], $chopName);
+			string $fromName = `getAttr ($x3dRNames[$i]+".fromNode")`;
+			string $toName = `getAttr ($x3dRNames[$i]+".toNode")`;
+			if($chopName[2] == $fromName || $chopName[2] == $toName)
+			{
+				$found = 0;
+				int $a = size($x3dRNList);
+				int $b;
+				for($b=0; $b<$a;$b++)
+				{
+					if($x3dRNList[$b]==$x3dRNames[$i]) $found = 1;
+				}
+			}
+		}
+		if($found==0)
+		{
+			$x3dRNList[$j] = $x3dRNames[$i];
+			$j=$j+1;
+		}
+	}
+	
+	textScrollList -e -ra $rScrollList;
+	for($i=0;$i<$j;$i++)
+	{
+		textScrollList -e -append $x3dRNList[$i] $rScrollList;
+	}
+
+}
+
+global proc x3dProcessSelectedRoute()
+{
+	global string $statusText;
+	
+	if(`textField -ex $statusText`)
+	{
+		string $routeList[] = `ls -sl -type x3dRoute`;
+		if(size($routeList) > 0) x3dRouteInStatus($routeList[0]);
+		else textField -e -tx "" $statusText;
+	}
+}
+
+global proc x3dRouteInStatus(string $routeName)
+{
+	global string $statusText;
+	
+	string $fromNode = `getAttr ($routeName + ".fromNode")`;
+	string $toNode = `getAttr ($routeName+".toNode")`;
+	string $fromVal = `getAttr ($routeName+".fromValue")`;
+	string $toVal = `getAttr ($routeName+".toValue")`;
+	string $fullRoute = "Route "+$fromNode+"."+$fromVal+" To "+$toNode+"."+$toVal;
+	if($fromNode!="" || $toNode!="") textField -e -tx $fullRoute $statusText;
+}
+
+global proc x3dShowAllTextures()
+{
+	select -cl;
+	string $rNodes0[] = `ls -type "bulge"`;
+	string $rNodes1[] = `ls -type "checker"`;
+	string $rNodes2[] = `ls -type "cloth"`;
+	string $rNodes3[] = `ls -type "file"`;
+//	string $rNodes4[] = `ls -type "fluidTexture2D"`;
+	string $rNodes5[] = `ls -type "fractal"`;
+	string $rNodes6[] = `ls -type "grid"`;
+//	string $rNodes7[] = `ls -type "mountain"`;
+	string $rNodes8[] = `ls -type "movie"`;
+	string $rNodes9[] = `ls -type "noise"`;
+//	string $rNodes10[] = `ls -type "ocean"`;
+//	string $rNodes11[] = `ls -type "ramp"`;
+	string $rNodes12[] = `ls -type "water"`;
+	
+	string $rNodes13[] = `ls -type "layeredTexture"`;
+	
+	int $rnl0 = size($rNodes0);
+	int $rnl1 = size($rNodes1);
+	int $rnl2 = size($rNodes2);
+	int $rnl3 = size($rNodes3);
+//	int $rnl4 = size($rNodes4);
+	int $rnl5 = size($rNodes5);
+	int $rnl6 = size($rNodes6);
+//	int $rnl7 = size($rNodes7);
+	int $rnl8 = size($rNodes8);
+	int $rnl9 = size($rNodes9);
+//	int $rnl10 = size($rNodes10);
+//	int $rnl11 = size($rNodes11);
+	int $rnl12 = size($rNodes12);
+	int $rnl13 = size($rNodes13);
+	
+	int $i;
+	
+	for($i=0;$i<$rnl0;$i++)
+	{
+		select -add $rNodes0[$i];
+	}
+	
+	for($i=0;$i<$rnl1;$i++)
+	{
+		select -add $rNodes1[$i];
+	}
+	
+	for($i=0;$i<$rnl2;$i++)
+	{
+		select -add $rNodes2[$i];
+	}
+	
+	for($i=0;$i<$rnl3;$i++)
+	{
+		select -add $rNodes3[$i];
+	}
+/*	
+	for($i=0;$i<$rnl4;$i++)
+	{
+		select -add $rNodes4[$i];
+	}
+	*/
+	for($i=0;$i<$rnl5;$i++)
+	{
+		select -add $rNodes5[$i];
+	}
+	
+	for($i=0;$i<$rnl6;$i++)
+	{
+		select -add $rNodes6[$i];
+	}
+/*	
+	for($i=0;$i<$rnl7;$i++)
+	{
+		select -add $rNodes7[$i];
+	}
+	*/
+	for($i=0;$i<$rnl8;$i++)
+	{
+		select -add $rNodes8[$i];
+	}
+	
+	for($i=0;$i<$rnl9;$i++)
+	{
+		select -add $rNodes9[$i];
+	}
+/*	
+	for($i=0;$i<$rnl10;$i++)
+	{
+		select -add $rNodes10[$i];
+	}
+	
+	for($i=0;$i<$rnl11;$i++)
+	{
+		select -add $rNodes11[$i];
+	}
+	*/
+	for($i=0;$i<$rnl12;$i++)
+	{
+		select -add $rNodes12[$i];
+	}
+	
+	for($i=0;$i<$rnl13;$i++)
+	{
+		select -add $rNodes13[$i];
+	}
+	
+	hyperGraph -e -down hyperGraphPanel1HyperGraphEd;
+	
+}
+
+

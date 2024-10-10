@@ -1,0 +1,105 @@
+//
+// Copyright (C) 2004-2005 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: AEx3dCoordinateTemplate.mel
+//
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+global proc AEx3dCoordinateTemplateNew(string $attrName)
+{
+	string $nodeName[];
+	tokenize($attrName, ".", $nodeName);
+	setUITemplate -pst attributeEditorPresetsTemplate;
+	if($nodeName[1] == "point")
+	{
+		setUpPointDisplay($nodeName);
+	}
+	setUITemplate -ppt;
+}
+
+global proc AEx3dCoordinateTemplateReplace(string $attrName)
+{
+	string $nodeName[];
+	tokenize($attrName, ".", $nodeName);
+	if($nodeName[1] == "point")
+	{
+		if(`rowLayout -q -exists ptRow1`)
+		{
+			deleteUI ptRow1;
+			deleteUI ptRow2;
+			deleteUI ptRow3;
+		}
+		setUpPointDisplay($nodeName);
+	}
+	
+}
+
+global proc AEx3dCoordinateTemplate( string $nodeName )
+{
+     editorTemplate -beginScrollLayout;
+		editorTemplate -callCustom "AEx3dCoordinateTemplateNew" "AEx3dCoordinateTemplateReplace" "point";
+		editorTemplate -suppress "point";
+		editorTemplate -aec -ecl "Extra Attributes";
+		x3dMPxTransformSuppression();
+	 	x3dOptionSuppression();
+     editorTemplate -endLayout;
+}
+
+global proc setUpPointDisplay(string $nodeName[])
+{
+	rowLayout
+		-nc 3
+		-columnWidth3 10 400 40
+		-cl3 "left" "left" "left" ptRow1;
+		text -l " ";
+		text -l " " -h 20 -fn "smallBoldLabelFont" -rs true -al "left";
+		text -l " ";
+	setParent ..;
+	
+	rowLayout
+		-nc 3
+		-columnWidth3 10 400 40
+		-cl3 "left" "left" "left" ptRow2;
+		text -l " ";
+		text -l "List of Coordinates" -h 20 -fn "smallBoldLabelFont" -rs true -al "left";
+		text -l " ";
+	setParent ..;
+	
+	rowLayout
+		-nc 3
+		-columnWidth3 10 400 40
+		-cl3 "left" "left" "left" ptRow3;
+		text -l " ";
+		scrollField -tx "" -ww true -w 400 -h 100 coordinateScroll;
+		text -l " ";
+	setParent ..;
+	
+	string $ifsName[] = `listRelatives -p $nodeName[0]`; // gets IndexedFaceSet name
+	string $meshName[] = `listRelatives -p $ifsName[0]`; // gets mesh name
+
+//	string $coordinateList = checkTheCoordinates($nodeName[0]);
+	string $coordinateList = checkTheCoordinates($meshName[0]);
+	setAttr ($nodeName[0]+".point") -type "string" $coordinateList;
+	string $choppedList = chopCoordList($coordinateList);
+	if(`scrollField -exists coordinateScroll`) scrollField -e -tx $choppedList -ww true -w 400 -h 100 coordinateScroll;
+}

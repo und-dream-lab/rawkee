@@ -1,0 +1,154 @@
+//
+// Copyright (C) 2004-2005 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: AEx3dMetadataStringTemplate.mel
+//
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+global proc AEx3dMetadataStringTemplateNew( string $attrName )
+{
+	string $nodeName[];
+	tokenize($attrName, ".", $nodeName);
+	setUITemplate -pst attributeEditorPresetsTemplate;
+	if($nodeName[1] == "value_cc"){
+		buildMetaStringValueButton($nodeName[0], $attrName);
+	}
+
+	if($nodeName[1] == "value")
+	{
+		buildMetaStringValues($nodeName[0], $attrName);
+	}
+	setUITemplate -ppt;
+}
+
+global proc AEx3dMetadataStringTemplateReplace( string $attrName )
+{
+	string $nodeName[];
+	tokenize($attrName, ".", $nodeName);
+	if($nodeName[1] == "valuButton")
+	{
+		deleteUI -lay vbRow1;
+		deleteUI -lay vbRow2;
+		buildMetaStringValueButton($nodeName[0], $attrName);
+	}
+	if($nodeName[1] == "value")
+	{
+		deleteUI -lay valRow;
+		buildMetaStringValues($nodeName[0], $attrName);
+	}
+	
+}
+
+global proc AEx3dMetadataStringTemplate( string $nodeName )
+{
+	editorTemplate -beginScrollLayout;
+		editorTemplate -addControl "name";
+		editorTemplate -addControl "reference";
+		editorTemplate -callCustom "AEx3dMetadataStringTemplateNew" "AEx3dMetadataStringTemplateReplace" "value_cc";
+		editorTemplate -callCustom "AEx3dMetadataStringTemplateNew" "AEx3dMetadataStringTemplateReplace" "value";
+		editorTemplate -aec -ecl "Extra Attributes";
+		editorTemplate -suppress "value_cc";
+		editorTemplate -suppress "value";
+		editorTemplate -suppress "x3dMetadataIn";
+		editorTemplate -suppress "x3dMetadataOut";
+		x3dOptionSuppression();
+	editorTemplate -endLayout;
+}
+
+global proc	buildMetaStringValues(string $nodeName, string $fullAttr)
+{
+	rowLayout
+		-nc 1
+		-cw1 450
+		-cl1 "left" valRow;
+		columnLayout;
+			int $len = `getAttr ($nodeName+".value_cc")`;
+			int $i;
+	
+			for($i=0;$i<$len;$i++)
+			{
+				string $sVal = `getAttr ($nodeName+".value["+$i+"]")`;
+				rowLayout
+					-nc 4
+					-cw4 10 120 310 10
+					-cl4 "left" "left" "left" "left";
+					text -l " " -w 10;
+					textField -tx $sVal -w 60 -cc ("changeX3DMetaString "+$nodeName+" "+$i) -ec ("changeX3DMetaString "+$nodeName+" "+$i) ("sField"+$i);
+					text -l " " -w 10;
+					text -l " " -w 10;
+				setParent ..;
+			}
+}
+
+global proc changeX3DMetaString(string $nodeName, string $index)
+{
+	int $i = (int)$index;
+	string $sVal = `textField -q -tx ("sField"+$i)`;
+	setAttr ($nodeName+".value["+$i+"]") -type "string" $sVal;
+	
+}
+
+global proc	buildMetaStringValueButton(string $nodeName, string $fullAttr)
+{
+	string $keyString = `getAttr $fullAttr`;
+	
+	rowLayout
+		-nc 3
+		-columnWidth3 10 400 40
+		-cl3 "left" "left" "left" vbRow1;
+		text -l " ";
+		text -l " " -h 20 -fn "smallBoldLabelFont" -rs true -al "left";
+		text -l " ";
+	setParent ..;
+	
+	rowLayout
+		-nc 5
+		-columnWidth5 100 100 50 100 100
+		-cl5 "left" "center" "center" "center" "left" vbRow2;
+		text -l " ";
+		button -l "Add a value" -c ("addMetaStringValue "+$nodeName);
+		text -l " ";
+		button -l "Remove a value" -c ("removeMetaStringValue "+$nodeName);
+		text -l " ";
+	setParent ..;
+	
+}
+
+global proc addMetaStringValue(string $nodeName)
+{
+	int $vLength = `getAttr ($nodeName+".value_cc")`;
+	$vLength = $vLength + 1;
+	setAttr ($nodeName+".value_cc") $vLength;
+	evalDeferred("resetAE");
+}
+
+global proc removeMetaStringValue(string $nodeName)
+{
+	int $vLength = `getAttr ($nodeName+".value_cc")`;
+	if($vLength > 0)
+	{
+		$vLength = $vLength -1;
+		setAttr ($nodeName+".value_cc") $vLength;
+		evalDeferred("resetAE");
+	}
+}

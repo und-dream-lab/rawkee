@@ -1,0 +1,135 @@
+//
+// Copyright (C) 2004 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_viewpoint_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftViewpointX3D[];
+global string $inViewpointX3D[];
+global string $outViewpointX3D[];
+
+//---------------------------------
+//Array of Field Types for X3D Viewpoint - table
+//---------------------------------
+$ftViewpointX3D[0] =  "SFBool";
+$ftViewpointX3D[1] =  "SFVec3f";
+$ftViewpointX3D[2] =  "SFString";
+$ftViewpointX3D[3] =  "SFFloat";
+$ftViewpointX3D[4] =  "SFBool";
+$ftViewpointX3D[5] =  "SFNode";
+$ftViewpointX3D[6] =  "SFRotation";
+$ftViewpointX3D[7] =  "SFVec3f";
+$ftViewpointX3D[8] =  "SFTime";
+$ftViewpointX3D[9] =  "SFBool";
+
+//-----------------------------------
+//Array of event in names for X3D Viewpoint Field Types - table
+//-----------------------------------
+$inViewpointX3D[0] =  "set_bind";				//[in]
+$inViewpointX3D[1] =  "set_centerOfRotation";	//[in,out]
+$inViewpointX3D[2] =  "set_description";		//[in,out]
+$inViewpointX3D[3] =  "set_fieldOfView";		//[in,out]
+$inViewpointX3D[4] =  "set_jump";				//[in,out]
+$inViewpointX3D[5] =  "set_metadata";			//[in,out]
+$inViewpointX3D[6] =  "set_orientation";		//[in,out]
+$inViewpointX3D[7] =  "set_position";			//[in,out]
+$inViewpointX3D[8] =  "bindTime";				//[out]
+$inViewpointX3D[9] =  "isBound";				//[out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event out names for X3D Viewpoint Field Types - table
+//-----------------------------------
+$outViewpointX3D[0] =  "set_bind";					//[in]
+$outViewpointX3D[1] =  "centerOfRotation_changed";	//[in,out]
+$outViewpointX3D[2] =  "description_changed";		//[in,out]
+$outViewpointX3D[3] =  "fieldOfView_changed";		//[in,out]
+$outViewpointX3D[4] =  "jump_changed";				//[in,out]
+$outViewpointX3D[5] =  "metadata_changed";			//[in,out]
+$outViewpointX3D[6] =  "orientation_changed";		//[in,out]
+$outViewpointX3D[7] =  "position_changed";			//[in,out]
+$outViewpointX3D[8] =  "bindTime";					//[out]
+$outViewpointX3D[9] =  "isBound";					//[out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event commands for X3D Viewpoint  - table
+//-----------------------------------
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//Viewpoint Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the Viewpoint eventOut submenu
+global proc buildViewpointEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	//nViewpointX3D[] size = 10 (0-9); eventOut fields are 1-9;
+	global string $ftViewpointX3D[];
+	global string $outViewpointX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 1; $esi < 10; $esi++){
+		menuItem -l $outViewpointX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outViewpointX3D[$esi] + " " + $ftViewpointX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the Viewpoint eventIn submenu
+global proc buildViewpointEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	//nViewpointX3D[] size = 10 (0-9); eventIn fields are 0-7;
+	global string $ftViewpointX3D[];
+	global string $inViewpointX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<8;$esi++){
+		if($eoFieldTypeX3D == $ftViewpointX3D[$esi])
+		{
+			menuItem -l $inViewpointX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inViewpointX3D[$esi] + " " + $ftViewpointX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+
+

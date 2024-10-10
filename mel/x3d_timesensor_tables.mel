@@ -1,0 +1,147 @@
+//
+// Copyright (C) 2004 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_timesensor_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftTimeSensorX3D[];
+global string $outTimeSensorX3D[];
+global string $inTimeSensorX3D[];
+
+//---------------------------------
+//Array of Field Types for X3D TimeSensor - table
+//---------------------------------
+$ftTimeSensorX3D[0] =  "SFTime";
+$ftTimeSensorX3D[1] =  "SFBool";
+$ftTimeSensorX3D[2] =  "SFBool";
+$ftTimeSensorX3D[3] =  "SFNode";
+$ftTimeSensorX3D[4] =  "SFTime";
+$ftTimeSensorX3D[5] =  "SFTime";
+$ftTimeSensorX3D[6] =  "SFTime";
+$ftTimeSensorX3D[7] =  "SFTime";
+$ftTimeSensorX3D[8] =  "SFTime";
+$ftTimeSensorX3D[9] =  "SFTime";
+$ftTimeSensorX3D[10] =  "SFFloat";
+$ftTimeSensorX3D[11] =  "SFBool";
+$ftTimeSensorX3D[12] =  "SFBool";
+$ftTimeSensorX3D[13] =  "SFTime";
+
+//-----------------------------------
+//Array of event in names for X3D TimeSensor Field Types - table
+//-----------------------------------
+$inTimeSensorX3D[0] =  "set_cycleInterval";	//[in,out]
+$inTimeSensorX3D[1] =  "set_enabled";		//[in,out]
+$inTimeSensorX3D[2] =  "set_loop";			//[in,out]
+$inTimeSensorX3D[3] =  "set_metadata";		//[in,out]
+$inTimeSensorX3D[4] =  "set_pauseTime";		//[in,out]
+$inTimeSensorX3D[5] =  "set_resumeTime";	//[in,out]
+$inTimeSensorX3D[6] =  "set_startTime";		//[in,out]
+$inTimeSensorX3D[7] =  "set_stopTime";		//[in,out]
+$inTimeSensorX3D[8] =  "cycleTime";			//[out]
+$inTimeSensorX3D[9] =  "elapsedTime";		//[out]
+$inTimeSensorX3D[10] = "fraction_changed";	//[out]
+$inTimeSensorX3D[11] = "isActive";			//[out]
+$inTimeSensorX3D[12] = "isPaused";			//[out]
+$inTimeSensorX3D[13] = "time";				//[out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event out names for X3D TimeSensor Field Types - table
+//-----------------------------------
+$outTimeSensorX3D[0] =  "cycleInterval_changed";	//[in,out]
+$outTimeSensorX3D[1] =  "enabled_changed";			//[in,out]
+$outTimeSensorX3D[2] =  "loop_changed";				//[in,out]
+$outTimeSensorX3D[3] =  "metadata_changed";			//[in,out]
+$outTimeSensorX3D[4] =  "pauseTime_changed";		//[in,out]
+$outTimeSensorX3D[5] =  "resumeTime_changed";		//[in,out]
+$outTimeSensorX3D[6] =  "startTime_changed";		//[in,out]
+$outTimeSensorX3D[7] =  "stopTime_changed";			//[in,out]
+$outTimeSensorX3D[8] =  "cycleTime";				//[out]
+$outTimeSensorX3D[9] =  "elapsedTime";				//[out]
+$outTimeSensorX3D[10] = "fraction_changed"; 		//[out]
+$outTimeSensorX3D[11] = "isActive";					//[out]
+$outTimeSensorX3D[12] = "isPaused";					//[out]
+$outTimeSensorX3D[13] = "time";						//[out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event commands for X3D TimeSensor  - table
+//-----------------------------------
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//TimeSensor Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the TimeSensor eventOut submenu
+global proc buildTimeSensorEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	//nTimeSensorX3D[] size = 14 (0-13); eventOut fields are 0-13;
+	global string $ftTimeSensorX3D[];
+	global string $outTimeSensorX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 0; $esi < 14; $esi++){
+		menuItem -l $outTimeSensorX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outTimeSensorX3D[$esi] + " " + $ftTimeSensorX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the TimeSensor eventIn submenu
+global proc buildTimeSensorEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	//nTimeSensorX3D[] size = 14 (0-13); eventIn fields are 0-7;
+	global string $ftTimeSensorX3D[];
+	global string $inTimeSensorX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<8;$esi++){
+		if($eoFieldTypeX3D == $ftTimeSensorX3D[$esi])
+		{
+			menuItem -l $inTimeSensorX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inTimeSensorX3D[$esi] + " " + $ftTimeSensorX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+
+

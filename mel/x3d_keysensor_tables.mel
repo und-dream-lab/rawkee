@@ -1,0 +1,133 @@
+//
+// Copyright (C) 2004-2005 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_keysensor_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftKeySensorX3D[];
+global string $inKeySensorX3D[];
+global string $outKeySensorX3D[];
+
+//---------------------------------
+//Array of Field Types for X3D KeySensor - table
+//---------------------------------
+$ftKeySensorX3D[0] =  "SFBool";
+$ftKeySensorX3D[1] =  "SFNode";
+$ftKeySensorX3D[2] =  "SFInt32";
+$ftKeySensorX3D[3] =  "SFint32";
+$ftKeySensorX3D[4] =  "SFBool";
+$ftKeySensorX3D[5] =  "SFBool";
+$ftKeySensorX3D[6] =  "SFBool";
+$ftKeySensorX3D[7] =  "SFString";
+$ftKeySensorX3D[8] =  "SFString";
+$ftKeySensorX3D[9] =  "SFBool";
+
+//-----------------------------------
+//Array of event in names for X3D KeySensor Field Types - table
+//-----------------------------------
+$inKeySensorX3D[0] =  "set_enabled";			//[in,out]
+$inKeySensorX3D[1] =  "set_metadata";				//[in,out]
+$inKeySensorX3D[2] =  "actionKeyPress";				//[in,out]
+$inKeySensorX3D[3] =  "actionKeyRelease";	//[out]
+$inKeySensorX3D[4] =  "altKey";		//[out]
+$inKeySensorX3D[5] =  "controlKey";	//[out]
+$inKeySensorX3D[6] =  "isActive";				//[out]
+$inKeySensorX3D[7] =  "keyPress";				//[out]
+$inKeySensorX3D[8] =  "keyRelease";			//[out]
+$inKeySensorX3D[9] =  "shiftKey";			//[out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event out names for X3D KeySensor Field Types - table
+//-----------------------------------
+$outKeySensorX3D[0] =  "enabled_changed";	//[in,out]
+$outKeySensorX3D[1] =  "metadata_changed";		//[in,out]
+$outKeySensorX3D[2] =  "actionKeyPress";	//[in,out]
+$outKeySensorX3D[3] =  "actionKeyRelease";	//[out]
+$outKeySensorX3D[4] =  "altKey";	//[out]
+$outKeySensorX3D[5] =  "controlKey";	//[out]
+$outKeySensorX3D[6] =  "isActive";			//[out]
+$outKeySensorX3D[7] =  "keyPress";				//[out]
+$outKeySensorX3D[8] =  "keyRelease";			//[out]
+$outKeySensorX3D[9] =  "shiftKey";			//[out]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event commands for X3D KeySensor  - table
+//-----------------------------------
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//KeySensor Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the KeySensor eventOut submenu
+global proc buildKeySensorEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	global string $ftKeySensorX3D[];
+	global string $outKeySensorX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 0; $esi < 10; $esi++){
+		menuItem -l $outKeySensorX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outKeySensorX3D[$esi] + " " + $ftKeySensorX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the KeySensor eventIn submenu
+global proc buildKeySensorEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	global string $ftKeySensorX3D[];
+	global string $inKeySensorX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<2;$esi++){
+		if($eoFieldTypeX3D == $ftKeySensorX3D[$esi])
+		{
+			menuItem -l $inKeySensorX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inKeySensorX3D[$esi] + " " + $ftKeySensorX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+
+

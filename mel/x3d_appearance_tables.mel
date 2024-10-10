@@ -1,0 +1,117 @@
+//
+// Copyright (C) 2004 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_appearance_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftAppearanceX3D[];
+global string $inAppearanceX3D[];
+global string $outAppearanceX3D[];
+
+//---------------------------------
+//Array of Field Types for X3D Appearances - table
+//---------------------------------
+$ftAppearanceX3D[0] =  "SFNode";
+$ftAppearanceX3D[1] =  "SFNode";
+$ftAppearanceX3D[2] =  "SFNode";
+$ftAppearanceX3D[3] =  "SFNode";
+$ftAppearanceX3D[4] =  "SFNode";
+$ftAppearanceX3D[5] =  "SFNode";
+
+
+//-----------------------------------
+//Array of event names in for X3D Appearance Field Types - table
+//-----------------------------------
+$inAppearanceX3D[0] =  "set_fillProperties";
+$inAppearanceX3D[1] =  "set_lineProperties";
+$inAppearanceX3D[2] =  "set_material";
+$inAppearanceX3D[3] =  "set_metadata";
+$inAppearanceX3D[4] =  "set_texture";
+$inAppearanceX3D[5] =  "set_textureTransform";
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event names out for X3D Appearance Field Types - table
+//-----------------------------------
+$outAppearanceX3D[0] =  "fillProperties_changed";   
+$outAppearanceX3D[1] =  "lineProperties_changed"; 
+$outAppearanceX3D[2] =  "material_changed";  
+$outAppearanceX3D[3] =  "metadata_changed"; 
+$outAppearanceX3D[4] =  "texture_changed"; 
+$outAppearanceX3D[5] =  "textureTransform_changed"; 
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//Appearance Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the Appearance eventOut submenu
+global proc buildAppearanceEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	
+	global string $ftAppearanceX3D[];
+	global string $outAppearanceX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 0; $esi < 6; $esi++){
+		menuItem -l $outAppearanceX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outAppearanceX3D[$esi] + " " + $ftAppearanceX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the Appearance eventIn submenu
+global proc buildAppearanceEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	//nAppearanceX3D[] size =6 (0-5); eventIn fields are 0-5;
+	global string $ftAppearanceX3D[];
+	global string $inAppearanceX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<6;$esi++){
+		if($eoFieldTypeX3D == $ftAppearanceX3D[$esi])
+		{
+			menuItem -l $inAppearanceX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inAppearanceX3D[$esi] + " " + $ftAppearanceX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+

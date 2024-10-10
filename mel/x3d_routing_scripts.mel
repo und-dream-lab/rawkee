@@ -1,0 +1,175 @@
+//
+// Copyright (C) 2004 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_routing_scripts.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+/********************************************************************
+*********************************************************************
+**          PROCEDURES TO IMPLEMENT MPXROUTEX3D NODE               **
+*********************************************************************
+********************************************************************/
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $gX3DFromNodeName;
+global string $gX3DEventOutName;
+global string $gX3DToNodeName;
+global string $gX3DEventInName;
+global string $x3dTypeFrom;
+global string $x3dTypeTo;
+global string $eoFieldTypeX3D;
+global string $sgScrollList;
+global string $selectVal;
+
+//------------------------------------------------------------------
+//Function for setting the node and eventOut for the FROM node
+//------------------------------------------------------------------
+global proc setX3DRouteEventOut(string $nodeName, string $eventName)
+{
+	global string $gX3DFromNodeName;
+	$gX3DFromNodeName = $nodeName;
+	global string $gX3DEventOutName;
+	$gX3DEventOutName = $eventName;
+}
+
+//------------------------------------------------------------------
+//Function for setting the node and eventIn for the TO node
+//------------------------------------------------------------------
+global proc setX3DRouteEventIn(string $nodeName, string $eventName)
+{
+	global string $gX3DToNodeName;
+	$gX3DToNodeName = $nodeName;
+	global string $gX3DEventInName;
+	$gX3DEventInName = $eventName;
+}
+
+//--------------------------------------------------------------------
+//Procedure called to add an X3D Route Node
+//--------------------------------------------------------------------
+global proc addX3DRouteToScene()
+{
+	global string $gX3DFromNodeName;
+	global string $gX3DToNodeName;
+	global string $gX3DEventInName;
+	global string $gX3DEventOutName;
+	global string $x3dTypeFrom;
+	global string $x3dTypeTo;
+	global string $eoFieldTypeX3D;	
+	global string $sgScrollList;
+	global string $selectVal;
+	
+	if($gX3DEventInName != "")
+	{
+		string $routeFromAtt = $gX3DFromNodeName + "." + $gX3DEventOutName;
+		string $routeToAtt = $gX3DToNodeName + "." + $gX3DEventInName;
+			
+		int $isThere = checkForSimilarRoute($routeFromAtt, $routeToAtt);
+		if($isThere < 1)
+		{
+			string $newRoute = `createNode("x3dRoute")`;
+
+//			string $nameFrom[] = x3dGetNameParts($gX3DFromNodeName);
+//			string $nameTo[] = x3dGetNameParts($gX3DToNodeName);
+
+			setAttr ($newRoute+".x3dTypeFrom") -type "string" $x3dTypeFrom;
+			setAttr ($newRoute+".x3dTypeTo") -type "string" $x3dTypeTo;
+			setAttr ($newRoute+".chopFrom") -type "string" $gX3DFromNodeName;
+			setAttr ($newRoute+".chopTo") -type "string" $gX3DToNodeName;
+			string $getFromVal = `getAttr ($newRoute+".nameFrom1")`;
+			setAttr ($newRoute+".nameFrom1") -type "string" $getFromVal;
+			string $getToVal = `getAttr ($newRoute+".nameTo1")`;
+			setAttr ($newRoute+".nameTo1") -type "string" $getToVal;
+//			setAttr ($newRoute+".nameFrom1") -type "string" $nameFrom[0];
+//			setAttr ($newRoute+".nameFrom2") -type "string" $nameFrom[1];
+//			setAttr ($newRoute+".nameTo1") -type "string" $nameTo[0];
+//			setAttr ($newRoute+".nameTo2") -type "string" $nameTo[1];
+//			setAttr ($newRoute+".fromNode") -type "string" $gX3DFromNodeName;
+//			setAttr ($newRoute+".toNode") -type "string" $gX3DToNodeName;
+			string $fromName = `getAttr ($newRoute+".fromNode")`;
+			string $toName = `getAttr ($newRoute+".toNode")`;
+			setAttr ($newRoute+".fromValue") -type "string" $gX3DEventOutName;
+			setAttr ($newRoute+".toValue") -type "string" $gX3DEventInName;
+			
+			int $fromExist = `objExists $getFromVal`;
+			int $toExist = `objExists $getToVal`;
+			
+			if($fromExist == 1 && $toExist == 0) $getToVal = $getFromVal;
+			if($fromExist == 0 && $toExist == 1) $getFromVal = $getToVal;
+			if($fromExist == 1 || $toExist == 1)
+			{
+				connectAttr -l true ($getFromVal+".x3dra") ($newRoute+".x3dfr");
+				connectAttr -l true ($getToVal+".x3dra") ($newRoute+".x3dto");
+			}
+		}
+	}	
+
+	$gX3DFromNodeName = "";
+	$gX3DEventOutName = "";
+	$gX3DToNodeName = "";
+	$gX3DEventInName = "";
+	$x3dTypeFrom = "";
+	$x3dTypeTo = "";
+
+//	textScrollList -e -si $selectVal $sgScrollList;
+//	populateRouteList();
+	x3dListNodeRoutes();
+}
+
+//global proc string[] x3dGetNameParts(string $nodeName)
+//{
+//	string $nodeParts[];
+	//
+//	string $pieces[];
+//	string $wholeString = "blah__blah_ttf";
+//	tokenize($wholeString, "_ttf", $pieces);
+//	print($pieces[0]+" "+$pieces[1]+" "+$pieces[2]+" "+"\n");
+	//
+//	return $nodeParts;
+//}
+//--------------------------------------------------------------------
+//Procedure to add new route to Interaction Editor Route List
+//--------------------------------------------------------------------
+global proc int checkForSimilarRoute(string $fromRoute, string $toRoute)
+{
+	string $tRouteNames[];
+	int $isThere = 0;
+	
+	$tRouteNames = `ls -type "x3dRoute"`;
+	int $rListSize = size($tRouteNames);
+
+	int $i;
+	for($i=0; $i < $rListSize; $i++){
+		string $fromNode = `getAttr ($tRouteNames[$i]+".fromNode")`;
+		string $toNode = `getAttr ($tRouteNames[$i]+".toNode")`;
+		string $eventIn = `getAttr ($tRouteNames[$i]+".toValue")`;
+		string $eventOut = `getAttr ($tRouteNames[$i]+".fromValue")`;
+		string $testString1 = ($fromNode + "." + $eventOut) + " To " + ($toNode + "." + $eventIn);
+		string $testString2 = $fromRoute+ " To " + $toRoute;
+		if($testString1 ==  $testString2) $isThere = 1;
+	}
+	if($isThere>0) print("\nRoute already exists.\n");
+	return $isThere;
+}
+

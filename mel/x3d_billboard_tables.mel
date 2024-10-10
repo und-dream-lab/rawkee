@@ -1,0 +1,122 @@
+//
+// Copyright (C) 2004 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_billboard_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftBillboardX3D[];
+global string $inBillboardX3D[];
+global string $outBillboardX3D[];
+
+//---------------------------------
+//Array of Field Types for X3D Billboard - table
+//---------------------------------
+
+$ftBillboardX3D[0] =  "MFNode";
+$ftBillboardX3D[1] =  "MFNode";
+$ftBillboardX3D[2] =  "SFVec3f";
+$ftBillboardX3D[3] =  "MFNode";
+$ftBillboardX3D[4] =  "SFNode";
+
+//-----------------------------------
+//Array of event names in for X3D Billboard Field Types - table
+//-----------------------------------
+$inBillboardX3D[0] =  "addChildren";     	 //[in]     addChildren               [X3DChildNode]
+$inBillboardX3D[1] =  "removeChildren";  	 //[in]     removeChildren            [X3DChildNode]
+$inBillboardX3D[2] =  "set_axisOfRotation";          //[in,out] center           0 0 0    (-?,?)
+$inBillboardX3D[3] =  "set_children";        //[in,out] children         []       [X3DChildNode]
+$inBillboardX3D[4] =  "set_metadata";        //[in,out] metadata         NULL     [X3DMetadataObject]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event names out for X3D Billboard Field Types - table
+//-----------------------------------
+$outBillboardX3D[0] =  "addChildren";     		  //[in]     addChildren               [X3DChildNode]
+$outBillboardX3D[1] =  "removeChildren";  		  //[in]     removeChildren            [X3DChildNode]
+$outBillboardX3D[2] =  "axisOfRotation_changed";          //[in,out] center           0 0 0    (-?,?)
+$outBillboardX3D[3] =  "children_changed";        //[in,out] children         []       [X3DChildNode]
+$outBillboardX3D[4] =  "metadata_changed";        //[in,out] metadata         NULL     [X3DMetadataObject]
+
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event commands for X3D Billboard  - table
+//-----------------------------------
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//Billboard Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the Billboard eventOut submenu
+global proc buildBillboardEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	//nBillboardX3D[] size = 1 (0); eventOut fields are 0;
+	global string $ftBillboardX3D[];
+	global string $outBillboardX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 0; $esi < 1; $esi++){
+		menuItem -l $outBillboardX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outBillboardX3D[$esi] + " " + $ftBillboardX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the Billboard eventIn submenu
+global proc buildBillboardEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	//nBillboardX3D[] size =1 (0); eventIn fields are 0;
+	global string $ftBillboardX3D[];
+	global string $inBillboardX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<1;$esi++){
+		if($eoFieldTypeX3D == $ftBillboardX3D[$esi])
+		{
+			menuItem -l $inBillboardX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inBillboardX3D[$esi] + " " + $ftBillboardX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+
+

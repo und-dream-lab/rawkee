@@ -1,0 +1,181 @@
+//
+// Copyright (C) 2004-2005 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_transform_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftTransformX3D[];
+global string $inTransformX3D[];
+global string $outTransformX3D[];
+global string $ftX3DArray[];
+
+//------------------------------------
+//Array of Field Types - table
+//------------------------------------
+
+$ftX3DArray[0] = "SFBool";			//kBoolean
+$ftX3DArray[1] = "SFColor";			//k3Float
+$ftX3DArray[2] = "SFColorRGBA";		//compound with 4 (kFloat)'s - needed to represent 4 float values
+$ftX3DArray[3] = "SFDouble";		//kDouble
+$ftX3DArray[4] = "SFFloat";			//kFloat
+$ftX3DArray[5] = "SFImage";			//k3Int
+$ftX3DArray[6] = "SFInt32";			//kInt
+$ftX3DArray[7] = "SFNode";			//kString
+$ftX3DArray[8] = "SFRotation";		//k3Float - rotations are represented using degrees as a 3 Float vector in Maya,
+									//in X3D they are represented using radians as a 4 Floats
+$ftX3DArray[9] = "SFString";		//kString
+$ftX3DArray[10] = "SFTime";			//kFloat
+$ftX3DArray[11] = "SFVec2d";		//k2Double
+$ftX3DArray[12] = "SFVec2f";		//k2Float
+$ftX3DArray[13] = "SFVec3d";		//k3Double
+$ftX3DArray[14] = "SFVec3f";		//k3Float
+//$ftX3DArray[15] = "SFVec4d";		//compound with 4 (kDouble)'s - needed to represent 4 double values
+//$ftX3DArray[16] = "SFVec4f";		//compound with 4 (kFloat)'s - needed to represent 4 float values
+//$ftX3DArray[17] = "SFMatrix3d";		//kDouble Matrix - use det3x3
+//$ftX3DArray[18] = "SFMatrix3f";		//kFloat Matrix - use det3x3
+//$ftX3DArray[19] = "SFMatrix4d";		//kDouble Matrix - use det4x4
+//$ftX3DArray[20] = "SFMatrix4f";		//kFloat Matrix - use det4x4
+
+$ftX3DArray[21] = "MFBool";			//kBoolean array
+$ftX3DArray[22] = "MFColor";		//k3Float array
+$ftX3DArray[23] = "MFColorRGBA";	//compound with 4 (kFloat)'s - needed to represent 4 float values - array
+$ftX3DArray[24] = "MFDouble";		//kDouble array
+$ftX3DArray[25] = "MFFloat";		//kFloat array
+$ftX3DArray[26] = "MFImage";		//k3Int array
+$ftX3DArray[27] = "MFInt32";		//kInt array
+$ftX3DArray[28] = "MFNode";			//kString array
+$ftX3DArray[29] = "MFRotation";		//k3Float array
+$ftX3DArray[30] = "MFString";		//kString array
+$ftX3DArray[31] = "MFTime";			//kFloat array
+$ftX3DArray[32] = "MFVec2d";		//k2Double array
+$ftX3DArray[33] = "MFVec2f";		//k2Float array
+$ftX3DArray[34] = "MFVec3d";		//k3Double array
+$ftX3DArray[35] = "MFVec3f";		//k3Float array
+//$ftX3DArray[36] = "MFVec4d";		//compound with 4 (kDouble)'s - needed to represent 4 double values - array
+//$ftX3DArray[37] = "MFVec4f";		//compound with 4 (kFloat)'s - needed to represent 4 float values - array
+//$ftX3DArray[38] = "MFMatrix3d";
+//$ftX3DArray[39] = "MFMatrix3f";
+//$ftX3DArray[40] = "MFMatrix4d";
+//$ftX3DArray[41] = "MFMatrix4f";
+
+//---------------------------------
+//Array of Field Types for X3D Tranforms - table
+//---------------------------------
+$ftTransformX3D[0] =  "MFNode";     //[in]     addChildren               [X3DChildNode]
+$ftTransformX3D[1] =  "MFNode";     //[in]     removeChildren            [X3DChildNode]
+$ftTransformX3D[2] =  "SFVec3f";    //[in,out] center           0 0 0    (-?,?)
+$ftTransformX3D[3] =  "MFNode";     //[in,out] children         []       [X3DChildNode]
+$ftTransformX3D[4] =  "SFNode";     //[in,out] metadata         NULL     [X3DMetadataObject]
+$ftTransformX3D[5] =  "SFRotation"; //[in,out] rotation         0 0 1 0  [-1,1] or (-?,?)
+$ftTransformX3D[6] =  "SFVec3f";    //[in,out] scale            1 1 1    (0,?)
+$ftTransformX3D[7] =  "SFRotation"; //[in,out] scaleOrientation 0 0 1 0  [-1,1] or (-?,?)
+$ftTransformX3D[8] =  "SFVec3f";    //[in,out] translation      0 0 0    (-?,?)
+
+//-----------------------------------
+//Array of event names in for X3D Transform Field Types - table
+//-----------------------------------
+$inTransformX3D[0] =  "addChildren";     	 //[in]     addChildren               [X3DChildNode]
+$inTransformX3D[1] =  "removeChildren";  	 //[in]     removeChildren            [X3DChildNode]
+$inTransformX3D[2] =  "set_center";          //[in,out] center           0 0 0    (-?,?)
+$inTransformX3D[3] =  "set_children";        //[in,out] children         []       [X3DChildNode]
+$inTransformX3D[4] =  "set_metadata";        //[in,out] metadata         NULL     [X3DMetadataObject]
+$inTransformX3D[5] =  "set_rotation";        //[in,out] rotation         0 0 1 0  [-1,1] or (-?,?)
+$inTransformX3D[6] =  "set_scale";           //[in,out] scale            1 1 1    (0,?)
+$inTransformX3D[7] =  "set_scaleOrientation";//[in,out] scaleOrientation 0 0 1 0  [-1,1] or (-?,?)
+$inTransformX3D[8] =  "set_translation";     //[in,out] translation      0 0 0    (-?,?)
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event names out for X3D Transform Field Types - table
+//-----------------------------------
+$outTransformX3D[0] =  "addChildren";     		  //[in]     addChildren               [X3DChildNode]
+$outTransformX3D[1] =  "removeChildren";  		  //[in]     removeChildren            [X3DChildNode]
+$outTransformX3D[2] =  "center_changed";          //[in,out] center           0 0 0    (-?,?)
+$outTransformX3D[3] =  "children_changed";        //[in,out] children         []       [X3DChildNode]
+$outTransformX3D[4] =  "metadata_changed";        //[in,out] metadata         NULL     [X3DMetadataObject]
+$outTransformX3D[5] =  "rotation_changed";        //[in,out] rotation         0 0 1 0  [-1,1] or (-?,?)
+$outTransformX3D[6] =  "scale_changed";           //[in,out] scale            1 1 1    (0,?)
+$outTransformX3D[7] =  "scaleOrientation_changed";//[in,out] scaleOrientation 0 0 1 0  [-1,1] or (-?,?)
+$outTransformX3D[8] =  "translation_changed";     //[in,out] translation      0 0 0    (-?,?)
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event commands for X3D Transform  - table
+//-----------------------------------
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//Transform Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the transform eventOut submenu
+global proc buildTransformEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	//nTranformX3D[] size = 9 (0-8); eventOut fields are 2-8;
+	global string $ftTransformX3D[];
+	global string $outTransformX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 2; $esi < 9; $esi++){
+		menuItem -l $outTransformX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outTransformX3D[$esi] + " " + $ftTransformX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the transform eventIn submenu
+global proc buildTransformEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	//nTransformX3D[] size =9 (0-8); eventIn fields are 0-8;
+	global string $ftTransformX3D[];
+	global string $inTransformX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<9;$esi++){
+		if($eoFieldTypeX3D == $ftTransformX3D[$esi])
+		{
+			menuItem -l $inTransformX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inTransformX3D[$esi] + " " + $ftTransformX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+

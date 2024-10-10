@@ -1,0 +1,177 @@
+//
+// Copyright (C) 2004-2005 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_rigidbody_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftRigidBodyX3D[];
+global string $inRigidBodyX3D[];
+global string $outRigidBodyX3D[];
+global string $ftX3DArray[];
+
+//---------------------------------
+//Array of Field Types for X3D RigidBody - table
+//---------------------------------
+$ftRigidBodyX3D[0] =  "SFFloat";    //[in,out] center           0 0 0    (-?,?)
+$ftRigidBodyX3D[1] =  "SFVec3f";   //[in,out] info				[]       [X3DChildNode]
+$ftRigidBodyX3D[2] =  "SFBool";     //[in,out] joints         []       [X3DChildNode]
+$ftRigidBodyX3D[3] =  "SFBool";   //[in,out] info				[]       [X3DChildNode]
+$ftRigidBodyX3D[4] =  "SFVec3f"; //[in,out] rotation         0 0 1 0  [-1,1] or (-?,?)
+$ftRigidBodyX3D[5] =  "SFFloat";    //[in,out] scale            1 1 1    (0,?)
+$ftRigidBodyX3D[6] =  "SFFloat"; //[in,out] scaleOrientation 0 0 1 0  [-1,1] or (-?,?)
+$ftRigidBodyX3D[7] =  "SFFloat";     //[in,out] joints         []       [X3DChildNode]
+$ftRigidBodyX3D[8] =  "SFBool";     //[in,out] joints         []       [X3DChildNode]
+$ftRigidBodyX3D[9] =  "SFVec3f";     //[in,out] joints         []       [X3DChildNode]
+$ftRigidBodyX3D[10] =  "SFBool";     //[in,out] joints         []       [X3DChildNode]
+$ftRigidBodyX3D[11] =  "MFVec3f";    //[in,out] center           0 0 0    (-?,?)
+$ftRigidBodyX3D[12] =  "MFNode";   //[in,out] info				[]       [X3DChildNode]
+$ftRigidBodyX3D[13] =  "SFMatrix3f";     //[in,out] joints         []       [X3DChildNode]
+$ftRigidBodyX3D[14] =  "SFFloat";   //[in,out] info				[]       [X3DChildNode]
+$ftRigidBodyX3D[15] =  "SFVec3f"; //[in,out] rotation         0 0 1 0  [-1,1] or (-?,?)
+$ftRigidBodyX3D[16] =  "SFFloat";    //[in,out] scale            1 1 1    (0,?)
+$ftRigidBodyX3D[17] =  "SFNode"; //[in,out] scaleOrientation 0 0 1 0  [-1,1] or (-?,?)
+$ftRigidBodyX3D[18] =  "SFNode";     //[in,out] joints         []       [X3DChildNode]
+$ftRigidBodyX3D[19] =  "SFRotation";     //[in,out] joints         []       [X3DChildNode]
+$ftRigidBodyX3D[20] =  "SFVec3f";     //[in,out] joints         []       [X3DChildNode]
+$ftRigidBodyX3D[21] =  "MFVec3f";     //[in,out] joints         []       [X3DChildNode]
+$ftRigidBodyX3D[22] =  "SFBool";     //[in,out] joints         []       [X3DChildNode]
+$ftRigidBodyX3D[23] =  "SFBool";     //[in,out] joints         []       [X3DChildNode]
+
+//-----------------------------------
+//Array of event names in for X3D RigidBody Field Types - table
+//-----------------------------------
+$inRigidBodyX3D[0] =  "set_angularDampingFactor";          //[in,out] center           0 0 0    (-?,?)
+$inRigidBodyX3D[1] =  "set_angularVelocity";        //[in,out] info         []       [X3DChildNode]
+$inRigidBodyX3D[2] =  "set_autoDamp";        //[in,out] joints         []       [X3DChildNode]
+$inRigidBodyX3D[3] =  "set_autoDisable";        //[in,out] metadata         NULL     [X3DMetadataObject]
+$inRigidBodyX3D[4] =  "set_centerOfMass";        //[in,out] rotation         0 0 1 0  [-1,1] or (-?,?)
+$inRigidBodyX3D[5] =  "set_disableAngularSpeed";        //[in,out] rotation         0 0 1 0  [-1,1] or (-?,?)
+$inRigidBodyX3D[6] =  "set_disableLinearSpeed";           //[in,out] scale            1 1 1    (0,?)
+$inRigidBodyX3D[7] =  "set_disableTime";//[in,out] scaleOrientation 0 0 1 0  [-1,1] or (-?,?)
+$inRigidBodyX3D[8] =  "set_enabled";     //[in,out] joints         []       [X3DChildNode]
+$inRigidBodyX3D[9] =  "set_finiteRotationAxis";     //[in,out] joints         []       [X3DChildNode]
+$inRigidBodyX3D[10] =  "set_fixed";     //[in,out] joints         []       [X3DChildNode]
+$inRigidBodyX3D[11] =  "set_forces";          //[in,out] center           0 0 0    (-?,?)
+$inRigidBodyX3D[12] =  "set_geometry";        //[in,out] info         []       [X3DChildNode]
+$inRigidBodyX3D[13] =  "set_inertia";        //[in,out] joints         []       [X3DChildNode]
+$inRigidBodyX3D[14] =  "set_linearDampingFactor";        //[in,out] metadata         NULL     [X3DMetadataObject]
+$inRigidBodyX3D[15] =  "set_linearVelocity";        //[in,out] rotation         0 0 1 0  [-1,1] or (-?,?)
+$inRigidBodyX3D[16] =  "set_mass";        //[in,out] rotation         0 0 1 0  [-1,1] or (-?,?)
+$inRigidBodyX3D[17] =  "set_massDensityModel";           //[in,out] scale            1 1 1    (0,?)
+$inRigidBodyX3D[18] =  "set_metadata";//[in,out] scaleOrientation 0 0 1 0  [-1,1] or (-?,?)
+$inRigidBodyX3D[19] =  "set_orientation";     //[in,out] joints         []       [X3DChildNode]
+$inRigidBodyX3D[20] =  "set_position";     //[in,out] joints         []       [X3DChildNode]
+$inRigidBodyX3D[21] =  "set_torques";     //[in,out] joints         []       [X3DChildNode]
+$inRigidBodyX3D[22] =  "set_useFiniteRotation";     //[in,out] joints         []       [X3DChildNode]
+$inRigidBodyX3D[23] =  "set_useGlobalGravity";     //[in,out] joints         []       [X3DChildNode]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event names out for X3D RigidBody Field Types - table
+//-----------------------------------
+$outRigidBodyX3D[0] =  "angularDampingFactor_changed";          //[in,out] center           0 0 0    (-?,?)
+$outRigidBodyX3D[1] =  "angularVelocity_changed";        //[in,out] info         []       [X3DChildNode]
+$outRigidBodyX3D[2] =  "autoDamp_changed";        //[in,out] joints         []       [X3DChildNode]
+$outRigidBodyX3D[3] =  "autoDisable_changed";        //[in,out] metadata         NULL     [X3DMetadataObject]
+$outRigidBodyX3D[4] =  "centerOfMass_changed";        //[in,out] rotation         0 0 1 0  [-1,1] or (-?,?)
+$outRigidBodyX3D[5] =  "disableAngularSpeed_changed";        //[in,out] rotation         0 0 1 0  [-1,1] or (-?,?)
+$outRigidBodyX3D[6] =  "disableLinearSpeed_changed";           //[in,out] scale            1 1 1    (0,?)
+$outRigidBodyX3D[7] =  "disableTime_changed";//[in,out] scaleOrientation 0 0 1 0  [-1,1] or (-?,?)
+$outRigidBodyX3D[8] =  "enabled_changed";     //[in,out] joints         []       [X3DChildNode]
+$outRigidBodyX3D[9] =  "finiteRotationAxis_changed";     //[in,out] joints         []       [X3DChildNode]
+$outRigidBodyX3D[10] =  "fixed_changed";     //[in,out] joints         []       [X3DChildNode]
+$outRigidBodyX3D[11] =  "forces_changed";          //[in,out] center           0 0 0    (-?,?)
+$outRigidBodyX3D[12] =  "geometry_changed";        //[in,out] info         []       [X3DChildNode]
+$outRigidBodyX3D[13] =  "inertia_changed";        //[in,out] joints         []       [X3DChildNode]
+$outRigidBodyX3D[14] =  "linearDampingFactor_changed";        //[in,out] metadata         NULL     [X3DMetadataObject]
+$outRigidBodyX3D[15] =  "linearVelocity_changed";        //[in,out] rotation         0 0 1 0  [-1,1] or (-?,?)
+$outRigidBodyX3D[16] =  "mass_changed";        //[in,out] rotation         0 0 1 0  [-1,1] or (-?,?)
+$outRigidBodyX3D[17] =  "massDensityModel_changed";           //[in,out] scale            1 1 1    (0,?)
+$outRigidBodyX3D[18] =  "metadata_changed";//[in,out] scaleOrientation 0 0 1 0  [-1,1] or (-?,?)
+$outRigidBodyX3D[19] =  "orientation_changed";     //[in,out] joints         []       [X3DChildNode]
+$outRigidBodyX3D[20] =  "position_changed";     //[in,out] joints         []       [X3DChildNode]
+$outRigidBodyX3D[21] =  "torques_changed";     //[in,out] joints         []       [X3DChildNode]
+$outRigidBodyX3D[22] =  "useFiniteRotation_changed";     //[in,out] joints         []       [X3DChildNode]
+$outRigidBodyX3D[23] =  "useGlobalGravity_changed";     //[in,out] joints         []       [X3DChildNode]
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event commands for X3D RigidBody  - table
+//-----------------------------------
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//RigidBody Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the RigidBody eventOut submenu
+global proc buildRigidBodyEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	//nTranformX3D[] size = 24 (0-23); eventOut fields are 0-23;
+	global string $ftRigidBodyX3D[];
+	global string $outRigidBodyX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 0; $esi < 24; $esi++){
+		menuItem -l $outRigidBodyX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outRigidBodyX3D[$esi] + " " + $ftRigidBodyX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+//Building the RigidBody eventIn submenu
+global proc buildRigidBodyEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	//nRigidBodyX3D[] size =24 (0-23); eventIn fields are 0-23;
+	global string $ftRigidBodyX3D[];
+	global string $inRigidBodyX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<24;$esi++){
+		if($eoFieldTypeX3D == $ftRigidBodyX3D[$esi])
+		{
+			menuItem -l $inRigidBodyX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inRigidBodyX3D[$esi] + " " + $ftRigidBodyX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+

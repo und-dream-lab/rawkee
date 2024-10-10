@@ -1,0 +1,141 @@
+//
+// Copyright (C) 2004 North Dakota State University (http://atl.ndsu.edu/resources/maya_x3d.php) 
+// 
+//This library is free software; you can redistribute it and/or 
+//modify it under the terms of the GNU Lesser General Public License 
+//as published by the Free Software Foundation; either version 2.1 of 
+//the License, or (at your option) any later version.
+
+//This library is distributed in the hope that it will be useful, but 
+//WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
+//or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public 
+//License for more details.
+
+//You should have received a copy of the GNU Lesser General Public License 
+//along with this library; if not, write to the Free Software Foundation, Inc., 
+//59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+// File: x3d_navigationinfo_tables.mel
+//
+//
+// Authors:	Aaron Bergstrom
+//         	Computer Visualization Manger
+//         	NDSU Archaeology Technologies Laboratory
+//         	http://atl.ndsu.edu/
+//
+
+
+//-------------------------------------------------------------------
+//MEL string variables for setting X3D Routes
+//-------------------------------------------------------------------
+global string $eoMenu;
+global string $eiMenu;
+global string $eoFieldTypeX3D;
+global string $ftNavigationInfoX3D[];
+global string $inNavigationInfoX3D[];
+global string $outNavigationInfoX3D[];
+
+//---------------------------------
+//Array of Field Types for X3D NavigationInfo - table
+//---------------------------------
+
+$ftNavigationInfoX3D[0] =  "SFBool";
+$ftNavigationInfoX3D[1] =  "MFFloat";
+$ftNavigationInfoX3D[2] =  "SFBool";
+$ftNavigationInfoX3D[3] =  "SFNode";
+$ftNavigationInfoX3D[4] =  "SFFloat";
+$ftNavigationInfoX3D[5] =  "MFString";
+$ftNavigationInfoX3D[6] =  "MFString";
+$ftNavigationInfoX3D[7] =  "SFFloat";
+$ftNavigationInfoX3D[8] =  "SFTime";
+$ftNavigationInfoX3D[9] =  "SFBool";
+
+//-----------------------------------
+//Array of event in names for X3D NavigationInfo Field Types - table
+//-----------------------------------
+
+$inNavigationInfoX3D[0] =  "set_bind";
+$inNavigationInfoX3D[1] =  "set_avatarSize";
+$inNavigationInfoX3D[2] =  "set_headlight";
+$inNavigationInfoX3D[3] =  "set_metadata";
+$inNavigationInfoX3D[4] =  "set_speed";
+$inNavigationInfoX3D[5] =  "set_transitionType";
+$inNavigationInfoX3D[6] =  "set_type";
+$inNavigationInfoX3D[7] =  "set_visibilityLimit";
+$inNavigationInfoX3D[8] =  "bindTime";
+$inNavigationInfoX3D[9] =  "isBound";
+
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event out names for X3D NavigationInfo Field Types - table
+//-----------------------------------
+
+$outNavigationInfoX3D[0] =  "set_bind";	
+$outNavigationInfoX3D[1] =  "avatarSize_changed";	
+$outNavigationInfoX3D[2] =  "headlight_changed";	
+$outNavigationInfoX3D[3] =  "metadata_changed";	
+$outNavigationInfoX3D[4] =  "speed_changed";	
+$outNavigationInfoX3D[5] =  "transitionType_changed";	
+$outNavigationInfoX3D[6] =  "type_changed";	
+$outNavigationInfoX3D[7] =  "visibilityLimit_changed";	
+$outNavigationInfoX3D[8] =  "bindTime";	
+$outNavigationInfoX3D[9] =  "isBound";	
+
+
+//-----------------------------------
+
+//-----------------------------------
+//Array of event commands for X3D NavigationInfo  - table
+//-----------------------------------
+
+//-----------------------------------
+
+//-----------------------------------
+//Procedures for building menus for
+//Coordinate Events
+//-----------------------------------
+//-------------------------------------------------------------------------
+//Building the NavigationInfo eventOut submenu
+global proc buildNavigationInfoEOMenu(string $highlighted)
+{
+	global string $eoMenu;
+	//nNavigationInfoX3D[] size = 10 (0-9); eventOut fields are 0-7;
+	global string $ftNavigationInfoX3D[];
+	global string $outNavigationInfoX3D[];
+	global string $eoFieldTypeX3D;
+
+	int $esi;
+	for($esi = 1; $esi < 10; $esi++){
+		menuItem -l $outNavigationInfoX3D[$esi] -parent $eoMenu -c ("processMenuX3D " + $highlighted + " " + $outNavigationInfoX3D[$esi] + " " + $ftNavigationInfoX3D[$esi] + " 0");
+	}
+}
+//-------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------
+//Building the NavigationInfo eventIn submenu
+global proc buildNavigationInfoEIMenu(string $highlighted)
+{
+	global string $eiMenu;
+	//nNavigationInfoX3D[] size =10 (0-8); eventIn fields are 0-8;
+	global string $ftNavigationInfoX3D[];
+	global string $inNavigationInfoX3D[];
+	global string $eoFieldTypeX3D;
+
+		
+	int $esi;
+	for($esi=0;$esi<8;$esi++){
+		if($eoFieldTypeX3D == $ftNavigationInfoX3D[$esi])
+		{
+			menuItem -l $inNavigationInfoX3D[$esi] -parent $eiMenu -c ("processMenuX3D " + $highlighted + " " + $inNavigationInfoX3D[$esi] + " " + $ftNavigationInfoX3D[$esi] + " 1");
+		}
+	}
+	
+	menuItem -divider true;
+	menuItem -l "Reset" -parent $eiMenu -c "resetX3DRoutes";
+}
+//-------------------------------------------------------------------------
+
+
