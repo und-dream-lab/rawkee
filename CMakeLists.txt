@@ -5,43 +5,13 @@
 # RawKee X3D Plugin 1.2.0 for Maya 2019+
 # https://github.com/und-dream-lab/rawkee
 #
-# For older version of the plug-in (1.1.0) for older versions of Maya (Maya 6.0 - Maya 2008), visit:
-# https://rawkee.sourceforge.net/
-# 
-# Aaron's Build Tools for Rawkee 1.2.0 on Windows 10:
-#  - Maya2023
-#  - Visual Studio 17 2022
-#  - CMake 3.30
-#  - PowerShell
+# See README.md for build guidance.
 #
 # Contact Aaron at:
 # aaron.bergstrom@und.edu
 # UND Computational Research Center - DREAM Lab
 # https://dream.crc.und.edu/
 #
-# Build Instructions using the above build tools.
-# 0 - Prior to building RawKee, set the enviornment variables for 
-#     RAWKEE_GIT_REPO, DEVKIT_LOCATION, MAYA_LOCATION
-#
-#     On Aaron's computer, these are:
-#     RAWKEE_GIT_REPO    C:\mbuild\rawkee2024\
-#     DEVKIT_LOCATION    C:\Users\aaron.bergstrom\devkitBase\
-#     MAYA_LOCATION      C:\Program Files\Autodesk\Maya2023\
-#
-# 1 - Open PowerShell
-# 2 - At the PowerShell prompt, change directory to your rawkee git repo location
-# 3 - Run the following commands from the prompt
-#     clear
-#     cmake -Bbuild -G "Visual Studio 17 2022"
-#     cmake --build build
-#
-#     Be sure to delete the "build" directory before you attempt to re-compile/build.
-#
-# 4 - Copy the following files from your RAWKEE_GIT_REPO location to your Maya Plug-ins folder:
-#
-#     build\Debug\x3d.mll                to                plug-ins\x3d.mll
-#     mel\*.mel                          to                scripts\*.mel
-#     icons\*.bmp                        to                icons\*.bmp
 # ==========================================================================
 #+
 
