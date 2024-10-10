@@ -26,11 +26,7 @@ include($ENV{DEVKIT_LOCATION}/cmake/pluginEntry.cmake)
 # specify project name
 set(PROJECT_NAME x3d)
 
-######################################################################
 # Location of your RawKee Git Repo on your computer.
-# For instance, on Aaron's Windows computer, his repo is located here:
-# C:\mbuild\rawkee2024\
-######################################################################
 include_directories($ENV{RAWKEE_GIT_REPO})
 
 #set .mel file list
