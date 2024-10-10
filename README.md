@@ -5,7 +5,8 @@ For the latest version of the RawKee X3D Plugin, visit the [GitHub repository](h
 For older versions of the plugin (1.1.0) supporting Maya 6.0 - Maya 2008, please refer to the [SourceForge page](https://sourceforge.net/projects/rawkee/).
 
 ## Build Tools for RawKee 1.2.0 on Windows 10
-- Maya SDK 2019-2025 (Tested with Maya 2023) <br> [Autodesk Maya SDK - https://aps.autodesk.com/developer/overview/maya](https://aps.autodesk.com/developer/overview/maya)- Visual Studio 17 2022
+- Maya SDK 2019-2025 (Tested with Maya 2023) <br> [Autodesk Maya SDK - https://aps.autodesk.com/developer/overview/maya](https://aps.autodesk.com/developer/overview/maya)
+- Visual Studio 17 2022
 - CMake 3.30
 - PowerShell
 
