@@ -1,23 +1,17 @@
-# RawKee X3D Plugin 1.2.0 for Maya 2019+
+# RawKee Python - X3D Plugin 2.0.0 for Maya 2025+
 
-For the latest version of the RawKee X3D Plugin, visit the [GitHub repository](https://github.com/und-dream-lab/rawkee).
+For the latest version of the RawKee Python X3D Plugin, visit the [GitHub repository](https://github.com/und-dream-lab/rawkee).
 
-For older versions of the plugin (1.1.0) supporting Maya 6.0 - Maya 2008, please refer to the [SourceForge page](https://sourceforge.net/projects/rawkee/).
+For C++ versions of the plugin (1.2.0) supporting Maya 2019 - Maya 2024, please refer to the [GitHub page](https://github.com/und-dream-lab/rawkee/tree/v1.2.0).
 
-## Build Tools for RawKee 1.2.0 on Windows 10
-- Maya SDK 2019-2025 (Tested with Maya 2023) <br> [Autodesk Maya SDK - https://aps.autodesk.com/developer/overview/maya](https://aps.autodesk.com/developer/overview/maya)
-- Visual Studio 17 2022
-- CMake 3.30
-- PowerShell
+For C++ versions of the plugin (1.1.0) supporting Maya 6.0 - Maya 2008, please refer to the [SourceForge page](https://sourceforge.net/projects/rawkee/).
 
-## Build Instructions
+## Required Python Packages not included with Maya Python (mayapy) installed with pip
+- x3d
 
-Before you start building RawKee, ensure that the following environment variables are set:
-
-- `RAWKEE_GIT_REPO`: Path to your RawKee Git repository (e.g., `C:\path\to\your\rawkee\repo\`)
-- `DEVKIT_LOCATION`: Location of the devkit base (e.g., `C:\path\to\devkitBase\`)
-- `MAYA_LOCATION`: Location of the Maya installation (e.g., `C:\path\to\Autodesk\Maya2023\`)
-
+## Optional Python Packages not included with Maya Python (mayapy) installed with pip
+- nodejs-bin
+<!--
 ### Steps:
 1. **Open PowerShell:**
    Launch PowerShell on your system.
@@ -41,7 +35,7 @@ Before you start building RawKee, ensure that the following environment variable
     - `icons\*.bmp` to `icons\*.bmp`
 
 This will complete the setup of the RawKee X3D Plugin 1.2.0 for Maya 2019+. Happy modeling!
-
+-->
 ## Contact Information
 For further assistance, contact Aaron:
 - **Email:** aaron.bergstrom@und.edu
