@@ -59,7 +59,7 @@ To make contributions to the project, follow these steps:
 2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
 3. Stage your Changes (`git add -A`)
 4. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-5. Push to the Branch (`git push feature/AmazingFeature`)
+5. Push to the Branch (`git push`)
 6. Open a Pull Request
 
 ## Contact Information
