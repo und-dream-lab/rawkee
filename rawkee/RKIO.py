@@ -153,64 +153,137 @@ class RKIO():
         self.fullPath = ""
         
         self.x3dDoc = None
-
-
-    def startDocument(self):
-        self.x3dDoc = X3D(profile=self.profileType, version=self.x3dVersion)
-
-    def createSceneRoot(self):
-        self.x3dDoc.Scene = Scene()
-        return self.x3dDoc.Scene
         
+        self.isVerbose = False
+        
+        self.debugging = True
+        
+        self.x3d_scene = None
+
+
+    # Function that writes to disk.
+    def x3d2disk(self, x3dDoc, fullPath):
+        print(fullPath)
+        #print(x3dDoc.XML())
+        #print(x3dDoc.VRML())
+        print(json.dumps(xmltodict.parse(x3dDoc.XML()), indent=4))
+        #print(x3dDoc.JSON())
+
+
+    ########################################################################
+    ########################################################################
+    # Custom IO Functions not needed if x3d.py I/O Functions work properly #
+    ########################################################################
+    ########################################################################
+    def startDocument(self):                                               #
+        pass                                                               #
+                                                                           #
     def endDocument(self):
-        '''
-        with open(self.fullPath, "w") as myFile:
-            if self.exEncoding == X3DENC:
-                myFile.write(self.x3dDoc.XML())
-                myFile.close()
-                
-            elif self.exEncoding == X3DVENC:
-                myFile.write(self.x3dDoc.VRML())
-                myFile.close()
-                
-            elif self.exEncoding == VRML97ENC:
-                #Get the VRML String Encoding as a StringIO Buffer
-                buf = io.StringIO(self.x3dDoc.VRML())
+        pass
+        
+    def startNode(self, x3dType, x3dName, fields, fieldValues, hasMore):
+        pass
 
-                #Burn Off 4 Header Lines of the X3D 4 Classic Encoding
-                toss = buf.readline()
-                toss = buf.readline()
-                toss = buf.readline()
-                toss = buf.readline()
-                
-                #Add VRML 97 Header
-                vrml97 = "#VMRL V2.0 utf8\n"
-                
-                #Append remainder of butter to vrml97 string (Hope we don't run out of memory)
-                vrml97 = vrml97 + buf.read()
-                myFile.write(vrml97)
-                myFile.close()
-                
-            elif self.exEncoding == X3DJSON:
-                myFile.write(json.dumps(xmltodict.parse(x3dDoc.XML()), indent=4))
-                myFile.close()
-                
-            else:
-                myFile.close()
-        '''
+    def endNode(self, x3dType, x3dName):
+        pass
+
+    def writeScriptFile(self, fileName, contents, filePath):
+        pass
         
-        print(json.dumps(xmltodict.parse(self.x3dDoc.XML()), indent=4))
-        print(self.x3dDoc.XML())
+    def addScriptNonNodeField(self, accessType, fieldType, fieldName, fieldValue):
+        pass
         
-        del self.x3dDoc
-        self.x3dDoc = None
+    def addScriptNodeField(self, accessType, fieldType, fieldName):
+        pass
+        
+    def addScriptNodeFieldValue(self, value):
+        pass
+        
+    def endScriptNodeField(self):
+        pass
+
+    def writeScriptSBracket(self):
+        pass
+
+    def writeScriptEBracket(self):
+        pass
+
+    def writeRawCode(self, rawCode):
+        pass
+
+    def writeRoute(self, fromNode, fromField, toNode, toField):
+        pass
+        
+    def startField(self, x3dFName, x3dFValue):
+        pass
+        
+    def fieldValue(self, x3dFValue):
+        pass
+        
+    def endField(self):
+        pass
     
-    #Function that adds a node name to ignore to the "ignoreNodes" List
+    def ioUseDecl(x3dType, x3dName, cField, cValue):
+        pass
+        
+    def writeTabs(self):
+        pass
+        
+    def profileDecl(self):
+        pass
+        
+    def writeComponents(self):
+        pass
+
+    def outputCData(self, rawdata):
+        pass
+
+    def writeSBracket(self):
+        pass
+
+    def writeEBracket(self):
+        pass
+                                                                 #
+    def preWriteField(self, fieldName):                          #
+        pass                                                     #
+    ##############################################################
+
+
+
+
+
+    ##############################################################
+    # def resetSceneRoot(self, x3dDoc):                          #
+    #                                                            #
+    #                  Slated to be deleted                      #
+    #            but I don't want to deal with errors            #
+    #                      at the moment                         #
+    #                                                            #
+    #                                                            #
+    ##############################################################
+    def resetSceneRoot(self, x3dDoc):                            #
+                                                                 #
+        self.x3dDoc = x3dDoc                                     #
+        self.x3dDoc.Scene.children.clear()                       #
+                                                                 #
+        return self.x3dDoc.Scene                                 #
+    ##############################################################
+
+    def sendToX3DOM(self):
+        pass
+        
+    def sendToSunrize(self):
+        pass
+
+    ####################################################################
+    # Function that adds a node name to ignore to the "ignoreNodes" List
+    ####################################################################
     def setIgnored(self, nodeName):
         self.ignoredNodes.append(nodeName)
 
     def cMessage(self, msg):
-        print(msg)
+        if self.isVerbose:
+            print(msg)
         
     def findExisting(self, nodeDEF):
         rNode = None
@@ -221,7 +294,9 @@ class RKIO():
                 rNode = self.generatedX3D[index]
                 return rNode
         return rNode        
-    
+
+
+    #######################################################
     # Function clears out the list of node names that have
     # either been used already or are to be ignored.
     def clearMemberLists(self):
@@ -247,6 +322,10 @@ class RKIO():
             
         return hasBeen
 
+    def setAsHasBeen(self, nodeName, x3dNode):
+        self.haveBeenNodes.append(nodeName)
+        self.generatedX3D.append(x3dNode)
+        
     '''
         This method checks the List that holds the names
         of nodes that have already been exported. It returns
@@ -265,30 +344,54 @@ class RKIO():
             
         return hasBeen
     
+    def useDecl(self, x3dNode, nodeName, x3dParentNode, x3dFieldName):
+        x3dNode.USE = nodeName
+        
+        nodeField = getattr(x3dParentNode, x3dFieldName)
+        if isinstance(nodeField, list):
+            nodeField.append(x3dNode)
+        else:
+            nodeField = x3dNode
+            
     def createNodeFromString(self, x3dType):
         x3dNodeMapping = {
+            'AcousticProperties':AcousticProperties,
+            'Analyser':Analyser,
             'Anchor':Anchor,
             'Appearance':Appearance,
             'Arc2D':Arc2D,
             'ArcClose2D':ArcClose2D,
             'AudioClip':AudioClip,
+            'AudioDestination':AudioDestination,
             'Background':Background,
+            'BallJoint':BallJoint,
             'Billboard':Billboard,
+            'BiquadFilter':BiquadFilter,
+            'BlendedVolumeStyle':BlendedVolumeStyle,
             'BooleanFilter':BooleanFilter,
             'BooleanSequencer':BooleanSequencer,
             'BooleanToggle':BooleanToggle,
             'BooleanTrigger':BooleanTrigger,
+            'BoundaryEnhancementVolumeStyle':BoundaryEnhancementVolumeStyle,
             'BoundedPhysicsModel':BoundedPhysicsModel,
             'Box':Box,
+            'BufferAudioSource':BufferAudioSource,
             'CADAssembly':CADAssembly,
             'CADFace':CADFace,
             'CADLayer':CADLayer,
             'CADPart':CADPart,
+            'CartoonVolumeStyle':CartoonVolumeStyle,
+            'ChannelMerger':ChannelMerger,
+            'ChannelSelector':ChannelSelector,
+            'ChannelSplitter':ChannelSplitter,
             'Circle2D':Circle2D,
             'ClipPlane':ClipPlane,
+            'CollidableOffset':CollidableOffset,
+            'CollidableShape':CollidableShape,
             'Collision':Collision,
             'CollisionCollection':CollisionCollection,
             'CollisionSensor':CollisionSensor,
+            'CollisionSpace':CollisionSpace,
             'Color':Color,
             'ColorChaser':ColorChaser,
             'ColorDamper':ColorDamper,
@@ -303,6 +406,7 @@ class RKIO():
             'Contact':Contact,
             'Contour2D':Contour2D,
             'ContourPolyline2D':ContourPolyline2D,
+            'Convolver':Convolver,
             'Coordinate':Coordinate,
             'CoordinateChaser':CoordinateChaser,
             'CoordinateDamper':CoordinateDamper,
@@ -311,12 +415,13 @@ class RKIO():
             'CoordinateInterpolator2D':CoordinateInterpolator2D,
             'Cylinder':Cylinder,
             'CylinderSensor':CylinderSensor,
+            'Delay':Delay,
+            'DirectionalLight':DirectionalLight,
             'DISEntityManager':DISEntityManager,
             'DISEntityTypeMapping':DISEntityTypeMapping,
-            'DirectionalLight':DirectionalLight,
             'Disk2D':Disk2D,
             'DoubleAxisHingeJoint':DoubleAxisHingeJoint,
-#            'DynamicTransform':DynamicTransform,
+            'DynamicsCompressor':DynamicsCompressor,
             'EaseInEaseOut':EaseInEaseOut,
             'EdgeEnhancementVolumeStyle':EdgeEnhancementVolumeStyle,
             'ElevationGrid':ElevationGrid,
@@ -327,8 +432,9 @@ class RKIO():
             'FloatVertexAttribute':FloatVertexAttribute,
             'Fog':Fog,
             'FogCoordinate':FogCoordinate,
-#            'Follower':Follower,
+            'FontStyle':FontStyle,
             'ForcePhysicsModel':ForcePhysicsModel,
+            'Gain':Gain,
             'GeneratedCubeMapTexture':GeneratedCubeMapTexture,
             'GeoCoordinate':GeoCoordinate,
             'GeoElevationGrid':GeoElevationGrid,
@@ -370,6 +476,7 @@ class RKIO():
             'LinePickSensor':LinePickSensor,
             'LineProperties':LineProperties,
             'LineSet':LineSet,
+            'ListenerPointSource':ListenerPointSource,
             'LoadSensor':LoadSensor,
             'LOD':LOD,
             'Material':Material,
@@ -381,6 +488,7 @@ class RKIO():
             'MetadataInteger':MetadataInteger,
             'MetadataSet':MetadataSet,
             'MetadataString':MetadataString,
+            'MicrophoneSource':MicrophoneSource,
             'MotorJoint':MotorJoint,
             'MovieTexture':MovieTexture,
             'MultiTexture':MultiTexture,
@@ -405,16 +513,22 @@ class RKIO():
             'OrientationDamper':OrientationDamper,
             'OrientationInterpolator':OrientationInterpolator,
             'OrthoViewpoint':OrthoViewpoint,
+            'OscillatorSource':OscillatorSource,
             'PackagedShader':PackagedShader,
             'ParticleSystem':ParticleSystem,
+            'PeriodicWave':PeriodicWave,
+            'PhysicalMaterial':PhysicalMaterial,
             'PickableGroup':PickableGroup,
             'PixelTexture':PixelTexture,
             'PixelTexture3D':PixelTexture3D,
             'PlaneSensor':PlaneSensor,
             'PointEmitter':PointEmitter,
             'PointLight':PointLight,
+            'PointPickSensor':PointPickSensor,
+            'PointProperties':PointProperties,
             'PointSet':PointSet,
             'Polyline2D':Polyline2D,
+            'PolylineEmitter':PolylineEmitter,
             'Polypoint2D':Polypoint2D,
             'PositionChaser':PositionChaser,
             'PositionChaser2D':PositionChaser2D,
@@ -454,8 +568,9 @@ class RKIO():
             'SplinePositionInterpolator2D':SplinePositionInterpolator2D,
             'SplineScalarInterpolator':SplineScalarInterpolator,
             'SpotLight':SpotLight,
-#            'Squad':Squad,
             'StaticGroup':StaticGroup,
+            'StreamAudioDestination':StreamAudioDestination,
+            'StreamAudioSource':StreamAudioSource,
             'StringSensor':StringSensor,
             'SurfaceEmitter':SurfaceEmitter,
             'Switch':Switch,
@@ -467,6 +582,8 @@ class RKIO():
             'TextureCoordinate3D':TextureCoordinate3D,
             'TextureCoordinate4D':TextureCoordinate4D,
             'TextureCoordinateGenerator':TextureCoordinateGenerator,
+            'TextureProjector':TextureProjector,
+            'TextureProjectorParallel':TextureProjectorParallel,
             'TextureProperties':TextureProperties,
             'TextureTransform':TextureTransform,
             'TextureTransform3D':TextureTransform3D,
@@ -484,6 +601,7 @@ class RKIO():
             'TriangleStripSet':TriangleStripSet,
             'TwoSidedMaterial':TwoSidedMaterial,
             'UniversalJoint':UniversalJoint,
+            'UnlitMaterial':UnlitMaterial,
             'Viewpoint':Viewpoint,
             'ViewpointGroup':ViewpointGroup,
             'Viewport':Viewport,
@@ -491,23 +609,9 @@ class RKIO():
             'VolumeData':VolumeData,
             'VolumeEmitter':VolumeEmitter,
             'VolumePickSensor':VolumePickSensor,
+            'WaveShaper':WaveShaper,
             'WindPhysicsModel':WindPhysicsModel,
-            'WorldInfo':WorldInfo,
+            'WorldInfo':WorldInfo
         }
         
         return x3dNodeMapping[x3dType]()
-
-        
-    def useDecl(self, x3dNode, nodeName, x3dParentNode, x3dFieldName):
-        x3dNode.USE = nodeName
-        
-        nodeField = getattr(x3dParentNode, x3dFieldName)
-        if isinstance(nodeField, list):
-            nodeField.append(x3dNode)
-        else:
-            nodeField = x3dNode
-            
-    def setAsHasBeen(self, nodeName, x3dNode):
-        self.haveBeenNodes.append(nodeName)
-        self.generatedX3D.append(x3dNode)
-        

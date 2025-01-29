@@ -130,12 +130,11 @@ class RKInterfaces():
         
     def setBaseUrl(self, value):
         pass
-        
-    def getDirection(self, euler):
-        point = aom.MPoint(0.0, 0.0, -1.0)
+    
+    def getDirection(self, euler, point=(0.0, 0.0, -1.0)):
         tMat  = aom.MTransformationMatrix()
         tMat.setRotation(euler)
-        mVec  = aom.MVector(point)
+        mVec  = aom.MVector(aom.MPoint(point))
         rVec  = mVec * tMat.asMatrix()
         
         rPoint = aom.MPoint(rVec)
