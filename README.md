@@ -36,6 +36,17 @@ For C++ versions of the plugin (1.1.0) supporting Maya 6.0 - Maya 2008, please r
 
 This will complete the setup of the RawKee X3D Plugin 1.2.0 for Maya 2019+. Happy modeling!
 -->
+
+## Contributing
+
+To make contributions to the project, follow these steps:
+1. Clone the repository
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Stage your Changes (`git add -A`)
+4. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+5. Push to the Branch (`git push feature/AmazingFeature`)
+6. Open a Pull Request
+
 ## Contact Information
 For further assistance, contact Aaron:
 - **Email:** aaron.bergstrom@und.edu
