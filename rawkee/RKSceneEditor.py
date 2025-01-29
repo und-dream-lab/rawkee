@@ -32,7 +32,10 @@ import sys
 
 from screeninfo import get_monitors
 
-from functools import partial
+########################################
+# Not sure why I imported this
+########################################
+# from functools import partial
 
 #Python API 1.0 needed to access MQtUtil
 import maya.OpenMayaUI as omui
