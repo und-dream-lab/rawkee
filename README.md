@@ -6,11 +6,26 @@ For C++ versions of the plugin (1.2.0) supporting Maya 2019 - Maya 2024, please 
 
 For C++ versions of the plugin (1.1.0) supporting Maya 6.0 - Maya 2008, please refer to the [SourceForge page](https://sourceforge.net/projects/rawkee/).
 
-## Required Python Packages not included with Maya Python (mayapy) installed with pip
-- x3d
+## Usage of 'pip' with 'mayapy' requires installation of 'pip'.
+1. Download the 'get-pip.py' installer file. More information about this can be found here:
+   [Python.org page](https://packaging.python.org/en/latest/tutorials/installing-packages/)
+   
+2. Run the installer from the command line using:
+   mayapy ./get-pip.py
+   
 
-## Optional Python Packages not included with Maya Python (mayapy) installed with pip
-- nodejs-bin
+## Required Python Packages in addition to standard Maya Python API 1.0 & 2.0 packages (mayapy). These packages may require a pip install regarless of what the list below explicitly states.
+- x3d        (pip install required)
+- nodejs-bin (pip install required) - likely to be removed at some point)
+- screeninfo (pip isntall required)
+- subprocess - may be removed in the future
+- signal     - may be removed in the future
+- typing
+- numpy
+- math
+- os
+- sys
+
 <!--
 ### Steps:
 1. **Open PowerShell:**

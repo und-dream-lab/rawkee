@@ -4,8 +4,19 @@ import maya.OpenMayaUI   as omui
 import maya.cmds         as cmds
 import maya.mel          as mel
 import os
-import signal
-import subprocess        as sp
+
+###########################################################
+# Used for killing external applications started by RawKee,
+# but methods implented don't work as expected. May remove.
+###########################################################
+import signal                                           ###
+###########################################################
+
+##########################################
+# Used for launching external applications
+##########################################
+import subprocess        as sp         ###
+##########################################
 
 from rawkee import RKOrganizer
 from rawkee import RKSceneEditor

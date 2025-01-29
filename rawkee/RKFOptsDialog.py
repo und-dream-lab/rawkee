@@ -22,7 +22,6 @@ try:
 
 except:
     #Qt6
-    import PySide6
     from PySide6           import QtCore
     from PySide6           import QtWidgets
     from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -43,10 +42,13 @@ import sys
 import maya.OpenMaya as om
 import maya.OpenMayaUI as omui
 import maya.cmds as cmds
-import inspect
-#import maya.standalone as mst
 
-#print(inspect.getfile(mst))
+#######################################
+# Don't remember why this is here
+#######################################
+# import inspect
+# import maya.standalone as mst
+# print(inspect.getfile(mst))
 
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--enable-logging --log-level=3 --remote-debugging-port=2345"
 os.environ["QT_LOGGING_RULES"] = "qt.webenginecontext.debug=true"
