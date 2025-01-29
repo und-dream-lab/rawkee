@@ -14,9 +14,10 @@ For C++ versions of the plugin (1.1.0) supporting Maya 6.0 - Maya 2008, please r
    mayapy ./get-pip.py
    
 
-## Required Python Packages in addition to standard Maya Python API 1.0 & 2.0 packages (mayapy). These packages may require a pip install regarless of what the list below explicitly states.
+## Required Python Packages in addition to standard Maya Python API 1.0/2.0 packages (mayapy).
+Some of the packages listed may require a pip install regarless of what the list below explicitly states.
 - x3d        (pip install required)
-- nodejs-bin (pip install required) - likely to be removed at some point)
+- nodejs-bin (pip install required) -- Likely to be removed at some point in the future.
 - screeninfo (pip isntall required)
 - subprocess - may be removed in the future
 - signal     - may be removed in the future
