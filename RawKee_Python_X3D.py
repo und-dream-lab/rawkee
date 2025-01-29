@@ -1,9 +1,13 @@
 import sys
 import os
 from rawkee import RKWeb3D
-from rawkee.RKWeb3D import RKAddSwitch, RKAddGroup, RKAddCollision, RKSetAsBillboard
-from rawkee.nodes.x3dSound import X3DSound, X3DSoundDrawOverride
-from rawkee.nodes.x3dViewpointCamera import X3DViewpointCamera
+from rawkee.RKWeb3D import RKAddSwitch, RKAddGroup, RKAddCollision, RKSetAsBillboard, RKAddX3DSound, RKTestIt
+from rawkee.RKSceneEditor import *
+#### from rawkee.nodes.x3dSound import X3DSound, X3DSoundDrawOverride
+#### from rawkee.nodes.X3D_Scene import X3D_Scene, RKPrimeX3DScene
+#### from rawkee.nodes.X3D_Transform import X3D_Transform
+#### from rawkee.nodes.X3D_Group import X3D_Group
+#from rawkee.nodes.x3dViewpointCamera import X3DViewpointCamera
 #from rawkee.RKUtils import *#setDefRKOptVars
 
 from maya import cmds as cmds
@@ -54,6 +58,7 @@ def startX_ITE(args):
 # Cosntructing the RawKee menu system using "maya.cmds" is a more pleasant 
 # experience than using MEL 
 global rkWeb3D
+
 
 class RKServer(aom.MPxCommand):
     kPluginCmdName = "rkServer"
@@ -216,10 +221,36 @@ class RKX3DSelExportOp(aom.MPxCommand):
             print("rkWeb3D was None")
 
 
-#def start_GUI():
-#    global rkWeb3D
-#    rkWeb3D = RKWeb3D.RKWeb3D()
-#    rkWeb3D.pVersion = RAWKEE_TITLE
+class RKShowSceneEditor(aom.MPxCommand):
+    kPluginCmdName = "rkShowSceneEditor"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowSceneEditor()
+        
+    def doIt(self, args):
+        print("RawKee Scene Editor")
+        #cmds.rkPrimeX3DScene()
+        
+        global rkWeb3D
+        if rkWeb3D is not None:
+            sceneEditorControlName = RKSceneEditor.scene_editor_control_name()
+        
+            if cmds.workspaceControl(sceneEditorControlName, exists=True):
+                #Must Close before Delete
+                cmds.workspaceControl(sceneEditorControlName, e=True, close=True, closeCommand=RKSceneEditor.workplace_close_command())
+                cmds.deleteUI(sceneEditorControlName)
+            
+            rkSEditor = RKSceneEditor()
+            rkSEditor.setRKWeb3D(rkWeb3D)
+            rkSEditor.show(dockable=True, uiScript=RKSceneEditor.workspace_ui_script())
+        else:
+            print("RKWeb3D is not set!")
+        
+
 
 # Initialize the plug-in
 def initializePlugin(plugin):
@@ -236,9 +267,26 @@ def initializePlugin(plugin):
     REGISTERING Custom X3D Nodes
     '''
     ##################################
+    '''
     try:
-        pluginFn.registerNode(X3DSound.kPluginNodeName,         # name of node
-                              X3DSound.kPluginNodeId,           # unique id that identifiesnode
+        
+        pluginFn.registerNode(X3D_Scene.TYPE_NAME,         # name of node
+                              X3D_Scene.TYPE_ID,           # unique id that identifiesnode
+                              X3D_Scene.creator,                 # function/method that returns new instance of class
+                              X3D_Scene.initialize)              # function/method that will initialize all attributes of node
+        
+        pluginFn.registerNode(X3D_Group.TYPE_NAME,           # name of node
+                              X3D_Group.TYPE_ID,             # unique id that identifiesnode
+                              X3D_Group.creator,             # function/method that returns new instance of class
+                              X3D_Group.initialize)          # function/method that will initialize all attributes of node
+
+        pluginFn.registerNode(X3D_Transform.TYPE_NAME,           # name of node
+                              X3D_Transform.TYPE_ID,             # unique id that identifiesnode
+                              X3D_Transform.creator,             # function/method that returns new instance of class
+                              X3D_Transform.initialize)          # function/method that will initialize all attributes of node
+
+        pluginFn.registerNode(X3DSound.TYPE_NAME,         # name of node
+                              X3DSound.TYPE_ID,           # unique id that identifiesnode
                               X3DSound.creator,                 # function/method that returns new instance of class
                               X3DSound.initialize,              # function/method that will initialize all attributes of node
                               aom.MPxNode.kLocatorNode,         # type of node to be registered
@@ -252,20 +300,21 @@ def initializePlugin(plugin):
                               
     except:
         aom.MGlobal.displayError("Failed to register node: {0}".format(X3DSound.kPluginNodeName))
-    
+    '''
     
     ##################################
     '''
     REGISTERING Custom X3D Node Draw Overrides
     '''
     ##################################
+    '''
     try:
         omr.MDrawRegistry.registerDrawOverrideCreator(X3DSound.DRAW_CLASSIFICATION,
                                                       X3DSound.DRAW_REGISTRANT_ID,
                                                       X3DSoundDrawOverride.creator)
     except:
         aom.MGlobal.displayError("Failed to register draw override: {0}".format(X3DSoundDrawOverride.NAME))
-        
+    '''    
         
     ##################################
     '''
@@ -276,15 +325,19 @@ def initializePlugin(plugin):
         
         #pluginFn.registerCommand(RKWeb3DExporter.kPluginCmdName, RKWeb3DExporter.cmdCreator)
         #pluginFn.registerCommand(        RKServer.kPluginCmdName,         RKServer.cmdCreator)
-        pluginFn.registerCommand(RKSetAsBillboard.kPluginCmdName, RKSetAsBillboard.cmdCreator)
-        pluginFn.registerCommand(  RKAddCollision.kPluginCmdName,   RKAddCollision.cmdCreator)
-        pluginFn.registerCommand(      RKAddGroup.kPluginCmdName,       RKAddGroup.cmdCreator)
-        pluginFn.registerCommand(     RKAddSwitch.kPluginCmdName,      RKAddSwitch.cmdCreator)
-        pluginFn.registerCommand(          RKInfo.kPluginCmdName,           RKInfo.cmdCreator)
-        pluginFn.registerCommand(   RKX3DExportOp.kPluginCmdName,    RKX3DExportOp.cmdCreator)
-        pluginFn.registerCommand(     RKX3DExport.kPluginCmdName,      RKX3DExport.cmdCreator)
-        pluginFn.registerCommand(   RKX3DImportOp.kPluginCmdName,    RKX3DImportOp.cmdCreator)
-        pluginFn.registerCommand(     RKX3DImport.kPluginCmdName,      RKX3DImport.cmdCreator)
+        #pluginFn.registerCommand(          RKAddX3DSound.kPluginCmdName,     RKAddX3DSound.cmdCreator)
+        pluginFn.registerCommand(       RKSetAsBillboard.kPluginCmdName,  RKSetAsBillboard.cmdCreator)
+        pluginFn.registerCommand(         RKAddCollision.kPluginCmdName,    RKAddCollision.cmdCreator)
+        pluginFn.registerCommand(             RKAddGroup.kPluginCmdName,        RKAddGroup.cmdCreator)
+        pluginFn.registerCommand(            RKAddSwitch.kPluginCmdName,       RKAddSwitch.cmdCreator)
+        pluginFn.registerCommand(                 RKInfo.kPluginCmdName,            RKInfo.cmdCreator)
+        pluginFn.registerCommand(          RKX3DExportOp.kPluginCmdName,     RKX3DExportOp.cmdCreator)
+        pluginFn.registerCommand(            RKX3DExport.kPluginCmdName,       RKX3DExport.cmdCreator)
+        pluginFn.registerCommand(          RKX3DImportOp.kPluginCmdName,     RKX3DImportOp.cmdCreator)
+        pluginFn.registerCommand(            RKX3DImport.kPluginCmdName,       RKX3DImport.cmdCreator)
+        #pluginFn.registerCommand(        RKPrimeX3DScene.kPluginCmdName,   RKPrimeX3DScene.cmdCreator)
+        pluginFn.registerCommand(               RKTestIt.kPluginCmdName,          RKTestIt.cmdCreator)
+        pluginFn.registerCommand(      RKShowSceneEditor.kPluginCmdName, RKShowSceneEditor.cmdCreator)
         
     except:
         sys.stderr.write("Failed to register a plugin command.\n")
@@ -311,7 +364,9 @@ def uninitializePlugin(plugin):
     '''
     ##################################
     try:
-        #pluginFn.deregisterCommand(RKWeb3DExporter.kPluginCmdName)
+        pluginFn.deregisterCommand(RKShowSceneEditor.kPluginCmdName)
+        pluginFn.deregisterCommand(         RKTestIt.kPluginCmdName)
+        #pluginFn.deregisterCommand(  RKPrimeX3DScene.kPluginCmdName)
         pluginFn.deregisterCommand(      RKX3DImport.kPluginCmdName)
         pluginFn.deregisterCommand(    RKX3DImportOp.kPluginCmdName)
         pluginFn.deregisterCommand(      RKX3DExport.kPluginCmdName)
@@ -321,6 +376,7 @@ def uninitializePlugin(plugin):
         pluginFn.deregisterCommand(       RKAddGroup.kPluginCmdName)
         pluginFn.deregisterCommand(   RKAddCollision.kPluginCmdName)
         pluginFn.deregisterCommand( RKSetAsBillboard.kPluginCmdName)
+        #pluginFn.deregisterCommand(    RKAddX3DSound.kPluginCmdName)
         #pluginFn.deregisterCommand(         RKServer.kPluginCmdName)
         
     except:
@@ -332,25 +388,44 @@ def uninitializePlugin(plugin):
     DEREGISTERING Custom X3D Node Draw Overrides
     '''
     ##################################
+    '''
     try:
         omr.MDrawRegistry.deregisterDrawOverrideCreator(X3DSound.DRAW_CLASSIFICATION, X3DSound.DRAW_REGISTRANT_ID)
     except:
         aom.MGlobal.displayError("Failed to deregister draw override: {0}".format(X3DSoundDrawOverride.NAME))
-        
+    '''    
         
     ##################################
     '''
     DEREGISTERING Custom X3D Nodes
     '''
     ##################################
+    '''
     try:
 #        pluginFn.deregisterNode(X3DViewpointCamera.kPluginNodeId)
-        pluginFn.deregisterNode(          X3DSound.kPluginNodeId)
+        pluginFn.deregisterNode(           X3DSound.TYPE_ID)
+        pluginFn.deregisterNode(      X3D_Transform.TYPE_ID)
+        pluginFn.deregisterNode(          X3D_Group.TYPE_ID)
+        pluginFn.deregisterNode(          X3D_Scene.TYPE_ID)
     except:
         aom.MGlobal.displayError("Failed to deregister a node.")#{0}".format(X3DSound.TYPE_NAME))
-
-
+    '''
+    ##################################################################
     # Removal of Remote Menu Sysem for RawKee from Maya Main Window
+    ##################################################################
+    
+    # First we must remove the refernce to RKWeb3D object in the RKSceneEditor panel
+    # otherwise the object's __del__ function won't by code below of...
+    # 'del rkWeb3D'
+    sceneEditorControlName = RKSceneEditor.scene_editor_control_name()
+
+    if cmds.workspaceControl(sceneEditorControlName, exists=True):
+        #Must Close before Delete
+        cmds.workspaceControl(sceneEditorControlName, e=True, close=True, closeCommand=RKSceneEditor.workplace_close_command())
+        cmds.deleteUI(sceneEditorControlName)
+    
+    # Delete the RKWeb3D object that is the menu system and 
+    # export function system for the MayaMainWindow
     global rkWeb3D
     del rkWeb3D
 

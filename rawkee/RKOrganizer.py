@@ -6,13 +6,25 @@ import maya.api.OpenMaya as aom
 
 from rawkee.RKInterfaces import *
 from rawkee.RKIO         import *
+from rawkee.RKXNodes     import *
+
 import numpy as np
 
 #Python implementation of C++ x3dExportOrganizer
 
+        # For processing the Maya nodes as X3D equivelents
+        # transform - Transform - ############ - children - 4
+        # transform - Group     - x3dGroup     - children - 4
+        # transform - Billboard - x3dBillboard - children - 4
+        # transform - Anchor    - x3dAnchor    - children - 4
+        # transform - Collision - x3dCollision - children - 4
+        # transform - Switch    - x3dSwitch    - choice   - 101
+        # lodGroup  - LOD       - ############ - level    - 102
+
+
 class RKOrganizer():
     def __init__(self):
-        print("RKOrganizer")
+        #print("RKOrganizer")
         
         self.rkint = RKInterfaces()
         self.rkio  = RKIO()
@@ -195,40 +207,116 @@ class RKOrganizer():
         del self.rkint
     
     def processImportFile(self, fullFilePath, rkFilter):
-        print("Importing!!!")
-        print(fullFilePath)
-        print(rkFilter)
+        self.rkio.cMessage("Importing!!!")
+        self.rkio.cMessage(fullFilePath)
+        self.rkio.cMessage(rkFilter)
         
     def processExportFile(self, fullFilePath, rkFilter):
-        print("Exporting!!!")
-        print(fullFilePath)
-        print(rkFilter)
-        
-    def exportAll(self):
-        #Grab the Scene Root
-        self.itDag = aom.MItDag(aom.MItDag.kDepthFirst, aom.MFn.kTransform)
-        worldDag = aom.MFnDagNode(self.itDag.root())
-        x3dScene = self.rkio.createSceneRoot()
+        self.rkio.cMessage("Exporting!!!")
+        self.rkio.cMessage(fullFilePath)
+        self.rkio.cMessage(rkFilter)
+    
+    #######################################################################################
+    ### maya2x3d(self - RKOrganizer, x3d.Scene, MFnDagPath lsit [], MFnDagNode list [], string - pVersion <rawkee version>) ###
+    #######################################################################################
+    # Traverses the Maya DAG and converts the Maya nodes it    #
+    # finds into X3D nodes and places them in a location in    #
+    # the X3D Scenegraph that roughly corresponds to there     #
+    # locations in the Maya DAG/DepGraph. Returns nothing.     #
+    ############################################################
+    def maya2x3d(self, x3dScene, parentDagPaths, dagNodes, pVersion):
+        self.rkio.comments.clear()
+        self.rkio.comments.append(pVersion)
+        self.rkio.commentNames.clear()
+        self.rkio.commentNames.append("created_with")
 
+        # Should aways be a new root.
+        # Telling the IO object that this node has been 
+        # visited bofore.
         self.rootName = "|!!!!!_!!!!!|world"
         self.rkio.setAsHasBeen(self.rootName, x3dScene)
-#        self.x3dParentNode = x3dScene
-#        self.x3dFieldName = "children"
         
-        while not self.itDag.isDone():
-            self.itDag.next()
-            #try:
-            if self.itDag.isDone():
-                print("Iterator is complete")
-            else:
-                self.processCNode()
-            #except:
-            #    print("Some Dag Failure")
+        #Traverse Maya Scene Downward without using an MFIt object
+        dNum = len(dagNodes)
+        for i in range(dNum):
+            self.traverseDownward(parentDagPaths[i], dagNodes[i])
+        
+    ############################################################
+    ###  getAllTopDagNodes(self - RKOrganizer)               ###
+    ############################################################
+    # Selects the top level Maya Transform nodes that are      #
+    # immediate children of the Maya DAG 'world' root and      #
+    # returns them as a Python list. If a non-Transform node   #
+    # is parented to the Maya 'world' root (such as a 'joint'  #
+    # node), that node is not selected to be returned.         #
+    ############################################################
+    def getAllTopDagNodes(self):
+        topDagNodes    = []
+        parentDagPaths = [] # All will be the same because they are all the Maya world root.
+                            # Keeping it consistant with traversal by selection
+        #Grab the Maya World Root
+        itDag = aom.MItDag(aom.MItDag.kBreadthFirst, aom.MFn.kTransform)
+        worldDag = aom.MFnDagNode(itDag.root())
+        
+        dragPath = worldDag.getPath().fullPathName()
 
+        ################################################################
+        # Create a list of traversable dagnodes and the dagpath of their 
+        # parent node - aka: dragPath - so named because the methods
+        # are draging along the dagpath of their parent in order to 
+        # properly check for node instances.
+        cNum = worldDag.childCount()
+        for i in range(cNum):
+            parentDagPaths.append(dragPath)
+            topDagNodes.append(aom.MFnDagNode(worldDag.child(i)))
+
+        return parentDagPaths, topDagNodes
         
-        #Process the Root Branch of the DAG
-        #self.processBranchNode(worldDag.object(), 0)
-        #self.processScene(aom.MFnDependencyNode(worldDag.object()))
+    ########
+    # TODO # - Think about how this is done. This function doesn't return what is needed.
+    ########
+    def getSelectedDagNodes(self):
+        selectedDagNodes = []
+        parentDagPaths   = []
+
+        # Grab the selected Transforms
+        activeList = aom.MGlobal.getActiveSelectionList()
+        iterGP = aom.MItSelectionList( activeList, aom.MFn.kDagNode )
+        itDag  = aom.MItDag(aom.MItDag.kBreadthFirst, aom.MFn.kTransform)
+        
+        dagList  = []
+        dragList = []
+        
+        while iterGP.isDone() != False:
+            dagPath = iterGP.getDagPath()
+            if dagPath != None:
+                itDag.reset(dagPath, aom.MItDag.kDepthFirst, aom.MFn.kTransform)
+                topNode = aom.MFnDagNode(itDag.root())
+                selectedDagNodes.append(topNode)
+                parentDagPaths.append(topNode.getPath().fullPathName()) # this is wrong, this is not the parent dagpath of this node.
+            iterGP.next()
+            
+        return parentDagPaths, selectedDagNodes
+    
+    ##############################################################################################
+    #   Export Initiators
+    ##############################################################################################
+    def exportAll(self, x3dDoc):
+        #Grab the Maya World Root
+        itDag = aom.MItDag(aom.MItDag.kDepthFirst, aom.MFn.kTransform)
+        worldDag = aom.MFnDagNode(itDag.root())
+        
+        #Create the X3D Scene Root
+        x3dScene = self.rkio.resetSceneRoot(x3dDoc)
+        self.rootName = "|!!!!!_!!!!!|world"
+        self.rkio.setAsHasBeen(self.rootName, x3dScene)
+        
+        dragPath = worldDag.getPath().fullPathName()
+
+        #Traverse Maya Scene Downward without using an MFIt object
+        cNum = worldDag.childCount()
+        for i in range(cNum):
+            self.traverseDownward(dragPath, aom.MFnDagNode(worldDag.child(i)))
         
         #If the RigidBody Physics option is selected, attempt to export Rigid Body physics nodes.
         if self.exRigidBody == True:
@@ -238,44 +326,81 @@ class RKOrganizer():
         self.processScripts()
         
         self.isDone = True
-        
- # self, x3dNodeType, nodeName, x3dParentNode, x3dFieldName       
-        
-#    def processScene(self, wObject):
-    def processScene(self, worldNode, itDag):
-        dagFn = aom.MFnDagNode(wObject)
-        cNumb = dagFn.childCount()
-        
-        for index in range(cNumb):
-            aChild = dagFn.child(index)
-            #self.processCNode(aom.MFnDependencyNode(aChild).object(), self.rkio.x3dDoc.Scene, "children")
-
-    def processSelectedBranches(self, childObjList):
-        for aChild in childObjList:
-            #self.processCNode(aChild, self.rkio.x3dDoc.Scene, "children")
-            pass
     
-    def processX3DAnchor(self, dagNode):
+        
+    def exportSelected(self, x3dDoc):
+        
+        # Grab the selected Transforms
+        activeList = aom.MGlobal.getActiveSelectionList()
+        iterGP = aom.MItSelectionList( activeList, aom.MFn.kDagNode )
+        itDag  = aom.MItDag(aom.MItDag.kDepthFirst, aom.MFn.kTransform)
+        
+        dagList  = []
+        dragList = []
+        
+        while iterGP.isDone() != False:
+            dagPath = iterGP.getDagPath()
+            if dagPath != None:
+                itDag.reset(dagPath, aom.MItDag.kDepthFirst, aom.MFn.kTransform)
+                topNode = aom.MFnDagNode(itDag.root())
+                dagList.append(topNode)
+                dragList.append(topNode.getPath().fullPathName())
+            iterGP.next()
+            
+        #Create the X3D Scene Root
+        x3dScene = self.rkio.resetSceneRoot(x3dDoc)
+        self.rootName = "|!!!!!_!!!!!|world"
+        self.rkio.setAsHasBeen(self.rootName, x3dScene)
+
+        cNum = len(dagList)
+        for i in range(cNum):
+            self.traverseDownward(dragList[i], dagList[i])
+
+#############################   Break   ####################################
+############################################################################
+        
+    def processX3DAnchor(self, dragPath, dagNode, x3dPF):
         pass
         
-    def processX3DBillboard(self, dagNode):
+    def processX3DBillboard(self, dagNode, x3dPF):
         pass
         
-    def processX3DCollision(self, dagNode):
+    def processX3DCollision(self, dagNode, x3dPF):
         pass
         
-    def processX3DGroup(self, dagNode):
+    def processX3DGroup(self, dagNode, x3dPF):
         pass
         
-    def processX3DLOD(self, dagNode):
+    def processX3DSwitch(self, dagNode, x3dPF):
         pass
         
-    def processX3DSwitch(self, dagNode):
+    def processX3DViewportGroup(self, dagNode, x3dPF):
+        pass
+    
+    def processMayaLOD(self, dragPath, dagNode, cField="children"):
         pass
         
-    def processX3DViewportGroup(self, dagNode):
-        pass
-        
+    #########################################################################################################
+    #   Sound Related Functions
+    def processX3DSound(self, dagNode, x3dPF):
+        if dagNode.childCount() > 0:
+            depNode = aom.MFnDependencyNode(dagNode.child(0))
+            bna = self.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "Sound", dagNode.name())
+            if bna[0] == False:
+                x3dNode = bna[1]
+
+                # X3D Direction
+                mlist = aom.MSelectionList()
+                mlist.add(dagNode.name())
+                tForm = aom.MFnTransform(mlist.getDependNode(0))
+                x3dNode.direction = self.rkint.getDirection(tForm.rotation(aom.MSpace.kTransform, False), (0.0, 0.0, 1.0))
+                
+                # X3D Location
+                x3dNode.location = self.rkint.getSFVec3f(tForm.translation(aom.MSpace.kTransform))
+
+    
+    #########################################################################################################
+    #   Viewpoint Realted Functions
     def processX3DViewpoint(self, dagNode, x3dPF):
         if dagNode.childCount() > 0:
             depNode = aom.MFnDependencyNode(dagNode.child(0))
@@ -304,7 +429,61 @@ class RKOrganizer():
                     fov = 57.29578 * fov
                     x3dNode.fieldOfView = np.deg2rad(fov)
 
+    def processBasicViewpointFields(self, x3dNode, dagNode, depNode):
+        mlist = aom.MSelectionList()
+        mlist.add(dagNode.name())
+        tForm = aom.MFnTransform(mlist.getDependNode(0))
+
+        # X3D centerOfRotation
+        x3dNode.centerOfRotation = self.rkint.getSFVec3fFromMPoint(tForm.rotatePivot(aom.MSpace.kTransform))
         
+        # X3D description - must be addedmanually by the user if camera node not created through the RawKee GUI
+        try:
+            x3dNode.description = dagNode.findPlug("x3dDescription").asString()
+        except:
+            self.rkio.cMessage("No 'description' X3D Field Found")
+        
+        # X3D farDistance
+        x3dNode.farDistance = depNode.findPlug("farClipPlane", False).asFloat()
+        
+        # X3D jump - must be addedmanually by the user if camera node not created through the RawKee GUI
+        try:
+            x3dNode.jump = dagNode.findPlug("x3dJump",False).asBool()
+        except:
+            self.rkio.cMessage("No 'jump' X3D Field Found")
+        
+        ################################################################
+        # X3D metadata
+        # TODO: Implement metadata field
+        
+        ################################################################
+        # X3D navigationInfo
+        # TODO: Implement mechanism for implementing custom NavigationInfo
+        # node within this Maya 'transform'
+        
+        # X3D nearDistance
+        x3dNode.nearDistance = depNode.findPlug("nearClipPlane", False).asFloat()
+        
+        # X3D orientation
+        x3dNode.orientation = self.rkint.getSFRotation(tForm.rotation(aom.MSpace.kTransform, True).asAxisAngle())
+
+        # X3D position
+        x3dNode.position = self.rkint.getSFVec3f(tForm.translation(aom.MSpace.kTransform))
+        
+        # X3D retainUserOffsets - must be addedmanually by the user if camera node not created through the RawKee GUI
+        try:
+            x3dNode.retainUserOffsets = dagNode.findPlug("x3dRetainUserOffsets", False).asBool()
+        except:
+            self.rkio.cMessage("No 'retainUserOffsets' X3D Field Found")
+            
+        # X3D viewAll
+        try:
+            x3dNode.viewAll = dagNode.findPlug("x3dViewAll", False).asBool()
+        except:
+            self.rkio.cMessage("No 'viewAll' X3D Field Found")
+    
+    ##########################################################################################################
+    # Lighting Related Functions
     def processX3DLighting(self, dagNode, x3dPF):
         if dagNode.childCount() > 0:
             depNode = aom.MFnDependencyNode(dagNode.child(0))
@@ -404,109 +583,6 @@ class RKOrganizer():
             else:
                 pass
     
-    def processX3DTransform(self, depNode, x3dParentNode, x3dFieldName):
-        bna = self.processBasicNodeAddition(depNode, x3dParentNode, x3dFieldName, "Transform")
-        if bna[0] == False:
-            self.processBasicTransformFields(depNode, bna[1])
-
-    def processHAnimAvatar(self, depNode, x3dParentNode, x3dFieldName):
-        bna = self.processBasicNodeAddition(depNode, x3dParentNode, x3dFieldName, "HAnimHumanoid")
-        if bna[0] == False:
-            self.processBasicTransformFields(depNode, bna[1])
-    
-    def processBasicNodeAddition(self, depNode, x3dParentNode, x3dFieldName, x3dType, nodeName=None):
-        if nodeName == None:
-            nodeName = depNode.name()
-        tNode = self.rkio.createNodeFromString(x3dType)
-        
-        hasBeen = self.rkio.checkIfHasBeen(nodeName)
-        if hasBeen == True:
-            self.rkio.useDecl(tNode, nodeName, x3dParentNode, x3dFieldName)
-        else:
-            tNode.DEF = nodeName
-            self.rkio.setAsHasBeen(nodeName, tNode)
-            nodeField = getattr(x3dParentNode, x3dFieldName)
-            if isinstance(nodeField, list):
-                print(x3dFieldName)
-                nodeField.append(tNode)
-            else:
-                print("Not a list")
-                print(x3dFieldName)
-                nodeField = tNode
-            
-        return [hasBeen, tNode]
-    
-    def getX3DParentAndContainerField(self, dagNode):
-        p = dagNode.getPath().fullPathName()
-        sp = p.split('|')
-        spLen = len(sp)
-        pName = sp[spLen-2]
-        
-        if spLen == 2:
-            pName = self.rootName
-
-        x3dParent = self.rkio.findExisting(pName)
-
-        #TODO: maybe something here in the future to determine x3dField
-        x3dField = "children"
-
-        return [x3dParent, x3dField]
-        attributes = dir(x3dParent)
-        print(attributes)
-    
-    def processBasicViewpointFields(self, x3dNode, dagNode, depNode):
-        mlist = aom.MSelectionList()
-        mlist.add(dagNode.name())
-        tForm = aom.MFnTransform(mlist.getDependNode(0))
-
-        # X3D centerOfRotation
-        x3dNode.centerOfRotation = self.rkint.getSFVec3fFromMPoint(tForm.rotatePivot(aom.MSpace.kTransform))
-        
-        # X3D description - must be addedmanually by the user if camera node not created through the RawKee GUI
-        try:
-            x3dNode.description = dagNode.findPlug("x3dDescription").asString()
-        except:
-            print("No 'description' X3D Field Found")
-        
-        # X3D farDistance
-        x3dNode.farDistance = depNode.findPlug("farClipPlane", False).asFloat()
-        
-        # X3D jump - must be addedmanually by the user if camera node not created through the RawKee GUI
-        try:
-            x3dNode.jump = dagNode.findPlug("x3dJump",False).asBool()
-        except:
-            print("No 'jump' X3D Field Found")
-        
-        ################################################################
-        # X3D metadata
-        # TODO: Implement metadata field
-        
-        ################################################################
-        # X3D navigationInfo
-        # TODO: Implement mechanism for implementing custom NavigationInfo
-        # node within this Maya 'transform'
-        
-        # X3D nearDistance
-        x3dNode.nearDistance = depNode.findPlug("nearClipPlane", False).asFloat()
-        
-        # X3D orientation
-        x3dNode.orientation = self.rkint.getSFRotation(tForm.rotation(aom.MSpace.kTransform, True).asAxisAngle())
-
-        # X3D position
-        x3dNode.position = self.rkint.getSFVec3f(tForm.translation(aom.MSpace.kTransform))
-        
-        # X3D retainUserOffsets - must be addedmanually by the user if camera node not created through the RawKee GUI
-        try:
-            x3dNode.retainUserOffsets = dagNode.findPlug("x3dRetainUserOffsets", False).asBool()
-        except:
-            print("No 'retainUserOffsets' X3D Field Found")
-            
-        # X3D viewAll
-        try:
-            x3dNode.viewAll = dagNode.findPlug("x3dViewAll", False).asBool()
-        except:
-            print("No 'viewAll' X3D Field Found")
-    
     def processBasicLightFields(self, x3dNode, dagNode, depNode):
         # X3D AmbientIntensity - Maya Directional Light does not have an Amb Intensity attribute,
         # skipping this X3D Field
@@ -517,13 +593,13 @@ class RKOrganizer():
         gc = nColor.child(1).asFloat()
         bc = nColor.child(2).asFloat()
         strCol = "r: " + str(rc) + ", g: " + str(gc) + ", b: " + str(bc)
-        print(strCol)
+        self.rkio.cMessage(strCol)
         x3dNode.color = (rc, gc, bc)
         
         # X3D Global
         # Always set to True until I can figure out a way to set it to False, probably a custom attribute
         #x3dNode.global_ = True
-        #print(dir(x3dNode))
+        #self.rkio.cMessage(dir(x3dNode))
         x3dNode.global_ = True
         
         # X3D Intensity
@@ -551,6 +627,21 @@ class RKOrganizer():
         tInt = (sr + sg + sb ) / 3
         x3dNode.shadowIntensity = 1 - tInt
         
+    ######################################################################################################################
+    #   Transform Related Functions
+    def processX3DTransform(self, dragPath, dagNode, x3dPF):
+        depNode = aom.MFnDependencyNode(dagNode.object())
+        dragPath = dragPath + "|" + depNode.name()
+        bna = self.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "Transform")
+        if bna[0] == False:
+            self.processBasicTransformFields(depNode, bna[1])
+            
+            #Traverse Maya Scene Downward without using an MFIt object
+            groupDag = aom.MFnDagNode(depNode.object())
+            cNum = groupDag.childCount()
+            for i in range(cNum):
+                self.traverseDownward(dragPath, aom.MFnDagNode(groupDag.child(i)))
+
     def processBasicTransformFields(self, depNode, x3dNode):
         mlist = aom.MSelectionList()
         mlist.add(depNode.name())
@@ -573,6 +664,10 @@ class RKOrganizer():
         #
         # More than happy to get input from others to figure out how to calculate that. But until 
         # that happens, this X3D field for transform-style nodes will not be calculated.
+        ############################################################################################
+        
+        ############################################################################################
+        # X3D metadata - TODO
         ############################################################################################
 
 
@@ -617,88 +712,290 @@ class RKOrganizer():
         
         x3dNode.visible = depNode.findPlug("visibility", False).asBool()
     
-    def processMayaTransformNode(self, dagNode):
-        print("processMayaTransformNode")
+    ######################################################################################################################
+    # HAnimHumanoid Related Functions
+    #
+    # HAnim is cool, but boy is it a pain in the butt to implement
+    ######################################################################################################################
+    def processHAnimHumanoid(self, dragPath, dagNode, x3dPF):
+        depNode = aom.MFnDependencyNode(dagNode.object())
+        dragPath = dragPath + "|" + depNode.name()
+        bna = self.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "HAnimHumanoid")
+        if bna[0] == False:
+            self.processBasicTransformFields(depNode, bna[1])
+            
+            #Traverse Maya Scene Downward without using an MFIt object
+            groupDag = aom.MFnDagNode(depNode.object())
+            cNum = groupDag.childCount()
+            for i in range(cNum):
+                newCField = "segments"
+                
+                userDesignated = ""
+                thisChild = aom.MFnDagNode(groupDag.child(i))
+                try:
+                    userDesignatedContainerField = thisChild.findPlug("x3dContainerField", False)
+                    userDesignated = userDesignatedContainerField.asString()
+                except:
+                    pass
+                
+                if userDesignated == "":
+                    if thisChild.typeName   == "joint":
+                        newCField = "skeleton"
+                    elif thisChild.typeName == "transform":
+                        newCField = "sites"
+                    elif thisChild.typeName == "mesh":
+                        newCField = "skin"
+                    elif thisChild.typeName == "rkHAnimMotion":
+                        newCField = "motions"
+                        
+                else:
+                    newCField = userDesignated
+                    
+                if newCField   == "joints" or newCField == "skeleton":
+                    self.processHAnimJoint(  dragPath, thisChild, newCField)
+                elif newCField == "motions":
+                    self.processHAnimMotion( dragPath, thisChild)
+                elif newCField == "segments":
+                    self.processHAnimSegment(dragPath, thisChild)
+                elif newCField == "sites" or newCField  == "viewpoints":
+                    self.processHAnimSite(   dragPath, thisChild, newCField)
+                elif newCField == "skin":
+                    self.processHAnimSkin(   dragPath, thisChild)
+                else:
+                    animMessage = "Sorry - Node: " + thisChild.name() + " of Type: " + thisChild.typeName + " is not yet supported by RawKee Python for HAnim export.\n"
+                    animMessage = animMessage + "Skipping node.\n"
+                    self.rkio.cmessage(animMessage)
+
+
+    def processHAnimJoint(self, dragPath, jNode, cField="children"):
+        if jNode.typeName == "joint":
+            print("Joint Method Called")
+            print(jNode.name())
+
+        print("mayajoint")
+        
+    def processHAnimMotion(self, dragPath, moNode, cField="motions"):
+        pass
+        
+    def processHAnimSegment(self, dragPath, segNode, cField="segments"):
+        pass
+
+    def processHAnimSkin(self, dragPath, skNode, cField="skin"):
+        pass
+        
+    def processHAnimDisplacer(self, dragPath, disNode, cField="displacers"):
+        pass
+        
+
+    
+    ######################################################################################################################
+    #   Basic Node Functions
+    def processBasicNodeAddition(self, depNode, x3dParentNode, x3dFieldName, x3dType, nodeName=None):
+        if nodeName == None:
+            nodeName = depNode.name()
+        tNode = self.rkio.createNodeFromString(x3dType)
+        
+        hasBeen = self.rkio.checkIfHasBeen(nodeName)
+        if hasBeen == True:
+            self.rkio.useDecl(tNode, nodeName, x3dParentNode, x3dFieldName)
+        else:
+            tNode.DEF = nodeName
+            self.rkio.setAsHasBeen(nodeName, tNode)
+            nodeField = getattr(x3dParentNode, x3dFieldName)
+            if isinstance(nodeField, list):
+                self.rkio.cMessage(x3dFieldName)
+                nodeField.append(tNode)
+            else:
+                self.rkio.cMessage("Not a list")
+                self.rkio.cMessage(x3dFieldName)
+                nodeField = tNode
+            
+        return [hasBeen, tNode]
+    
+    def getX3DParentAndContainerField(self, dagNode, dragPath=None):
+        if dragPath == None:
+            dragPath = dagNode.getPath().fullPathName()
+        sp = dragPath.split('|')
+        spLen = len(sp)
+        pName = sp[spLen-2]
+        
+        if spLen == 2:
+            pName = self.rootName
+
+        x3dParent = self.rkio.findExisting(pName)
+        
+        if x3dParent == None:
+#            x3dParent = self.rkio.x3dDoc.Scene
+            x3dParent = self.rkio.findExisting(self.rootName)
+        
+        #Use this code when using the 'traverseDownward()' function for traversing the scene graph
+        #x3dParent = self.rkio.findExisting(pX3DName)
+
+        #TODO: maybe something here in the future to determine x3dField
+        x3dField = "children"
+
+        return [x3dParent, x3dField]
+        attributes = dir(x3dParent)
+        self.rkio.cMessage(attributes)
+
+    def getX3DParent(self, dagNode, dragPath=None):
+        if dragPath == None:
+            dragPath = dagNode.getPath().fullPathName()
+        sp = dragPath.split('|')
+        spLen = len(sp)
+        pName = sp[spLen-2]
+        
+        if spLen == 2:
+            pName = self.rootName
+
+        x3dParent = self.rkio.findExisting(pName)
+        
+        if x3dParent == None:
+            x3dParent = self.rkio.findExisting(self.rootName)
+        
+        return x3dParent
+
+
+    ############################################################################################
+    #   Export Organizing Related Functions
+    def processMayaTransformNode(self, dragPath, dagNode, cField="children"):
+        self.rkio.cMessage("processMayaTransformNode")
+        
         isTransform = True
         tName = dagNode.name()
-        depNode = aom.MFnDependencyNode(dagNode.object())
         
         x3dTypeAttr = None
         xta = ""
         try: 
-            x3dTypeAttr = depNode.findPlug("x3dNodeType", False)
+            x3dTypeAttr = dagNode.findPlug("x3dNodeType", False)
             xta = x3dTypeAttr.asString()
-            print("x3dNodeType exists!")
+            self.rkio.cMessage("x3dNodeType exists!")
         except:
-            print("x3dNodeType does not exist")
+            self.rkio.cMessage("x3dNodeType does not exist")
         
-        if xta != "":
-            print("xta items")
-            xtv = x3dTypeAttr.asString()
-            if xtv == "Anchor":
-                isTransform = False
-                self.processX3DAnchor(dagNode)
-            elif xtv == "Billboard":
-                isTransform = False
-                self.processX3DBillboard(dagNode)
-            elif xtv == "Collision":
-                isTransform = False
-                self.processX3DCollision(dagNode)
-            elif xtv == "Group":
-                isTransform = False
-                self.processX3DGroup(dagNode)
-            elif xtv == "Switch":
-                isTransform = False
-                self.processX3DSwitch(dagNode)
-            elif xtv == "ViewpointGroup":
-                isTransform = False
-                self.processX3DViewpointGroup(dagNode)
-            elif xtv == "HAnimHumanoid":
-                isTransform = False
-                x3dPF = self.getX3DParentAndContainerField(dagNode)
-                if x3dPF[0] == None:
-                    print("Parent Not Found: " + tName)
-                else:
-                    self.processHAnimAvatar(depNode, x3dPF[0], x3dPF[1])
-            elif xtv == "Transform":
-                isTransform = True
+        dragPath = dragPath + "|" + dagNode.name()
+
+        x3dPF = []
+        x3dPF.append(self.getX3DParent(dagNode, dragPath))
+        x3dPF.append(cField)
+
+        if x3dPF[0] == None:
+            self.rkio.cMessage("Parent Not Found. Ignore node: " + tName)
+        else:
+            if x3dPF[0] != None and xta != "":
+                self.rkio.cMessage("xta items")
+                if xta == "Anchor":
+                    isTransform = False
+                    self.processX3DAnchor(dragPath, dagNode, x3dPF)
+                elif xta == "Billboard":
+                    isTransform = False
+                    self.processX3DBillboard(dragPath, dagNode, x3dPF)
+                elif xta == "Collision":
+                    isTransform = False
+                    self.processX3DCollision(dragPath, dagNode, x3dPF)
+                elif xta == "Group":
+                    isTransform = False
+                    self.processX3DGroup(dragPath, dagNode, x3dPF)
+                elif xta == "Switch":
+                    isTransform = False
+                    self.processX3DSwitch(dragPath, dagNode, x3dPF)
+                elif xta == "ViewpointGroup":
+                    isTransform = False
+                    self.processX3DViewpointGroup(dragPath, dagNode, x3dPF)
+                elif xta == "HAnimHumanoid":
+                    isTransform = False
+                    self.processHAnimHumanoid(dragPath, dagNode, x3dPF)
+                elif xta == "MetadataSet":
+                    isTransform = False
+                    self.rkio.cMessage("Do nothing. MetadataSet nodes are not processed by this function.")
+                elif xta == "Transform":
+                    isTransform = True
+                
+            if isTransform == True:
+                self.processTransformSorting(dragPath, dagNode, x3dPF)
             
-        if isTransform == True:
-            hasJoints = False
-            hasLight  = False
-            hasCamera = False
-            skipTrans = False
+    def processTransformSorting(self, dragPath, dagNode, x3dPF):
+        tName = dagNode.name()
+        
+        hasJoints = False
+        hasLight  = False
+        hasCamera = False
+        hasSound  = False
+        skipTrans = False
+        
+        for index in range(dagNode.childCount()):
+            cNode = aom.MFnDependencyNode(dagNode.child(index))
+            if cNode.typeName == "camera" and index == 0:
+                hasCamera = True
+                skipTrans = True
+            if cNode.typeName.find("Light") > -1 and index == 0:
+                hasLight  = True
+                skipTrans = True
+            if cNode.typeName == "joint":
+                hasJoints = True
+                skipTrans = True
+            if cNode.typeName == "x3dSound":
+                hasSound = True
+                skipTrans = True
+                
+        if hasCamera == True:
+            self.processX3DViewpoint(dagNode, x3dPF) #TODO fix the problem.
+        elif hasLight  == True:
+            self.processX3DLighting( dagNode, x3dPF)
+        elif hasSound == True:
+            self.processX3DSound(    dagNode, x3dPF)
+        elif hasJoints == True:
+            self.processHAnimHumanoid(dragPath, dagNode, x3dPF)
+        elif skipTrans == False:
+            self.processX3DTransform( dragPath, dagNode, x3dPF)
+
+
+    #   Primary SceneGraph Traversal Function - Primarily Depth First
+    #   pDagNode is the parent node of dagNode, which is the node about to be written.
+    def traverseDownward(self, dragPath, dagNode, cField="children"):
+        nodeName = dagNode.name()
+        
+        if self.rkio.checkIfIgnored(nodeName) == False:
+            #Use cMessage instead of print so that we can block Verbose Export at the cMessage Level
+            self.rkio.cMessage("Node was NOT ignored: " + dagNode.typeName + ", NodeName: " + nodeName)
+            if dagNode.typeName == "transform":
+                self.processMayaTransformNode(dragPath, dagNode, cField)
+            elif dagNode.typeName == "mesh":
+                self.processMayaMesh(dragPath, dagNode, cField)
+            elif dagNode.typeName == "lodGroup":
+                self.processMayaLOD(dragPath, dagNode, cField)
+        else:
+            self.rkio.cMessage("Sorry - Node: " + nodeName + " of Type: " + dagNode.typeName + " is not yet supported for RawKee export.")
             
-            for index in range(dagNode.childCount()):
-                cNode = aom.MFnDependencyNode(dagNode.child(index))
-                if cNode.typeName == "camera" and index == 0:
-                    hasCamera = True
-                    skipTrans = True
-                if cNode.typeName.find("Light") > -1 and index == 0:
-                    hasLight  = True
-                    skipTrans = True
-                if cNode.typeName == "joint":
-                    hasJoints = True
-                    skipTrans = True
-                    
-            x3dPF = self.getX3DParentAndContainerField(dagNode)
-            if x3dPF[0] == None:
-                print("Parent Not Found: " + tName)
+            '''
+            # Will likely process Leaf Nodes in a different way for most nodes.
             else:
-                if hasCamera == True:
-                    self.processX3DViewpoint(dagNode, x3dPF) #TODO fix the problem.
-                elif hasLight  == True:
-                    self.processX3DLighting(dagNode, x3dPF)
-                elif hasJoints == True:
-                    self.processHAnimAvatar(depNode, x3dPF[0], x3dPF[1])
-                elif skipTrans == False:
-                    self.processX3DTransform(depNode, x3dPF[0], x3dPF[1])
+                self.processLeafNode(dagNode)
+            '''
+            
+
+#####################################################
+############    Other Functions     #################
+#####################################################
     
-    def processMayaJointGrouplessAvatar(self, jObject, x3dParentNode, x3dFieldName):
-        pass
+    def processMayaMesh(self, dragPath, dagNode, cField="children"):
+        supMeshName = dagNode.name()
         
-    def processMayaMesh(self, mObject, x3dParentNode, x3dFieldName):
-        pass
+        newDragPath = dragPath + "|" + supMeshName
+        
+        myMesh = aom.MFnMesh(dagNode.object())
+        
+        shList1 = []
+        shList2 = []
+        
+        shaders = []
+        groups  = []
+        
+        shaders, groups = myMesh.getConnectedSetsAndMembers(False, True)
+        
+        #Check for Metadata - skipping how this is done here for the moment.
+        
+        
     
     # New to Python Version - to replace writeLeafNode
     def processLeafNode(self, lObject, x3dParentNode, x3dFieldName):
@@ -707,315 +1004,6 @@ class RKOrganizer():
     def writeRoutes(self):
         pass
     
-    # New to Python Version - To replace processChildNode
-    def processCNode(self):
-        dagNode = aom.MFnDagNode(self.itDag.getPath())
-        
-        if dagNode.typeName != "transform":
-            return
-        
-        print("CNode called")
-        #depNode = aom.MFnDependencyNode(nObject)
-        nodeName = dagNode.name()
-        
-        if self.rkio.checkIfIgnored(nodeName) == False:
-            
-            print("CNode - Not ignored: " + dagNode.typeName + "NodeName: " + nodeName)
-            
-            if dagNode.typeName == "transform":
-                self.processMayaTransformNode(dagNode)
-            elif dagNode.typeName == "joint":           # Code Won't reach this
-                self.processMayaJointHeadless(dagNode)
-            elif dagNode.typeName == "mesh":            # Code Won't reach this
-                self.processMayaMesh(dagNode)
-            elif dagNode.typeName == "lodGroup":        # Code Won't reach this
-                self.processX3DLOD(dagNode)
-            else:
-                self.processLeafNode(dagNode)           # Code Won't reach this
-    
-    def exportSelected(self):
-        
-        # Grab the selected Transforms
-        activeList = aom.MGlobal.getActiveSelectionList()
-        iterGP = aom.MItSelectionList( activeList, aom.MFn.kDagNode )
-        itDag  = aom.MItDag(aom.MItDag.kDepthFirst, aom.MFn.kTransform)
-        
-        childObjList = []
-        
-        while iterGP.isDone() != False:
-            hidObj = iterGP.getDependNode()
-            if self.showHiddenForTrees(hidObj) != True and self.isTreeBuilding == True:
-                dagPath = iterGP.getDagPath()
-                if dagPath != None:
-                    itDag.reset(dagPath, aom.MItDag.kDepthFirst, aom.MFn.kTransform)
-                    topNode = itDag.root()
-                    #processChildNode(topNode, 0)
-                    childObjList.append(aom.MFnDependencyNode(topNode.object()))
-            iterGP.next()
-            
-        self.processSelectedBranches(childObjList)
-
-    def processBranchNode(self, mObject, cfChoice):
-        # cfChoice value is the int that selects the "cointainerField" choice for that node. 
-        dagFn = aom.MFnDagNode(mObject)
-        cNumb = dagFn.childCount()
-        
-        for index in range(cNumb):
-            aChild = dagFn.child(index)
-            self.processChildNode(aom.MFnDependencyNode(aChild).object(), chChoice)
-        
-    def processChildNode(self, chObject, cfChoice):
-        # cfChoice value is the int that selects the "cointainerField" choice for that node. 
-        self.processChildNode(chObject, cfChoice, "")
-        
-    def processChildNode(self, chObject, cfChoice, cfString):
-        # cfChoice value is the int that selects the "cointainerField" choice for that node. 
-        # C++ Lines: 2746 - 3052
-        dagNode = aom.MFnDagNode(chObject)
-        
-        if self.hasPassed == False:
-            self.hasPassed = self.isTreeBuilding
-            nVal = 0
-            tName = dagNode.name()
-            
-            while dagNode.hasUniqueName() != True:
-                nVal    = nVal-1
-                nValStr = str(nVal)
-                
-                ntName = tName
-                ntName += nValStr
-                dagNode.setName(ntName);
-        
-        childName = dagNode.name()
-        
-        contFieldName = cfString
-        if contFieldName == "":
-            contFieldName = self.getCFValue(cfChoice)
-        
-        '''
-		There are certain specific nodes that we don't want exported. If okUse == 1, then the dagNode
-		object is used for export. If okUse == False, the dagNode newDagFn is not.
-        '''
-        okUse = True
-
-		# In the C++ version of this code, two MStringArrays are used for setting up node fields. grArray1 is used for field names.
-        grArray1 = []
-
-		# grArray2 is used for field values
-        grArray2 = []
-        
-        # TODO - This will be changed for the Python code to use a single Python list where the even index values will be a string
-        # containing the field name, and the odd index will contain the field value
-        # It'll be an 'X3D Object Attributes' list
-        x3dObjAtt = []
-        
-        # This tells us what type of Maya node the newDagFn object is.
-        childType = newDagFn.typeName
-
-		# Skip all nodes that have an okUse value of 0
-        if self.evalIntermediacy(childName)    == True: okUse = False
-        if self.rkio.checkIfIgnored(childName) == True: okUse = False
-        if self.isInHiddenLayer(childName)     == True: okUse = False
-        
-        if okUse == True:
-            print("Ok to use.")
-			# Retrieves the field names for a transform node and stores them as MStrings in the MStringArray
-			# named grArray1 using a MEL procedure found in the x3d_exporter_procedures.mel file.
-            #################################################################
-            # Node having comparable python code... referenced here just so I 
-            # can keep the C++ to Python conversion straight in my head
-            #################################################################
-			# if(!isTreeBuilding) grArray1 = web3dem.getX3DFields(newDagFn, 0);
-			# grArray1.append(MString("containerField"));
-
-			# Retrieves the field values for this transform node and stores 
-            # them as MStrings in the MStringArray named grArray2 using a MEL 
-            # procedure found in the x3d_exporter_procedures.mel file. Length 
-            # of grArray2 is now equal to the length of grArray1 - 1.
-            #################################################################
-            # Referenced here so I can keep the code straight during the 
-            # conversion.
-            #
-            # if(!isTreeBuilding) grArray2 = web3dem.getX3DFieldValues(newDagFn, 0);
-            if self.isTreeBuilding != True:
-                x3dObjAtt = self.rkint.getX3DFieldsAndValues(dagNode, 0)
-			# C++ version of the code: grArray2.append(contFieldName)
-            x3dObjAtt.append("containerField")
-            x3dObjAtt.append(contFieldName)
-            
-            '''
-            We use the node name "childName" to find out whether or not this node has 
-            already been written to the file. This is done through the checkIfHasBeen 
-            method.
-            '''
-            if childType == X3D_MESH:
-                print("test")
-                if self.getCharacterState(dagNode.object()) != True:
-                    if self.getRigidBodyState(dagNode.parent(0)) != True:
-                        # The C++ version of this fucntion was writeMeshShape
-                        self.packageMeshShape(dagNode.object(), contFieldName)
-            else:
-                ciHasBeen = self.rkio.checkIfHasBeen(childName)
-                isAvatar = self.checkForAvatar(dagNode.object())
-                if ciHasBeen == False:
-                    # User feedback telling the content author that a particular node is being exported.
-                    if self.isTreeBuilding != True:
-                        print("Exporting node: " + childName)
-                    
-                    if childType == X3D_TRANS: # X3D_GROUP X3D_SWITCH X3D_LOD X3D_ANCHOR X3D_BILLBOARD X3D_COLLISION (Collision is separate in the C++ code).
-                        # unsigned int remNum;
-                        # unsigned int remNum1;
-                        remNums = self.evalForSyblings(dagNode.object(), contFieldName)
-
-                        isOE = False
-                        if remNums[0] > 0:
-                            isOE = True
-                        
-                        hasMeta = self.checkForMetadata(childName);
-                        if hasMeta == True:
-                            isOE = true;
-
-                        if isAvatar == True and self.exEncoding != VMRL97ENC and exHAnim == TRUE and childType == X3D_TRANS:
-                            pass
-                        else:
-                            # Handling for X3D_COLLISION should be added to this section of the function
-                            if remNums[0] > 0:
-                                self.processGrouping(dagNode.object(), msEmpty, x3dObjAtt, isOE, remNums[0], hasMeta)
-                            elif remNums[1] > 0:
-                                if self.useEmpties == True:
-                                    self.processGrouping(dagNode.object(), msEmpty, x3dObjAtt, isOE, remNums[0], hasMeta)
-                            else:
-                                self.processGrouping(dagNode.object(), msEmpty, x3dObjAtt, isOE, remNums[0], hasMeta)
-                                
-                    elif childType == X3D_INLINE:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msInline, x3dObjAtt)
-                        
-                    elif childType == X3D_HANIMJOINT and self.exEncoding != VRML97ENC and self.exHAnim == True and self.isTreeBuilding == True:
-                        self.writeHAnimJointForTree(dagNode.object()) # Not sure if the isTreeBuilding value is right
-                        
-                    elif childType == X3D_TIMESENSOR:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msTimeSensor, x3dObjAtt)
-                         
-                    elif childType == X3D_TOUCHSENSOR:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msTouchSensor, x3dObjAtt)
-                         
-                    elif childType == X3D_GAMEPADSENSOR and self.exEncoding != VRML97ENC and exIODevice == True:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msGamepadSensor, x3dObjAtt)
-
-                    elif childType == X3D_LOADSENSOR and self.exEncoding != VRML97ENC:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msLoadSensor, x3dObjAtt)
-
-                    elif childType == X3D_CYLSENSOR:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msCylinderSensor, x3dObjAtt)
-
-                    elif childType == X3D_PLANESENSOR:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msPlaneSensor, x3dObjAtt)
-
-                    elif childType == X3D_SPHERESENSOR:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msSphereSensor, x3dObjAtt)
-
-                    elif childType == X3D_KEYSENSOR and self.exEncoding != VRML97ENC:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msKeySensor, x3dObjAtt)
-
-                    elif childType == X3D_STRINGSENSOR and self.exEncoding != VRML97ENC:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msStringSensor, x3dObjAtt)
-
-                    elif childType == X3D_PROXSENSOR:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msProximitySensor, x3dObjAtt)
-
-                    elif childType == X3D_VISSENSOR:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msVisibilitySensor, x3dObjAtt)
-
-                    elif childType == X3D_NAVIGATION:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msNavigationInfo, x3dObjAtt)
-
-                    elif childType == X3D_WORLDINFO:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msWorldInfo, x3dObjAtt)
-
-                    elif childType == X3D_SOUND:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msSound, x3dObjAtt)
-
-                    elif childType == X3D_POSINTER:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msPositionInterpolator, x3dObjAtt)
-
-                    elif childType == X3D_ORIINTER:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msOrientationInterpolator, x3dObjAtt)
-
-                    elif childType == X3D_COORDINTER:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msCoordinateInterpolator, x3dObjAtt)
-
-                    elif childType == X3D_NORMINTER:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msNormalInterpolator, x3dObjAtt)
-
-                    elif childType == X3D_SCALINTER:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msScalarInterpolator, x3dObjAtt)
-
-                    elif childType == X3D_COLORINTER:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msColorInterpolator, x3dObjAtt)
-
-                    elif childType == X3D_BOOLSEQ and self.exEncoding != VRML97ENC:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msBooleanSequencer, x3dObjAtt)
-
-                    elif childType == X3D_INTSEQ and self.exEncoding != VRML97ENC:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msIntegerSequencer, x3dObjAtt)
-
-                    elif childType == X3D_BOOLTRIGGER and self.exEncoding != VRML97ENC:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msBooleanTrigger, x3dObjAtt)
-
-                    elif childType == X3D_BOOLTOGGLE and self.exEncoding != VRML97ENC:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msBooleanToggle, x3dObjAtt)
-
-                    elif childType == X3D_BOOLFILTER and self.exEncoding != VRML97ENC:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msBooleanFilter, x3dObjAtt)
-
-                    elif childType == X3D_INTTRIGGER and self.exEncoding != VRML97ENC:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msIntegerTrigger, x3dObjAtt)
-
-                    elif childType == X3D_TIMETRIGGER and self.exEncoding != VRML97ENC:
-                        self.writeLeafNodes(childName, dagNode.object(), childName, msTimeTrigger, x3dObjAtt)
-
-                    elif childType == X3D_SCRIPT and self.isTreeBuilding == True:
-                        # Script is a node to write in XML because it involves getting and writing out URL strings within 
-                        # the tag, and writing out CData for local url scripts. It has its own export method.
-                        self.writeScript(dagNode.object(), contFieldName)
-                        
-                    elif childType == X3D_TRANS:
-                        if self.getRigidBodyState(dagNode.object()) == False:
-                            self.rkio.setAsHasBeen(childName)
-                else:
-                    # Returns the type of X3D node as an MString based upon the type of Maya node by using
-                    # the node's name to request the node type.
-                    tempString = self.checkUseType(childName)
-
-                    # Sets the only field name to be used by rkio.useDecl ***WAS: sax3dw.useDecl*** method
-                    contField = "containerField"
-
-					# gets the string value to be used for the containerField value
-                    contVal = cfString
-                    if contVal == "":
-                        contVal = self.getCFValue(cfChoice)
-
-                    if childType == X3D_TRANS:
-                        remNums = self.evalForSyblings(dagNode.object(), contFieldName);
-                        
-                        if isAvatar == True and self.exEncoding != VRML97ENC and exHAnim == True and childType == X3D_TRANS:
-                            pass
-                        else:
-                            if remNums[0] > 0:
-                                self.processUsedGrouping(dagNode.object(), childName, tempString, contVal, contField)
-                            elif remNums[1] > 0:
-                                if self.useEmpties == True:
-                                        #print("Use Empties 2: " + dagNode.name().asChar())
-                                        self.processUsedGrouping(dagNode.object(), childName, tempString, contVal, contField)
-                                else:
-                                        self.processUsedGrouping(dagNode.object(), childName, tempString, contVal, contField)
-                    elif childType == X3D_INLINE:
-                        if self.isTreeBuilding == True:
-                            self.buildUITreeNode("", "", msInline, "USE", childName)
-                        else:
-                            # Don't think this is needed any longer --- sax3dw.preWriteField(contVal);
-                            self.rkio.useDecl(msInline, childName, "containerField", contVal)
-
     def writeScript(self, dObject, contFieldName):
         pass
 
@@ -1025,86 +1013,6 @@ class RKOrganizer():
     def writeLeafNodes(self, mayaName, dObject, x3dName, x3dType, x3dObjAtt):
         pass
 
-    def processGrouping(self, dObject, x3dType, x3dObjAtt, isOE, remNum, hasMeta):
-        # For processing the Maya nodes as X3D equivelents
-        # transform - Transform - ############ - children - 4
-        # transform - Group     - x3dGroup     - children - 4
-        # transform - Billboard - x3dBillboard - children - 4
-        # transform - Anchor    - x3dAnchor    - children - 4
-        # transform - Collision - x3dCollision - children - 4
-        # transform - Switch    - x3dSwitch    - choice   - 101
-        # lodGroup  - LOD       - ############ - level    - 102
-        dagFn = aom.MFnDagNode(dObject)
-        
-        fv        = len(x3dObjAtt)
-        childVal  = 4 # Transform, Group, Billboard, Anchor, Collision
-        
-        groupType = "transform"
-        if dagFn.typeName == "lodGroup" and self.exEncoding == VRML97ENC:
-            childVal = 102
-            groupType = "lodGroup"
-        elif dagFn.typeName == "transform":
-            try:
-                tNodeType = dagFn.find("x3dGroupType", False)
-                groupType = tNodeType.asString()
-                if groupType == "x3dSwitch" and self.exEncoding == VRML97ENC:
-                    childVal = 101
-            except:
-                pass
-        
-        nString = dagFn.name() + "Parent"
-        
-        if getRigidBodyState(dagFn.object()) == False:
-            if self.isTreeBuilding == True:
-                #TODO write Tree Building Code
-                pass
-            else:
-                if groupType != "transform":
-                    #Need to add a transform above the named maya node to account for Transform values
-                    localAtts = self.rkint.getX3DFieldsAndValues(dagFn.object(), msTransform) #getTransFields()
-                    localAtts.append("containerField")
-                    localAtts.append(x3dObjAtt[fv-1])
-                    self.rkio.startNode(msTransform, nString, localAtts, True)
-                
-                if x3dType != msEmpty:
-                    isOE = True
-                    
-                if groupType != "transform":
-                    x3dObjAtt[fv-1] = "children"
-                    
-                if hasMeta == False and dagFn.typeName == "x3dInline":
-                    isOE = False;
-                
-                if dagFn.typeName != "x3dInline":
-                    self.rkio.startNode(checkUseType(dagFn.name()), dagFn.name(), x3dObjAtt, isOE)
-                    if hasMeta == True:
-                        addMetadataTag(dagFn.name())
-                    
-                    processBranchNode(dagFn.object(), childVal)
-                    
-                    ### Not sure what this is needed for, seems it has something to do with a Collision Node
-                    #   but the code seems miss placed. TODO: Figure this out
-                    # if x3dType != msEmpty:
-                    #     writeNodeField(dagFn.object(), x3dType, "proxy")
-                    if isOE == True:
-                        self.rkio.endNode(checkUseType(dagFn.name()), dagFn.name())
-                
-                if groupType != "transform":
-                    self.rkio.endNode(msTransform, nString)
-                    
-
-
-        # TODO: Handling for X3D_COLLISION should be added to this function
-
-    def processUsedGrouping(self, dObject, childName, useType, contVal, contField):
-        # TODO: Handling for X3D_COLLISION should be added to this function
-        pass
-    
-    def evalForSyblings(self, dObject, contFieldName):
-        # TODO: Add code to determine the values of remNums
-        remNums = [0,0] #remNum and remNum1
-        return remNums
-        
     def packageMeshShape(self, mObject, contFieldName):
         pass
         
@@ -1162,47 +1070,6 @@ class RKOrganizer():
     def processScripts(self):
         pass
         
-    def buildUITreeNode(self, mayaType, mayaName, x3dType, x3dUse, x3dName): #buildUITreeNode(MString mayaType, MString mayaName, MString x3dType, MString x3dUse, MString x3dName)
-        pass
-    
-    # TODO: Don't remember what this function is for.
-    def showHiddenForTrees(self, hObject):
-        depNode = aom.MFnDependencyNode(hObject)
-        
-        isHidden = False
-        tn = depNode.typeName
-        
-        if tn == "mesh":
-            mDag = aom.MFnDagNode(hObject)
-            isHidden = self.getRigidBodyState(mDag.parent(0))
-            if isHidden == True:
-                self.outputCollidableShapes()
-        elif tn == "x3dMetadataString" or tn == "x3dMetadataSet" or tn == "x3dMetadataInteger" or tn == "x3dMetadataFloat" or tn == "x3dMetadataDouble":
-            self.setUpMetadataNodes()
-            isHidden = True
-        elif tn == "audio":
-            self.outputAudio()
-            isHidden = True
-        elif tn == "file" or tn == "buldge" or tn == "checker" or tn == "cloth" or tn == "fractal" or tn == "grid" or tn == "mountain" or tn == "movie" or tn == "noise" or tn == "ocean" or tn == "ramp" or tn == "water" or tn == "layeredTexture":
-            self.outputFiles()
-            isHidden = True
-        elif tn == "rigidSolver":
-            self.processRigidBody(hObject)
-            isHidden = True
-            
-        return isHidden
-
-
-    def checkUseType(self, childName):
-        typeResult = ""
-        
-        return typeResult
-        
-    ##################
-    # Do we do file writing here?
-    ##################
-    #def setFileSax3dWriter(ofstream &stream) #sax3dw.newFile  = &stream;
-
     # TODO: Not sure this function is needed without a FileTranslator object
     def setExportStyle(self, filter):
         if self.isTreeBuilding == True:
@@ -1295,6 +1162,10 @@ class RKOrganizer():
         self.rkio.setIgnored("defaultUfeProxyCameraTransformParent")
         self.rkio.setIgnored("defaultLightSet")
         self.rkio.setIgnored("defaultObjectSet")
+        self.rkio.setIgnored("defaultUfeProxyTransform")
+        self.rkio.setIgnored("Manipulator1")
+        self.rkio.setIgnored("UniversalManip")
+        self.rkio.setIgnored("CubeCompass")
         
     def getInlineNodeNames(self):
         nodeNames = []
