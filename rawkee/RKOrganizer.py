@@ -641,6 +641,7 @@ class RKOrganizer():
             cNum = groupDag.childCount()
             for i in range(cNum):
                 self.traverseDownward(dragPath, aom.MFnDagNode(groupDag.child(i)))
+                
 
     def processBasicTransformFields(self, depNode, x3dNode):
         mlist = aom.MSelectionList()
@@ -712,12 +713,25 @@ class RKOrganizer():
         
         x3dNode.visible = depNode.findPlug("visibility", False).asBool()
     
+    
+    ###################################################################################################
+    # Check the dag node (probably a transform node) to see if it is connected to a 'bindPose' node. If
+    # so, then return a boolean as True and the bindPose node's object wrapped in a MFNDependencyNode 
+    # function set.
+    ###################################################################################################
+    def getBindPoseNode(self, dagNode):
+        for plug in dagNode.getConnections():
+            depNode = aom.MFnDependencyNode(plug.connectedTo(False, True)[0].node())
+            
+            if depNode.typeName == "bindPose":
+                return depNode
+        
+        return None
+    
     ######################################################################################################################
     # HAnimHumanoid Related Functions
-    #
-    # HAnim is cool, but boy is it a pain in the butt to implement
     ######################################################################################################################
-    def processHAnimHumanoid(self, dragPath, dagNode, x3dPF):
+    def processHAnimHumanoid(self, dragPath, dagNode, x3dPF, bpNode):
         depNode = aom.MFnDependencyNode(dagNode.object())
         dragPath = dragPath + "|" + depNode.name()
         bna = self.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "HAnimHumanoid")
@@ -727,54 +741,82 @@ class RKOrganizer():
             #Traverse Maya Scene Downward without using an MFIt object
             groupDag = aom.MFnDagNode(depNode.object())
             cNum = groupDag.childCount()
+            
             for i in range(cNum):
-                newCField = "segments"
                 
-                userDesignated = ""
-                thisChild = aom.MFnDagNode(groupDag.child(i))
-                try:
-                    userDesignatedContainerField = thisChild.findPlug("x3dContainerField", False)
-                    userDesignated = userDesignatedContainerField.asString()
-                except:
-                    pass
-                
-                if userDesignated == "":
-                    if thisChild.typeName   == "joint":
-                        newCField = "skeleton"
-                    elif thisChild.typeName == "transform":
-                        newCField = "sites"
-                    elif thisChild.typeName == "mesh":
-                        newCField = "skin"
-                    elif thisChild.typeName == "rkHAnimMotion":
-                        newCField = "motions"
-                        
-                else:
-                    newCField = userDesignated
+                dagChild = aom.MFnDagNode(groupDag.child(i))
+                if   dagChild.typeName == "joint":
+                    self.processHAnimJoint(dragPath, dagChild, cFields="skeleton")
                     
-                if newCField   == "joints" or newCField == "skeleton":
-                    self.processHAnimJoint(  dragPath, thisChild, newCField)
-                elif newCField == "motions":
-                    self.processHAnimMotion( dragPath, thisChild)
-                elif newCField == "segments":
-                    self.processHAnimSegment(dragPath, thisChild)
-                elif newCField == "sites" or newCField  == "viewpoints":
-                    self.processHAnimSite(   dragPath, thisChild, newCField)
-                elif newCField == "skin":
-                    self.processHAnimSkin(   dragPath, thisChild)
+                elif dagChild.typeName == "transform" or dagChild.typeName == "lodGroup" or dagChild.typeName == "mesh":
+                    cField = "skin"
+                    
+                    uDesignated = ""
+                    try:
+                        ucField     = dagChild.findPlug("x3dContainerField", False)
+                        uDesignated = ucField.asString()
+                        
+                    except:
+                        pass
+                
+                    if uDesignated != "":
+                        cField = uDesignated
+                    
+                    if   cField == "skin":
+                        self.processHAnimSkin(   dragPath, dagChild)
+                        
+                    elif cField == "sites" or cField == "viewpoints":
+                        self.processHAnimSite(   dragPath, dagChild, cField)
+                        
+                    elif cField == "segments":
+                        self.processHAnimSegment(dragPath, dagChild)
+                        
+                    else:
+                        animMessage = "Sorry - 'containerField' value: '" + cField + "' is not recognized as a valid 'containerField' value for HAnimHumanoid.\n"
+                        animMessage = animMessage + "Skipping Node: " + dagChild.name() + " of Maya Type: " + dagChild.typeName + ".\n"
+                        self.rkio.cmessage(animMessage)
+                        
                 else:
                     animMessage = "Sorry - Node: " + thisChild.name() + " of Type: " + thisChild.typeName + " is not yet supported by RawKee Python for HAnim export.\n"
                     animMessage = animMessage + "Skipping node.\n"
                     self.rkio.cmessage(animMessage)
-
+            
+            self.convertMayaAnimClips_To_HAnimMotion(dragPath, bpNode)
 
     def processHAnimJoint(self, dragPath, jNode, cField="children"):
-        if jNode.typeName == "joint":
-            print("Joint Method Called")
-            print(jNode.name())
-
-        print("mayajoint")
+        if cField == "skeleton":
+            # TODO: If the 'cField' arguement is set to "skeleton", then add joint to "skeleton" containerField of the X3D 
+            #       HAnimHumanoid node with a "USE", but do not call the 'setAsHasBeen' method. Then:
+            #       - Then reprocess this jNode (maya dag node) by calling the 'processHAnimJoint' method by setting the 
+            #         'cField' variable to "joints" in the method's arguements.
+            pass
+        elif cField == "joints":
+            # TODO: If the 'cField' arguement is set to "joints", then call 'checkIfHasBeen' method.
+            # --- If the 'hasBeen' result is False, then:
+            #       - call the 'setAsHasBeen' method for this node
+            #       - add this joint to the "joints" field of the HAninHumanoid X3D node using the DEF designator
+            #       - call the 'setAsHasBeen' method on this node
+            #       - using a 'for' loop, process all of its children based on the appropriate node type. Any children 
+            #         that are Maya 'joint' nodes should be processed by calling 'processHAnimJoint' method without 
+            #         setting the 'cField' argument.
+            # --- If the 'hasBeen' result is True, then:
+            #       - add this joint to the "joints" field of the HAnimHumanoid X3D node using the USE designator.
+            pass
+        elif cField == "children":
+            # TODO: If the 'cField' argument is set to "children", then call 'checkIfHasBeen' method.
+            # --- if the hasBeen' result is False, then:
+            #       - call the 'setAsHasBeen' method for this node.
+            #       - add this joint to the "children" field of the HAnimJoint parent node using the DEF designator.
+            #       - using a 'for' loop, process all of its children based on the appropriate node type. Any children 
+            #         that are Maya 'joint' nodes should be processed by calling 'processHAnimJoint' method without 
+            #         setting the 'cField' argument.
+            #       - then reprocess this jNode (maya dag node) by calling the 'processHAnimJoint' method by settting the
+            #         'cField' method argument to "joints"
+            # --- If the 'hasBeen' result is True, then:
+            #       - add this joint to the "children" field of the HAnimJoint parent node using the USE designator.
+            pass
         
-    def processHAnimMotion(self, dragPath, moNode, cField="motions"):
+    def convertMayaAnimClips_To_HAnimMotion(self, dragPath, bpNode, cField="motions"):
         pass
         
     def processHAnimSegment(self, dragPath, segNode, cField="segments"):
@@ -859,13 +901,10 @@ class RKOrganizer():
     ############################################################################################
     #   Export Organizing Related Functions
     def processMayaTransformNode(self, dragPath, dagNode, cField="children"):
-        self.rkio.cMessage("processMayaTransformNode")
-        
         isTransform = True
-        tName = dagNode.name()
-        
         x3dTypeAttr = None
         xta = ""
+
         try: 
             x3dTypeAttr = dagNode.findPlug("x3dNodeType", False)
             xta = x3dTypeAttr.asString()
@@ -880,13 +919,13 @@ class RKOrganizer():
         x3dPF.append(cField)
 
         if x3dPF[0] == None:
-            self.rkio.cMessage("Parent Not Found. Ignore node: " + tName)
+            self.rkio.cMessage("Parent Not Found. Ignore node: " + dagNode.name())
         else:
             if x3dPF[0] != None and xta != "":
                 self.rkio.cMessage("xta items")
                 if xta == "Anchor":
                     isTransform = False
-                    self.processX3DAnchor(dragPath, dagNode, x3dPF)
+                    self.processX3DAnchor(   dragPath, dagNode, x3dPF)
                 elif xta == "Billboard":
                     isTransform = False
                     self.processX3DBillboard(dragPath, dagNode, x3dPF)
@@ -895,59 +934,62 @@ class RKOrganizer():
                     self.processX3DCollision(dragPath, dagNode, x3dPF)
                 elif xta == "Group":
                     isTransform = False
-                    self.processX3DGroup(dragPath, dagNode, x3dPF)
+                    self.processX3DGroup(    dragPath, dagNode, x3dPF)
                 elif xta == "Switch":
                     isTransform = False
-                    self.processX3DSwitch(dragPath, dagNode, x3dPF)
+                    self.processX3DSwitch(   dragPath, dagNode, x3dPF)
                 elif xta == "ViewpointGroup":
                     isTransform = False
                     self.processX3DViewpointGroup(dragPath, dagNode, x3dPF)
-                elif xta == "HAnimHumanoid":
-                    isTransform = False
-                    self.processHAnimHumanoid(dragPath, dagNode, x3dPF)
                 elif xta == "MetadataSet":
                     isTransform = False
                     self.rkio.cMessage("Do nothing. MetadataSet nodes are not processed by this function.")
-                elif xta == "Transform":
-                    isTransform = True
                 
             if isTransform == True:
-                self.processTransformSorting(dragPath, dagNode, x3dPF)
-            
+                ###############################################################################
+                # Check to see if the 'transform' node is connected to a 'bindPose' node. if it
+                # is, that means this 'transform' hosts a character rig as a child, and should
+                # be processed as an HAnimHumanoid X3D node.
+                ###############################################################################
+                bpNode = self.getBindPoseNode(dagNode)
+                
+                if bpNode != None:
+                    self.processHAnimHumanoid(   dragPath, dagNode, x3dPF, bpNode)
+                else:
+                    self.processTransformSorting(dragPath, dagNode, x3dPF)
+
+
+
+    ###########################################################################################
+    # Process 'transform' nodes that are the parent to leaf nodes such as cameras, lights, or
+    # x3dSound nodes, and 'transform' nodes which correspond to typical X3D 'Transform' nodes.
+    ###########################################################################################
     def processTransformSorting(self, dragPath, dagNode, x3dPF):
-        tName = dagNode.name()
-        
-        hasJoints = False
         hasLight  = False
         hasCamera = False
         hasSound  = False
-        skipTrans = False
-        
+        isLeaf    = False
+    
         for index in range(dagNode.childCount()):
             cNode = aom.MFnDependencyNode(dagNode.child(index))
-            if cNode.typeName == "camera" and index == 0:
+            if cNode.typeName == "camera"        and index == 0:
                 hasCamera = True
-                skipTrans = True
+                isLeaf    = True
             if cNode.typeName.find("Light") > -1 and index == 0:
                 hasLight  = True
-                skipTrans = True
-            if cNode.typeName == "joint":
-                hasJoints = True
-                skipTrans = True
-            if cNode.typeName == "x3dSound":
-                hasSound = True
-                skipTrans = True
+                isLeaf    = True
+            if cNode.typeName == "x3dSound"      and index == 0:
+                hasSound  = True
+                isLeaf    = True
                 
-        if hasCamera == True:
+        if hasCamera  == True:
             self.processX3DViewpoint(dagNode, x3dPF) #TODO fix the problem.
-        elif hasLight  == True:
-            self.processX3DLighting( dagNode, x3dPF)
+        elif hasLight == True:
+            self.processX3DLighting (dagNode, x3dPF)
         elif hasSound == True:
-            self.processX3DSound(    dagNode, x3dPF)
-        elif hasJoints == True:
-            self.processHAnimHumanoid(dragPath, dagNode, x3dPF)
-        elif skipTrans == False:
-            self.processX3DTransform( dragPath, dagNode, x3dPF)
+            self.processX3DSound    (dagNode, x3dPF)
+        elif isLeaf   == False:
+            self.processX3DTransform(dragPath, dagNode, x3dPF)
 
 
     #   Primary SceneGraph Traversal Function - Primarily Depth First
@@ -967,11 +1009,6 @@ class RKOrganizer():
         else:
             self.rkio.cMessage("Sorry - Node: " + nodeName + " of Type: " + dagNode.typeName + " is not yet supported for RawKee export.")
             
-            '''
-            # Will likely process Leaf Nodes in a different way for most nodes.
-            else:
-                self.processLeafNode(dagNode)
-            '''
             
 
 #####################################################
@@ -998,33 +1035,16 @@ class RKOrganizer():
         
     
     # New to Python Version - to replace writeLeafNode
-    def processLeafNode(self, lObject, x3dParentNode, x3dFieldName):
-        pass
-        
     def writeRoutes(self):
         pass
     
     def writeScript(self, dObject, contFieldName):
         pass
 
-    def writeHAnimJointForTree(self, dObject):
-        pass
-
-    def writeLeafNodes(self, mayaName, dObject, x3dName, x3dType, x3dObjAtt):
-        pass
-
     def packageMeshShape(self, mObject, contFieldName):
         pass
         
     def checkForMetadata(self, childName):
-        # TODO: Add code to determine if the return should be True or False
-        return True
-
-    def checkForAvatar(self, mObject):
-        # TODO: Add code to determine if the return should be True or False
-        return True
-
-    def getCharacterState(self, mObject):
         # TODO: Add code to determine if the return should be True or False
         return True
 
