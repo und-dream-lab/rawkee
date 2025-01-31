@@ -241,9 +241,9 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
     def create_layout(self):
         #####################################################
         # X3D Player and Node Editor Layout                 #
-        plr_layout     = QtWidgets.QVBoxLayout()            #
+        plr_layout = QtWidgets.QVBoxLayout()           #
                                                             #
-        plrCtrl_layout = QtWidgets.QHBoxLayout()
+        plrCtrl_layout  = QtWidgets.QHBoxLayout()
         plrCtrl_layout.addWidget(self.plcLabel)
         plrCtrl_layout.addWidget(self.combo_box)
         plrCtrl_layout.setContentsMargins(0,0,0,0)
@@ -327,7 +327,8 @@ class RKCustomNodeEditor(QWidget):
 
         #Create Graphics View
         self.view = RKGraphicsView(self.scene.grScene, self)
-        self.view.setAlignment(Qt.AlignCenter)
+        #self.view.setAlignment(Qt.AlignCenter)
+        #self.view.setAlignment(Qt.AlignTop)
         self.layout.addWidget(self.view)
         
         # Adding an RKXNode for Development / Testing purposes.
@@ -339,16 +340,19 @@ class RKCustomNodeEditor(QWidget):
         node3.setPos(600,0)
         
     def centerView(self):
-        #maya_main_window_ptr = omui.MQtUtil.mainWindow()
-        #maya_main_window = wrapInstance(int(maya_main_window_ptr), QWidget)
+        m = get_monitors()
+        #s = self.geometry() #self.view.geometry()
+        n = len(m)
+        x = m[n-1].width  / 2
+        y = m[n-1].height / 2
         
-        #self.view.centerOn(2700,800)
-        #self.view.centerOn(0,0)
+        self.view.centerOn(x+(y/2), y/2)
         
         for m in get_monitors():
             print(str(m))
 
-        
+        '''
+        print("Viewport - Width: " + str(x2) + ", Height: " + str(y2))
         mPoint = self.view.mapFromScene(QPointF(0.0,0.0))
         
         pstr = "X: " + str(mPoint.x()) + ", Y: " + str(mPoint.y())
@@ -356,7 +360,7 @@ class RKCustomNodeEditor(QWidget):
         mRect = self.view.sceneRect()
         print(pstr)
         print(mRect)
-        
+        '''
         
         
     def addDebugContent(self):
