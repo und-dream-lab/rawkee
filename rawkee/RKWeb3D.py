@@ -213,6 +213,7 @@ class RKWeb3D():
         self.dirPath = self.curDir
         self.fullPath = self.dirPath
         self.fullPath, self.selectedFilter = QtWidgets.QFileDialog.getSaveFileName(self.mayaWin, QtCore.QObject.tr("RawKee - Export File As..."), self.fullPath, QtCore.QObject.tr(self.x3dfilters))
+        print(self.selectedFilter)
 
         #############################################
         # Making certain there is a valid file path 
@@ -263,7 +264,13 @@ class RKWeb3D():
             rko.maya2x3d(x3dDoc.Scene, parentDagPaths, topDagNodes, self.pVersion)
             
             # Write the X3D data to a file.
-            rko.rkio.x3d2disk(x3dDoc, self.fullPath)
+            exEncoding     = "x3d"
+            if   self.selectedFilter == "X3D Classic (*.x3dv)":
+                exEncoding = "x3dv"
+            elif self.selectedFilter == "X3D JSON (*.x3dj)"     or self.selectedFilter == "X3D JSON (*.json)":
+                exEncoding = "x3dj"
+
+            rko.rkio.x3d2disk(x3dDoc, self.fullPath, exEncoding)
             
             # Delete the RKOrganizer object.
             del rko

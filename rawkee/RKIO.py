@@ -129,23 +129,31 @@ ftMFNode:         Final[str] = "MFNode"
 
 # --define-- defValue "------"
 
-X3DENC:    Final[int] = 0
-X3DVENC:   Final[int] = 1
-VRML97ENC: Final[int] = 2
-X3DBENC:   Final[int] = 3
-X3DJSON:   Final[int] = 4
+X3DXENC: Final[str] = "x3d"
+X3DVENC: Final[int] = "x3dv"
+X3DJENC: Final[int] = "x3dj"
 
 class RKIO():
     def __init__(self):
         print("RKIO")
         
-        self.exEncoding = X3DENC
+        ############################
+        # Required File IO variables
+        ############################
+        self.exFile      = None    #
+        self.exEncoding  = X3DXENC #
+        self.tabNumber   = 0       #
+        self.hasMultiple = False   #
+        ############################
         
         self.profileType = "Full"
         self.x3dVersion  = "4.0"
         
+        
         self.comments = []
         self.commentNames = []
+        self.additionalComps = []
+        self.additionalCompsLevels = []
         self.ignoredNodes = []
         self.haveBeenNodes = []
         self.generatedX3D = []
@@ -162,24 +170,137 @@ class RKIO():
 
 
     # Function that writes to disk.
-    def x3d2disk(self, x3dDoc, fullPath):
-        print(fullPath)
-        #print(x3dDoc.XML())
-        #print(x3dDoc.VRML())
-        print(json.dumps(xmltodict.parse(x3dDoc.XML()), indent=4))
-        #print(x3dDoc.JSON())
+    def x3d2disk(self, x3dDoc, fullPath, exEncoding):
+        self.fullPath   = fullPath
+        self.exEncoding = exEncoding
+        
+        print(self.fullPath)
+        print(self.exEncoding)
+        
+        if   self.exEncoding == X3DXENC:
+            print(x3dDoc.XML())
+        elif self.exEncoding == X3DVENC:
+            print(x3dDoc.VRML())
+        elif self.exEncoding == X3DJENC:
+            print(json.dumps(xmltodict.parse(x3dDoc.XML()), indent=4))
 
+        #with open(fullPath, "w") as self.exFile:
+        #    self.startDocument()
 
+    def profileDecl(self):
+        if  self.exEncoding == X3DVENC:
+            self.exFile.write("PROFILE " + self.profileType + "\n")
+            
+        elif self.exEncoding == X3DJENC:
+            self.writeTabs()
+            self.exFile.write('"@profile": "' + self.profileType + '",\n')
+            self.writeTabs()
+            self.exFile.write('"@xmlns:xsd": "http://www.w3.org/2001/XMLSchema-instance",\n')
+            self.writeTabs()
+            self.exFile.write('"@xsd:noNamespaceSchemaLocation": "https://www.web3d.org/specifications/x3d-')
+            self.exFile.write(self.x3dVersion + '.xsd",\n')
+            
+        else:
+            self.exFile.write("profile='" + self.profileType + "' version='" + self.x3dVersion + "' ")
+            self.exFile.write("xmlns:xsd='http://www.w3.org/2001/XMLSchema-instance' xsd:noNamespaceSchemaLocation='https://www.web3d.org/specifications/x3d-")
+            self.exFile.write(self.x3dVersion + ".xsd'>\n")
+        
+    def writeComponents(self):
+        if   self.exEncoding == X3DVENC:
+            self.exFile.write('COMPONENT "' + self.additionalComps[i] + '":"' + self.additionalCompsLevels[i] + '"\n')
+            
+        elif self.exEncoding == X3DJENC:
+            pass
+        else:
+            self.writeTabs()
+            self.exFile.write("<component name='" + self.additionalComps[i] + "' level='"  + self.additionalCompsLevels[i] + "'/>\n")
+        
     ########################################################################
     ########################################################################
     # Custom IO Functions not needed if x3d.py I/O Functions work properly #
+    #    if   self.exEncoding == X3DVENC:
+    #        pass
+    #        
+    #    elif self.exEncoding == X3DJENC:
+    #        pass
+    #        
+    #    else:
+    #        pass
+    #
     ########################################################################
     ########################################################################
     def startDocument(self):                                               #
-        pass                                                               #
-                                                                           #
+        self.tabNumber   = 0       #
+        self.hasMultiple = False   #
+        #self.profileType = "Full"
+ 
+        if   self.exEncoding == X3DVENC:
+            self.exFile.write("#X3D V" + self.x3dVersion + "utf8\n")
+            self.exFiel.write("#X3D-to-ClassicVRML serialization by X3DPSAIL (x3d.py) and RawKee Python\n\n")
+            self.profileDecl()
+            self.writeComponents()
+            
+            for i in range(len(self.commentNames)):
+                self.exFile.write("META \"" + self.commentNames[i] + "\" \"" + self.comments[i] + "\"\n")
+                
+            self.exFile.write("\n")
+            
+        elif self.exEncoding == X3DJENC:
+            self.exFile.write("{\n")
+            self.tabNumber += 1
+            self.writeTabs()
+            self.exFile.write("\"X3D\": {\n")
+            self.tabNumber += 1
+            self.writeTabs()
+            self.exFile.write("\"@version\": \"" + self.x3dVersion + "\",\n")
+            self.profileDecl()
+            self.writeComponents()
+            
+            for i in range(len(self.commentNames)):
+                #self.writeTabs()
+                #self.exFile.write('"#comment:' + self.commentNames[i] + '": "' + self.comments[i] + '",\n')
+                pass
+            
+            self.writeTabs()
+            self.exFile.write('"Scene": {\n')
+            self.tabNumber += 1
+            
+        else:
+            self.exFile.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+            self.exFile.write("<!DOCTYPE X3D PUBLIC \"ISO//Web3D//DTD X3D " + self.x3dVersion + "//EN\" \"https://www.web3d.org/specifications/x3d-" + self.x3dVersion +".dtd\">\n")
+            self.exFile.write("<X3D ")
+            self.profileDecl()
+            
+            self.tabNumber += 1
+            self.writeTabs()
+            self.exFile.write("<head>\n")
+            
+            self.tabNumber += 1
+            self.writeComponents()
+            
+            for i in range(len(self.commentNames)):
+                self.writeTabs()
+                self.exFile.write("<meta name='" + self.commentNames[i] + "' content='" + self.comments[i] + "'/>\n")
+            
+            self.tabNumber -= 1
+            self.writeTabs()
+            self.exFile.write("</head>\n")
+            
+            self.writeTabs()
+            self.exFile.write("<Scene>\n")
+            self.tabNumber += 1
+            
+
     def endDocument(self):
-        pass
+        if   self.exEncoding == X3DVENC:
+            self.exFile.write("#End of X3DV file\n")
+            
+        elif self.exEncoding == X3DJENC:
+            self.exFile.write("\t\t}\n\t}\n}\n")
+            
+        else:
+            self.exFile.write("\t</Scene>\n</X3D>\n")
+    
         
     def startNode(self, x3dType, x3dName, fields, fieldValues, hasMore):
         pass
@@ -224,10 +345,33 @@ class RKIO():
         pass
     
     def ioUseDecl(x3dType, x3dName, cField, cValue):
-        pass
+        if   self.exEncoding == X3DVENC:
+            if self.hasMultiple:
+                self.writeTabs()
+            self.hasMultiple = False
+            self.exFile.write("USE " + x3dName + "\n")
+        elif self.exEncoding == X3DJENC:
+            self.writeTabs()
+            self.exFile.write("\"" + x3dType + "\": {\n")
+            self.tabNumber += 1
+            self.writeTabs()
+            self.exFile.write("\"@USE\": \"" + x3dName + "\"\n")
+            self.tabNumber -= 1
+            self.writeTabs()
+            self.exFile.write("}\n")
+        else:
+            self.writeTabs()
+            self.exFile.write("<" + x3dType)
+            self.exFile.write(" USE='" + x3dName + "'")
+            self.startField(cField, cValue)
+            self.fieldValue(cValue)
+            self.exFile.write("/>\n")
         
     def writeTabs(self):
-        pass
+        nTab = ""
+        for i in range(self.tabNumber):
+            nTab = nTab + "\t"
+        self.exFile.write(nTab)
         
     def profileDecl(self):
         pass
