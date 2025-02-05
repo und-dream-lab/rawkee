@@ -254,6 +254,7 @@ class RKShowSceneEditor(aom.MPxCommand):
 
 # Initialize the plug-in
 def initializePlugin(plugin):
+    print("Made possible by the Alias Research Donation Program\n - Yes, the 'ALIAS' Research Donation Program - from 2003/4-ish\n   I can't remember exactly when, it's been a long long time.")
     pluginFn = aom.MFnPlugin(plugin, RAWKEE_VENDOR, RAWKEE_VERSION)
  
     # RawKee Utility Functions required to be in MEL format such as functions related to AE Templates.

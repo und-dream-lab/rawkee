@@ -1016,8 +1016,14 @@ class RKOrganizer():
 #####################################################
     
     def processMayaMesh(self, dragPath, dagNode, cField="children"):
-        supMeshName = dagNode.name()
         
+        supMeshName = dagNode.name()
+
+        if self.rkio.checkIfHasBeen(supMeshName) == False:
+            self.rkio.useDecl(tNode, supMeshName, x3dParentNode, cField)
+
+            pass
+            
         newDragPath = dragPath + "|" + supMeshName
         
         myMesh = aom.MFnMesh(dagNode.object())
@@ -1032,7 +1038,583 @@ class RKOrganizer():
         
         #Check for Metadata - skipping how this is done here for the moment.
         
+        x3dPF = []
+        x3dPF.append(self.getX3DParent(dagNode, dragPath))
+        x3dPF.append(cField)
         
+        if len(groups) == 1: #boundingBoxSizeX boundingBoxSizeY boundingBoxSizeZ center boundingBoxCenterX
+            
+            bna = self.processBasicNodeAddition(dagNode, x3dPF[0], x3dPF[1], "Shape")
+            if bna[0] == False:
+                
+                bbSize = []
+                bbSize.append(dagNode.findPlug(boundingBoxSizeX).asFloat())
+                bbSize.append(dagNode.findPlug(boundingBoxSizeY).asFloat())
+                bbSize.append(dagNode.findPlug(boundingBoxSizeZ).asFloat())
+                
+                tCenter = dagNode.findPlug(center)
+                cen = []
+                cen.append(tCenter[0].asFloat())
+                cen.append(tCenter[1].asFloat())
+                cen.append(tCenter[2].asFloat())
+                
+                bna[1].bboxCenter = self.rkint.getSFVec3fFromList(cen)
+                bna[1].bboxSize   = self.rkint.getSFVec3fFromList(bbSize)
+                
+                self.processForAppearance(shaders[0], bna[1])
+                self.processForGeometry(     dagNode, bna[1])
+
+        else:
+            pass
+    
+    def processForAppearance(self, shadingEngine, parentNode, cField="appearance", index=0):
+        depNode = aom.MFnDependencyNode(shadingEngine)
+
+        # Create an Appearance Node using the name of the Shader Engine node.
+        bna = self.processBasicNodeAddition(depNode, parentNode, cField, "Appearance")
+        if bna[0] == False:
+            # Lists for tracking Maya texture nodes and place2dTexture* nodes - (*equivelent to X3D TextureTransform node)
+            mTextureNodes        = []
+            retPlace2d           = []
+
+            x3dAppearance = bna[1]
+            matNode = aom.MFnDependencyNode(depNode.findPlug("surfaceShader").source().node())
+            
+            ##########################################################################################
+            # *** Use normal maps designed for OpenGL. Do NOT use normal maps designed for Direct X. #
+            ##########################################################################################
+            # This gets exported as an X3D Material node. Yawn... this is boring.
+            #############################################################################################
+            if   matNode.typeName == "phong" or matNode.typeName == "phongE" or matNode.typeName == "blinn" or matNode.typeName == "lambert":
+                x3dMat = self.processBasicNodeAddition(matNode, x3dApperance, "material", "Material")
+                if x3dMat[0] == False:
+                    pass
+                
+            #############################################################################################
+            # This gets exported as an X3D PhysicalMaterial node
+            # - RawKee expects one of two Dependency Graphs based on:
+            #   1)  Textures exported from Adobe Substance 3D Painter 
+            #       using the 'Unreal 4 Packed' template as described
+            #       by this YouTube video:
+            #       'How to Connect PBR Textures in Maya'               (By Abe Leal 3D)
+            #           https://www.youtube.com/watch?v=Zy0dYnHMRPY
+            #
+            #   2)  The process of setting up a glTF PBR Materials for
+            #       Maya as described by the Verge3D User Manual.
+            #       'glTF PBR Materials / Maya'
+            #           https://www.soft8soft.com/docs/manual/en/maya/GLTF-Materials.html
+            #############################################################################################
+            elif matNode.typeName == "aiStandardSurface":
+                #Everything goes in the try incase the user didn't setup node connections properly.
+                try:
+                    x3dMat = self.processBasicNodeAddition(matNode, x3dApperance, "material", "PhysicalMaterial")
+                    if x3dMat[0] == False:
+                        physMat = x3dMat[1]
+                        
+                        aiBase       = matNode.findPlug("base")
+                        aiBaseColor  = matNode.findPlug("baseColor")
+                        aiMetalness  = matNode.findPlug("metalness")
+                        aiSpecular   = matNode.findPlug("specular")
+                        aiRoughness  = matNode.findPlug("specularRoughness")
+                        aiNormalCam  = matNode.findPlug("normalCamera")
+                        aiEmisColor  = matNode.findPlug("emissionColor")
+                        aiEmisWeight = matNode.findPlug("emission")
+                        
+                        # Check for an aiMultiply node
+                        checkNode = aom.MFnDependencyNode(aiBaseColor.source().node())
+                        
+                        # Branch to 'Abe Leal 3D' / 'Unreal 4 Packed' Style of Maya material
+                        if checkNode.typeName == "aiMultiply":
+                            baseTexture = aom.MFnDependencyNode(checkNode.findPlug("input1").source().node())
+                            occlTexture = aom.MFnDependencyNode(checkNode.findPlug("input2R").source().node())
+                            
+                            if baseTexture.apiType() == aom.MFn.kTexture2d and occlTexture.apiType() == aom.MFn.kTexture2d:
+                                mTextureNodes.append(baseTexture)
+                                mTextureNodes.append(occlTexture)
+                                
+                                bump2d = aom.MFnDependencyNode(aiNormalCam.source().node())
+                                if bump2d.typeName == "bump2d":
+                                    #bump2d is to be used as a "Tangent Space Normals"
+                                    normTexture = aom.MFnDependencyNode(bump2d.findPlug("bumpValue").source().node())
+                                    
+                                    if normTexture.apiType() == aom.MFn.kTexture2d:
+                                        mTextureNodes.append(normTexture)
+                                        
+                                        rougTexture = aom.MFnDependencyNode(aiRoughness.source().node())
+                                        metlTexture = aom.MFnDependencyNode(aiMetalness.source().node())
+                                        if rougTexture.apiType() == aom.MFn.kTexture2d and rougTexture.name() == occlTexture.name() and metlTexture.apiType() == aom.MFn.kTexture2d and metlTexture.name() == occlTexture.name():
+                                            emisTexture = aom.MFnDependencyNode(aiEmisColor.source().node())
+                                            if emisTexture.apiType() == aom.MFn.kTexture2d:
+                                                #baseTexture occlTexture normTexture emisTexture
+                                                mTextureNodes.append(emisTexture)
+                                                retPlace2d.clear()
+                                                retPlace2d.append(None)
+                                                retPlace2d.append(None)
+                                                retPlace2d.append(None)
+                                                retPlace2d.append(None)
+                                                
+                                                for idx in range(len(mTextureNodes)):
+                                                    txtIt = aom.MItDependencyGraph(mTextureNodes[idx].object(), aom.MItDependencyGraph.kUpstream, aom.MItDependencyGraph.kDepthFirst, aom.MItDependencyGraph.kNodeLevel)
+                                                    
+                                                    while not txtIt.isDone():
+                                                        cNode = aom.MFnDependencyNode(txtIt.currentNode())
+                                                        if cNode.typeName == "place2dTexture":
+                                                            strFn = aom.MFnTypedAttribute()
+                                                            strDt = aom.MFnStringData()
+                                                            nAttr = strFn.create("x3dTextureMapping", "x3dTextureMapping", aom.MFnData.kString, strDt.create(mTextureNodes[idx].name() + "_" + cNode.name()))
+                                                            cNode.addAttribute(nAttr)
+                                                            tPlace2d[idx] = cNode
+                                                        txtIt.next()
+                                                
+                                                #Base Color/Texture/TextureMapping - 0
+                                                #Add Code Here - physMat.baseColor 1 1 1
+                                                x3dTexture = self.processBasicNodeAddition(mTextureNodes[0], physMat, "baseTexture", "ImageTexture")
+                                                if tPlace2d[0] != None:
+                                                    physMat.baseTextureMapping = tPlace2d[0].findPlug("x3dTextureMapping").asString()
+                                                if x3dTexture[0] == False:
+                                                    #Texture URL
+                                                    x3dTexture[1].url.append(mTextureNodes[0].findPlug("fileTextureName").asString()) #TODO - set the file location relative to export location
+                                                    #repeat S            - TODO at a later date
+                                                    #repeat T            - TODO at a later date
+                                                    #TextureProperties   - TODO at a later date
+                                                    
+                                                #Emissive Color/Texture/TextureMapping - 3
+                                                #Add Code Here - physMat.emissiveColor 0 0 0
+                                                x3dTexture = self.processBasicNodeAddition(mTextureNodes[3], physMat, "emissiveTexture", "ImageTexture")
+                                                if tPlace2d[3] != None:
+                                                    physMat.emissiveTextureMapping = tPlace2d[3].findPlug("x3dTextureMapping").asString()
+                                                if x3dTexture[0] == False:
+                                                    #Texture URL
+                                                    x3dTexture[1].url.append(mTextureNodes[3].findPlug("fileTextureName").asString()) #TODO - set the file location relative to export location
+                                                    #repeat S            - TODO at a later date
+                                                    #repeat T            - TODO at a later date
+                                                    #TextureProperties   - TODO at a later date
+                                                    
+                                                #MetallicRoughness Texture/TextureMapping - 1
+                                                #Add Code Here - physMat.metallic 1
+                                                #Add Code Here - physMat.roughness 1
+                                                x3dTexture = self.processBasicNodeAddition(mTextureNodes[1], physMat, "metallicRoughnessTexture", "ImageTexture")
+                                                if tPlace2d[1] != None:
+                                                    physMat.metallicRoughnessTextureMapping = tPlace2d[1].findPlug("x3dTextureMapping").asString()
+                                                if x3dTexture[0] == False:
+                                                    #Texture URL
+                                                    x3dTexture[1].url.append(mTextureNodes[1].findPlug("fileTextureName").asString()) #TODO - set the file location relative to export location
+                                                    #repeat S            - TODO at a later date
+                                                    #repeat T            - TODO at a later date
+                                                    #TextureProperties   - TODO at a later date
+                                                    
+                                                #Normal Scale/Texture/TextureMapping - 2
+                                                #Add Code Here - physMat.normalScale 1
+                                                x3dTexture = self.processBasicNodeAddition(mTextureNodes[2], physMat, "normalTexture", "ImageTexture")
+                                                if tPlace2d[2] != None:
+                                                    physMat.emissiveTextureMapping = tPlace2d[2].findPlug("x3dTextureMapping").asString()
+                                                if x3dTexture[0] == False:
+                                                    #Texture URL
+                                                    x3dTexture[2].url.append(mTextureNodes[2].findPlug("fileTextureName").asString()) #TODO - set the file location relative to export location
+                                                    #repeat S            - TODO at a later date
+                                                    #repeat T            - TODO at a later date
+                                                    #TextureProperties   - TODO at a later date
+                                                    
+                                                #Occlusion OcclusionStrength/Texture/TextureMapping - 1
+                                                #Add Code Here - physMat.occlusionStrength 1
+                                                x3dTexture = self.processBasicNodeAddition(mTextureNodes[1], physMat, "occlusionTexture", "ImageTexture")
+                                                if tPlace2d[1] != None:
+                                                    physMat.occlusionTextureMapping = tPlace2d[1].findPlug("x3dTextureMapping").asString()
+                                                if x3dTexture[0] == False:
+                                                    #Texture URL
+                                                    x3dTexture[1].url.append(mTextureNodes[1].findPlug("fileTextureName").asString()) #TODO - set the file location relative to export location
+                                                    #repeat S            - TODO at a later date
+                                                    #repeat T            - TODO at a later date
+                                                    #TextureProperties   - TODO at a later date
+                                                #Add Code Here - physMat.transparency 0
+                                                    
+                                                return retPlace2d
+                                                
+                                            else:
+                                                self.rkio.cMessage("Unexpected node found while traversing aiStandardSurface Up Stream Dependency Graph for Emission map. Skipping Material export.")
+                                                return retPlace2d
+                                        else:
+                                            self.rkio.cMessage("Unexpected node found while traversing aiStandardSurface Up Stream Dependency Graph for MetalnessRoughness map. Skipping Material export.")
+                                            return retPlace2d
+                                    else:
+                                        self.rkio.cMessage("Unexpected node found while traversing aiStandardSurface Up Stream Dependency Graph for Normal map. Skipping Material export.")
+                                        return retPlace2d
+                                else:
+                                    self.rkio.cMessage("Unexpected node found while traversing aiStandardSurface Up Stream Dependency Graph for Normal map. Skipping Material export.")
+                                    return retPlace2d
+                            else:
+                                self.rkio.cMessage("Unexpected node found while traversing aiStandardSurface Up Stream Dependency Graph. Skipping Material export.")
+                                return retPlace2d
+                        
+                        #############################################################################################
+                        # Otherwise assume Verge3D Style of Maya material - (More styles can be added in the future)
+                        #############################################################################################
+                        else:
+                            pass
+                except:
+                    self.rkio.cMessage("Object not found error while traversing aiStandardSurface Up Stream Dependency Graph. Skipping Material export. Check your shader inputs.")
+                    return retPlace2d
+                    
+            #############################################################################################
+            # This gets exported as an X3D PhysicalMaterial node
+            # - RawKee expects the Dependency Graph like the one created through the use
+            #   of the Adobe Substance 3D Painter plugin for Maya.
+            #############################################################################################
+            elif matNode.typeName == "standardSurface":
+                x3dMat = self.processBasicNodeAddition(matNode, x3dApperance, "material", "PhysicalMaterial")
+                if x3dMat[0] == False:
+                    pass
+                    
+            #############################################################################################
+            # This gets exported as an X3D PhysicalMaterial node
+            # - RawKee expects one the Dependency Graph based on the 
+            #       process of setting up a glTF PBR Materials for
+            #       Maya as described by the Verge3D User Manual.
+            #       'glTF PBR Materials / Maya'
+            #           https://www.soft8soft.com/docs/manual/en/maya/GLTF-Materials.html
+            #############################################################################################
+            elif matNode.typeName == "usdPreviewSurface":
+                x3dMat = self.processBasicNodeAddition(matNode, x3dApperance, "material", "PhysicalMaterial")
+                if x3dMat[0] == False:
+                    pass
+                    
+            #############################################################################################
+            # This gets exported as an X3D PhysicalMaterial node. For an example of how
+            # a Stringray PBS material gets created by the Maya artist, visit the following
+            # YouTube Videos:
+            #   Export textures from Substance                                          ##########################################
+            #   - 'Exporting Textures from Substance Painter for Maya Stingray PBS'     ##  *** Do NOT use Direct X normal maps ## 
+            #       https://www.youtube.com/watch?v=t3N5_eKRbYg    (By JoAnn Patel)     ##########################################
+            #   - 'Setting up a Maya Stingray PBS shader'                               ##      X3D is a WebGL-friendly format. ##
+            #       https://www.youtube.com/watch?v=_SAJ9zOfnc8    (By JoAnn Patel)     ##########################################
+            # Generic videos
+            #   - 'How to create a Stingray PBS Shader Material in Maya - Maya High Poly to Low Poly Tutorial'
+            #       https://www.youtube.com/watch?v=OXCrR5X_eTc
+            #   - '3 Introduction PBS, Maya Stingray. (English)'
+            #       https://www.youtube.com/watch?v=xFYezP0Qrgc
+            #   - '004 Maya Stingray Shader'
+            #       https://www.youtube.com/watch?v=UazuTTr5t_4
+            #############################################################################################
+            elif matNode.typeName == "StingrayPBS":
+                x3dMat = self.processBasicNodeAddition(matNode, x3dApperance, "material", "PhysicalMaterial")
+                if x3dMat[0] == False:
+                    pass
+                    
+                    
+            #############################################################################################
+            # TODO: but low priority
+            # The intent is export this as an X3D PackagedShader node - probably
+            #############################################################################################
+            elif matNode.typeName == "shaderfxShader":
+                print("The material shaderfxShader is currently unsupported, but is on the future TODO list.")
+
+            ########################################################################
+            # If you need another material such as something that comes in a plugin
+            # from Vray or Maxwell then please join the RawKee development team.
+            #
+            #   Potential Options:
+            #       - Renderaman 
+            #       - VRay
+            #       - Redshift
+            #       - Maxwell
+            #
+            ########################################################################
+            return []
+        
+    def processMaterial(self):
+        pass
+        
+    def processForGeometry(self, dagNode, shapeNode, nodeName=None, cField="geometry", nodeType="IndexedFaceSet", index=0):
+        #dagNode.getPath().fullPathName()
+        #tMesh = aom.MFnMesh(dagNode.getPath().fullPathName())
+        if nodeName == None:
+            nodeName = dagNode.name()
+        
+        if nodeType == "IndexedFaceSet":
+            geomName = nodeName + "_ifs_" + str(index)
+            bna = self.processBasicNodeAddition(dagNode, shapeNode, cField, "IndexedFaceSet", geomName)
+            
+            if bna[0] == False:
+                # TODO: Future code for implementing 'attrib'
+                
+                # Get Color Values for vertices if they exist.
+                bna[1].colorPerVertex  = self.processForColorNode(   dagNode, bna[1], geomName)
+                
+                # Get mesh coordinates
+                self.processForCoordNode(   dagNode, bna[1], geomName)
+                
+                # TODO: Future code for implementing 'fogCoord'
+                
+                # TODO: Future code for implementing 'metadata'
+                
+                # Get mesh normals per vertex if they exist
+                bna[1].normalPerVertex = self.processForNormalNode(  dagNode, bna[1], geomName)
+                
+                # Get mesh texture coordiantes if the mesh has textures.
+                hasTexCoord = self.processForTexCoordNode(dagNode, bna[1], geomName)
+                
+                # Get color index if we are doing colorPerVertex
+                if bna[1].colorPerVertex:
+                    bna[1].colorIndex  = self.getColorIndex( dagNode)
+                    
+                # Get mesh coordinate index
+                bna[1].coordIndex      = self.getCoordIndex( dagNode)
+                
+                # Get mesh normals per vertex
+                if bna[1].normalPerVertex:
+                    bna[1].normalIndex = self.getNormalIndex(dagNode)
+                    
+                # If not, then set the crease Angle to 180 degrees
+                else:
+                    bna[1].creaseAngle = 1.57
+                
+                # If textures exists for this mesh, then get texture coordiante index values
+                if hasTexCoord:
+                    bna[1].texCoordIndex = self.getTextureCoordIndex(dagNode)
+
+    def processForColorNode(self, dagNode, x3dParent, parentName, cField="color"):
+        mMesh = aom.MFnMesh(dagNode.object())
+        mca = mMesh.getVertexColors()
+        
+        nodeType = "Color"
+        
+        mColors = ()
+        
+        for c in mca:
+            if (c.a + c.r + c.g + c.b) == -4:
+                return False
+            elif c.a >= 0 and c.a < 1:
+                nodeType = "ColorRGBA"
+            
+        if nodeType == "Color":
+            for c in mca:
+                mColors = mColors + (c.r, c.g, c.b)
+        else:
+            for c in mca:
+                if c.a < 0:
+                    c.a = 0
+                mColors = mColors + (c.r, c.g, c.b, c.a)
+        
+        colorName = parentName + "_" + nodeType
+        bna = self.processBasicNodeAddition(dagNode, x3dParent, cField, nodeType, colorName)
+            
+        if bna[0] == False:
+            # TODO: Future code for implementing 'metadata'
+            
+            # Assign color to the node.
+            bna[1].color = mColors
+            
+        return True
+        
+    def processForCoordNode(self, dagNode, x3dParent, parentName, cField="coord"):
+        coordName = parentName + "_coord"
+        
+        bna = self.processBasicNodeAddition(dagNode, x3dParent, cField, "Coordinate", coordName)
+            
+        if bna[0] == False:
+            # TODO: Future code to handle metadata
+            
+            mMesh = aom.MFnMesh(dagNode.object())
+            mpa = mMesh.getPoints()
+            
+            for i in range(len(mpa)):
+                bna[1].point = bna[1].point + (mpa[i].x, mpa[i].y, mpa[i].z)
+            
+            
+        
+    def processForNormalNode(self, dagNode, x3dParent, parentName, cField="normal"):
+        mMesh = aom.MFnMesh(dagNode.object())
+        
+        normalName = parentName + "_normal"
+        
+        mcna = mMesh.getNormals()
+
+        bna = self.processBasicNodeAddition(dagNode, x3dParent, cField, "Normal", normalName)
+            
+        if bna[0] == False:
+            # TODO: Future code for implementing 'metadata'
+            
+            # Assign color to the node.
+            for n in mcna:
+                bna[1].vector = bna[1].vector + (n.x, n.y, n.z)
+            
+        return True
+        
+    def processForTexCoordNode(self, dagNode, x3dParent, parentName, subNode=0, cField="texCoord"):
+        mMesh = aom.MFnMesh(dagNode.object())
+        uvSetNames = mMesh.getUVSetNames()
+        
+        hasTextures, usedUVSets = self.getUsedUVSetsInOrder(mMesh, uvSetNames, subNode)
+        
+        if hasTextures == False:
+            return False
+        
+        #TODO: process texture coordinate node
+        hasMulti = False
+        if len(usedUVSets) > 1:
+            for i in range(len(usedUVSets)):
+                if usedUVSets[0]  != usedUVSets[i]:
+                    hasMulti = True
+
+        if hasMulti:
+            self.processMultiTextureCoordNode(dagNode, usedUVSets,    subNode)
+        else:
+            self.processSingleTexCoordNode(   dagNode, usedUVSets[0], subNode)
+        
+        return True
+    
+    def processMultiTextureCoordNode(self, dagNode, uvSets, subNode, cField="texCoord"):
+        mMesh = aom.MFnMesh(dagNode.object())
+        mtcName = mMesh.name() + "_" + str(subNode) + "_mtc"
+        #TODO: Finish this node creator
+    
+    def processSingleTexCoordNode(self, dagNode, uvSet, subNode, cField="texCoord"):
+        mMesh = aom.MFnMesh(dagNode.object())
+        #TODO: Finish this node creator
+        
+    def getUsedUVSetsInOrder(self, mMesh, uvSetNames, subNode): # hasT - the return value
+        
+        hasTextures = True
+        returnList  = []
+        textureList = self.getShaderTexturesInOrder(mMesh, subNode)
+        
+        if len(textureList) == 0:
+            hasTextures = False
+        
+        else:
+            for t in textureList:
+                returnList.append("map1")
+                
+            for i in range(len(uvSetNames)):
+                associatedTextures = mMesh.getAssociatedUVSetTextures(uvSetNames[i])
+                
+                if len(associatedTextures) == 0:
+                    hasTextures = False
+                else:
+                    for atex in associatedTextures:
+                        depFn = aom.MFnDependencyNode(atex)
+                        
+                        for j in range(len(textureList)):
+                            if depFn.name() == textureList[j]:
+                                returnList[j] = uvSetNames[i]
+        
+        return hasTextures, returnList
+    
+    def getColorIndex(self, dagNode):
+        pass
+        
+    def getCoordIndex(self, dagNode):
+        pass
+        
+    def getNormalIndex(self, dagNode):
+        pass
+        
+    def getTextureCoordIndex(self, dagNode):
+        pass
+
+    
+    ##################################################
+    #       Shading Models                           #
+    ##################################################
+    # Two Shading Models in the 3D world:
+    #    - Metal Roughness
+    #      - Base Color
+    #      - Roughness
+    #      - metallic
+    #    - Specular Glossiness
+    #      - diffuse
+    #      - glossiness
+    #      - specular
+    #
+    # Recommended YouTube Video Search - 'Using Substance textures in maya'
+    # - How to Connect PBR Texture in Maya - By Abe Leal 3D
+    #   https://www.youtube.com/watch?v=Zy0dYnHMRPY
+    #
+    # Other maps used:
+    #    - ambient occlusion - help to get a little bit of extra shadow
+    #    - normal (map)      - captures the extra detail when baking from a high poly to low poly model
+    #    - height (map)      - used for displacement
+    ##################################################
+    def getShaderTexturesInOrder(mMesh, subNode):
+        textureList = []
+        shaders, groups = mMesh.getConnectedSetsAndMembers(False, True)
+        
+        depSh = aom.MFnDependencyNode(shaders[subNode])
+        
+        shaderPlug = depSh.findPlug("surfaceShader")
+        
+        ############################################################
+        # I don't know if this is needed.
+        # isLayeredShader = False
+        
+        # To be an MFnDependencyNode
+        shader = None
+        
+        #Appearance Iterator
+        appIt = aom.MItDependencyGraph(shaderPlug.asMObject(), aom.MItDependencyGraph.kUpstream, aom.MItDependencyGraph.kDepthFirst, aom.MItDependencyGraph.kNodeLevel)
+        
+        while not appIt.isDone():
+            cItem = appIt.currentNode()
+            if cItme != None:
+                depTest = aom.MFnDependencyNode(cItem)
+                tName = depTest.typeName
+                
+                if   tName == "lambert" or tName == "blinn" or tName == "phong" or tName == "phongE":
+                    shader = aom.MFnDependencyNode(cItem)
+                    break
+                    
+                elif tName == "oceanShader":
+                    shader = aom.MFnDependencyNode(cItem)
+                    break
+                    
+                elif tName == "ShaderfxShader"    or tName == "ShaderfxGameHair":
+                    shader = aom.MFnDependencyNode(cItem)
+                    break
+                    
+                elif tName == "StingrayPBS" or tName == "aiStandardSurface":
+                    shader = aom.MFnDependencyNode(cItem)
+                    break
+            appIt.next()
+        
+        if shader != None:
+            depIt = aom.MItDependencyGraph(shader.object(), aom.MFn.kTexture2d, aom.MItDependencyGraph.kUpstream, aom.MItDependencyGraph.kDepthFirst, aom.MItDependencyGraph.kNodeLevel)
+            
+            while not depIt.isDone():
+                textureList.append(aom.MFnDependencyNode(depIt.currentNode()).name())
+                depIt.next()
+            '''
+            if   shader.typeName == "aiStandardSurface":
+                pass
+            elif shader.typeName == "usdPreviewSurface":
+                pass
+            elif shader.typeName == "openPBRSurface":
+                pass
+            elif shader.typeName == "shaderfxShader":
+                pass
+            elif shader.typeName == "shaderfxGameHair":
+                pass
+            elif shader.typeName == "oceanShader":
+                pass
+            elif shader.typeName == "surfaceShader":
+                pass
+            elif shader.typeName == "standardSurface":
+                pass
+            elif shader.typeName == "lambert":
+                pass
+            elif shader.typeName == "blinn":
+                pass
+            elif shader.typeName == "phong":
+                pass
+            elif shader.typeName == "phongE":
+                pass
+            '''        
+        return textureList
+        
+    def processTextures(self):
+        pass
+        
+    def processTextureTransforms(self):
+        pass
     
     # New to Python Version - to replace writeLeafNode
     def writeRoutes(self):
