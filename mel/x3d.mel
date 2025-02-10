@@ -33,6 +33,67 @@ global proc x3dOptionSuppression()
 	editorTemplate -suppress "x3dMetadataIn"; editorTemplate -suppress "audioOut"; editorTemplate -suppress "audioIn";
 }
 
+// Stackoverflow post on how to add menuItems to an existing Maya Menu
+// https://stackoverflow.com/questions/19236669/how-do-i-safely-add-menuitems-to-an-existing-menu-in-maya-mel
+
+global proc checkForFileMenuItems()
+{
+    global string $gMainFileMenu;
+    buildFileMenu();
+    
+    string $menus[] = `menu -q -ia $gMainFileMenu`;
+    
+    for($menu in $menus)
+    {
+        string $parent = "";
+        if(catchQuiet($parent = `menu -q -l $menu`))
+        {
+            print("MenuItem: " + $menu + "\n");
+        }
+        else
+        {
+            print("Parent: " + $parent + ", Menu: " + $menu + "\n");
+        }
+    }
+}
+
+
+global proc addRawKeeMenuItemsToFileMenu()
+{
+    global string $gMainFileMenu;
+    buildFileMenu();
+
+    menuItem -divider true -dividerLabel "RawKee X3D Export" -insertAfter "exportActiveFileOptions" -parent $gMainFileMenu rawkeeIODivider;
+    menuItem -label "X3D - Export All"                       -insertAfter "rawkeeIODivider"         -parent $gMainFileMenu -command "rkX3DExport"                      rawkeeIOExport;
+    menuItem -image ":menu_options.png"                      -insertAfter "rawkeeIOExport"          -parent $gMainFileMenu -command "rkX3DExportOp"    -optionBox true rawkeeIOExportOp;
+    menuItem -label "X3D - Export Selected"                  -insertAfter "rawkeeIOExportOp"        -parent $gMainFileMenu -command "rkX3DSelExport"                   rawkeeIOSelExport;
+    menuItem -image ":menu_options.png"                      -insertAfter "rawkeeIOSelExport"       -parent $gMainFileMenu -command "rkX3DSelExportOp" -optionBox true rawkeeIOSelExportOp;
+    
+    menuItem -label "Send To Castle"                         -insertAfter "sendToDivider"           -parent $gMainFileMenu                               -sm true        rawkeeCastleMenu;
+    menuItem -label "Send All"                                                                      -parent rawkeeCastleMenu -command "rkCASExport"                      rawkeeCASExport;
+    menuItem -image ":menu_options.png"                      -insertAfter "rawkeeCASExport"         -parent rawkeeCastleMenu -command "rkCASExportOp"    -optionBox true rawkeeCASExportOp;
+    menuItem -label "Send Selected"                          -insertAfter "rawkeeCASExportOp"       -parent rawkeeCastleMenu -command "rkCASSelExport"                   rawkeeCASSelExport;
+    menuItem -image ":menu_options.png"                      -insertAfter "rawkeeCASSelExport"      -parent rawkeeCastleMenu -command "rkCASSelExportOp" -optionBox true rawkeeCASSelExportOp;
+    menuItem -label "Set Castle Project"                     -insertAfter "rawkeeCASSelExportOp"    -parent rawkeeCastleMenu -command "rkCASSetProject"                  rawkeeCASSetProject;
+
+}
+
+global proc removeRawKeeMenuItemsFromFileMenu()
+{
+    deleteUI -mi rawkeeIOSelExportOp;
+    deleteUI -mi rawkeeIOSelExport;
+    deleteUI -mi rawkeeIOExportOp;
+    deleteUI -mi rawkeeIOExport;
+    deleteUI -mi rawkeeIODivider;
+    
+    deleteUI -mi rawkeeCASSetProject;
+    deleteUI -mi rawkeeCASSelExportOp;
+    deleteUI -mi rawkeeCASSelExport;
+    deleteUI -mi rawkeeCASExportOp;
+    deleteUI -mi rawkeeCASExport;
+    deleteUI -mi rawkeeCastleMenu;
+}
+
 
 //------------------------------------------------------------------
 // Looks to see if global Maya variables exist, and if they don't, 
@@ -42,231 +103,159 @@ global proc setDefRKOptVars()
 {
 	putenv "AW_JPEG_Q_FACTOR" "100";
 	
-	if(`optionVar -exists "x3dEncoding"`){
-	}else{
-		optionVar -iv x3dEncoding 0;
-	}
-	if(`optionVar -exists "x3dIsProcTree"`){
-	}else{
-		optionVar -iv x3dIsProcTree 0;
-	}
-	if(`optionVar -exists "x3dIsFrom"`){
-	}else{
-		optionVar -iv x3dIsFrom 1;
-	}
-	if(`optionVar -exists "x3dNodeTreeWidth"`){
-	}else{
-		optionVar -iv x3dNodeTreeWidth 0;
-	}
-	if(`optionVar -exists "x3dFieldAccessChoice"`){
-	}else{
-		optionVar -iv x3dFieldAccessChoice 1;
-	}
+    //-------------------------------------------
+    // New RawKee Python optionVars
+    //-------------------------------------------
+    if(`optionVar -exists "rkCastlePrjDir"`)
+    {
+    }else{
+        print("Creating the optionVar to hold the current Castle Game Engine Project Directory");
+		optionVar -sv "rkCastlePrjDir" "";
+    }
+    
+    if(`optionVar -exists "rkSunrizePrjDir"`)
+    {
+    }else{
+        print("Creating the optionVar to hold the current Castle Game Engine Project Directory");
+		optionVar -sv "rkSunrizePrjDir" "";
+    }
+    
+    if(`optionVar -exists "rkPrjDir"`)
+    {
+    }else{
+        print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
+		optionVar -sv "rkPrjDir" "";
+    }
 
-	if(`optionVar -exists "x3dFieldTypeChoice"`){
-	}else{
-		optionVar -iv x3dFieldTypeChoice 1;
-	}
+    if(`optionVar -exists "rkBaseDomain"`)
+    {
+    }else{
+        print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
+		optionVar -sv "rkBaseDomain" "";
+    }
 
-	if(`optionVar -exists "x3dExternalPixel"`){
+    if(`optionVar -exists "rkBasePath"`)
+    {
+    }else{
+        print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
+		optionVar -sv "rkBasePath" "";
+    }
+    
+    if(`optionVar -exists "rkImagePath"`)
+    {
+    }else{
+        print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
+		optionVar -sv "rkImagePath" "images/";
+    }
+    
+    if(`optionVar -exists "rkAudioPath"`)
+    {
+    }else{
+        print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
+		optionVar -sv "rkAudioPath" "audio/";
+    }
+    
+    if(`optionVar -exists "rkInlinePath"`)
+    {
+    }else{
+        print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
+		optionVar -sv "rkInlinePath" "inline/";
+    }
+    
+	if(`optionVar -exists "rk2dTexWrite"`){
 	}else{
-		optionVar -iv x3dExternalPixel 0;
+    //bool
+		optionVar -iv rk2dTexWrite 1;
 	}
 	
-	if(`optionVar -exists "x3dInternalPixel"`){
+	if(`optionVar -exists "rkMovTexWrite"`){
 	}else{
-		optionVar -iv x3dInternalPixel 0;
+    //bool
+		optionVar -iv rkMovTexWrite 1;
 	}
 	
-	//X3D Interaction Editor Routing Mode Option
-	if(`optionVar -exists "x3dIEMode"`){
+	if(`optionVar -exists "rkAudioTexWrite"`){
 	}else{
-		print("adding 'optionVar x3dIEMode' setting it to '0'\n");
-		optionVar -iv "x3dIEMode" 0;
+    //bool
+		optionVar -iv rkAudioTexWrite 1;
 	}
 	
-	//Lets us know if we should export location leaf nodes
-	//such as lights and cameras as syblings of their
-	//parent transforms.
-	if(`optionVar -exists "x3dUseEmpties"`){
+	if(`optionVar -exists "rk2dFileFormat"`){
 	}else{
-		optionVar -iv "x3dUseEmpties" 1;
+    //bool
+		optionVar -iv rk2dFileFormat 0;
 	}
 	
-	if(`optionVar -exists "x3dUnderworld"`){
+	if(`optionVar -exists "rkMovFileFormat"`){
 	}else{
-		print("adding 'optionVar x3dUnderworld' and setting it to '0'.\n");
-		optionVar -iv "x3dUnderworld" 0;
-	}
-
-	if(`optionVar -exists "x3dExportMetadata"`){
-	}else{
-		print("adding 'optionVar x3dExportMetadata' and  setting it to '1'.\n");
-		optionVar -iv "x3dExportMetadata" 1;
+    //bool
+		optionVar -iv rkMovFileFormat 0;
 	}
 	
-	if(`optionVar -exists "x3dExportTextures"`){
+	if(`optionVar -exists "rkAudioFileFormat"`){
 	}else{
-		print("adding 'optionVar x3dExportTextures' and  setting it to '1'.\n");
-		optionVar -iv "x3dExportTextures" 1;
+    //bool
+		optionVar -iv rkAudioFileFormat 0;
 	}
 	
-	if(`optionVar -exists "x3dSaveMayaTextures"`){
+	if(`optionVar -exists "rkExportCameras"`){
 	}else{
-		print("adding 'optionVar x3dSaveMayaTextures' and  setting it to '1'.\n");
-		optionVar -iv "x3dSaveMayaTextures" 1;
+    //bool
+		optionVar -iv rkExportCameras 1;
 	}
 	
-	if(`optionVar -exists "x3dTextureWidth"`){
+	if(`optionVar -exists "rkExportLights"`){
 	}else{
-		print("adding 'optionVar x3dTextureWidth' and  setting it to '256'.\n");
-		optionVar -iv "x3dTextureWidth" 256;
+    //bool
+		optionVar -iv rkExportLights 1;
 	}
 	
-	if(`optionVar -exists "x3dTextureHeight"`){
+	if(`optionVar -exists "rkExportSounds"`){
 	}else{
-		print("adding 'optionVar x3dTextureHeight' and  setting it to '256'.\n");
-		optionVar -iv "x3dTextureHeight" 256;
+    //bool
+		optionVar -iv rkExportSounds 1;
 	}
 	
-	if(`optionVar -exists "x3dConsolidateMedia"`){
+	if(`optionVar -exists "rkExportMetadata"`){
 	}else{
-		print("adding 'optionVar x3dConsolidateMedia' and  setting it to '1'.\n");
-		optionVar -iv "x3dConsolidateMedia" 1;
+    //bool
+		optionVar -iv rkExportMetadata 0;
 	}
 	
-	if(`optionVar -exists "x3dFileOverwrite"`){
+	if(`optionVar -exists "rkProcTexNode"`){
 	}else{
-		optionVar -iv x3dFileOverwrite 0;
+    //bool
+		optionVar -iv rkProcTexNode 0;
 	}
 	
-	if(`optionVar -exists "x3dAdjustTextureSize"`){
+	if(`optionVar -exists "rkFileTexNode"`){
 	}else{
-		print("adding 'optionVar x3dAdjustTextureSize' and  setting it to '1'.\n");
-		optionVar -iv "x3dAdjustTextureSize" 1;
+    //bool
+		optionVar -iv rkFileTexNode 0;
 	}
 	
-	if(`optionVar -exists "x3dTextureDirectory"`){
+	if(`optionVar -exists "rkLayerTexNode"`){
 	}else{
-		print("adding 'optionVar x3dTextureDirectory' and  setting it to 'images/'.\n");
-		optionVar -sv "x3dTextureDirectory" "images/";
+    //bool
+		optionVar -iv rkLayerTexNode 0;
 	}
 	
-	if(`optionVar -exists "x3dTextureFormat"`){
+	if(`optionVar -exists "rkAdjTexSize"`){
 	}else{
-		print("adding 'optionVar x3dTextureFormat' and  setting it to '0'.\n");
-		optionVar -iv "x3dTextureFormat" 0;
+    //bool
+		optionVar -iv rkAdjTexSize 0;
 	}
 	
-	if(`optionVar -exists "x3dExportAudio"`){
+	if(`optionVar -exists "rkDefTexWidth"`){
 	}else{
-		print("adding 'optionVar x3dExportAudio' and  setting it to '1'.\n");
-		optionVar -iv "x3dExportAudio" 1;
+    //bool
+		optionVar -iv rkDefTexWidth 256;
 	}
 	
-	if(`optionVar -exists "x3dAudioDirectory"`){
+	if(`optionVar -exists "rkDefTexHeight"`){
 	}else{
-		print("adding 'optionVar x3dAudioDirectory' and  setting it to 'audio/'.\n");
-		optionVar -sv "x3dAudioDirectory" "audio/";
-	}
-	
-	if(`optionVar -exists "x3dInlineDirectory"`){
-	}else{
-		print("adding 'optionVar x3dInlineDirectory' and  setting it to 'inline/'.\n");
-		optionVar -sv "x3dInlineDirectory" "inline/";
-	}
-	
-	if(`optionVar -exists "x3dCPV"`){
-	}else{
-		print("adding 'optionVar x3dCPV' and setting it to '1'.\n");
-		optionVar -iv "x3dCPV" 1;
-	}
-	
-	if(`optionVar -exists "x3dNPV"`){
-	}else{
-		print("adding 'optionVar x3dNPV' and setting it to '1'.\n");
-		optionVar -iv "x3dNPV" 1;
-	}
-	
-	if(`optionVar -exists "x3dCreaseAngle"`){
-	}else{
-		print("adding 'optionVar x3dCreaseAngle' and setting it to '1.57'.\n");
-		optionVar -fv "x3dCreaseAngle" 1.57;
-	}
-	
-//	if(`optionVar -exists "x3dSolid"`){
-//	}else{
-//		print("adding 'optionVar x3dSolid' and setting it to '1'.\n");
-//		optionVar -iv "x3dSolid" 1;
-//	}
-	
-	if(`optionVar -exists "x3dNSHAnim"`){
-	}else{
-		print("adding 'optionVar x3dNSHAnim' and setting it to '1'.\n");
-		optionVar -iv "x3dNSHAnim" 1;
-	}
-	
-	if(`optionVar -exists "x3dBaseURL"`){
-	}else{
-		print("adding 'optionVar x3dBaseURL' and  setting it to ''.\n");
-		optionVar -sv "x3dBaseURL" "";
-	}
-	
-	if(`optionVar -exists "x3dNonMovieTextureFormat"`){
-	}else{
-		print("adding 'optionVar x3dNonMovieTextureFormat' and  setting it to '0' - Current Format.\n");
-		optionVar -iv "x3dNonMovieTextureFormat" 0;
-	}
-	
-	if(`optionVar -exists "x3dRigidBodyExport"`){
-	}else{
-		print("adding 'optionVar x3dRigidBodyExport' and setting it to '0'.\n");
-		optionVar -iv "x3dRigidBodyExport" 0 ;
-	}
-	if(`optionVar -exists "x3dHAnimExport"`){
-	}else{
-		print("adding 'optionVar x3dHAnimExport' and setting it to '0'.\n");
-		optionVar -iv "x3dHAnimExport" 0 ;
-	}
-	
-	if(`optionVar -exists "x3dIODeviceExport"`){
-	}else{
-		print("adding 'optionVar x3dIODeviceExport' and setting it to '0'.\n");
-		optionVar -iv "x3dIODeviceExport" 0 ;
-	}
-	if(`optionVar -exists "x3dUseRelURL"`)
-	{
-	}else{
-		print("adding 'optionVar x3dUseRelURL' and setting it to '1'.\n");
-		optionVar -iv "x3dUseRelURL" 1;
-	}
-	
-	if(`optionVar -exists "x3dUseRelURLW"`)
-	{
-	}else{
-		print("adding 'optionVar x3dUseRelURLW' and setting it to '1'.\n");
-		optionVar -iv "x3dUseRelURLW" 1;
-	}
-	
-	if(`optionVar -exists "x3dUseAbsURL"`)
-	{
-	}else{
-		print("adding 'optionVar x3dUseAbsURL' and setting it to '1'.\n");
-		optionVar -iv "x3dUseAbsURL" 1;
-	}
-	
-	if(`optionVar -exists "x3dJavaMemory"`)
-	{
-	}else{
-		print("adding 'optionVar x3dJavaMemory' and setting it to '64'\n");
-		optionVar -iv "x3dJavaMemory" 64;
-	}
-	
-	if(`optionVar -exists "x3dBCFlag"`)
-	{
-	}else{
-		print("adding 'optionVar x3dBCFlag' and setting it to '1'.\n");
-		optionVar -iv "x3dBCFlag" 1;
+    //bool
+		optionVar -iv rkDefTexHeight 256;
 	}
 }
 
