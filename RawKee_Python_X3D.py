@@ -221,6 +221,64 @@ class RKX3DSelExportOp(aom.MPxCommand):
             print("rkWeb3D was None")
 
 
+# Creating the MEL Command for the RawKee's function to activate export function
+class RKX3DCastleProject(aom.MPxCommand):
+    kPluginCmdName = "rkCASSetProject"
+
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+
+    @staticmethod
+    def cmdCreator():
+        return RKX3DCastleProject()
+        
+    def doIt(self, args):
+        global rkWeb3D
+        
+        if rkWeb3D is not None:
+            rkWeb3D.setCastleProjectDirectory()
+        else:
+            print("rkWeb3D was None")
+
+
+class RKX3DCastleExportOp(aom.MPxCommand):
+    kPluginCmdName = "rkCASExportOp"
+
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+
+    @staticmethod
+    def cmdCreator():
+        return RKX3DCastleExportOp()
+        
+    def doIt(self, args):
+        global rkWeb3D
+        
+        if rkWeb3D is not None:
+            rkWeb3D.activateCastleExportOptions()
+        else:
+            print("rkWeb3D was None")
+
+
+class RKX3DCastleSelExportOp(aom.MPxCommand):
+    kPluginCmdName = "rkCASSelExportOp"
+
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+
+    @staticmethod
+    def cmdCreator():
+        return RKX3DCastleSelExportOp()
+        
+    def doIt(self, args):
+        global rkWeb3D
+        
+        if rkWeb3D is not None:
+            rkWeb3D.activateCastleSelExportOptions()
+        else:
+            print("rkWeb3D was None")
+
+
 class RKShowSceneEditor(aom.MPxCommand):
     kPluginCmdName = "rkShowSceneEditor"
     
@@ -254,7 +312,7 @@ class RKShowSceneEditor(aom.MPxCommand):
 
 # Initialize the plug-in
 def initializePlugin(plugin):
-    print("Made possible by the Alias Research Donation Program\n - Yes, the 'ALIAS' Research Donation Program - from 2003/4-ish\n   I can't remember exactly when, it's been a long long time.")
+    print("Made possible by the: Alias Research Donation Program\n\n")
     pluginFn = aom.MFnPlugin(plugin, RAWKEE_VENDOR, RAWKEE_VERSION)
  
     # RawKee Utility Functions required to be in MEL format such as functions related to AE Templates.
@@ -327,18 +385,23 @@ def initializePlugin(plugin):
         #pluginFn.registerCommand(RKWeb3DExporter.kPluginCmdName, RKWeb3DExporter.cmdCreator)
         #pluginFn.registerCommand(        RKServer.kPluginCmdName,         RKServer.cmdCreator)
         #pluginFn.registerCommand(          RKAddX3DSound.kPluginCmdName,     RKAddX3DSound.cmdCreator)
-        pluginFn.registerCommand(       RKSetAsBillboard.kPluginCmdName,  RKSetAsBillboard.cmdCreator)
-        pluginFn.registerCommand(         RKAddCollision.kPluginCmdName,    RKAddCollision.cmdCreator)
-        pluginFn.registerCommand(             RKAddGroup.kPluginCmdName,        RKAddGroup.cmdCreator)
-        pluginFn.registerCommand(            RKAddSwitch.kPluginCmdName,       RKAddSwitch.cmdCreator)
-        pluginFn.registerCommand(                 RKInfo.kPluginCmdName,            RKInfo.cmdCreator)
-        pluginFn.registerCommand(          RKX3DExportOp.kPluginCmdName,     RKX3DExportOp.cmdCreator)
-        pluginFn.registerCommand(            RKX3DExport.kPluginCmdName,       RKX3DExport.cmdCreator)
-        pluginFn.registerCommand(          RKX3DImportOp.kPluginCmdName,     RKX3DImportOp.cmdCreator)
-        pluginFn.registerCommand(            RKX3DImport.kPluginCmdName,       RKX3DImport.cmdCreator)
-        #pluginFn.registerCommand(        RKPrimeX3DScene.kPluginCmdName,   RKPrimeX3DScene.cmdCreator)
-        pluginFn.registerCommand(               RKTestIt.kPluginCmdName,          RKTestIt.cmdCreator)
-        pluginFn.registerCommand(      RKShowSceneEditor.kPluginCmdName, RKShowSceneEditor.cmdCreator)
+        pluginFn.registerCommand(       RKSetAsBillboard.kPluginCmdName,        RKSetAsBillboard.cmdCreator)
+        pluginFn.registerCommand(         RKAddCollision.kPluginCmdName,          RKAddCollision.cmdCreator)
+        pluginFn.registerCommand(             RKAddGroup.kPluginCmdName,              RKAddGroup.cmdCreator)
+        pluginFn.registerCommand(            RKAddSwitch.kPluginCmdName,             RKAddSwitch.cmdCreator)
+        pluginFn.registerCommand(                 RKInfo.kPluginCmdName,                  RKInfo.cmdCreator)
+        pluginFn.registerCommand(          RKX3DExportOp.kPluginCmdName,           RKX3DExportOp.cmdCreator)
+        pluginFn.registerCommand(            RKX3DExport.kPluginCmdName,             RKX3DExport.cmdCreator)
+        pluginFn.registerCommand(       RKX3DSelExportOp.kPluginCmdName,        RKX3DSelExportOp.cmdCreator)
+        pluginFn.registerCommand(         RKX3DSelExport.kPluginCmdName,          RKX3DSelExport.cmdCreator)
+        pluginFn.registerCommand(          RKX3DImportOp.kPluginCmdName,           RKX3DImportOp.cmdCreator)
+        pluginFn.registerCommand(            RKX3DImport.kPluginCmdName,             RKX3DImport.cmdCreator)
+        #pluginFn.registerCommand(        RKPrimeX3DScene.kPluginCmdName,        RKPrimeX3DScene.cmdCreator)
+        pluginFn.registerCommand(               RKTestIt.kPluginCmdName,                RKTestIt.cmdCreator)
+        pluginFn.registerCommand(      RKShowSceneEditor.kPluginCmdName,       RKShowSceneEditor.cmdCreator)
+        pluginFn.registerCommand(     RKX3DCastleProject.kPluginCmdName,      RKX3DCastleProject.cmdCreator)
+        pluginFn.registerCommand(    RKX3DCastleExportOp.kPluginCmdName,     RKX3DCastleExportOp.cmdCreator)
+        pluginFn.registerCommand( RKX3DCastleSelExportOp.kPluginCmdName,  RKX3DCastleSelExportOp.cmdCreator)
         
     except:
         sys.stderr.write("Failed to register a plugin command.\n")
@@ -365,18 +428,23 @@ def uninitializePlugin(plugin):
     '''
     ##################################
     try:
-        pluginFn.deregisterCommand(RKShowSceneEditor.kPluginCmdName)
-        pluginFn.deregisterCommand(         RKTestIt.kPluginCmdName)
-        #pluginFn.deregisterCommand(  RKPrimeX3DScene.kPluginCmdName)
-        pluginFn.deregisterCommand(      RKX3DImport.kPluginCmdName)
-        pluginFn.deregisterCommand(    RKX3DImportOp.kPluginCmdName)
-        pluginFn.deregisterCommand(      RKX3DExport.kPluginCmdName)
-        pluginFn.deregisterCommand(    RKX3DExportOp.kPluginCmdName)
-        pluginFn.deregisterCommand(           RKInfo.kPluginCmdName)
-        pluginFn.deregisterCommand(      RKAddSwitch.kPluginCmdName)
-        pluginFn.deregisterCommand(       RKAddGroup.kPluginCmdName)
-        pluginFn.deregisterCommand(   RKAddCollision.kPluginCmdName)
-        pluginFn.deregisterCommand( RKSetAsBillboard.kPluginCmdName)
+        pluginFn.deregisterCommand(RKX3DCastleSelExportOp.kPluginCmdName)
+        pluginFn.deregisterCommand(   RKX3DCastleExportOp.kPluginCmdName)
+        pluginFn.deregisterCommand(    RKX3DCastleProject.kPluginCmdName)
+        pluginFn.deregisterCommand(     RKShowSceneEditor.kPluginCmdName)
+        pluginFn.deregisterCommand(              RKTestIt.kPluginCmdName)
+        #pluginFn.deregisterCommand(      RKPrimeX3DScene.kPluginCmdName)
+        pluginFn.deregisterCommand(           RKX3DImport.kPluginCmdName)
+        pluginFn.deregisterCommand(         RKX3DImportOp.kPluginCmdName)
+        pluginFn.deregisterCommand(        RKX3DSelExport.kPluginCmdName)
+        pluginFn.deregisterCommand(      RKX3DSelExportOp.kPluginCmdName)
+        pluginFn.deregisterCommand(           RKX3DExport.kPluginCmdName)
+        pluginFn.deregisterCommand(         RKX3DExportOp.kPluginCmdName)
+        pluginFn.deregisterCommand(                RKInfo.kPluginCmdName)
+        pluginFn.deregisterCommand(           RKAddSwitch.kPluginCmdName)
+        pluginFn.deregisterCommand(            RKAddGroup.kPluginCmdName)
+        pluginFn.deregisterCommand(        RKAddCollision.kPluginCmdName)
+        pluginFn.deregisterCommand(      RKSetAsBillboard.kPluginCmdName)
         #pluginFn.deregisterCommand(    RKAddX3DSound.kPluginCmdName)
         #pluginFn.deregisterCommand(         RKServer.kPluginCmdName)
         

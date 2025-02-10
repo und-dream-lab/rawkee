@@ -20,7 +20,9 @@ import subprocess        as sp         ###
 
 from rawkee import RKOrganizer
 from rawkee import RKSceneEditor
-from rawkee.RKUtils import *
+from rawkee.RKFOptsDialog import RKFOptsDialog
+
+#from rawkee.RKUtils import *
 
 import x3d              as rkx3d
 
@@ -73,8 +75,6 @@ class RKWeb3D():
         # Setup the main 'RawKee X3D' plugin menu
         self.rkMenuName ="rawkee_menu"
 
-        self.rawKeeMenu = ""
-
         #Populate the RawKee X3D Menu
         self.addRawKeeMenu()
         
@@ -125,6 +125,7 @@ class RKWeb3D():
         '''
         print("Add Menu Ran")
     
+        
         #TODO: Implement Connections to function calls ##############
         #cmds.window(query=True, mainMenuBar=True)
         self.rawKeeMenu = cmds.menu(self.rkMenuName, label = 'RawKee (X3D)', tearOff=True, p='MayaWindow')#QMenu("RawKee (X3D)", self.mayaWin)
@@ -141,7 +142,6 @@ class RKWeb3D():
         self.x3dImport       = cmds.menuItem(label='Import X3D Files',      command='maya.cmds.rkX3DImport()')                      #self.rawKeeMenu.addAction(self.x3dImport)
         self.x3dImportOpt    = cmds.menuItem(image=':menu_options.png',     command='maya.cmds.rkX3DImportOp()',    optionBox=True) #self.rawKeeMenu.addAction(self.x3dImportOpt)
 #        self.x3dExport.addAction("Export Scene Prep")# -c "x3dPrepareSceneForExport";
-
 
         #--------------------------------------------------------------------
         # Finishing off the  X3D Plug-in menu
@@ -173,6 +173,7 @@ class RKWeb3D():
         cmds.menuItem(label='Test Function', command='maya.cmds.rkTestIt()')
         ###################################################
     
+        mel.eval('addRawKeeMenuItemsToFileMenu()')
     
     
     # Destroy "RawKee (X3D)" - main plugin menu
@@ -180,12 +181,15 @@ class RKWeb3D():
         '''
         Remove and destroy the RawKee Primary Menu
         '''
-        #self.mayaWin.menuBar().removeAction(self.rawKeeMenu.menuAction())
-        if  cmds.menu(self.rkMenuName,  label = 'RawKee (X3D)', p='MayaWindow') != 0:
-            cmds.deleteUI(cmds.menu(self.rkMenuName,  label = 'RawKee (X3D)', e=1, dai=1))
+        
+        try:
             cmds.deleteUI(self.rkMenuName)     
             cmds.refresh()
-            print("Removing Menus")
+            mel.eval('removeRawKeeMenuItemsFromFileMenu()')
+        except:
+            print("An error occured when attempting to remove the RawKee menubar menu, and rawkee items from the 'File' menu.")
+
+        print("Removing Menus")
     
     def printTheGlobal(self):
         print("The Global")
@@ -289,11 +293,31 @@ class RKWeb3D():
 
     # Export Options Function
     def activateExportOptions(self):
+        dTitle = "X3D Export Options"
+        try:
+            self.openIODialog.close()
+            self.openIODialog.deleteLater()
+        except:
+            pass
+            
+        self.openIODialog = RKFOptsDialog(dialogTitle=dTitle)
+        self.openIODialog.show()
+        
         print("TODO: Implement Export Options Window")
         
     
     # Export Options Function
     def activateSelExportOptions(self):
+        dTitle = "X3D Export Selected Options"
+        try:
+            self.openIODialog.close()
+            self.openIODialog.deleteLater()
+        except:
+            pass
+            
+        self.openIODialog = RKFOptsDialog(dialogTitle=dTitle)
+        self.openIODialog.show()
+        
         print("TODO: Implement Select Export Options Window")
         
     
@@ -314,13 +338,60 @@ class RKWeb3D():
     
     # Import Options Function
     def activateImportOptions(self):
+        dTitle = "X3D Import Options"
+        try:
+            self.openIODialog.close()
+            self.openIODialog.deleteLater()
+        except:
+            pass
+            
+        self.openIODialog = RKFOptsDialog(dialogTitle=dTitle)
+        self.openIODialog.show()
+
         print("TODO: Implement Import Options Window")
+        
+    # Options for Castle Game Engine Export All - Send
+    def activateCastleExportOptions(self):
+        dTitle = "Castle Export All - Options"
+        try:
+            self.openIODialog.close()
+            self.openIODialog.deleteLater()
+        except:
+            pass
+            
+        self.openIODialog = RKFOptsDialog(dialogTitle=dTitle)
+        self.openIODialog.show()
+        
+    
+    # Options for Castle Game Engine Export Selected Items - Send
+    def activateCastleSelExportOptions(self):
+        dTitle = "Castle Export Selected - Options"
+        try:
+            self.openIODialog.close()
+            self.openIODialog.deleteLater()
+        except:
+            pass
+            
+        self.openIODialog = RKFOptsDialog(dialogTitle=dTitle)
+        self.openIODialog.show()
+        
     
     # File Import/Export Options Window
     def activateFOptsDialog(self):
         pass
         
+    
+    def setCastleProjectDirectory(self):
+        prjVal = cmds.optionVar( query = 'rkCastlePrjDir')
         
+        directoryResult = QtWidgets.QFileDialog.getExistingDirectory(self.mayaWin,  QtCore.QObject.tr("Set Castle Game Engine Project"), prjVal)
+        
+        if directoryResult:
+            cmds.optionVar(sv=('rkCastlePrjDir', directoryResult))
+        else:
+            print("Directory Selection Cancelled.")
+            
+        #getOpenFileName(self.mayaWin, QtCore.QObject.tr("RawKee - Select File to Import"), self.fullPath, QtCore.QObject.tr(self.x3dfilters))
 
 # Creating the MEL Command for the RawKee's Command to add a switch node
 class RKAddCollision(aom.MPxCommand):
