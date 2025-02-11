@@ -126,8 +126,7 @@ class RKWeb3D():
         print("Add Menu Ran")
     
         
-        #TODO: Implement Connections to function calls ##############
-        #cmds.window(query=True, mainMenuBar=True)
+        # Set the MainWindow MenuBar Menu for RawKee
         self.rawKeeMenu = cmds.menu(self.rkMenuName, label = 'RawKee (X3D)', tearOff=True, p='MayaWindow')#QMenu("RawKee (X3D)", self.mayaWin)
 
         '''
@@ -139,9 +138,9 @@ class RKWeb3D():
         self.x3dExportOpt    = cmds.menuItem(image=':menu_options.png',     command='maya.cmds.rkX3DExportOp()',    optionBox=True) #self.rawKeeMenu.addAction(self.x3dExportOpt)
         self.x3dSelExport    = cmds.menuItem(label='Export Selected - X3D', command='maya.cmds.rkX3DSelExport()')
         self.x3dSelExportOpt = cmds.menuItem(image=':menu_options.png',     command='maya.cmds.rkX3DSelExportOp()', optionBox=True) #self.rawKeeMenu.addAction(self.x3dExportOpt)
-        self.x3dImport       = cmds.menuItem(label='Import X3D Files',      command='maya.cmds.rkX3DImport()')                      #self.rawKeeMenu.addAction(self.x3dImport)
-        self.x3dImportOpt    = cmds.menuItem(image=':menu_options.png',     command='maya.cmds.rkX3DImportOp()',    optionBox=True) #self.rawKeeMenu.addAction(self.x3dImportOpt)
-#        self.x3dExport.addAction("Export Scene Prep")# -c "x3dPrepareSceneForExport";
+        #self.x3dImport       = cmds.menuItem(label='Import X3D Files',      command='maya.cmds.rkX3DImport()')                      #self.rawKeeMenu.addAction(self.x3dImport)
+        #self.x3dImportOpt    = cmds.menuItem(image=':menu_options.png',     command='maya.cmds.rkX3DImportOp()',    optionBox=True) #self.rawKeeMenu.addAction(self.x3dImportOpt)
+        self.x3dSetProject   = cmds.menuItem(label='Set RawKee Project',     command='maya.cmds.rkX3DSetProject()')
 
         #--------------------------------------------------------------------
         # Finishing off the  X3D Plug-in menu
@@ -152,17 +151,6 @@ class RKWeb3D():
         #cmds.menuItem(label='X3D Character Editor')                  # -command "x3dCharacterEditor";
         #cmds.menuItem(label='X3D Animation Editor')                  # -command "x3dAnimationEditor";
 
-        '''
-        cmds.setParent(self.rkMenuName, menu=True)
-        cmds.menuItem(divider=True, dividerLabel='Texture Utility Commands')
-        cmds.menuItem(label='Set All MultiTexture Modes: Default')   # -c ("x3dSetAllSingleTextureModes 0");
-        cmds.menuItem(label='Set All MultiTexture Modes: Replace')   # -c ("x3dSetAllSingleTextureModes 1");
-        cmds.menuItem(label='Set All MultiTexture Modes: Modulate')  # -c ("x3dSetAllSingleTextureModes 2");
-        cmds.menuItem(label='Set All MultiTexture Modes: Add')       # -c ("x3dSetAllSingleTextureModes 3");
-        cmds.menuItem(divider=True)
-        cmds.menuItem(label='Make All Textures PixelTextures')       # -c ("x3dSetAllTexturesPixel");
-        cmds.menuItem(label='Make All Textures ImageTextures')       # -c ("x3dSetAllTexturesFile");
-        '''
 
         cmds.menuItem(divider=True, dividerLabel='Code Repositories')
         cmds.menuItem(label='RawKee GitHub Python Repo')
@@ -198,6 +186,9 @@ class RKWeb3D():
     def activateExportFunctions(self):
         print("RawKee X3D Export")
         
+        # Set Export Mode
+        cmds.optionVar(iv=('rkExportMode', 0))
+
         #############################################
         # Prepare New X3D Document with Scene
         profileType = "Full"
@@ -288,11 +279,17 @@ class RKWeb3D():
         
     # Export Function
     def activateSelExportFunctions(self):
+        # Set Export Mode
+        cmds.optionVar(iv=('rkExportMode', 0))
+
         print("RawKee X3D Selected Export")
 
 
     # Export Options Function
     def activateExportOptions(self):
+        # Set Export Mode
+        cmds.optionVar(iv=('rkExportMode', 0))
+        
         dTitle = "X3D Export Options"
         try:
             self.openIODialog.close()
@@ -308,6 +305,9 @@ class RKWeb3D():
     
     # Export Options Function
     def activateSelExportOptions(self):
+        # Set Export Mode
+        cmds.optionVar(iv=('rkExportMode', 0))
+
         dTitle = "X3D Export Selected Options"
         try:
             self.openIODialog.close()
@@ -352,6 +352,9 @@ class RKWeb3D():
         
     # Options for Castle Game Engine Export All - Send
     def activateCastleExportOptions(self):
+        # Set Export Mode
+        cmds.optionVar(iv=('rkExportMode', 1))
+
         dTitle = "Castle Export All - Options"
         try:
             self.openIODialog.close()
@@ -365,6 +368,9 @@ class RKWeb3D():
     
     # Options for Castle Game Engine Export Selected Items - Send
     def activateCastleSelExportOptions(self):
+        # Set Export Mode
+        cmds.optionVar(iv=('rkExportMode', 1))
+
         dTitle = "Castle Export Selected - Options"
         try:
             self.openIODialog.close()
@@ -391,7 +397,17 @@ class RKWeb3D():
         else:
             print("Directory Selection Cancelled.")
             
-        #getOpenFileName(self.mayaWin, QtCore.QObject.tr("RawKee - Select File to Import"), self.fullPath, QtCore.QObject.tr(self.x3dfilters))
+
+    def setRawKeeProjectDirectory(self):
+        prjVal = cmds.optionVar( query = 'rkPrjDir')
+        
+        directoryResult = QtWidgets.QFileDialog.getExistingDirectory(self.mayaWin,  QtCore.QObject.tr("Set RawKee X3D Project"), prjVal)
+        
+        if directoryResult:
+            cmds.optionVar(sv=('rkPrjDir', directoryResult))
+        else:
+            print("Directory Selection Cancelled.")
+            
 
 # Creating the MEL Command for the RawKee's Command to add a switch node
 class RKAddCollision(aom.MPxCommand):

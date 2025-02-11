@@ -68,6 +68,7 @@ global proc addRawKeeMenuItemsToFileMenu()
     menuItem -image ":menu_options.png"                      -insertAfter "rawkeeIOExport"          -parent $gMainFileMenu -command "rkX3DExportOp"    -optionBox true rawkeeIOExportOp;
     menuItem -label "X3D - Export Selected"                  -insertAfter "rawkeeIOExportOp"        -parent $gMainFileMenu -command "rkX3DSelExport"                   rawkeeIOSelExport;
     menuItem -image ":menu_options.png"                      -insertAfter "rawkeeIOSelExport"       -parent $gMainFileMenu -command "rkX3DSelExportOp" -optionBox true rawkeeIOSelExportOp;
+    menuItem -label "Set RawKee Project"                     -insertAfter "rawkeeIOSelExportOp"     -parent $gMainFileMenu -command "rkX3DSetProject"                  rawkeeIOSetProject;
     
     menuItem -label "Send To Castle"                         -insertAfter "sendToDivider"           -parent $gMainFileMenu                               -sm true        rawkeeCastleMenu;
     menuItem -label "Send All"                                                                      -parent rawkeeCastleMenu -command "rkCASExport"                      rawkeeCASExport;
@@ -80,6 +81,7 @@ global proc addRawKeeMenuItemsToFileMenu()
 
 global proc removeRawKeeMenuItemsFromFileMenu()
 {
+    deleteUI -mi rawkeeIOSetProject;
     deleteUI -mi rawkeeIOSelExportOp;
     deleteUI -mi rawkeeIOSelExport;
     deleteUI -mi rawkeeIOExportOp;
@@ -134,32 +136,32 @@ global proc setDefRKOptVars()
 		optionVar -sv "rkBaseDomain" "";
     }
 
-    if(`optionVar -exists "rkBasePath"`)
+    if(`optionVar -exists "rkSubDir"`)
     {
     }else{
         print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
-		optionVar -sv "rkBasePath" "";
+		optionVar -sv "rkSubDir" "";
     }
     
     if(`optionVar -exists "rkImagePath"`)
     {
     }else{
         print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
-		optionVar -sv "rkImagePath" "images/";
+		optionVar -sv "rkImagePath" "/images";
     }
     
     if(`optionVar -exists "rkAudioPath"`)
     {
     }else{
         print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
-		optionVar -sv "rkAudioPath" "audio/";
+		optionVar -sv "rkAudioPath" "/audio";
     }
     
     if(`optionVar -exists "rkInlinePath"`)
     {
     }else{
         print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
-		optionVar -sv "rkInlinePath" "inline/";
+		optionVar -sv "rkInlinePath" "/inline";
     }
     
 	if(`optionVar -exists "rk2dTexWrite"`){
@@ -174,10 +176,10 @@ global proc setDefRKOptVars()
 		optionVar -iv rkMovTexWrite 1;
 	}
 	
-	if(`optionVar -exists "rkAudioTexWrite"`){
+	if(`optionVar -exists "rkAudioWrite"`){
 	}else{
     //bool
-		optionVar -iv rkAudioTexWrite 1;
+		optionVar -iv rkAudioWrite 1;
 	}
 	
 	if(`optionVar -exists "rk2dFileFormat"`){
@@ -256,6 +258,30 @@ global proc setDefRKOptVars()
 	}else{
     //bool
 		optionVar -iv rkDefTexHeight 256;
+	}
+	
+	if(`optionVar -exists "rkCreaseAngle"`){
+	}else{
+    //bool
+		optionVar -fv rkCreaseAngle 1.57;
+	}
+	
+	if(`optionVar -exists "rkColorOpts"`){
+	}else{
+    //bool
+		optionVar -iv rkColorOpts 0;
+	}
+
+	if(`optionVar -exists "rkNormalOpts"`){
+	}else{
+    //bool
+		optionVar -iv rkNormalOpts 0;
+	}
+
+	if(`optionVar -exists "rkExportMode"`){
+	}else{
+    //bool
+		optionVar -iv rkExportMode 0;
 	}
 }
 
