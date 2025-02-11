@@ -222,6 +222,26 @@ class RKX3DSelExportOp(aom.MPxCommand):
 
 
 # Creating the MEL Command for the RawKee's function to activate export function
+class RKX3DSetProject(aom.MPxCommand):
+    kPluginCmdName = "rkX3DSetProject"
+
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+
+    @staticmethod
+    def cmdCreator():
+        return RKX3DSetProject()
+        
+    def doIt(self, args):
+        global rkWeb3D
+        
+        if rkWeb3D is not None:
+            rkWeb3D.setRawKeeProjectDirectory()
+        else:
+            print("rkWeb3D was None")
+
+
+# Creating the MEL Command for the RawKee's function to activate export function
 class RKX3DCastleProject(aom.MPxCommand):
     kPluginCmdName = "rkCASSetProject"
 
@@ -399,9 +419,11 @@ def initializePlugin(plugin):
         #pluginFn.registerCommand(        RKPrimeX3DScene.kPluginCmdName,        RKPrimeX3DScene.cmdCreator)
         pluginFn.registerCommand(               RKTestIt.kPluginCmdName,                RKTestIt.cmdCreator)
         pluginFn.registerCommand(      RKShowSceneEditor.kPluginCmdName,       RKShowSceneEditor.cmdCreator)
+        pluginFn.registerCommand(        RKX3DSetProject.kPluginCmdName,         RKX3DSetProject.cmdCreator)
         pluginFn.registerCommand(     RKX3DCastleProject.kPluginCmdName,      RKX3DCastleProject.cmdCreator)
         pluginFn.registerCommand(    RKX3DCastleExportOp.kPluginCmdName,     RKX3DCastleExportOp.cmdCreator)
         pluginFn.registerCommand( RKX3DCastleSelExportOp.kPluginCmdName,  RKX3DCastleSelExportOp.cmdCreator)
+
         
     except:
         sys.stderr.write("Failed to register a plugin command.\n")
@@ -431,6 +453,7 @@ def uninitializePlugin(plugin):
         pluginFn.deregisterCommand(RKX3DCastleSelExportOp.kPluginCmdName)
         pluginFn.deregisterCommand(   RKX3DCastleExportOp.kPluginCmdName)
         pluginFn.deregisterCommand(    RKX3DCastleProject.kPluginCmdName)
+        pluginFn.deregisterCommand(       RKX3DSetProject.kPluginCmdName)
         pluginFn.deregisterCommand(     RKShowSceneEditor.kPluginCmdName)
         pluginFn.deregisterCommand(              RKTestIt.kPluginCmdName)
         #pluginFn.deregisterCommand(      RKPrimeX3DScene.kPluginCmdName)
