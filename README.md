@@ -8,7 +8,7 @@ For C++ versions of the plugin (1.1.0) supporting Maya 6.0 - Maya 2008, please r
 
 Some tutorials for RawKee C++ Edition (v 1.1.0/1.2.0) can be found at the Internet Wayback Machine. Unfortunately, the old video tutorials were not archived by IWM.
 
-[(https://web.archive.org/web/20100105142454/http://rawkee.sourceforge.net/tutorials/](https://web.archive.org/web/20100105142454/http://rawkee.sourceforge.net/tutorials/)
+- [https://web.archive.org/web/20100105142454/http://rawkee.sourceforge.net/tutorials/](https://web.archive.org/web/20100105142454/http://rawkee.sourceforge.net/tutorials/)
 
 ## Usage of 'pip' with 'mayapy' requires installation of 'pip'.
 1. Download the 'get-pip.py' installer file. More information about this can be found here:
