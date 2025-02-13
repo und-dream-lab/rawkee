@@ -70,12 +70,12 @@ global proc addRawKeeMenuItemsToFileMenu()
     menuItem -image ":menu_options.png"                      -insertAfter "rawkeeIOSelExport"       -parent $gMainFileMenu -command "rkX3DSelExportOp" -optionBox true rawkeeIOSelExportOp;
     menuItem -label "Set RawKee Project"                     -insertAfter "rawkeeIOSelExportOp"     -parent $gMainFileMenu -command "rkX3DSetProject"                  rawkeeIOSetProject;
     
-    menuItem -label "Send To Castle"                         -insertAfter "sendToDivider"           -parent $gMainFileMenu                               -sm true        rawkeeCastleMenu;
+    menuItem -label "Send To Castle Game Engine"             -insertAfter "sendToDivider"           -parent $gMainFileMenu                               -sm true        rawkeeCastleMenu;
     menuItem -label "Send All"                                                                      -parent rawkeeCastleMenu -command "rkCASExport"                      rawkeeCASExport;
     menuItem -image ":menu_options.png"                      -insertAfter "rawkeeCASExport"         -parent rawkeeCastleMenu -command "rkCASExportOp"    -optionBox true rawkeeCASExportOp;
     menuItem -label "Send Selected"                          -insertAfter "rawkeeCASExportOp"       -parent rawkeeCastleMenu -command "rkCASSelExport"                   rawkeeCASSelExport;
     menuItem -image ":menu_options.png"                      -insertAfter "rawkeeCASSelExport"      -parent rawkeeCastleMenu -command "rkCASSelExportOp" -optionBox true rawkeeCASSelExportOp;
-    menuItem -label "Set Castle Project"                     -insertAfter "rawkeeCASSelExportOp"    -parent rawkeeCastleMenu -command "rkCASSetProject"                  rawkeeCASSetProject;
+    menuItem -label "Set Castle Project Data Folder"         -insertAfter "rawkeeCASSelExportOp"    -parent rawkeeCastleMenu -command "rkCASSetProject"                  rawkeeCASSetProject;
 
 }
 
@@ -240,6 +240,24 @@ global proc setDefRKOptVars()
 	}else{
     //bool
 		optionVar -iv rkLayerTexNode 0;
+	}
+	
+	if(`optionVar -exists "rkMovieAsURI"`){
+	}else{
+    //bool
+		optionVar -iv rkMovieAsURI 0;
+	}
+	
+	if(`optionVar -exists "rkAudioAsURI"`){
+	}else{
+    //bool
+		optionVar -iv rkAudioAsURI 0;
+	}
+	
+	if(`optionVar -exists "rkInlineAsURI"`){
+	}else{
+    //bool
+		optionVar -iv rkAudioAsURI 0;
 	}
 	
 	if(`optionVar -exists "rkAdjTexSize"`){
