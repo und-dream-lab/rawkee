@@ -1,4 +1,4 @@
-# RawKee Python Edition - X3D Plugin 2.X.X for Maya 2025+
+# RawKee Python Edition - X3D Plugin 2.x.x for Maya 2025+
 
 For the latest version of the RawKee Python X3D Plugin, visit the [GitHub repository](https://github.com/und-dream-lab/rawkee).
 
@@ -6,8 +6,9 @@ For C++ versions of the plugin (1.2.0) supporting Maya 2019 - Maya 2024, please 
 
 For C++ versions of the plugin (1.1.0) supporting Maya 6.0 - Maya 2008, please refer to the [SourceForge page](https://sourceforge.net/projects/rawkee/).
 
-Text-based Tutorials for the RawKee C++ Edition (versions 1.1.0 and 1.2.0) can be found at the Internet Wayback Machine.
-[IWM - Old Tutorials for RawKee 1.1.0 - 1.2.0](https://web.archive.org/web/20100105142454/http://rawkee.sourceforge.net/tutorials/)
+Some tutorials for RawKee C++ Edition (v 1.1.0/1.2.0) can be found at the Internet Wayback Machine. Unfortunately, the old video tutorials were not archived by IWM.
+
+[(https://web.archive.org/web/20100105142454/http://rawkee.sourceforge.net/tutorials/](https://web.archive.org/web/20100105142454/http://rawkee.sourceforge.net/tutorials/)
 
 ## Usage of 'pip' with 'mayapy' requires installation of 'pip'.
 1. Download the 'get-pip.py' installer file. More information about this can be found here:
