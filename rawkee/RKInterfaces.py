@@ -5,6 +5,20 @@ import maya.mel  as mel
 import numpy as np
 from typing import Final
 
+# Needed for Data URIs
+import base64
+import mimetypes
+import os
+
+# Needed for PixelImages
+import ctypes
+
+# Needed for Video / Audio format conversion
+import ffmpeg
+
+# Needed for WebP Images
+from PIL import Image
+
 import maya.api.OpenMaya as aom
 
 #Python implementation of C++ web3dExportMethods
@@ -179,11 +193,141 @@ class RKInterfaces():
         return (xVec1, yVec1, zVec1, wVec1)
 
 
+    # Method converts Maya procedural texture nodes, including layeredTexture nodes to "File" texture nodes
+    def proc2fileNode(self, textureNode, imgExt, imagePath, imgFormat, width, height):
+        fileNodeName = textureNode.name() + "_rkConvertedProcedural"
+        
+        rkAdjTexSize       = cmds.optionVar( q='rkAdjTexSize'  )
+        
+        if rkAdjTexSize == True:
+            width  = cmds.optionVar( q='rkDefTexWidth' )
+            height = cmds.optionVar( q='rkDefTexHeight')
+            
+        fileName = imagePath
+        if fileName == "":
+            fileName = fileNodeName + "." + imgExt
+        else:
+            fileName = imagePath + "/" + fileNodeName + "." + imgExt
+            
+        return cmds.convertSolidTx( name=fileNodeName, samplePlane=True, antiAlias=True, force=True, fillTextureSeams=True, shadows=False, fileImageName=fileName, alpha=True, resolutionX=width, resolutionY=height, fileFormat=imgFormat)
 
+    
+    # Method converts Maya textureNode colorRGB(a) to an image file.
+    def proc2file(self, textureObj, outPath, imgFormat):
+        try:
+            fImage = aom.MImage.readFromTextureNode(textureObj)
+            w, h = fImage.getSize()
+            
+            rkAdjTexSize   = cmds.optionVar( q='rkAdjTexSize'  )
 
+            if rkAdjTexSize == True:
+                w = cmds.optionVar( q='rkDefTexWidth' )
+                h = cmds.optionVar( q='rkDefTexHeight')
 
+                fImage.resize(w, h, False)
+                
+            fImage.writeToFile(outPath, imgFormat)
+            
+            return True
+            
+        except:
+            return False
+        
 
+    # Convert image file from one fomat to another.
+    def fileFormatConvert( self, inPath, outPath, newFormat):
+        try:
+            fImage = aom.MImage.readFromFile(inPath)
+            w, h = fImage.getSize()
+            
+            rkAdjTexSize   = cmds.optionVar( q='rkAdjTexSize'  )
 
+            if rkAdjTexSize == True:
+                w = cmds.optionVar( q='rkDefTexWidth' )
+                h = cmds.optionVar( q='rkDefTexHeight')
+
+                fImage.resize(w, h, False)
+                
+            fImage.writeToFile(outPath, newFormat)
+            
+            return True
+            
+        except:
+            return False
+            
+    
+    def fileConvertToWebP ( self, inPath, outPath):
+        try:
+            image = Image.open(inPath).convert("RGB")
+            image.save(outPath, "webp")
+            return True
+            
+        except:
+            return False
+        
+
+    #TODO:
+    def audioFormatConvert(self, inPath, outPath, settings,                newFormat, newEncode): #settings - typical audio file settings
+        pass
+
+    #TODO:
+    def movieFormatConvert(self, inPath, outPath, settings, width, height, newFormat, newEncode): #settings - typical audio file settings + typical video file settings
+        pass
+
+    
+    def image2pixel(self, fileNode):
+        pixelData = ()
+        
+        fImage = aom.MImage.readFromTextureNode(fileNode)
+        w, h = fImage.getSize()
+
+        rkAdjTexSize   = cmds.optionVar( q='rkAdjTexSize'  )
+
+        if rkAdjTexSize == True:
+            w = cmds.optionVar( q='rkDefTexWidth' )
+            h = cmds.optionVar( q='rkDefTexHeight')
+
+            fImage.resize(w, h, False)
+            
+        pixelPointer   = fImage.pixels()
+        
+        pixelLenth     = w * h * 4
+        
+        pixelDataArray = (ctypes.c_ubyte * pixelLenth).from_address(pixelPointer)
+        
+        pixelDataBytes = bytearray(pixelDataArray)
+        
+        pixelData = pixelData + (x, h, pixelLenth)
+        
+        for idx in range(pixelLenth):
+            y = idx // w
+            x = idx - (w * row)
+            jmp = ((y * w) + x) * 4
+            r, g, b, a = pixelDataBytes[jmp:(jmp + 4)]
+            pixel = (r, g, b, a)
+            pixelData = pixelData + pixel
+        
+        return pixeData
+
+        
+    # Creating a Data URI from any file type.
+    def media2uri(self, filePath):
+        dataURI = ""
+        
+        mimeType, toss = mimetypes.guess_type(filePath)
+        
+        if mimeType is None:
+            mimeType = 'application/octet-stream'
+
+        try:
+            with open(filePath, 'rb') as mediaFile:
+                mediaData  = mediaFile.read()
+                base64Data = base64.b64encode(mediaData).decode('utf-8')
+                dataURI = "data:" + mimeType + ";charset=UTF-8;base64," + base64Data
+        except:
+            pass
+                
+        return dataURI
 
 
 

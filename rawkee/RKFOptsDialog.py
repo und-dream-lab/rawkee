@@ -183,6 +183,11 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.rkFileTexNode     = cmds.optionVar( q='rkFileTexNode'    )
         self.rkLayerTexNode    = cmds.optionVar( q='rkLayerTexNode'   )
         self.rkAdjTexSize      = cmds.optionVar( q='rkAdjTexSize'     )
+        
+        self.rkMovieAsURI      = cmds.optionVar( q='rkMovieAsURI'     )
+        self.rkAudioAsURI      = cmds.optionVar( q='rkAudioAsURI'     )
+        self.rkInlineAsURI     = cmds.optionVar( q='rkInlineAsURI'    )
+        
         self.rkDefTexWidth     = cmds.optionVar( q='rkDefTexWidth'    )
         self.rkDefTexHeight    = cmds.optionVar( q='rkDefTexHeight'   )
         self.rkColorOpts       = cmds.optionVar( q='rkColorOpts'      )
@@ -202,7 +207,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.mayaTexLabel.setAlignment(QtCore.Qt.AlignRight)
         self.mayaTexLabel.setFixedWidth(250)
         self.comboMayaTexOptions = QtWidgets.QComboBox()
-        self.comboMayaTexOptions.addItems(["ImageTexture", "PixelTexture"])
+        self.comboMayaTexOptions.addItems(["ImageTexture", "ImagTexture w/DataURI", "PixelTexture"])
         self.comboMayaTexOptions.setFixedWidth(200)
         
         ###############################################################
@@ -220,7 +225,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.mayaTexFileLabel.setAlignment(QtCore.Qt.AlignRight)
         self.mayaTexFileLabel.setFixedWidth(250)
         self.comboMayaTexFileOptions = QtWidgets.QComboBox()
-        self.comboMayaTexFileOptions.addItems(["ImageTexture", "PixelTexture"])
+        self.comboMayaTexFileOptions.addItems(["ImageTexture", "ImagTexture w/DataURI", "PixelTexture"])
         self.comboMayaTexFileOptions.setFixedWidth(200)
         
         ###############################################################
@@ -238,7 +243,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.mayaLayeredLabel.setAlignment(QtCore.Qt.AlignRight)
         self.mayaLayeredLabel.setFixedWidth(250)
         self.comboMayaLayeredOptions = QtWidgets.QComboBox()
-        self.comboMayaLayeredOptions.addItems(["MultiTexture", "ImageTexture", "PixelTexture"])
+        self.comboMayaLayeredOptions.addItems(["MultiTexture", "ImageTexture", "ImagTexture w/DataURI", "PixelTexture"])
         self.comboMayaLayeredOptions.setFixedWidth(200)
         
         ###############################################################
@@ -256,7 +261,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.texFileFormatLabel.setAlignment(QtCore.Qt.AlignRight)
         self.texFileFormatLabel.setFixedWidth(250)
         self.texFileFormatOptions = QtWidgets.QComboBox()
-        self.texFileFormatOptions.addItems(["Use Current Media File", "PNG - Portable Netowrk Graphics", "WebP - Web Picture", "JPG - Joint Photographic Experts Group"])
+        self.texFileFormatOptions.addItems(["Current Media File", "PNG - Portable Netowrk Graphics", "JPG - Joint Photographic Experts Group", "GIF - Graphics Interchange Format", "WebP - Web Picture Format"])
         self.texFileFormatOptions.setFixedWidth(250)
         
         ###############################################################
@@ -275,7 +280,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.movFileFormatLabel.setAlignment(QtCore.Qt.AlignRight)
         self.movFileFormatLabel.setFixedWidth(250)
         self.movFileFormatOptions = QtWidgets.QComboBox()
-        self.movFileFormatOptions.addItems(["Use Current Media File", "MP4 with H.264", "WebM with VP9", "Ogg with Theora/Vorbis"])
+        self.movFileFormatOptions.addItems(["Current Media File", "MP4 with H.264", "MOV with H.264", "Ogg with Theora/Vorbis", "WebM with VP9"])
         self.movFileFormatOptions.setFixedWidth(250)
         
         ###############################################################
@@ -294,7 +299,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.audFileFormatLabel.setAlignment(QtCore.Qt.AlignRight)
         self.audFileFormatLabel.setFixedWidth(250)
         self.audFileFormatOptions = QtWidgets.QComboBox()
-        self.audFileFormatOptions.addItems(["Use Current Media File", "MP3 - MPEG Audio Layer 3", "AAC - Advanced Audio Coding", "Ogg Vorbis"])
+        self.audFileFormatOptions.addItems(["Current Media File", "MP3 - MPEG Audio Layer 3", "AAC - Advanced Audio Coding", "Ogg - Vorbis", "WAV - Waveform Audio File Format"])
         self.audFileFormatOptions.setFixedWidth(250)
         
         ###############################################################
@@ -350,6 +355,37 @@ class RKFOptsDialog(QtWidgets.QDialog):
         layoutFourB.addWidget(self.movie2FileCheckBox)
         layoutFourB.addWidget(self.audio2FileCheckBox)
         layoutFourB.addStretch()
+        
+        # Option FourC
+        layoutFourC = QtWidgets.QHBoxLayout()
+        spacer4C = QtWidgets.QLabel(" ")
+        spacer4C.setAlignment(QtCore.Qt.AlignRight)
+        spacer4C.setFixedWidth(150)
+
+        self.inlineURICheckBox = QtWidgets.QCheckBox("Inline as DataURI")
+        ###############################################################
+        # Set URL field value of node to a DataURI
+        self.inlineURICheckBox.setChecked(self.rkInlineAsURI)
+        # Add change method here.
+        
+        self.movieURICheckBox  = QtWidgets.QCheckBox("MovieTexture as DataURI")
+        ###############################################################
+        # Set URL field value of node to a DataURI
+        self.movieURICheckBox.setChecked(self.rkMovieAsURI)
+        # Add change method here.
+        
+        self.audioURICheckBox  = QtWidgets.QCheckBox("AudioClip as DataURI")
+        ###############################################################
+        # Set URL field value of node to a DataURI
+        self.audioURICheckBox.setChecked(self.rkAudioAsURI)
+        # Add change method here.
+        
+        
+        layoutFourC.addWidget(spacer4C)
+        layoutFourC.addWidget(self.inlineURICheckBox)
+        layoutFourC.addWidget(self.movieURICheckBox)
+        layoutFourC.addWidget(self.audioURICheckBox)
+        layoutFourC.addStretch()
         
         # Option Five
         layoutFive = QtWidgets.QHBoxLayout()
@@ -494,7 +530,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         
         prjDirTitle = "RawKee Project Directory:"
         if self.rkExportMode == 1:
-            prjDirTitle = "Castle Project Directory:"
+            prjDirTitle = "Castle Project Data Folder:"
             
         self.rpdLabel = QtWidgets.QLabel(prjDirTitle)
         self.rpdLabel.setAlignment(QtCore.Qt.AlignRight)
@@ -504,7 +540,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.rkProjectDir.setEnabled(False)
         #############################################################################
         # If 'rkExportMode' is 0, then load the RawKee Project Directory
-        # else if 'rkExportMode is 1, then load the Castle Project Directory.
+        # else if 'rkExportMode is 1, then load the Castle Project Data Folder.
         if self.rkExportMode == 0:
             self.rkProjectDir.setText(self.rkPrjDir)
         elif self.rkExportMode == 1:
@@ -630,7 +666,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.normalLabel.setAlignment(QtCore.Qt.AlignRight)
         self.normalLabel.setFixedWidth(250)
         self.normalOptions = QtWidgets.QComboBox()
-        self.normalOptions.addItems(["Map + Per Vertex + Crease Angle", "Map + Per Vertex", "Map Only", "Per Vertex + Crease Angle", "Crease Angle Only", "Map + Crease Angle", "Per Vertex Only"])
+        self.normalOptions.addItems(["Map + Crease Angle + Per Vertex", "Map + Crease Angle", "Map + Per Vertex", "Map", "Crease Angle + Per Vertex", "Crease Angle", "Per Vertex"])
         self.normalOptions.setFixedWidth(250)
         ###############################################################
         # Set the type of X3D Normal information exported by RawKee
@@ -671,7 +707,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.colorLabel.setAlignment(QtCore.Qt.AlignRight)
         self.colorLabel.setFixedWidth(250)
         self.colorOptions = QtWidgets.QComboBox()
-        self.colorOptions.addItems(["Textures + Per Vertex", "Textures Only", "Per Vertex Only"])
+        self.colorOptions.addItems(["Textures + Per Vertex", "Textures", "Per Vertex"])
         self.colorOptions.setFixedWidth(250)
         ###############################################################
         # Set the type of X3D Color information exported by RawKee
@@ -723,6 +759,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         layout.addWidget(generalSection)
         layout.addLayout(layoutFour)
         layout.addLayout(layoutFourB)
+        layout.addLayout(layoutFourC)
         layout.addLayout(layoutSix)
         
         layout.addLayout(convLayout)
@@ -745,8 +782,8 @@ class RKFOptsDialog(QtWidgets.QDialog):
         layout.addWidget(textureSection)
         layout.addLayout(layoutOne)
         layout.addLayout(layoutTwo)
-        if self.rkExportMode == 0:
-            layout.addLayout(layoutThree)
+        #if self.rkExportMode == 0:
+        layout.addLayout(layoutThree)
         layout.addLayout(layoutFive)
         layout.addLayout(layoutFiveB)
 
