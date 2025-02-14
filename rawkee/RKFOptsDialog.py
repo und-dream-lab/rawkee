@@ -31,6 +31,9 @@ import maya.cmds as cmds
 
 import os
 
+#To get local file path for html file
+from rawkee import RKWeb3D
+
 #######################################
 # Don't remember why this is here
 #######################################
@@ -45,16 +48,21 @@ def mayaMainWindow():
 class RKFOptsDialog(QtWidgets.QDialog):
     def __init__(self, parent=mayaMainWindow(), dialogTitle="X3D"):
         super(RKFOptsDialog, self).__init__(parent)
+        
+        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowCloseButtonHint)
+        
         self.dialogTitle = dialogTitle
         self.setWindowTitle(self.dialogTitle)
         self.setMinimumSize(600,400)
         self.setFixedWidth(800)
-
+        
         # On macOS make the window a Tool to keep it on top of Maya
         if sys.platform == "darwin":
             self.setWindowFlag(QtCore.Qt.Tool, True)
         
         self.createWidgets()
+        
+
             
     def createWidgets(self):
         scrollArea = QtWidgets.QScrollArea()
@@ -76,8 +84,14 @@ class RKFOptsDialog(QtWidgets.QDialog):
             self.buttonSpace = QtWidgets.QLabel(" ")
             self.buttonSpace.setFixedWidth(400)
             self.buttonSpace.setAlignment(QtCore.Qt.AlignRight)
+            
             self.cancelButton = QtWidgets.QPushButton("Save Options and Close")
+            self.cancelButton.setObjectName("RKOptPanel")
+            self.cancelButton.clicked.connect(self.saveOptionsCloseDialog)
+            
             self.exportButton = QtWidgets.QPushButton("Save Options and Export")
+            self.exportButton.setObjectName("RKOptPanel")
+            self.exportButton.clicked.connect(self.saveOptionsExportX3D)
             
             buttonRow.addWidget(self.buttonSpace)
             buttonRow.addWidget(self.cancelButton)
@@ -99,8 +113,14 @@ class RKFOptsDialog(QtWidgets.QDialog):
             self.buttonSpace = QtWidgets.QLabel(" ")
             self.buttonSpace.setFixedWidth(400)
             self.buttonSpace.setAlignment(QtCore.Qt.AlignRight)
+
             self.cancelButton = QtWidgets.QPushButton("Save Options and Close")
+            self.cancelButton.setObjectName("RKOptPanel")
+            self.cancelButton.clicked.connect(self.saveOptionsCloseDialog)
+
             self.exportButton = QtWidgets.QPushButton("Save Options and Export Selected")
+            self.exportButton.setObjectName("RKOptPanel")
+            self.exportButton.clicked.connect(self.saveOptionsExportX3D)
             
             buttonRow.addWidget(self.buttonSpace)
             buttonRow.addWidget(self.cancelButton)
@@ -124,8 +144,14 @@ class RKFOptsDialog(QtWidgets.QDialog):
             self.buttonSpace = QtWidgets.QLabel(" ")
             self.buttonSpace.setFixedWidth(400)
             self.buttonSpace.setAlignment(QtCore.Qt.AlignRight)
+
             self.cancelButton = QtWidgets.QPushButton("Save Options and Close")
+            self.cancelButton.setObjectName("RKOptPanel")
+            self.cancelButton.clicked.connect(self.saveOptionsCloseDialog)
+
             self.exportButton = QtWidgets.QPushButton("Save Options and Send to Castle")
+            self.exportButton.setObjectName("RKOptPanel")
+            self.exportButton.clicked.connect(self.saveOptionsExportX3D)
             
             buttonRow.addWidget(self.buttonSpace)
             buttonRow.addWidget(self.cancelButton)
@@ -147,8 +173,14 @@ class RKFOptsDialog(QtWidgets.QDialog):
             self.buttonSpace = QtWidgets.QLabel(" ")
             self.buttonSpace.setFixedWidth(400)
             self.buttonSpace.setAlignment(QtCore.Qt.AlignRight)
+
             self.cancelButton = QtWidgets.QPushButton("Save Options and Close")
+            self.cancelButton.setObjectName("RKOptPanel")
+            self.cancelButton.clicked.connect(self.saveOptionsCloseDialog)
+
             self.exportButton = QtWidgets.QPushButton("Save Options and Send Selected to Castle")
+            self.exportButton.setObjectName("RKOptPanel")
+            self.exportButton.clicked.connect(self.saveOptionsExportX3D)
             
             buttonRow.addWidget(self.buttonSpace)
             buttonRow.addWidget(self.cancelButton)
@@ -199,16 +231,19 @@ class RKFOptsDialog(QtWidgets.QDialog):
 
 
     def buildX3DExportPanel(self, layout):
-        #layout = QtWidgets.QVBoxLayout()
+        #self.widget_label.setObjectName("X3DNodeType") -- QLabel, QComboBox, QCheckBox, QLineEdit
 
         # Option One
         layoutOne = QtWidgets.QHBoxLayout()
         self.mayaTexLabel = QtWidgets.QLabel("     Procedural Textures - Export as:")
         self.mayaTexLabel.setAlignment(QtCore.Qt.AlignRight)
         self.mayaTexLabel.setFixedWidth(250)
+        self.mayaTexLabel.setObjectName("RKOptPanel")
+        
         self.comboMayaTexOptions = QtWidgets.QComboBox()
         self.comboMayaTexOptions.addItems(["ImageTexture", "ImagTexture w/DataURI", "PixelTexture"])
         self.comboMayaTexOptions.setFixedWidth(200)
+        self.comboMayaTexOptions.setObjectName("RKOptPanel")
         
         ###############################################################
         # Set the Type of X3D Texture Node for Maya Procedural Textures
@@ -224,9 +259,12 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.mayaTexFileLabel = QtWidgets.QLabel("     File Textures - Export as:")
         self.mayaTexFileLabel.setAlignment(QtCore.Qt.AlignRight)
         self.mayaTexFileLabel.setFixedWidth(250)
+        self.mayaTexFileLabel.setObjectName("RKOptPanel")
+        
         self.comboMayaTexFileOptions = QtWidgets.QComboBox()
         self.comboMayaTexFileOptions.addItems(["ImageTexture", "ImagTexture w/DataURI", "PixelTexture"])
         self.comboMayaTexFileOptions.setFixedWidth(200)
+        self.comboMayaTexFileOptions.setObjectName("RKOptPanel")
         
         ###############################################################
         # Set the Type of X3D Texture Node for Maya File Textures
@@ -242,9 +280,12 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.mayaLayeredLabel = QtWidgets.QLabel("     Layered Textures - Export as:")
         self.mayaLayeredLabel.setAlignment(QtCore.Qt.AlignRight)
         self.mayaLayeredLabel.setFixedWidth(250)
+        self.mayaLayeredLabel.setObjectName("RKOptPanel")
+        
         self.comboMayaLayeredOptions = QtWidgets.QComboBox()
         self.comboMayaLayeredOptions.addItems(["MultiTexture", "ImageTexture", "ImagTexture w/DataURI", "PixelTexture"])
         self.comboMayaLayeredOptions.setFixedWidth(200)
+        self.comboMayaLayeredOptions.setObjectName("RKOptPanel")
         
         ###############################################################
         # Set the Type of X3D Texture Node for Maya Layered Textures
@@ -260,9 +301,12 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.texFileFormatLabel = QtWidgets.QLabel("2D Texture Files:")
         self.texFileFormatLabel.setAlignment(QtCore.Qt.AlignRight)
         self.texFileFormatLabel.setFixedWidth(250)
+        self.texFileFormatLabel.setObjectName("RKOptPanel")
+        
         self.texFileFormatOptions = QtWidgets.QComboBox()
         self.texFileFormatOptions.addItems(["Current Media File", "PNG - Portable Netowrk Graphics", "JPG - Joint Photographic Experts Group", "GIF - Graphics Interchange Format", "WebP - Web Picture Format"])
         self.texFileFormatOptions.setFixedWidth(250)
+        self.texFileFormatOptions.setObjectName("RKOptPanel")
         
         ###############################################################
         # Set the Type of Media Format for Maya File Textures
@@ -279,9 +323,12 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.movFileFormatLabel = QtWidgets.QLabel("Movie/Video Files:")
         self.movFileFormatLabel.setAlignment(QtCore.Qt.AlignRight)
         self.movFileFormatLabel.setFixedWidth(250)
+        self.movFileFormatLabel.setObjectName("RKOptPanel")
+        
         self.movFileFormatOptions = QtWidgets.QComboBox()
-        self.movFileFormatOptions.addItems(["Current Media File", "MP4 with H.264", "MOV with H.264", "Ogg with Theora/Vorbis", "WebM with VP9"])
+        self.movFileFormatOptions.addItems(["Current Media File", "MP4 with H.264/AAC", "MOV with MPEG-4/ALAC", "OGG with Theora/Vorbis", "WebM with VP9/Opus", "AVI with XVID/PCM"])
         self.movFileFormatOptions.setFixedWidth(250)
+        self.movFileFormatOptions.setObjectName("RKOptPanel")
         
         ###############################################################
         # Set the Type of Media Format for Maya Movie Textures
@@ -298,9 +345,12 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.audFileFormatLabel = QtWidgets.QLabel("Audio Files:")
         self.audFileFormatLabel.setAlignment(QtCore.Qt.AlignRight)
         self.audFileFormatLabel.setFixedWidth(250)
+        self.audFileFormatLabel.setObjectName("RKOptPanel")
+        
         self.audFileFormatOptions = QtWidgets.QComboBox()
-        self.audFileFormatOptions.addItems(["Current Media File", "MP3 - MPEG Audio Layer 3", "AAC - Advanced Audio Coding", "Ogg - Vorbis", "WAV - Waveform Audio File Format"])
+        self.audFileFormatOptions.addItems(["Current Media File", "MP3 - MPEG Audio Layer 3", "MP4 using AAC - Advanced Audio Coding", "OGA using Vorbis - OGG Xiph.Org Foundation", "WAV using PCM - Waveform Audio File Format"])
         self.audFileFormatOptions.setFixedWidth(250)
+        self.audFileFormatOptions.setObjectName("RKOptPanel")
         
         ###############################################################
         # Set the Type of Media Format for Maya Audio Clip Nodes
@@ -317,9 +367,12 @@ class RKFOptsDialog(QtWidgets.QDialog):
         spacer4 = QtWidgets.QLabel(" ")
         spacer4.setAlignment(QtCore.Qt.AlignLeft)
         spacer4.setFixedWidth(80)
-        self.media2FileLabel = QtWidgets.QLabel("Consolidate Media Files (write/overwrite) in RawKee Project Folder:")
+        spacer4.setObjectName("RKOptPanel")
+        
+        self.media2FileLabel = QtWidgets.QLabel("Consolidate Media Files (write/overwrite):")
         self.media2FileLabel.setAlignment(QtCore.Qt.AlignLeft)
         self.media2FileLabel.setFixedWidth(400)
+        self.media2FileLabel.setObjectName("RKOptPanel")
 
         layoutFour.addWidget(spacer4)
         layoutFour.addWidget(self.media2FileLabel)
@@ -330,20 +383,24 @@ class RKFOptsDialog(QtWidgets.QDialog):
         spacer4B = QtWidgets.QLabel(" ")
         spacer4B.setAlignment(QtCore.Qt.AlignRight)
         spacer4B.setFixedWidth(150)
+        spacer4B.setObjectName("RKOptPanel")
 
         self.texture2FileCheckBox = QtWidgets.QCheckBox("2D Textures")
+        self.texture2FileCheckBox.setObjectName("RKOptPanel")
         ###############################################################
         # Consolidate Maya File Textures Under Project
         self.texture2FileCheckBox.setChecked(self.rk2dTexWrite)
         # Add change method here.
         
         self.movie2FileCheckBox   = QtWidgets.QCheckBox("Movie Textures")
+        self.movie2FileCheckBox.setObjectName("RKOptPanel")
         ###############################################################
         # Consolidate Maya Movie Textures Under Project
         self.movie2FileCheckBox.setChecked(self.rkMovTexWrite)
         # Add change method here.
         
         self.audio2FileCheckBox   = QtWidgets.QCheckBox("Audio Clips")
+        self.audio2FileCheckBox.setObjectName("RKOptPanel")
         ###############################################################
         # Consolidate Maya Audio Clip files Under Project
         self.audio2FileCheckBox.setChecked(self.rkAudioWrite)
@@ -361,20 +418,24 @@ class RKFOptsDialog(QtWidgets.QDialog):
         spacer4C = QtWidgets.QLabel(" ")
         spacer4C.setAlignment(QtCore.Qt.AlignRight)
         spacer4C.setFixedWidth(150)
+        spacer4C.setObjectName("RKOptPanel")
 
         self.inlineURICheckBox = QtWidgets.QCheckBox("Inline as DataURI")
+        self.inlineURICheckBox.setObjectName("RKOptPanel")
         ###############################################################
         # Set URL field value of node to a DataURI
         self.inlineURICheckBox.setChecked(self.rkInlineAsURI)
         # Add change method here.
         
         self.movieURICheckBox  = QtWidgets.QCheckBox("MovieTexture as DataURI")
+        self.movieURICheckBox.setObjectName("RKOptPanel")
         ###############################################################
         # Set URL field value of node to a DataURI
         self.movieURICheckBox.setChecked(self.rkMovieAsURI)
         # Add change method here.
         
         self.audioURICheckBox  = QtWidgets.QCheckBox("AudioClip as DataURI")
+        self.audioURICheckBox.setObjectName("RKOptPanel")
         ###############################################################
         # Set URL field value of node to a DataURI
         self.audioURICheckBox.setChecked(self.rkAudioAsURI)
@@ -392,6 +453,8 @@ class RKFOptsDialog(QtWidgets.QDialog):
         adjTexSizeLabel = QtWidgets.QLabel("Adjust Texture Size:")
         adjTexSizeLabel.setAlignment(QtCore.Qt.AlignRight)
         adjTexSizeLabel.setFixedWidth(250)
+        adjTexSizeLabel.setObjectName("RKOptPanel")
+        
         layoutFive.addWidget(adjTexSizeLabel)
         
         # Option FiveB
@@ -399,8 +462,10 @@ class RKFOptsDialog(QtWidgets.QDialog):
         spacer5B = QtWidgets.QLabel(" ")
         spacer5B.setAlignment(QtCore.Qt.AlignRight)
         spacer5B.setFixedWidth(180)
+        spacer5B.setObjectName("RKOptPanel")
 
         self.adjTexCheckBox = QtWidgets.QCheckBox()
+        self.adjTexCheckBox.setObjectName("RKOptPanel")
         ###############################################################
         # Adjust Size of Texture at time of Export
         self.adjTexCheckBox.setChecked(self.rkAdjTexSize)
@@ -416,16 +481,20 @@ class RKFOptsDialog(QtWidgets.QDialog):
         spacer6 = QtWidgets.QLabel(" ")
         spacer6.setAlignment(QtCore.Qt.AlignRight)
         spacer6.setFixedWidth(180)
+        spacer6.setObjectName("RKOptPanel")
         
         self.adjTexWidthLabel = QtWidgets.QLabel("Width:")
         self.adjTexWidthLabel.setAlignment(QtCore.Qt.AlignRight)
         self.adjTexWidthLabel.setFixedWidth(50)
+        self.adjTexWidthLabel.setObjectName("RKOptPanel")
+        
         self.textureWidth = QtWidgets.QLineEdit()
         self.textureWidth.setAlignment(QtCore.Qt.AlignLeft)
         self.textureWidth.setFixedWidth(50)
         self.intWidVal = QtGui.QIntValidator()
         self.intWidVal.setRange(1,8192)
         self.textureWidth.setValidator(self.intWidVal)
+        self.textureWidth.setObjectName("RKOptPanel")
         
         ###############################################################
         # Default Width Values for RawKee-written textures
@@ -436,12 +505,15 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.adjTexHeightLabel = QtWidgets.QLabel("Height:")
         self.adjTexHeightLabel.setAlignment(QtCore.Qt.AlignRight)
         self.adjTexHeightLabel.setFixedWidth(50)
+        self.adjTexHeightLabel.setObjectName("RKOptPanel")
+        
         self.textureHeight = QtWidgets.QLineEdit()
         self.textureHeight.setAlignment(QtCore.Qt.AlignLeft)
         self.textureHeight.setFixedWidth(50)
         self.intHiVal = QtGui.QIntValidator()
         self.intHiVal.setRange(1,8192)
         self.textureHeight.setValidator(self.intHiVal)
+        self.textureHeight.setObjectName("RKOptPanel")
         
         ###############################################################
         # Default Height Values for RawKee-written textures
@@ -460,10 +532,12 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.regOptsLabel = QtWidgets.QLabel("Include Nodes for Export:")
         self.regOptsLabel.setAlignment(QtCore.Qt.AlignLeft)
         self.regOptsLabel.setFixedWidth(300)
+        self.regOptsLabel.setObjectName("RKOptPanel")
         
         spacer7 = QtWidgets.QLabel(" ")
         spacer7.setAlignment(QtCore.Qt.AlignLeft)
         spacer7.setFixedWidth(80)
+        spacer7.setObjectName("RKOptPanel")
         
         layoutSeven.addWidget(spacer7)
         layoutSeven.addWidget(self.regOptsLabel)
@@ -474,13 +548,16 @@ class RKFOptsDialog(QtWidgets.QDialog):
         spacer8 = QtWidgets.QLabel(" ")
         spacer8.setAlignment(QtCore.Qt.AlignLeft)
         spacer8.setFixedWidth(150)
+        spacer8.setObjectName("RKOptPanel")
         
         layoutNine = QtWidgets.QHBoxLayout()
         spacer9 = QtWidgets.QLabel(" ")
         spacer9.setAlignment(QtCore.Qt.AlignLeft)
         spacer9.setFixedWidth(150)
+        spacer9.setObjectName("RKOptPanel")
         
         self.exCameras  = QtWidgets.QCheckBox("Maya Cameras as X3D Viewpoints")
+        self.exCameras.setObjectName("RKOptPanel")
         #############################################################################
         # Option as to whether Maya Cameras are exported as X3D Viewpoints or are 
         # ignored.
@@ -488,6 +565,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         # Add change method here.
         
         self.exLights   = QtWidgets.QCheckBox("Maya Lights as X3D Lights")
+        self.exLights.setObjectName("RKOptPanel")
         #############################################################################
         # Option as to whether Maya Lights are exported as corresponding 
         # X3D Lights or are ignored.
@@ -498,6 +576,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.exLights.setFixedWidth(250)
         
         self.exSounds   = QtWidgets.QCheckBox("RawKee Sound as X3D Sound")
+        self.exSounds.setObjectName("RKOptPanel")
         #############################################################################
         # Option as to whether the custome RawKee node 'x3dSound' is exported as an 
         # X3D Sound node or is ignored.
@@ -505,6 +584,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         # Add change method here.
         
         self.exMetadata = QtWidgets.QCheckBox("RawKee Metadata as X3D Metadata")
+        self.exMetadata.setObjectName("RKOptPanel")
         #############################################################################
         # Option as to whether the custome RawKee nodes conforming to X3D Metadata 
         # nodes are exporeted or are ignored.
@@ -535,29 +615,33 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.rpdLabel = QtWidgets.QLabel(prjDirTitle)
         self.rpdLabel.setAlignment(QtCore.Qt.AlignRight)
         self.rpdLabel.setFixedWidth(250)
+        self.rpdLabel.setObjectName("RKOptPanel")
         
-        self.rkProjectDir = QtWidgets.QLineEdit()
-        self.rkProjectDir.setEnabled(False)
+        self.rkProjectDirText = QtWidgets.QLineEdit()
+        self.rkProjectDirText.setEnabled(False)
         #############################################################################
         # If 'rkExportMode' is 0, then load the RawKee Project Directory
         # else if 'rkExportMode is 1, then load the Castle Project Data Folder.
         if self.rkExportMode == 0:
-            self.rkProjectDir.setText(self.rkPrjDir)
+            self.rkProjectDirText.setText(self.rkPrjDir)
         elif self.rkExportMode == 1:
-            self.rkProjectDir.setText(self.rkCastlePrjDir)
+            self.rkProjectDirText.setText(self.rkCastlePrjDir)
         
-        self.rkProjectDir.setAlignment(QtCore.Qt.AlignLeft)
-        self.rkProjectDir.setFixedWidth(300)
+        self.rkProjectDirText.setAlignment(QtCore.Qt.AlignLeft)
+        self.rkProjectDirText.setFixedWidth(300)
+        self.rkProjectDirText.setObjectName("RKOptPanel")
         
         self.rkPrjDirButton = QtWidgets.QPushButton()
         self.rkPrjDirButton.setIcon(QtGui.QIcon(":folder-open.png"))
         self.rkPrjDirButton.setContentsMargins(0,0,0,0)
         self.rkPrjDirButton.setFixedSize(20,20)
+        self.rkPrjDirButton.setObjectName("RKOptPanel")
+        self.rkPrjDirButton.clicked.connect(self.setProjectFolder)
         # Add method connection here on 'rkPrjDirButton' for setting the rkProjectDir and its 
         # corresponding RawKee/Castle project directory optionVar
         
         layoutTen.addWidget(self.rpdLabel)
-        layoutTen.addWidget(self.rkProjectDir)
+        layoutTen.addWidget(self.rkProjectDirText)
         layoutTen.addWidget(self.rkPrjDirButton)
         layoutTen.addStretch()
         
@@ -567,12 +651,14 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.bDomLabel = QtWidgets.QLabel("Base Web Domain:")
         self.bDomLabel.setAlignment(QtCore.Qt.AlignRight)
         self.bDomLabel.setFixedWidth(250)
+        self.bDomLabel.setObjectName("RKOptPanel")
         
         self.rkBaseDomainText = QtWidgets.QLineEdit()
         self.rkBaseDomainText.setAlignment(QtCore.Qt.AlignLeft)
         self.rkBaseDomainText.setFixedWidth(300)
         # Manually type your primary web domain if you expect to publish to the web
-        self.rkBaseDomainText.text  = self.rkBaseDomain
+        self.rkBaseDomainText.setText(self.rkBaseDomain)
+        self.rkBaseDomainText.setObjectName("RKOptPanel")
         # add method functionality to save user entered domain information.
         
         layoutEleven.addWidget(self.bDomLabel)
@@ -585,6 +671,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.subDirLabel = QtWidgets.QLabel("Domain Sub-Directory Path:")
         self.subDirLabel.setAlignment(QtCore.Qt.AlignRight)
         self.subDirLabel.setFixedWidth(250)
+        self.subDirLabel.setObjectName("RKOptPanel")
         
         self.rkSubDirText = QtWidgets.QLineEdit()
         self.rkSubDirText.setAlignment(QtCore.Qt.AlignLeft)
@@ -592,6 +679,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         # Manually type the sub directory path for use with your web domain 
         # if you expect to publish to the web
         self.rkSubDirText.setText(self.rkSubDir)
+        self.rkSubDirText.setObjectName("RKOptPanel")
         # add method functionality to save user entered sub directory path information.
         
         
@@ -605,6 +693,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.imagePathLabel = QtWidgets.QLabel("Image Path:")
         self.imagePathLabel.setAlignment(QtCore.Qt.AlignRight)
         self.imagePathLabel.setFixedWidth(250)
+        self.imagePathLabel.setObjectName("RKOptPanel")
         
         self.rkImagePathText = QtWidgets.QLineEdit()
         self.rkImagePathText.setAlignment(QtCore.Qt.AlignLeft)
@@ -612,6 +701,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         # Manually type the sub directory path where you plan to store your
         # images. Can be the same as your Audio and Inline paths
         self.rkImagePathText.setText(self.rkImagePath)
+        self.rkImagePathText.setObjectName("RKOptPanel")
         # add method functionality to save user entered media path information.
         
         
@@ -625,6 +715,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.audioPathLabel = QtWidgets.QLabel("Audio Path:")
         self.audioPathLabel.setAlignment(QtCore.Qt.AlignRight)
         self.audioPathLabel.setFixedWidth(250)
+        self.audioPathLabel.setObjectName("RKOptPanel")
         
         self.rkAudioPathText = QtWidgets.QLineEdit()
         self.rkAudioPathText.setAlignment(QtCore.Qt.AlignLeft)
@@ -632,6 +723,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         # Manually type the sub directory path where you plan to store your
         # audio files. Can be the same as your Image and Inline paths
         self.rkAudioPathText.setText(self.rkAudioPath)
+        self.rkAudioPathText.setObjectName("RKOptPanel")
         # add method functionality to save user entered media path information.
         
         
@@ -645,6 +737,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.inlinePathLabel = QtWidgets.QLabel("Inline Path:")
         self.inlinePathLabel.setAlignment(QtCore.Qt.AlignRight)
         self.inlinePathLabel.setFixedWidth(250)
+        self.inlinePathLabel.setObjectName("RKOptPanel")
         
         self.rkInlinePathText = QtWidgets.QLineEdit()
         self.rkInlinePathText.setAlignment(QtCore.Qt.AlignLeft)
@@ -652,6 +745,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         # Manually type the sub directory path where you plan to store your
         # inline X3D and glTF files. Can be the same as your Audio and Image paths
         self.rkInlinePathText.setText(self.rkInlinePath)
+        self.rkInlinePathText.setObjectName("RKOptPanel")
         # add method functionality to save user entered media path information.
         
         
@@ -665,18 +759,23 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.normalLabel = QtWidgets.QLabel("     Normal Options:")
         self.normalLabel.setAlignment(QtCore.Qt.AlignRight)
         self.normalLabel.setFixedWidth(250)
+        self.normalLabel.setObjectName("RKOptPanel")
+        
         self.normalOptions = QtWidgets.QComboBox()
         self.normalOptions.addItems(["Map + Crease Angle + Per Vertex", "Map + Crease Angle", "Map + Per Vertex", "Map", "Crease Angle + Per Vertex", "Crease Angle", "Per Vertex"])
         self.normalOptions.setFixedWidth(250)
         ###############################################################
         # Set the type of X3D Normal information exported by RawKee
         self.normalOptions.setCurrentIndex(self.rkNormalOpts)
+        self.normalOptions.setObjectName("RKOptPanel")
         # Add change method here.
         
         
         self.cAngleLabel = QtWidgets.QLabel("Crease Angle:")
         self.cAngleLabel.setAlignment(QtCore.Qt.AlignRight)
         self.cAngleLabel.setFixedWidth(80)
+        self.cAngleLabel.setObjectName("RKOptPanel")
+        
         self.creaseAngle = QtWidgets.QLineEdit()
         self.creaseAngle.setAlignment(QtCore.Qt.AlignLeft)
         self.creaseAngle.setFixedWidth(50)
@@ -690,6 +789,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         # Default CreaseAngle Values for RawKee-written Shape nodes
         textValue = str(self.rkCreaseAngle)
         self.creaseAngle.setText(textValue)
+        self.creaseAngle.setObjectName("RKOptPanel")
         # Add change method here.
 
 
@@ -706,12 +806,15 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.colorLabel = QtWidgets.QLabel("     Color Options:")
         self.colorLabel.setAlignment(QtCore.Qt.AlignRight)
         self.colorLabel.setFixedWidth(250)
+        self.colorLabel.setObjectName("RKOptPanel")
+        
         self.colorOptions = QtWidgets.QComboBox()
         self.colorOptions.addItems(["Textures + Per Vertex", "Textures", "Per Vertex"])
         self.colorOptions.setFixedWidth(250)
         ###############################################################
         # Set the type of X3D Color information exported by RawKee
         self.colorOptions.setCurrentIndex(self.rkColorOpts)
+        self.colorOptions.setObjectName("RKOptPanel")
         # Add change method here.
         
         layoutSeventeen.addWidget(self.colorLabel)
@@ -723,22 +826,31 @@ class RKFOptsDialog(QtWidgets.QDialog):
 
         # Section Header
         textureSection = QtWidgets.QLabel("Texture Options")
+        textureSection.setObjectName("RKOptPanel")
 
         generalSection = QtWidgets.QLabel("Media & Node Options")
+        generalSection.setObjectName("RKOptPanel")
 
         pathLabelText  = "Domain & Path Options"
         if self.rkExportMode == 1:
             pathLabelText  = "Game Engine Path Options"
         pathSection    = QtWidgets.QLabel(pathLabelText)
+        pathSection.setObjectName("RKOptPanel")
+        
         meshSection    = QtWidgets.QLabel("Mesh & Shape Options")
+        meshSection.setObjectName("RKOptPanel")
         
         convLayout = QtWidgets.QHBoxLayout()
         spaceConv  = QtWidgets.QLabel(" ")
         spaceConv.setFixedWidth(80)
         spaceConv.setAlignment(QtCore.Qt.AlignRight)
+        spaceConv.setObjectName("RKOptPanel")
+        
         convLabel = QtWidgets.QLabel("Convert Media Formats:")
-        convLabel.setFixedWidth(200)
         convLabel.setAlignment(QtCore.Qt.AlignLeft)
+        convLabel.setFixedWidth(200)
+        convLabel.setObjectName("RKOptPanel")
+
         convLayout.addWidget(spaceConv)
         convLayout.addWidget(convLabel)
         convLayout.addStretch()
@@ -826,6 +938,88 @@ class RKFOptsDialog(QtWidgets.QDialog):
         return optInt
         
     def setOptionVarInt(self, intVal):
+        pass
+        
+    def setProjectFolder(self):
+        print("Set Project Folder")
+        
+        if self.dialogTitle == "X3D Export Options" or self.dialogTitle == "X3D Export Selected Options":
+            cmds.rkX3DSetProject()
+            
+            self.rkPrjDir = cmds.optionVar( q='rkPrjDir' )
+            self.rkProjectDirText.setText(self.rkPrjDir)
+            
+        elif self.dialogTitle == "Castle Export All - Options" or self.dialogTitle == "Castle Export Selected - Options":
+            cmds.rkCASSetProject()
+            
+            self.rkCastlePrjDir = cmds.optionVar( q='rkCastlePrjDir' )
+            self.rkProjectDirText.setText(self.rkCastlePrjDir)
+        
+        
+    def saveOptionsCloseDialog(self):
+        self.saveOptions()
+        self.close()
+
+    
+    def saveOptionsExportX3D(self):
+        self.saveOptions()
+        self.exportX3D()
+        self.close()
+        
+    def saveOptions(self):
+        #print("Options Saved!")
+        
+        if self.rkExportMode == 0:
+            cmds.optionVar(sv=('rkPrjDir',     self.rkProjectDirText.text()))
+            cmds.optionVar(sv=('rkBaseDomain', self.rkBaseDomainText.text()))
+            cmds.optionVar(sv=('rkSubDir',     self.rkSubDirText.text()))
+
+        elif self.rkExportMode == 1:
+            cmds.optionVar(sv=('rkCastlePrjDir', self.rkProjectDirText.text()))
+        elif self.rkExportMode == 2:
+            #cmds.optionVar( q='rkSunrizePrjDir'  ) TODO
+            pass
+        
+        cmds.optionVar( sv=('rkImagePath',      self.rkImagePathText.text()))
+        cmds.optionVar( sv=('rkAudioPath',      self.rkAudioPathText.text()))
+        cmds.optionVar( sv=('rkInlinePath',     self.rkInlinePathText.text()))
+        
+        cmds.optionVar( iv=('rk2dTexWrite',     self.texture2FileCheckBox.isChecked()))
+        cmds.optionVar( iv=('rkMovTexWrite',    self.movie2FileCheckBox.isChecked()  ))
+        cmds.optionVar( iv=('rkAudioWrite',     self.audio2FileCheckBox.isChecked()  ))
+        
+        cmds.optionVar( iv=('rkExportCameras',  self.exCameras.isChecked()           ))
+        cmds.optionVar( iv=('rkExportLights',   self.exLights.isChecked()            ))
+        cmds.optionVar( iv=('rkExportSounds',   self.exSounds.isChecked()            ))
+        cmds.optionVar( iv=('rkExportMetadata', self.exMetadata.isChecked()          ))
+
+        cmds.optionVar( iv=('rkMovieAsURI',     self.movieURICheckBox.isChecked()    ))
+        cmds.optionVar( iv=('rkAudioAsURI',     self.audioURICheckBox.isChecked()    ))
+        cmds.optionVar( iv=('rkInlineAsURI',    self.inlineURICheckBox.isChecked()   ))
+        
+        cmds.optionVar( iv=('rkAdjTexSize',     self.adjTexCheckBox.isChecked()      ))
+        cmds.optionVar( iv=('rkDefTexWidth',    int(self.textureWidth.text())))
+        cmds.optionVar( iv=('rkDefTexHeight',   int(self.textureHeight.text())))
+
+        cmds.optionVar( iv=('rk2dFileFormat',    self.texFileFormatOptions.currentIndex()   ))
+        cmds.optionVar( iv=('rkMovFileFormat',   self.movFileFormatOptions.currentIndex()   ))
+        cmds.optionVar( iv=('rkAudioFileFormat', self.audFileFormatOptions.currentIndex()   ))
+
+        cmds.optionVar( iv=('rkProcTexNode',     self.comboMayaTexOptions.currentIndex()    ))
+        cmds.optionVar( iv=('rkFileTexNode',     self.comboMayaTexFileOptions.currentIndex()))
+        cmds.optionVar( iv=('rkLayerTexNode',    self.comboMayaLayeredOptions.currentIndex()))
+        
+        cmds.optionVar( iv=('rkColorOpts',       self.colorOptions.currentIndex()           ))
+        cmds.optionVar( iv=('rkNormalOpts',      self.normalOptions.currentIndex()          ))
+        
+        cmds.optionVar( fv=('rkCreaseAngle',     float(self.creaseAngle.text())))
+        
+    def exportX3D(self):
+        #print("X3D Exported!") TODO
+        #rkX3DExport
+        #rkX3DSelExport
+        #rawkeeCASExport - TODO - at least stub it
+        #rawkeeCASSelExport - TODO - at least stub it
         pass
         
         

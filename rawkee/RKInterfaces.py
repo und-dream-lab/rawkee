@@ -17,7 +17,7 @@ import ctypes
 import ffmpeg
 
 # Needed for WebP Images
-from PIL import Image
+import PIL as pil
 
 import maya.api.OpenMaya as aom
 
@@ -258,7 +258,16 @@ class RKInterfaces():
     
     def fileConvertToWebP ( self, inPath, outPath):
         try:
-            image = Image.open(inPath).convert("RGB")
+            image = pil.Image.open(inPath).convert("RGB")
+            
+            rkAdjTexSize   = cmds.optionVar( q='rkAdjTexSize'  )
+
+            if rkAdjTexSize == True:
+                w = cmds.optionVar( q='rkDefTexWidth' )
+                h = cmds.optionVar( q='rkDefTexHeight')
+
+                image.resize((w, h))
+
             image.save(outPath, "webp")
             return True
             
@@ -266,13 +275,58 @@ class RKInterfaces():
             return False
         
 
-    #TODO:
-    def audioFormatConvert(self, inPath, outPath, settings,                newFormat, newEncode): #settings - typical audio file settings
-        pass
+    # Use FFmpeg to convert the audio file to a new format
+    def audioFormatConvert(self, inPath, outPath, newFormat):
+        try:
+            media = ffmpeg.input(inPath)
+            if   newFormat == "MP3":
+                media.output(outPath, acodec='mp3'       ).run()
+            elif newFormat == "MP4":
+                media.output(outPath, acodec='libfdk_aac').run()
+            elif newFormat == "OGA":
+                media.output(outPath, acodec='libvorbis' ).run()
+            elif newFormat == "WAV":
+                media.output(outPath, acodec='pcm_s16le' ).run()
+        except:
+            return False
+        
+        return True
 
-    #TODO:
-    def movieFormatConvert(self, inPath, outPath, settings, width, height, newFormat, newEncode): #settings - typical audio file settings + typical video file settings
-        pass
+    # Use FFmpeg to convert the video/audio file to a new format
+    def movieFormatConvert(self, inPath, outPath, newFormat):
+        try:
+            probe = probe = ffmpeg.probe(inPath)
+            vStream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
+            
+            nW = 1
+            nH = 1
+            if vStream:
+                nW = vStream['width']
+                nH = vStream['height']
+            
+            rkAdjTexSize   = cmds.optionVar( q='rkAdjTexSize'  )
+
+            if rkAdjTexSize == True:
+                nW = cmds.optionVar( q='rkDefTexWidth' )
+                nH = cmds.optionVar( q='rkDefTexHeight')
+
+            media = ffmpeg.input(inPath)
+
+            if   newFormat == "MP4":
+                media.filter('scale', nW, nH).output(outpath, vcodec='libx264',    acodec='libfdk_aac').run()
+            elif newFormat == "MOV":
+                media.filter('scale', nW, nH).output(outpath, vcodec='mpeg4',      acodec='alac'      ).run()
+            elif newFormat == "OGG":
+                media.filter('scale', nW, nH).output(outPath, vcodec='libtheora',  acodec='libvorbis' ).run()
+            elif newFormat == "WebM":
+                media.filter('scale', nW, nH).output(outPath, vcodec='libvpx-vp9', acodec='libopus'   ).run()
+            elif newFormat == "AVI":
+                media.filter('scale', nW, nH).output(outPath, vcodec='libxvid',    acodec='pcm_s16le' ).run()
+                
+        except:
+            return False
+            
+        return True
 
     
     def image2pixel(self, fileNode):
