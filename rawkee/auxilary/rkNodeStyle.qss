@@ -29,3 +29,8 @@ QGraphicsTextItem#X3DNodeDEF {
     top: 2px; 
     left: 2px;
 }
+
+QLabel#RKOptPanel, QComboBox#RKOptPanel, QCheckBox#RKOptPanel, QLineEdit#RKOptPanel, QPushButton#RKOptPanel {
+/*    font-family: 'Century Gothic', Arial, Helvetica, sans-serif; */
+    font-size: 11px;
+}

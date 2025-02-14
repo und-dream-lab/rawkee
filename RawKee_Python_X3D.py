@@ -435,6 +435,7 @@ def initializePlugin(plugin):
     global rkWeb3D
     rkWeb3D = RKWeb3D.RKWeb3D()
     rkWeb3D.pVersion = RAWKEE_TITLE
+    rkWeb3D.setMyStyleSheet(RKWeb3D.__file__.replace("\\", "/").rsplit("/", 1)[0])
 
 
     
@@ -520,7 +521,6 @@ def uninitializePlugin(plugin):
     # export function system for the MayaMainWindow
     global rkWeb3D
     del rkWeb3D
-
 
 
 

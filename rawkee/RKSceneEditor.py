@@ -312,9 +312,9 @@ class RKCustomNodeEditor(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         
-        self.basePath = parent.basePath
-        self.stylesheet_filename = self.basePath + "/auxilary/rkNodeStyle.qss"
-        self.loadStyleSheet(self.stylesheet_filename)
+        #self.basePath = parent.basePath
+        #self.stylesheet_filename = self.basePath + "/auxilary/rkNodeStyle.qss"
+        #self.loadStyleSheet(self.stylesheet_filename)
         
         self.initUI()
         
@@ -390,15 +390,15 @@ class RKCustomNodeEditor(QWidget):
         myLine.setFlag(rkgItem.ItemIsSelectable)
         myLine.setFlag(rkgItem.ItemIsMovable)
         
-    def loadStyleSheet(self, filename):
-        print('STYLE loading', filename)
-        
-        file = QFile(filename)
-        file.open(QFile.ReadOnly | QFile.Text)
-        stylesheet = file.readAll()
-        
-        #self.setStyleSheet(str(stylesheet, encoding='utf-8'))
-        QApplication.instance().setStyleSheet(str(stylesheet, encoding='utf-8'))
+    #def loadStyleSheet(self, filename):
+    #    print('STYLE loading', filename)
+    #    
+    #    file = QFile(filename)
+    #    file.open(QFile.ReadOnly | QFile.Text)
+    #    stylesheet = file.readAll()
+    #    
+    #    #self.setStyleSheet(str(stylesheet, encoding='utf-8'))
+    #    QApplication.instance().setStyleSheet(str(stylesheet, encoding='utf-8'))
         
 
 '''
