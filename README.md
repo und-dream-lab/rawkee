@@ -35,6 +35,7 @@ Some of the packages listed may require a pip install regarless of what the list
 - base64
 - mimetypes
 - ctypes
+- ntpath
 
 <!--
 ### Steps:
