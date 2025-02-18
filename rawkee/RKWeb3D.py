@@ -408,7 +408,7 @@ class RKWeb3D():
 
 
     def setMyStyleSheet(self, qssBasePath):
-        print("Loading Qt Style Sheet and applying it to Maya UI. Please be patient, this applicaiton may take 2-3 seconds.")
+        print("Loading Qt Style Sheet and applying it to Maya UI. Please be patient, this applicaiton may take 2-3 seconds.", end="")
         stylesheet_filename = qssBasePath + "/auxilary/rkNodeStyle.qss"
         
         file = QtCore.QFile(stylesheet_filename)
@@ -416,6 +416,8 @@ class RKWeb3D():
         stylesheet = file.readAll()
         
         QtWidgets.QApplication.instance().setStyleSheet(str(stylesheet, encoding='utf-8'))
+        print("")
+        print("Qt Style Sheet Applied", end="")
 
 
 

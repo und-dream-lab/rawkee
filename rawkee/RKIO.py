@@ -150,13 +150,20 @@ class RKIO():
         self.x3dVersion  = "4.0"
         
         
-        self.comments = []
-        self.commentNames = []
+        self.comments      = []
+        self.commentNames  = []
         self.additionalComps = []
         self.additionalCompsLevels = []
-        self.ignoredNodes = []
+        self.ignoredNodes  = []
         self.haveBeenNodes = []
-        self.generatedX3D = []
+        self.generatedX3D  = []
+        
+        # Thought this was needed, but the 'processForGeometry' method already has access to the 
+        # associated shader engine, regardless of whether the shaderEngine has already been processed
+        # as an Appearance node. There is no need to store this information separately
+        #self.shaderNames   = []
+        #self.texTransLists = []
+
         
         self.fullPath = ""
         
@@ -447,6 +454,13 @@ class RKIO():
         self.ignoredNodes.clear()
         self.haveBeenNodes.clear()
         self.generatedX3D.clear()
+
+        # Thought this was needed, but the 'processForGeometry' method already has access to the 
+        # associated shader engine, regardless of whether the shaderEngine has already been processed
+        # as an Appearance node. There is no need to store this information separately
+        #self.shaderNames.clear()
+        #self.texTransLists.clear()
+
              
     '''
         This method checks the List that holds the names
@@ -477,16 +491,33 @@ class RKIO():
         in this List
     '''
     def checkIfHasBeen(self, nodeName):
-        hasBeen = False
+        
+        for aName in self.haveBeenNodes:
+            if nodeName == aName:
+                return True
+        '''        
         hbLength = len(self.haveBeenNodes)
         i = 0
 
         while i < hbLength and hasBeen == False:
             if nodeName == self.haveBeenNodes[i]:
-                hasBeen = True
+                return True
             i = i + 1
-            
-        return hasBeen
+        ''' 
+        return False
+    
+    # Thought this was needed, but the 'processForGeometry' method already has access to the 
+    # associated shader engine, regardless of whether the shaderEngine has already been processed
+    # as an Appearance node. There is no need to store this information separately
+    #def trackTextureTransforms(self, shaderName, texTransList):
+    #    self.shaderNames.append(shaderName)
+    #    self.texTransLists.append(texTransList)
+        
+    #def getTexTransList(self, shaderName):
+    #    for idx in range(len(self.shaderNames)):
+    #        if shaderName == self.shaderNames[idx]:
+    #            return self.texTransLists[idx]
+    #    return None
     
     def useDecl(self, x3dNode, nodeName, x3dParentNode, x3dFieldName):
         x3dNode.USE = nodeName

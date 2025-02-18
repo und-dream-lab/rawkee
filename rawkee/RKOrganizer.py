@@ -11,6 +11,8 @@ from rawkee.RKXNodes     import *
 
 import numpy as np
 
+import os
+
 #Python implementation of C++ x3dExportOrganizer
 
         # For processing the Maya nodes as X3D equivelents
@@ -142,25 +144,25 @@ class RKOrganizer():
         self.fileName = "";
 
         # Holds the path starting below the localPath where image/movie files are stored
-        self.localImagePath = "image/"
+        self.localImagePath = "/image"
 
         # Holds the path starting below the localPath where audio files are stored
-        self.localAudioPath = "audio/"
+        self.localAudioPath = "/audio"
         
         # Holds the path starting below the localPath where inline files are stored
-        self.localInlinePath = "inline/"
+        self.localInlinePath = "/inline"
 
         # Holds the base url used in all URL fields
         self.exBaseURL = "./"
         
         # Holds the url used in URL fields of all textures
-        self.exTextureURL = "image/"
+        self.exTextureURL = "/image"
 
         # Holds the url used in URL fields of AudioClip nodes
-        self.exAudioURL = "audio/"
+        self.exAudioURL = "/audio"
         
         # Holds the url used in URL fields of Inline nodes
-        self.exInlineURL = "inline/"
+        self.exInlineURL = "/inline"
 
         # Holds specified Texture Directory found in OptionVars
         self.getTextureDir = ""
@@ -206,11 +208,62 @@ class RKOrganizer():
     def __del__(self):
         del self.rkio
         del self.rkint
+        
+    def loadRawKeeOptions(self):
+        self.rkCastlePrjDir    = cmds.optionVar( q='rkCastlePrjDir'   )
+        self.rkSunrizePrjDir   = cmds.optionVar( q='rkSunrizePrjDir'  )
+        self.rkPrjDir          = cmds.optionVar( q='rkPrjDir'         )
+        self.rkBaseDomain      = cmds.optionVar( q='rkBaseDomain'     )
+        self.rkSubDir          = cmds.optionVar( q='rkSubDir'         )
+        self.rkImagePath       = cmds.optionVar( q='rkImagePath'      )
+        self.rkAudioPath       = cmds.optionVar( q='rkAudioPath'      )
+        self.rkInlinePath      = cmds.optionVar( q='rkInlinePath'     )
+        
+        self.rk2dTexWrite      = cmds.optionVar( q='rk2dTexWrite'     )
+        self.rkMovTexWrite     = cmds.optionVar( q='rkMovTexWrite'    )
+        self.rkAudioWrite      = cmds.optionVar( q='rkAudioWrite'     )
+        self.rk2dFileFormat    = cmds.optionVar( q='rk2dFileFormat'   )
+        self.rkMovFileFormat   = cmds.optionVar( q='rkMovFileFormat'  )
+        self.rkAudioFileFormat = cmds.optionVar( q='rkAudioFileFormat')
+        self.rkExportCameras   = cmds.optionVar( q='rkExportCameras'  )
+        self.rkExportLights    = cmds.optionVar( q='rkExportLights'   )
+        self.rkExportSounds    = cmds.optionVar( q='rkExportSounds'   )
+        self.rkExportMetadata  = cmds.optionVar( q='rkExportMetadata' )
+        self.rkProcTexNode     = cmds.optionVar( q='rkProcTexNode'    )
+        self.rkFileTexNode     = cmds.optionVar( q='rkFileTexNode'    )
+        self.rkLayerTexNode    = cmds.optionVar( q='rkLayerTexNode'   )
+        self.rkAdjTexSize      = cmds.optionVar( q='rkAdjTexSize'     )
+        
+        self.rkMovieAsURI      = cmds.optionVar( q='rkMovieAsURI'     )
+        self.rkAudioAsURI      = cmds.optionVar( q='rkAudioAsURI'     )
+        self.rkInlineAsURI     = cmds.optionVar( q='rkInlineAsURI'    )
+        
+        self.rkDefTexWidth     = cmds.optionVar( q='rkDefTexWidth'    )
+        self.rkDefTexHeight    = cmds.optionVar( q='rkDefTexHeight'   )
+        self.rkColorOpts       = cmds.optionVar( q='rkColorOpts'      )
+        self.rkNormalOpts      = cmds.optionVar( q='rkNormalOpts'     )
+        
+        self.rkFrontLoadExt    = cmds.optionVar( q='rkFrontLoadExt'   )
+        
+        self.rkExportMode      = cmds.optionVar( q='rkExportMode'     )
+        
+        self.rkCreaseAngle     = cmds.optionVar( q='rkCreaseAngle'    )
+        
+        self.activePrjDir = self.rkPrjDir
+        
+        if self.rkExportMode == 1:
+            self.activePrjDir = self.rkCastlePrjDir
+        elif self.rkExportMode == 2:
+            self.activePrjDir = self.rkSunrizePrjDir
+            
+            
     
     def processImportFile(self, fullFilePath, rkFilter):
         self.rkio.cMessage("Importing!!!")
         self.rkio.cMessage(fullFilePath)
         self.rkio.cMessage(rkFilter)
+        
+        
         
     def processExportFile(self, fullFilePath, rkFilter):
         self.rkio.cMessage("Exporting!!!")
@@ -226,6 +279,8 @@ class RKOrganizer():
     # locations in the Maya DAG/DepGraph. Returns nothing.     #
     ############################################################
     def maya2x3d(self, x3dScene, parentDagPaths, dagNodes, pVersion):
+        self.loadRawKeeOptions()
+        
         self.rkio.comments.clear()
         self.rkio.comments.append(pVersion)
         self.rkio.commentNames.clear()
@@ -728,6 +783,18 @@ class RKOrganizer():
                 return depNode
         
         return None
+        
+    def checkForUnboundJoints(self, dagNode):
+        #Traverse Maya Scene Downward without using an MFIt object
+        cNum = dagNode.childCount()
+        for i in range(cNum):
+            if aom.MFnDagNode(dagNode.child(i)).typeName == "joint":
+                return True
+
+        return False
+        
+    def processUnboundHAnimHumanoid(self, dragPath, dagNode, x3dPF):
+        pass
     
     ######################################################################################################################
     # HAnimHumanoid Related Functions
@@ -954,10 +1021,16 @@ class RKOrganizer():
                 ###############################################################################
                 bpNode = self.getBindPoseNode(dagNode)
                 
+                # There maybe a type of transform node that should be exported as an 
+                # HAnimHumanoid node, but is not connect to a BindPose node.
+                # TODO: Check for this situation and call a processHAnimHumoind method that
+                # can accoutn for this.
                 if bpNode != None:
-                    self.processHAnimHumanoid(   dragPath, dagNode, x3dPF, bpNode)
+                    self.processHAnimHumanoid(       dragPath, dagNode, x3dPF, bpNode)
+                if self.checkForUnboundJoints(dagNode):
+                    self.processUnboundHAnimHumanoid(dragPath, dagNode, x3dPF)
                 else:
-                    self.processTransformSorting(dragPath, dagNode, x3dPF)
+                    self.processTransformSorting(    dragPath, dagNode, x3dPF)
 
 
 
@@ -1020,10 +1093,9 @@ class RKOrganizer():
         
         supMeshName = dagNode.name()
 
-        if self.rkio.checkIfHasBeen(supMeshName) == False:
-            self.rkio.useDecl(tNode, supMeshName, x3dParentNode, cField)
-
-            pass
+#        if self.rkio.checkIfHasBeen(supMeshName) == True:
+#            self.rkio.useDecl(tNode, supMeshName, x3dParentNode, cField)
+#            return
             
         newDragPath = dragPath + "|" + supMeshName
         
@@ -1032,22 +1104,25 @@ class RKOrganizer():
         shList1 = []
         shList2 = []
         
-        shaders = []
-        groups  = []
+        shaders  = []
+        groups   = []
+        polygons = []
         
-        shaders, groups = myMesh.getConnectedSetsAndMembers(0, True)
+        shaders, meshComps = myMesh.getConnectedSetsAndMembers(0, True)
+        #shaders, polygons = myMesh.getConnectedShaders(0)
         
-        #Check for Metadata - skipping how this is done here for the moment.
+        #Check for Metadata - TODO: skipping how this is done here for the moment.
         
         x3dPF = []
         x3dPF.append(self.getX3DParent(dagNode, dragPath))
         x3dPF.append(cField)
         
-        if len(groups) == 1: #boundingBoxSizeX boundingBoxSizeY boundingBoxSizeZ center boundingBoxCenterX
-            
-            bna = self.processBasicNodeAddition(dagNode, x3dPF[0], x3dPF[1], "Shape")
-            if bna[0] == False:
-                
+        shLen = len(shaders)
+        if shLen > 1:
+            bna = self.processBasicNodeAddition(dagNode, x3dPF[0], x3dPF[1], "Group", supMeshName)
+            if bna[0] == True:
+                return
+            else:
                 bbSize = []
                 bbSize.append(dagNode.findPlug(boundingBoxSizeX).asFloat())
                 bbSize.append(dagNode.findPlug(boundingBoxSizeY).asFloat())
@@ -1062,14 +1137,51 @@ class RKOrganizer():
                 bna[1].bboxCenter = self.rkint.getSFVec3fFromList(cen)
                 bna[1].bboxSize   = self.rkint.getSFVec3fFromList(bbSize)
                 
-                self.processForAppearance(shaders[0], bna[1])
-                self.processForGeometry(dagNode, bna[1])
+                x3dPF[0] = bna[1]
+                x3dPF[1] = "children" # Because the cField might not already be "children" depending on how this function is called.
+        
+        for idx in range(shLen):
+            shapeName = supMeshName
+            if shLen > 1:
+                shapeName = shapeName + "_SubShape_" + str(idx)
+                
+            #boundingBoxSizeX boundingBoxSizeY boundingBoxSizeZ center boundingBoxCenterX
+            
+            sbna = self.processBasicNodeAddition(dagNode, x3dPF[0], x3dPF[1], "Shape", shapeName)
+            if sbna[0] == False:
+                
+                # Yeah, this is sloppy, I'm using the bounding Box info for the while DAG Node over and over again. 
+                # The Group node holding all this geometry together and all of the children nodes each have the same
+                # bounding box info.
+                #
+                # I suppose someone who feels the need to change this can probaby figure out the bounding box info 
+                # for each Shape node from the Maya mesh node data. TODO
+                bbSize = []
+                bbSize.append(dagNode.findPlug(boundingBoxSizeX).asFloat())
+                bbSize.append(dagNode.findPlug(boundingBoxSizeY).asFloat())
+                bbSize.append(dagNode.findPlug(boundingBoxSizeZ).asFloat())
+                
+                tCenter = dagNode.findPlug(center)
+                cen = []
+                cen.append(tCenter[0].asFloat())
+                cen.append(tCenter[1].asFloat())
+                cen.append(tCenter[2].asFloat())
+                
+                sbna[1].bboxCenter = self.rkint.getSFVec3fFromList(cen)
+                sbna[1].bboxSize   = self.rkint.getSFVec3fFromList(bbSize)
 
-        else:
-            pass
-    
-    def processForAppearance(self, shadingEngine, parentNode, cField="appearance", index=0):
-        depNode = aom.MFnDependencyNode(shadingEngine)
+                # trackTextureTransforms(self, shaderName, texTransList):
+                # getTexTransList(self, shaderName):
+                self.processForAppearance(shaders[idx], sbna[1], cField="appearance", index=idx)
+                
+                #ifsName = shapeName + "_IFS"
+                #self.processForGeometry(      dagNode, sbna[1], shaders, polygons, nodeName=shapeName, cField="geometry", nodeType="IndexedFaceSet", index=idx)
+                self.processForGeometry(      myMesh, sbna[1], shaders, meshComps, nodeName=shapeName, cField="geometry", nodeType="IndexedFaceSet", index=idx)
+
+
+    def processForAppearance(self, shadingEngineObj, parentNode, cField="appearance", index=0):
+        texTrans = []
+        depNode = aom.MFnDependencyNode(shadingEngineObj)
 
         # Create an Appearance Node using the name of the Shader Engine node.
         bna = self.processBasicNodeAddition(depNode, parentNode, cField, "Appearance")
@@ -1208,7 +1320,7 @@ class RKOrganizer():
                         # Otherwise assume Verge3D Style of Maya material - (More styles can be added in the future)
                         #############################################################################################
                         else:
-                            pass
+                            return
                 except:
                     self.rkio.cMessage("Object not found error while traversing aiStandardSurface Up Stream Dependency Graph. Skipping Material export. Check your shader inputs.")
                     return
@@ -1297,7 +1409,7 @@ class RKOrganizer():
             #       - Maxwell
             #
             ########################################################################
-            
+        
             
     def setTextureTransformFields(self, place2d, x3dtt):
         # Set the 'center' field of TextureTransform
@@ -1324,129 +1436,199 @@ class RKOrganizer():
         transXY = place2d.findPlug("translateFrame").array()
         x3dtt.translation = (transXY[0].asFloat(), transXY[1].asFloat())
 
-        
+    #This method may be eliminated
     def processMaterial(self):
         pass
-        
-    def processForGeometry(self, dagNode, x3dParentNode, place2d, nodeName=None, cField="geometry", nodeType="IndexedFaceSet", index=0):
+
+    def processForGeometry(self, myMesh, x3dParentNode, shaders, meshComps, nodeName=None, cField="geometry", nodeType="IndexedFaceSet", index=0):
         #dagNode.getPath().fullPathName()
         #tMesh = aom.MFnMesh(dagNode.getPath().fullPathName())
         if nodeName == None:
-            nodeName = dagNode.name()
+            nodeName = myMesh.name()
         
         if nodeType == "IndexedFaceSet":
-            geomName = nodeName + "_ifs_" + str(index)
-            bna = self.processBasicNodeAddition(dagNode, x3dParentNode, cField, "IndexedFaceSet", geomName)
+            mIter = aom.MItMeshPolygon(myMesh.dagPath(), meshComps[index])
             
+            geomName = nodeName + "_IFS"
+            if index > 1:
+                geomName = geomName + "_" + str(index)
+                
+            bna = self.processBasicNodeAddition(myMesh, x3dParentNode, cField, "IndexedFaceSet", geomName)
             if bna[0] == False:
                 # TODO: Future code for implementing 'attrib'
+
+                ##### Add an X3D Coordiante Node
+                geoNameCoord = nodeName + "_Coord"
+                coordbna = self.processBasicNodeAddition(myMesh, bna[1], "coord", "Coordinate", geoNameCoord)
+                if coordbna[0] == False:
+                    # TODO: Metadata processing
+                    
+                    # point field of Coordinate node
+                    points = myMesh.getFloatPoints()
+                    for point in points:
+                        coordbna[1].point.append((point.x, point.y, point.z))
+            
+                # Using the MItMeshPolygon Iterator and the propoper sub-component
+                # this secion of the code builds the array of MFInt32 field of IndexedFaceSet
+                while not mIter.isDone():
+                    vertices = mIter.getVertices()
+                    for vIdx in vertices:
+                        mIdx = mIter.vertexIndex(vIdx)
+                        bna[1].coordIndex.append(mIdx)
+                    bna[1].coordIndex.append(-1)
+                    mIter.next()
+                    
+                ##### Add an X3DColorNode
+                # Code for Adding a Color/ColorRGBA Node to the 'color' field of the IFS
+                if   self.rkColorOpts == 0:
+                    # Though not technically required, set
+                    # colorPerVertex to True and then do nothing
+                    # more with mesh colors because we are using
+                    # the default values for IndexedFaceSet nodes
+                    # where there is no color node.
+                    bna[1].colorPerVertex = True
+                elif self.rkColorOpts == 1 :
+                    # Color per Face Values
+                    bna[1].colorPerVertex = True
+                    self.processForColorNode(myMesh, mIter, nodeName,     "Color", bna[1], idx=index)
+                elif self.rkColorOpts == 2 :
+                    # Color per Face Values
+                    bna[1].colorPerVertex = True
+                    self.processForColorNode(myMesh, mIter, nodeName, "ColorRGBA", bna[1], idx=index)
+                elif self.rkColorOpts == 3 :
+                    # Color per Face Values
+                    bna[1].colorPerVertex = False
+                    self.processForColorNode(myMesh, mIter, nodeName,     "Color", bna[1], cpv=False, idx=index)
+                else:
+                    bna[1].colorPerVertex = False
+                    self.processForColorNode(myMesh, mIter, nodeName, "ColorRGBA", bna[1], cpv=False, idx=index)
+                    
                 
-                # Get Color Values for vertices if they exist.
-                #                        # SFNode - color
-                bna[1].colorPerVertex  = self.processForColorNode(   dagNode, bna[1], geomName)
-                
-                # Get mesh coordinates
-                # SFNode coord
-                self.processForCoordNode(   dagNode, bna[1], geomName)
-                
-                # TODO: Future code for implementing 'fogCoord'
-                
-                # TODO: Future code for implementing 'metadata'
-                
-                # Get mesh normals per vertex if they exist
-                #                        # SFNode normal
-                bna[1].normalPerVertex = self.processForNormalNode(  dagNode, bna[1], geomName)
-                
+                ##### Set Crease Angle
+                if self.rkNormalOpts > 0 and self.rkNormalOpts < 4:
+                    bna[1].creaseAngle = self.rkCreaseAngle
+
+                ##### Set Norml Node, normalIndex, and normalPerVertex
+                if   self.rkNormalOpts == 0:
+                    # Though not technically required, set
+                    # normalPerVertex to True and then do nothing
+                    # more with normals because we are using
+                    # the default values for IndexedFaceSet nodes
+                    # where there is no other info required by the spec.
+                    bna[1].normalPerVertex = True
+                elif self.rkNormalOpts == 1 or self.rkNormalOpts == 3:
+                    # Normals Per Vertex Values
+                    bna[1].normalPerVertex = True
+                    self.processForNormalNode(myMesh, mIter, nodeName, "Normal", bna[1], idx=index)
+                else:
+                    # Normals Per Face Values
+                    bna[1].normalPerVertex = False
+                    self.processForNormalNode(myMesh, mIter, nodeName, "Normal", bna[1], npv=False, idx=index)
+
                 # Get mesh texture coordiantes if the mesh has textures.
                 #             # SFNode texCoord
-                hasTexCoord = self.processForTexCoordNode(dagNode, bna[1], geomName, place2d)
-                
-                # Get color index if we are doing colorPerVertex
-                if bna[1].colorPerVertex:
-                    bna[1].colorIndex  = self.getColorIndex( dagNode)
-                    
-                # Get mesh coordinate index
-                bna[1].coordIndex      = self.getCoordIndex( dagNode)
-                
-                # Get mesh normals per vertex
-                if bna[1].normalPerVertex:
-                    bna[1].normalIndex = self.getNormalIndex(dagNode)
-                    
-                # If not, then set the crease Angle to 180 degrees
-                else:
-                    bna[1].creaseAngle = 1.57
+                ####### hasTexCoord = self.processForTexCoordNode(dagNode, bna[1], geomName, place2d) #TODO: change place2d with texTrans
                 
                 # If textures exists for this mesh, then get texture coordiante index values
-                if hasTexCoord:
-                    bna[1].texCoordIndex = self.getTextureCoordIndex(dagNode)
+                ####### if hasTexCoord:
+                #######    bna[1].texCoordIndex = self.getTextureCoordIndex(dagNode)
 
-    def processForColorNode(self, dagNode, x3dParent, parentName, cField="color"):
-        mMesh = aom.MFnMesh(dagNode.object())
-        mca = mMesh.getVertexColors()
-        
-        nodeType = "Color"
-        
+
+    def processForColorNode(self, myMesh, mIter, nodeName, nodeType, x3dParent, cpv=True, cField="color", idx=0):
+        colorNodeName = nodeName + "_" + nodeType + "_" + str(idx)
+
         mColors = ()
+        mIndex = ()
+
+        mIter.reset()
         
-        for c in mca:
-            if (c.a + c.r + c.g + c.b) == -4:
-                return False
-            elif c.a >= 0 and c.a < 1:
-                nodeType = "ColorRGBA"
+        fCount = 0
+        while not mIter.isDone():
+            vCount = mIter.polygonVertexCount()
+            colorList = []
             
-        if nodeType == "Color":
-            for c in mca:
-                mColors = mColors + (c.r, c.g, c.b)
-        else:
-            for c in mca:
-                if c.a < 0:
-                    c.a = 0
-                mColors = mColors + (c.r, c.g, c.b, c.a)
+            for idx in range(vCount):
+                if mIter.hasColor(idx) == False:
+                    return
+                else:
+                    c = mIter.getColor(idx)
+                    colorList.append(c)
+            
+            if cpv == True:
+                for c in colorList:
+                    if nodeType == "Color":
+                        mColors.append((c.r, c.g, c.b))
+                    else:
+                        mColors.append((c.r, c.g, c.b, c.a))
+                    mIndex.append(fCount)
+                    fCount += 1
+                mIndex.append(-1)
+            else:
+                sc = aom.MColor()
+                for c in colorList:
+                    vr = sc.r + c.r
+                    vg = sc.g + c.g
+                    vb = sc.b + c.b
+                    va = sc.a + c.a
+                    sc.setColor(vr, vg, vb, va)
+                tr = sc.r / vCount
+                tg = sc.g / vCount
+                tb = sc.b / vCount
+                ta = sc.a / vCount
+                if nodeType == "Color":
+                    mColors.append((tr, tg, tb))
+                else:
+                    mColors.append((tr, tg, tb, ta))
+                mIndex.append(fCount)
+                fCount += 1
+
+            mIter.next()
+
+        x3dParent.colorIndex = mIndex
         
-        colorName = parentName + "_" + nodeType
-        bna = self.processBasicNodeAddition(dagNode, x3dParent, cField, nodeType, colorName)
-            
+        bna = self.processBasicNodeAddition(myMesh, x3dParent, cField, nodeType, colorNodeName)
         if bna[0] == False:
             # TODO: Future code for implementing 'metadata'
             
             # Assign color to the node.
             bna[1].color = mColors
             
-        return True
         
-    def processForCoordNode(self, dagNode, x3dParent, parentName, cField="coord"):
-        coordName = parentName + "_coord"
-        
-        bna = self.processBasicNodeAddition(dagNode, x3dParent, cField, "Coordinate", coordName)
-            
-        if bna[0] == False:
-            # TODO: Future code to handle metadata
-            
-            mMesh = aom.MFnMesh(dagNode.object())
-            mpa = mMesh.getPoints()
-            
-            for i in range(len(mpa)):
-                bna[1].point = bna[1].point + (mpa[i].x, mpa[i].y, mpa[i].z)
-            
-            
-        
-    def processForNormalNode(self, dagNode, x3dParent, parentName, cField="normal"):
-        mMesh = aom.MFnMesh(dagNode.object())
-        
-        normalName = parentName + "_normal"
-        
-        mcna = mMesh.getNormals()
+    def processForNormalNode(self, myMesh, mIter, nodeName, nodeType, x3dParent, npv=True, cField="normal", idx=0):
+        normalNodeName = nodeName + "_" + nodeType + "_" + str(idx)
 
-        bna = self.processBasicNodeAddition(dagNode, x3dParent, cField, "Normal", normalName)
-            
+        mNormal = ()
+        mIndex  = ()
+        
+        mIter.reset()
+
+        fCount = 0
+        
+        while not mIter.isDone():
+            if nvp == True:
+                tns = mIter.getNormals()
+                for tn in tns:
+                    mNormal.append(tn.x, tn.y, tn.z)
+                    mIndex.append(fCount)
+                    fCount += 1
+                mIndex.append(-1)
+            else:
+                tn = mIter.getNormal()
+                mNormal.append((tn.x, tn.y, tn.z))
+                mIndex.append(fCount)
+                fCount += 1
+                
+            mIter.next()
+
+        x3dParent.normalIndex = mIndex
+
+        bna = self.processBasicNodeAddition(myMesh, x3dParent, cField, "Normal", normalNodeName)
         if bna[0] == False:
             # TODO: Future code for implementing 'metadata'
             
-            # Assign color to the node.
-            for n in mcna:
-                bna[1].vector = bna[1].vector + (n.x, n.y, n.z)
+            # Assign MFVec3f to the node.
+            bna[1].vector = mNormal
             
-        return True
         
     def processForTexCoordNode(self, dagNode, x3dParent, parentName, subNode=0, cField="texCoord"):
         mMesh = aom.MFnMesh(dagNode.object())
@@ -1619,53 +1801,339 @@ class RKOrganizer():
         return textureList
         
     def processTexture(self, mApiType, mTextureNode, x3dParent, x3dField, getPlace2d=True):
+        
+        relativeTexPath = self.rkImagePath + "/"
+        fullWebTexPath  = self.rkBaseDomain + self.rkSubDir + relativeTexPath
+        localTexWrite   = self.activePrjDir + relativeTexPath
+        
         x3dNodeType = "PixelTexture"
         mPlace2d = None
         if getPlace2d:
-            self.getPlace2dFromMayaTexture(mTextureNode)
+            mPlace2d = self.getPlace2dFromMayaTexture(mTextureNode)
         
         if mApiType == rkfn.kTexture2d:
-            if textureNode.typeName == "file":
-                x3dNodeType = "ImageTexture"
-                x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
-                
-                #if tPlace2d[0] != None:
-                #    x3dParent.baseTextureMapping = tPlace2d[0].findPlug("x3dTextureMapping").asString()
-                if x3dTexture[0] == False:
-                    
-                    x3dTexture[1].url.append(mTextureNode.findPlug("fileTextureName").asString()) #TODO - set the file location relative to export location
-                    #repeat S            - TODO at a later date
-                    #repeat T            - TODO at a later date
-                    #TextureProperties   - TODO at a later date
+            if mTextureNode.typeName == "file":
+                if  self.rkFileTexNode == 0 or self.rkFileTexNode == 1:
+                    x3dNodeType = "ImageTexture"
+                    x3dURIData  = ""
 
-            elif textureNode.typeName == "movie":
-                x3dType = "MovieTexture"
-                x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
+                    x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
+                    if x3dTexture[0] == False:
+                        filePath = mTextureNode.findPlug("fileTextureName").asString()
+                        fileName = self.rkint.getFileName(filePath)
+                        fileExt  = os.path.splitext(fileName)[1]
+                        fileName = os.path.splitext(fileName)[0]
+                    
+                    if   self.rk2dFileFormat == 1:
+                        fileName = fileName + ".png"
+                        relativeTexPath = relativeTexPath + fileName
+                        fullWebTexPath  = fullWebTexPath  + fileName
+                        localTexWrite   = localTexWrite   + fileName
+                        
+                        self.rkint.fileFormatConvert(filePath, localTexWrite, 'png')
+                        
+                    elif self.rk2dFileFormat == 2:
+                        fileName = fileName + ".jpg"
+                        relativeTexPath = relativeTexPath + fileName
+                        fullWebTexPath  = fullWebTexPath  + fileName
+                        localTexWrite   = localTexWrite   + fileName
+                        
+                        self.rkint.fileFormatConvert(filePath, localTexWrite, 'jpg')
+                        
+                    elif self.rk2dFileFormat == 3:
+                        fileName = fileName + ".gif"
+                        relativeTexPath = relativeTexPath + fileName
+                        fullWebTexPath  = fullWebTexPath  + fileName
+                        localTexWrite   = localTexWrite   + fileName
+                        
+                        self.rkint.fileFormatConvert(filePath, localTexWrite, 'gif')
+                        
+                    elif self.rk2dFileFormat == 4:
+                        fileName = fileName + ".webp"
+                        relativeTexPath = relativeTexPath + fileName
+                        fullWebTexPath  = fullWebTexPath  + fileName
+                        localTexWrite   = localTexWrite   + fileName
+                        
+                        self.rkint.fileConvertToWebP(filePath, localTexWrite)
+                    else:
+                        fileName = fileName + fileExt
+                        relativeTexPath = relativeTexPath + fileName
+                        fullWebTexPath  = fullWebTexPath  + fileName
+
+                        if self.rk2dTexWrite == True:
+                            localTexWrite   = localTexWrite   + fileName
+                            self.rkint.copyFile(filePath, localTexWrite)
+                        else:
+                            localTexWrite = filePath
+
+                    # If the with DataURI option is selected, convert contents of movie file to a DataURI string.
+                    if self.rkFileTexNode == 1:
+                        x3dURIData = self.rkint.media2uri(localTexWrite)
+                        x3dTexture[1].url.append(x3dURIData)
+                    else:
+                        x3dTexture[1].url.append(relativeTexPath)
+                        x3dTexture[1].url.append(fullWebTexPath)
+                        
+                    if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
+                        x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU").asBool()
+                        x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV").asBool()
+
+                else:
+                    x3dNodeType = "PixelTexture"
+                    x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
+                    if x3dTexture[0] == False:
+                        x3dTexture[1].image = self.rkint.image2pixel(mTextureNode.object())
+
+                        if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
+                            x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU").asBool()
+                            x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV").asBool()
+
+            elif mTextureNode.typeName == "movie":
+                x3dNodeType = "MovieTexture"
+                x3dURIData  = ""
                 
-                #if tPlace2d[0] != None:
-                #    x3dParent.baseTextureMapping = tPlace2d[0].findPlug("x3dTextureMapping").asString()
+                x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
                 if x3dTexture[0] == False:
-                    #Texture URL
-                    x3dTexture[1].url.append(mTextureNode.findPlug("fileTextureName").asString()) #TODO - set the file location relative to export location
-                    #repeat S            - TODO at a later date
-                    #repeat T            - TODO at a later date
+                    filePath = mTextureNode.findPlug("fileTextureName").asString()
+                    fileName = self.rkint.getFileName(filePath)
+                    fileExt  = os.path.splitext(fileName)[1]
+                    fileName = os.path.splitext(fileName)[0]
+                    
+                    # inPath, outPath, newFormat
+                    if   self.rkMovFileFormat == 1:
+                        fileName = fileName + ".mp4"
+                        relativeTexPath = relativeTexPath + fileName
+                        fullWebTexPath  = fullWebTexPath  + fileName
+                        localTexWrite   = localTexWrite   + fileName
+                        self.rkint.movieFormatConvert(filePath, localTexWrite, "MP4")
+                        
+                    elif self.rkMovFileFormat == 2:
+                        fileName = fileName + ".mov"
+                        relativeTexPath = relativeTexPath + fileName
+                        fullWebTexPath  = fullWebTexPath  + fileName
+                        localTexWrite   = localTexWrite   + fileName
+                        self.rkint.movieFormatConvert(filePath, localTexWrite, "MOV")
+                        
+                    elif self.rkMovFileFormat == 3:
+                        fileName = fileName + ".ogg"
+                        relativeTexPath = relativeTexPath + fileName
+                        fullWebTexPath  = fullWebTexPath  + fileName
+                        localTexWrite   = localTexWrite   + fileName
+                        self.rkint.movieFormatConvert(filePath, localTexWrite, "OGG")
+                        
+                    elif self.rkMovFileFormat == 4:
+                        fileName = fileName + ".webm"
+                        relativeTexPath = relativeTexPath + fileName
+                        fullWebTexPath  = fullWebTexPath  + fileName
+                        localTexWrite   = localTexWrite   + fileName
+                        self.rkint.movieFormatConvert(filePath, localTexWrite, "WEBM")
+                        
+                    elif self.rkMovFileFormat == 5:
+                        fileName = fileName + ".avi"
+                        relativeTexPath = relativeTexPath + fileName
+                        fullWebTexPath  = fullWebTexPath  + fileName
+                        localTexWrite   = localTexWrite   + fileName
+                        self.rkint.movieFormatConvert(filePath, localTexWrite, "AVI")
+                        
+                    else:
+                        fileName        = fileName + fileExt
+                        relativeTexPath = relativeTexPath + fileName
+                        fullWebTexPath  = fullWebTexPath  + fileName
+                        
+                        if self.rkMovTexWrite == True:
+                            localTexWrite = localTexWrite + fileName
+                            self.rkint.copyFile(filePath, localTexWrite)
+                        else:
+                            localTexWrite = filePath
+
+                    # If the with DataURI option is selected, convert contents of movie file to a DataURI string.
+                    if self.rkMovieAsURI == True:
+                        x3dURIData = self.rkint.media2uri(localTexWrite)
+                        x3dTexture[1].url.append(x3dURIData)
+                    else:
+                        x3dTexture[1].url.append(relativeTexPath)
+                        x3dTexture[1].url.append(fullWebTexPath)
+                        
+                    if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
+                        x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU").asBool()
+                        x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV").asBool()
+
                     #TextureProperties   - TODO at a later date
                 
             else:
-                # Maya node to be processed as a static X3D PixelTexture
-                pass
-        elif mApiTypeType == rkfn.kLayeredTexture:
+                # If Maya Procedural Textures are to be Exported as an ImageTexture node with 
+                # a standard file path in the URL field or with a DataURI in the URL field.
+                if  self.rkProcTexNode == 0 or self.rkProcTexNode == 1:
+                    x3dNodeType = "ImageTexture"
+                    x3dURIData  = ""
+                    
+                    # Determine the actual filename before adding the file extension
+                    procFileName = mTextureNode.name()
+                    if   self.rk2dFileFormat == 4:
+                        # Set the file extention and the relative full path
+                        procTFileName   = procFileName + ".tif"
+                        procFileName    = procFileName + ".webp"
+                        
+                        relativeTexPath = relativeTexPath + procFileName
+                        fullWebTexPath  = fullWebTexPath + procFileName
+                        
+                        # Write the PNG file to disk if the export option of 
+                        # Consolidate Media - 2D Textures box is checked, or if
+                        # the Texture expor Option of ImageTexture with DataURI 
+                        # is selected
+                        if self.rk2dTexWrite == True or self.rkProcTexNode == 1:
+                            localTTexWrite = localTexWrite + procTFileName
+                            localTexWrite  = localTexWrite + procFileName
+                            
+                            # Texture Image file to disk in the Active Project's image directory as specified
+                            # by the 'Image Path' option - aka 'self.rkImagePath'.
+                            self.rkint.proc2file(mTextureNode.object(), localTTexWrite, 'tif')
+                            self.rkint.fileConvertToWebP(localTTexWrite, localTexWrite)
+                            
+                        
+                    elif self.rk2dFileFormat == 3:
+                        # Set the file extention and the relative full path
+                        procFileName    = procFileName + ".gif"
+                        relativeTexPath = relativeTexPath + procFileName
+                        fullWebTexPath  = fullWebTexPath + procFileName
+                        
+                        # Write the PNG file to disk if the export option of 
+                        # Consolidate Media - 2D Textures box is checked, or if
+                        # the Texture expor Option of ImageTexture with DataURI 
+                        # is selected
+                        if self.rk2dTexWrite == True or self.rkProcTexNode == 1:
+                            localTexWrite = localTexWrite + procFileName
+                            
+                            # Texture Image file to disk in the Active Project's image directory as specified
+                            # by the 'Image Path' option - aka 'self.rkImagePath'.
+                            self.rkint.proc2file(mTextureNode.object(), localTexWrite, 'gif')
+
+                    elif self.rk2dFileFormat == 2:
+                        # Set the file extention and the relative full path
+                        procFileName    = procFileName + ".jpg"
+                        relativeTexPath = relativeTexPath + procFileName
+                        fullWebTexPath  = fullWebTexPath + procFileName
+                        
+                        # Write the PNG file to disk if the export option of 
+                        # Consolidate Media - 2D Textures box is checked, or if
+                        # the Texture expor Option of ImageTexture with DataURI 
+                        # is selected
+                        if self.rk2dTexWrite == True or self.rkProcTexNode == 1:
+                            localTexWrite = localTexWrite + procFileName
+                            
+                            # Texture Image file to disk in the Active Project's image directory as specified
+                            # by the 'Image Path' option - aka 'self.rkImagePath'.
+                            self.rkint.proc2file(mTextureNode.object(), localTexWrite, 'jpg')
+
+                    else:
+                        # Set the file extention and the relative full path
+                        procFileName    = procFileName + ".png"
+                        relativeTexPath = relativeTexPath + procFileName
+                        fullWebTexPath  = fullWebTexPath + procFileName
+                        
+                        # Write the PNG file to disk if the export option of 
+                        # Consolidate Media - 2D Textures box is checked, or if
+                        # the Texture expor Option of ImageTexture with DataURI 
+                        # is selected
+                        if self.rk2dTexWrite == True or self.rkProcTexNode == 1:
+                            localTexWrite = localTexWrite + procFileName
+                            
+                            # Texture Image file to disk in the Active Project's image directory as specified
+                            # by the 'Image Path' option - aka 'self.rkImagePath'.
+                            self.rkint.proc2file(mTextureNode.object(), localTexWrite, 'png')
+                            
+                    # If the with DataURI option is selected, convert contents of image file to a DataURI string.
+                    if self.rkProcTexNode == 1:
+                        x3dURIData = self.rkint.media2uri(localTexWrite)
+                        
+                    x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
+                    if x3dTexture[0] == False:
+                        if x3dURIData == "":
+                            x3dTexture[1].url.append(relativeTexPath)
+                            x3dTexture[1].url.append(fullWebTexPath)
+                        else:
+                            x3dTexture[1].url.append(x3dURIData)
+                            
+                        if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
+                            x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU").asBool()
+                            x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV").asBool()
+
+
+                else:
+                    x3dNodeType = "PixelTexture"
+                    x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
+                    if x3dTexture[0] == False:
+                        x3dTexture[1].image = self.rkint.image2pixel(mTextureNode.object())
+
+                        if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
+                            x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU").asBool()
+                            x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV").asBool()
+                    
+
+        elif mApiTypeType == rkfn.kLayeredTexture:#TODO: MultiTexture
             x3dNodeType = "MultiTexture"
-            x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
             
-            #if tPlace2d[0] != None:
-            #    x3dParent.baseTextureMapping = tPlace2d[0].findPlug("x3dTextureMapping").asString()
-            if x3dTexture[0] == False:
-                textureList = self.getTexturesFromLayeredTexture(mTextureNode)
+            if   self.rkLayerTexNode == 0:
+                x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
                 
-                for sTexture in textureList:
-                    tPlace2d = processTexture(self, sTexture.object().apiType(), sTexture, x3dTexture[1], "texture", False) #TODO: Deal with the mapping
-                    #Toss tPlace2d
+                if x3dTexture[0] == False:
+                    textureList = self.getTexturesFromLayeredTexture(mTextureNode)
+                    
+                    for sTexture in textureList:
+                        #                             (mApiType,                mTextureNode,     x3dParent,  x3dField, getPlace2d=True)
+                        tPlace2d = self.processTexture(sTexture.object().apiType(), sTexture, x3dTexture[1], "texture", False)
+                        #Toss because tPlace2d is None
+                print("LayeredTexture isn't fully supported.\nRawKee developers suggest that LayeredTexture be exported as\nan ImageTexture or PixelTexture.")
+                print("However, a MultiTexture option is offered here if the author wants to hand-edit the node in a text editor.")
+                        
+            elif self.rkLayerTexNode == 1 or self.rkLayerTexNode == 2:
+                x3dNodeType = "ImageTexture"
+                
+                # Determine the actual filename before adding the file extension
+                layerFileName = mTextureNode.name()
+                
+                fileFormat = [ 'png',  'png',  'jpg',  'gif',  'webp']
+                fileExt    = ['.png', '.png', '.jpg', '.gif', '.webp']
+                
+                # Set the file extention and the relative full path
+                layerTFileName = layerFileName + ".tif"
+                layerFileName  = layerFileName + fileExt[self.rk2dFileFormat]
+                
+                relativeTexPath = relativeTexPath + layerFileName
+                fullWebTexPath  = fullWebTexPath  + layerFileName
+                
+                localTTexWrite = localTexWrite + procTFileName
+                localTexWrite  = localTexWrite + procFileName
+                
+                # Texture Image file to disk in the Active Project's image directory as specified
+                # by the 'Image Path' option - aka 'self.rkImagePath'.
+                self.rkint.proc2file(mTextureNode.object(), localTTexWrite, 'tif')
+                if self.rk2dFileFormat < 4:
+                    self.rkint.proc2file(mTextureNode.object(), localTexWrite, fileFormat[self.rk2dFileFormat])
+                else:
+                    self.rkint.fileConvertToWebP(localTTexWrite, localTexWrite)
+
+                # If the with DataURI option is selected, convert contents of movie file to a DataURI string.
+                if self.rkFileTexNode == 1:
+                    x3dURIData = self.rkint.media2uri(localTexWrite)
+                    x3dTexture[1].url.append(x3dURIData)
+                else:
+                    x3dTexture[1].url.append(relativeTexPath)
+                    x3dTexture[1].url.append(fullWebTexPath)
+                    
+                if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
+                    x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU").asBool()
+                    x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV").asBool()
+                        
+            else:
+                x3dNodeType = "PixelTexture"
+                x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
+                if x3dTexture[0] == False:
+                    x3dTexture[1].image = self.rkint.image2pixel(mTextureNode.object())
+
+                    if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
+                        x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU").asBool()
+                        x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV").asBool()
                 
         return mPlace2d
         

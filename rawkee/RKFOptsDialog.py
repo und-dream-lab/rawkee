@@ -224,6 +224,9 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.rkDefTexHeight    = cmds.optionVar( q='rkDefTexHeight'   )
         self.rkColorOpts       = cmds.optionVar( q='rkColorOpts'      )
         self.rkNormalOpts      = cmds.optionVar( q='rkNormalOpts'     )
+        
+        self.rkFrontLoadExt    = cmds.optionVar( q='rkFrontLoadExt'   )
+        
         self.rkExportMode      = cmds.optionVar( q='rkExportMode'     )
         
         self.rkCreaseAngle     = cmds.optionVar( q='rkCreaseAngle'    )
@@ -447,6 +450,25 @@ class RKFOptsDialog(QtWidgets.QDialog):
         layoutFourC.addWidget(self.movieURICheckBox)
         layoutFourC.addWidget(self.audioURICheckBox)
         layoutFourC.addStretch()
+        
+        # Option Four D
+        layoutFourD = QtWidgets.QHBoxLayout()
+        spacer4D = QtWidgets.QLabel(" ")
+        spacer4D.setAlignment(QtCore.Qt.AlignRight)
+        spacer4D.setFixedWidth(150)
+        spacer4D.setObjectName("RKOptPanel")
+
+        self.frontLoadURICheckBox = QtWidgets.QCheckBox("Front Load External Content")
+        self.frontLoadURICheckBox.setObjectName("RKOptPanel")
+        ###############################################################
+        # Set URL field value of node to a DataURI
+        self.frontLoadURICheckBox.setChecked(self.rkFrontLoadExt)
+        # Add change method here.
+        
+        layoutFourD.addWidget(spacer4D)
+        layoutFourD.addWidget(self.frontLoadURICheckBox)
+        layoutFourD.addStretch()
+        
         
         # Option Five
         layoutFive = QtWidgets.QHBoxLayout()
@@ -756,13 +778,13 @@ class RKFOptsDialog(QtWidgets.QDialog):
         
         # Option Sixteen
         layoutSixteen = QtWidgets.QHBoxLayout()
-        self.normalLabel = QtWidgets.QLabel("     Normal Options:")
+        self.normalLabel = QtWidgets.QLabel("Mesh Based Normal Options:")
         self.normalLabel.setAlignment(QtCore.Qt.AlignRight)
         self.normalLabel.setFixedWidth(250)
         self.normalLabel.setObjectName("RKOptPanel")
         
         self.normalOptions = QtWidgets.QComboBox()
-        self.normalOptions.addItems(["Map + Crease Angle + Per Vertex", "Map + Crease Angle", "Map + Per Vertex", "Map", "Crease Angle + Per Vertex", "Crease Angle", "Per Vertex"])
+        self.normalOptions.addItems(["Use Default X3D Field Values", "Use Per Vertex Info and Set Crease Angle", "Use Per Polygon Info and Set Crease Angle", "Only Set Crease Angle", "Use Only Per Vertex Info", "Use Only Per Polygon Info"])
         self.normalOptions.setFixedWidth(250)
         ###############################################################
         # Set the type of X3D Normal information exported by RawKee
@@ -803,13 +825,13 @@ class RKFOptsDialog(QtWidgets.QDialog):
         
         # Option Sixteen
         layoutSeventeen = QtWidgets.QHBoxLayout()
-        self.colorLabel = QtWidgets.QLabel("     Color Options:")
+        self.colorLabel = QtWidgets.QLabel("Mesh Color Per Vertex Options:")
         self.colorLabel.setAlignment(QtCore.Qt.AlignRight)
         self.colorLabel.setFixedWidth(250)
         self.colorLabel.setObjectName("RKOptPanel")
         
         self.colorOptions = QtWidgets.QComboBox()
-        self.colorOptions.addItems(["Textures + Per Vertex", "Textures", "Per Vertex"])
+        self.colorOptions.addItems(["Use Default X3D Field Values", "Color Node for CP-Vertex", "ColorRGBA Node for CP-Vertex", "Color Node for CP-Face", "ColorRGBA Node for CP-Face"])
         self.colorOptions.setFixedWidth(250)
         ###############################################################
         # Set the type of X3D Color information exported by RawKee
@@ -872,6 +894,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         layout.addLayout(layoutFour)
         layout.addLayout(layoutFourB)
         layout.addLayout(layoutFourC)
+        layout.addLayout(layoutFourD)
         layout.addLayout(layoutSix)
         
         layout.addLayout(convLayout)
@@ -1012,7 +1035,9 @@ class RKFOptsDialog(QtWidgets.QDialog):
         cmds.optionVar( iv=('rkColorOpts',       self.colorOptions.currentIndex()           ))
         cmds.optionVar( iv=('rkNormalOpts',      self.normalOptions.currentIndex()          ))
         
-        cmds.optionVar( fv=('rkCreaseAngle',     float(self.creaseAngle.text())))
+        cmds.optionVar( iv=('rkFrontLoadExt',    self.frontLoadURICheckBox.isChecked()      ))
+        
+        cmds.optionVar( fv=('rkCreaseAngle',     float(self.creaseAngle.text())             ))
         
     def exportX3D(self):
         #print("X3D Exported!") TODO

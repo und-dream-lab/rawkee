@@ -21,6 +21,8 @@ import PIL as pil
 
 import maya.api.OpenMaya as aom
 
+import ntpath
+
 #Python implementation of C++ web3dExportMethods
 
 X3D_TRANS:     Final[str] = "transform"
@@ -318,21 +320,22 @@ class RKInterfaces():
                 media.filter('scale', nW, nH).output(outpath, vcodec='mpeg4',      acodec='alac'      ).run()
             elif newFormat == "OGG":
                 media.filter('scale', nW, nH).output(outPath, vcodec='libtheora',  acodec='libvorbis' ).run()
-            elif newFormat == "WebM":
+            elif newFormat == "WEBM":
                 media.filter('scale', nW, nH).output(outPath, vcodec='libvpx-vp9', acodec='libopus'   ).run()
             elif newFormat == "AVI":
                 media.filter('scale', nW, nH).output(outPath, vcodec='libxvid',    acodec='pcm_s16le' ).run()
                 
         except:
-            return False
+            pass
+            #return False
             
-        return True
+        #return True
 
     
-    def image2pixel(self, fileNode):
+    def image2pixel(self, fileNodeObj):
         pixelData = ()
         
-        fImage = aom.MImage.readFromTextureNode(fileNode)
+        fImage = aom.MImage.readFromTextureNode(fileNodeObj)
         w, h = fImage.getSize()
 
         rkAdjTexSize   = cmds.optionVar( q='rkAdjTexSize'  )
@@ -383,7 +386,22 @@ class RKInterfaces():
                 
         return dataURI
 
-
+    def copyFile(self, inPath, outPath):
+        try:
+            with open(inPath, 'rb') as inFile, open(outPath, 'wb') as outFile:
+                while True:
+                    chunk = inFile.read(4096)
+                    if not chunk:
+                        break
+                    outFile.write(chunk)
+        except FileNotFoundError:
+            print("Input File not Found.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+        
+    def getFileName(self, inPath):
+        head, tail = ntpath.split(inPath)
+        return tail
 
 
 

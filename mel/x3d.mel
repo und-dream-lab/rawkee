@@ -296,6 +296,12 @@ global proc setDefRKOptVars()
 		optionVar -iv rkNormalOpts 0;
 	}
 
+	if(`optionVar -exists "rkFrontLoadExt"`){
+	}else{
+    //bool
+		optionVar -iv rkFrontLoadExt 0;
+	}
+
 	if(`optionVar -exists "rkExportMode"`){
 	}else{
     //bool
