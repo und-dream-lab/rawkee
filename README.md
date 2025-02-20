@@ -36,6 +36,7 @@ Some of the packages listed may require a pip install regarless of what the list
 - mimetypes
 - ctypes
 - ntpath
+- json 
 
 <!--
 ### Steps:
