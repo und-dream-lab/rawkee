@@ -526,7 +526,8 @@ class RKIO():
         if isinstance(nodeField, list):
             nodeField.append(x3dNode)
         else:
-            nodeField = x3dNode
+            setattr(x3dParentNode, x3dFieldName, x3dNode)
+#            nodeField = x3dNode
             
     def createNodeFromString(self, x3dType):
         x3dNodeMapping = {
