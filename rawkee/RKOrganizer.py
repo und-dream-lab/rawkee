@@ -505,7 +505,7 @@ class RKOrganizer():
         
         # X3D description - must be addedmanually by the user if camera node not created through the RawKee GUI
         try:
-            x3dNode.description = dagNode.findPlug("x3dDescription").asString()
+            x3dNode.description = dagNode.findPlug("x3dDescription", False).asString()
         except:
             self.rkio.cMessage("No 'description' X3D Field Found")
         
@@ -914,22 +914,28 @@ class RKOrganizer():
         if nodeName == None:
             nodeName = depNode.name()
         tNode = self.rkio.createNodeFromString(x3dType)
+        print(tNode)
         
         hasBeen = self.rkio.checkIfHasBeen(nodeName)
         if hasBeen == True:
-            self.rkio.useDecl(tNode, nodeName, x3dParentNode, x3dFieldName)
+            #self.rkio.useDecl(tNode, nodeName, x3dParentNode, x3dFieldName)
+            tNode.USE = nodeName
         else:
             tNode.DEF = nodeName
             self.rkio.setAsHasBeen(nodeName, tNode)
-            nodeField = getattr(x3dParentNode, x3dFieldName)
-            if isinstance(nodeField, list):
-                self.rkio.cMessage(x3dFieldName)
-                nodeField.append(tNode)
-            else:
-                self.rkio.cMessage("Not a list")
-                self.rkio.cMessage(x3dFieldName)
-                nodeField = tNode
             
+        nodeField = getattr(x3dParentNode, x3dFieldName)
+        if isinstance(nodeField, list):
+            self.rkio.cMessage(x3dFieldName)
+            nodeField.append(tNode)
+        else:
+            setattr(x3dParentNode, x3dFieldName, tNode)
+#                print("working here")
+#                self.rkio.cMessage("Not a list")
+#                self.rkio.cMessage(x3dFieldName)
+#                print(nodeField)
+#                nodeField = tNode
+#                print(nodeField)
         return [hasBeen, tNode]
     
     def getX3DParentAndContainerField(self, dagNode, dragPath=None):
@@ -1136,15 +1142,15 @@ class RKOrganizer():
                 return
             else:
                 bbSize = []
-                bbSize.append(dagNode.findPlug(boundingBoxSizeX).asFloat())
-                bbSize.append(dagNode.findPlug(boundingBoxSizeY).asFloat())
-                bbSize.append(dagNode.findPlug(boundingBoxSizeZ).asFloat())
+                bbSize.append(dagNode.findPlug("boundingBoxSizeX", False).asFloat())
+                bbSize.append(dagNode.findPlug("boundingBoxSizeY", False).asFloat())
+                bbSize.append(dagNode.findPlug("boundingBoxSizeZ", False).asFloat())
                 
-                tCenter = dagNode.findPlug(center)
+                tCenter = dagNode.findPlug("center", False)
                 cen = []
-                cen.append(tCenter[0].asFloat())
-                cen.append(tCenter[1].asFloat())
-                cen.append(tCenter[2].asFloat())
+                cen.append(tCenter.child(0).asFloat())
+                cen.append(tCenter.child(1).asFloat())
+                cen.append(tCenter.child(2).asFloat())
                 
                 bna[1].bboxCenter = self.rkint.getSFVec3fFromList(cen)
                 bna[1].bboxSize   = self.rkint.getSFVec3fFromList(bbSize)
@@ -1169,15 +1175,15 @@ class RKOrganizer():
                 # I suppose someone who feels the need to change this can probaby figure out the bounding box info 
                 # for each Shape node from the Maya mesh node data. TODO
                 bbSize = []
-                bbSize.append(dagNode.findPlug(boundingBoxSizeX).asFloat())
-                bbSize.append(dagNode.findPlug(boundingBoxSizeY).asFloat())
-                bbSize.append(dagNode.findPlug(boundingBoxSizeZ).asFloat())
+                bbSize.append(dagNode.findPlug("boundingBoxSizeX", False).asFloat())
+                bbSize.append(dagNode.findPlug("boundingBoxSizeY", False).asFloat())
+                bbSize.append(dagNode.findPlug("boundingBoxSizeZ", False).asFloat())
                 
-                tCenter = dagNode.findPlug(center)
+                tCenter = dagNode.findPlug("center", False)
                 cen = []
-                cen.append(tCenter[0].asFloat())
-                cen.append(tCenter[1].asFloat())
-                cen.append(tCenter[2].asFloat())
+                cen.append(tCenter.child(0).asFloat())
+                cen.append(tCenter.child(1).asFloat())
+                cen.append(tCenter.child(2).asFloat())
                 
                 sbna[1].bboxCenter = self.rkint.getSFVec3fFromList(cen)
                 sbna[1].bboxSize   = self.rkint.getSFVec3fFromList(bbSize)
@@ -1199,28 +1205,129 @@ class RKOrganizer():
             comp    = components[i]
             
             depNode = aom.MFnDependencyNode(shader)
-            matNode = aom.MFnDependencyNode(depNode.findPlug("surfaceShader").source().node())
+            matNode = aom.MFnDependencyNode(depNode.findPlug("surfaceShader", True).source().node())
 
             usedUVSets, texNodes  = self.getUsedUVSetsAndTexturesInOrder(mesh, shader)
             
             mapInt  = 0
-            mapStr  = '{"shaderName":"' + depNode + '",'
+            mapStr  = '{"shaderName":"' + depNode.name() + '",'
             mapStr += '"mappings":['
             
-            if   matNode.typeName == "phong":
-                pass
-            elif matNode.typeName == "phongE":
-                pass
-            elif matNode.typeName == "blinn":
-                pass
-            elif matNode.typeName == "lambert":
-                pass
+            if   matNode.typeName == "phong" or matNode.typeName == "phongE" or matNode.typeName == "blinn" or matNode.typeName == "lambert":
+                matAmbientColor  = matNode.findPlug("ambientColor", True)                 # ambientTexture
+                matColor         = matNode.findPlug("color", True)                        # diffuseTexture
+                matIncandescence = matNode.findPlug("incandescence", True)                # emissiveTexture
+                matNormalCamera  = matNode.findPlug("normalCamera", True)                 # normalTexture
+                
+                matReflectedColor = None
+                matSpecularColor  = None
+                matWhiteness      = None
+                
+                if matNode.typeName != "lambert":
+                    matReflectedColor = matNode.findPlug("reflectedColor", True)          # occlusionTexture
+                    matSpecularColor  = matNode.findPlug("specularColor", True)           # specularTexture
+                    if  matNode.typeName == "phongE":
+                        matWhiteness  = matNode.findPlug("whiteness", True)               # shininessTexture
+                    else:
+                        matWhiteness  = matNode.findPlug("reflectedColor", True)          # shininessTexture
+                
+                ambientTexture   = None
+                diffuseTexture   = None
+                emissiveTexture  = None
+                normalTexture    = None
+                occlusionTexture = None
+                specularTexture  = None
+                shininessTexture = None
+        
+                # ambientTextureMapping
+                chkObject = matAmbientColor.source().node()
+                ambientTexture = aom.MFnDependencyNode(chkObject)
+                if ambientTexture != None and (chkObject.apiType() == rkfn.kTexture2d or chkObject.apiType() == rkfn.kLayeredTexture):
+                    p2dTT = self.getPlace2dFromMayaTexture(ambientTexture)
+                    mIdx  = self.extractSetTexMatch(ambientTexture, texNodes)
+                    mapStr += '{"fieldName":"ambientTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                    mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                    mapInt +=1
+                
+                chkObject = matColor.source().node()
+                diffuseTexture = aom.MFnDependencyNode(chkObject)
+                if diffuseTexture != None and (chkObject.apiType() == rkfn.kTexture2d or chkObject.apiType() == rkfn.kLayeredTexture):
+                    p2dTT = self.getPlace2dFromMayaTexture(diffuseTexture)
+                    mIdx  = self.extractSetTexMatch(diffuseTexture, texNodes)
+                    if mapInt > 0:
+                        mapStr += ','
+                    mapStr += '{"fieldName":"diffuseTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                    mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                    mapInt +=1
+                
+                chkObject = matIncandescence.source().node()
+                emissiveTexture = aom.MFnDependencyNode(chkObject)
+                if emissiveTexture != None and (chkObject.apiType() == rkfn.kTexture2d or chkObject.apiType() == rkfn.kLayeredTexture):
+                    p2dTT = self.getPlace2dFromMayaTexture(emissiveTexture)
+                    mIdx  = self.extractSetTexMatch(emissiveTexture, texNodes)
+                    if mapInt > 0:
+                        mapStr += ','
+                    mapStr += '{"fieldName":"emissiveTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                    mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                    mapInt +=1
+                
+                chkObject = matNormalCamera.source().node()
+                aBump2d = aom.MFnDependencyNode(chkObject)
+                if aBump2d != None and aBump2d.typeName == "bump2d":
+                    chkObject = aBump2d.findPlug("bumpValue", True).source().node()
+                    normalTexture = aom.MFnDependencyNode(chkObject)
+                    if normalTexture != None and (chkObject.apiType() == rkfn.kTexture2d or chkObject.apiType() == rkfn.kLayeredTexture):
+                        p2dTT = self.getPlace2dFromMayaTexture(normalTexture)
+                        mIdx  = self.extractSetTexMatch(normalTexture, texNodes)
+                        if mapInt > 0:
+                            mapStr += ','
+                        mapStr += '{"fieldName":"normalTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                        mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                        mapInt +=1
+                    
+                if matReflectedColor:
+                    chkObject = matReflectedColor.source().node()
+                    occlusionTexture = aom.MFnDependencyNode(chkObject)
+                    if occlusionTexture != None and (chkObject.apiType() == rkfn.kTexture2d or chkObject.apiType() == rkfn.kLayeredTexture):
+                        p2dTT = self.getPlace2dFromMayaTexture(occlusionTexture)
+                        mIdx  = self.extractSetTexMatch(occlusionTexture, texNodes)
+                        if mapInt > 0:
+                            mapStr += ','
+                        mapStr += '{"fieldName":"occlusionTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                        mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                        mapInt +=1
+                    
+                if matWhiteness:
+                    chkObject = matWhiteness.source().node()
+                    shininessTexture = aom.MFnDependencyNode(chkObject)
+                    if shininessTexture != None and (chkObject.apiType() == rkfn.kTexture2d or chkObject.apiType() == rkfn.kLayeredTexture):
+                        p2dTT = self.getPlace2dFromMayaTexture(shininessTexture)
+                        mIdx  = self.extractSetTexMatch(shininessTexture, texNodes)
+                        if mapInt > 0:
+                            mapStr += ','
+                        mapStr += '{"fieldName":"shininessTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                        mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                        mapInt +=1
+
+                if matSpecularColor:
+                    chkObject = matSpecularColor.source().node()
+                    specularTexture = aom.MFnDependencyNode(chkObject)
+                    if specularTexture != None and (chkObject.apiType() == rkfn.kTexture2d or chkObject.apiType() == rkfn.kLayeredTexture):
+                        p2dTT = self.getPlace2dFromMayaTexture(specularTexture)
+                        mIdx  = self.extractSetTexMatch(specularTexture, texNodes)
+                        if mapInt > 0:
+                            mapStr += ','
+                        mapStr += '{"fieldName":"specularTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                        mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                        mapInt +=1
+                    
             elif matNode.typeName == "aiStandardSurface":
-                aiBaseColor  = matNode.findPlug("baseColor")
-                aiMetalness  = matNode.findPlug("metalness")
-                aiRoughness  = matNode.findPlug("specularRoughness")
-                aiNormalCam  = matNode.findPlug("normalCamera")
-                aiEmisWeight = matNode.findPlug("emission")
+                aiBase       = matNode.findPlug("base", True)
+                aiBaseColor  = matNode.findPlug("baseColor", True)
+                aiMetalness  = matNode.findPlug("metalness", True)
+                aiRoughness  = matNode.findPlug("specularRoughness", True)
+                aiNormalCam  = matNode.findPlug("normalCamera", True)
+                aiEmisWeight = matNode.findPlug("emission", True)
 
                 baseTexture = None
                 occlTexture = None
@@ -1230,92 +1337,133 @@ class RKOrganizer():
                 emisTexture = None
                 
                 checkNode = aom.MFnDependencyNode(aiBaseColor.source().node())
-                if checkNode != None and checkNode.typeName == "aiMultiply":
-                    # baseTextureMapping
-                    baseTexture = aom.MFnDependencyNode(checkNode.findPlug("input1").source().node())
-                    if baseTexture != None:
-                        p2dTT = self.getPlace2dFromMayaTexture(baseTexture)
-                        mIdx  = self.extractSetTexMatch(baseTexture, texNodes)
-                        mapStr += '{"fieldName":"baseTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping").asString() + '",'
-                        mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
-                        mapInt +=1
-                    # occlusionTextureMapping
-                    occlTexture = aom.MFnDependencyNode(checkNode.findPlug("input2R").source().node())
-                    if occlTexture != None:
-                        p2dTT = self.getPlace2dFromMayaTexture(occlTexture)
-                        mIdx  = self.extractSetTexMatch(occlTexture, texNodes)
+                if checkNode != None:
+                    if checkNode.typeName == "aiMultiply":
+                        # baseTextureMapping
+                        baseTexture = aom.MFnDependencyNode(checkNode.findPlug("input1", True).source().node())
+                        if baseTexture != None:
+                            p2dTT = self.getPlace2dFromMayaTexture(baseTexture)
+                            mIdx  = self.extractSetTexMatch(baseTexture, texNodes)
+                            mapStr += '{"fieldName":"baseTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
+                        # occlusionTextureMapping
+                        occlTexture = aom.MFnDependencyNode(checkNode.findPlug("input2R", True).source().node())
+                        if occlTexture != None:
+                            p2dTT = self.getPlace2dFromMayaTexture(occlTexture)
+                            mIdx  = self.extractSetTexMatch(occlTexture, texNodes)
 
-                        if mapInt > 0:
-                            mapStr += ','
-                        mapStr += '{"fieldName":"occlusionTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping").asString() + '",'
-                        mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
-                        mapInt +=1
-                    
-                    # metallicRoughnessTextureMapping
-                    metlTexture = aom.MFnDependencyNode(aiMetalness.source().node())
-                    rougTexture = aom.MFnDependencyNode(aiRoughness.source().node())
-                    useOccl = False
-                    if metlTexture !=None and occlTexture !=None and metlTexture.name() == occlTexture.name():
-                        useOccl = True
-                    elif rougTexture !=None and occlTexture !=None and rougTexture.name() == occlTexture.name():
-                        useOccl = True
+                            if mapInt > 0:
+                                mapStr += ','
+                            mapStr += '{"fieldName":"occlusionTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
                         
-                    if useOccl:
-                        p2dTT = self.getPlace2dFromMayaTexture(occlTexture)
-                        mIdx  = self.extractSetTexMatch(occlTexture, texNodes)
+                        # metallicRoughnessTextureMapping
+                        metlTexture = aom.MFnDependencyNode(aiMetalness.source().node())
+                        rougTexture = aom.MFnDependencyNode(aiRoughness.source().node())
+                        useOccl = False
+                        if metlTexture !=None and occlTexture !=None and metlTexture.name() == occlTexture.name():
+                            useOccl = True
+                        elif rougTexture !=None and occlTexture !=None and rougTexture.name() == occlTexture.name():
+                            useOccl = True
+                            
+                        if useOccl:
+                            p2dTT = self.getPlace2dFromMayaTexture(occlTexture)
+                            mIdx  = self.extractSetTexMatch(occlTexture, texNodes)
 
-                        if mapInt > 0:
-                            mapStr += ','
-                        mapStr += '{"fieldName":"metallicRoughnessTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping").asString() + '",'
-                        mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
-                        mapInt +=1
-                    elif metlTexture != None:
-                        p2dTT = self.getPlace2dFromMayaTexture(metlTexture)
-                        mIdx  = self.extractSetTexMatch(metlTexture, texNodes)
+                            if mapInt > 0:
+                                mapStr += ','
+                            mapStr += '{"fieldName":"metallicRoughnessTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
+                        elif metlTexture != None:
+                            p2dTT = self.getPlace2dFromMayaTexture(metlTexture)
+                            mIdx  = self.extractSetTexMatch(metlTexture, texNodes)
 
-                        if mapInt > 0:
-                            mapStr += ','
-                        mapStr += '{"fieldName":"metallicRoughnessTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping").asString() + '",'
-                        mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
-                        mapInt +=1
+                            if mapInt > 0:
+                                mapStr += ','
+                            mapStr += '{"fieldName":"metallicRoughnessTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
 
-                    elif rougTexture != None:
-                        p2dTT = self.getPlace2dFromMayaTexture(rougTexture)
-                        mIdx  = self.extractSetTexMatch(rougTexture, texNodes)
+                        elif rougTexture != None:
+                            p2dTT = self.getPlace2dFromMayaTexture(rougTexture)
+                            mIdx  = self.extractSetTexMatch(rougTexture, texNodes)
 
-                        if mapInt > 0:
-                            mapStr += ','
-                        mapStr += '{"fieldName":"metallicRoughnessTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping").asString() + '",'
-                        mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
-                        mapInt +=1
+                            if mapInt > 0:
+                                mapStr += ','
+                            mapStr += '{"fieldName":"metallicRoughnessTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
 
-                bump2d = aom.MFnDependencyNode(aiNormalCam.source().node())
-                if bum2d != None and bump2d.typeName == "bump2d":
-                    # normalTextureMapping
-                    normTexture = aom.MFnDependencyNode(bump2d.findPlug("bumpValue").source().node())
-                    if normTexture != None:
-                        p2dTT = self.getPlace2dFromMayaTexture(normTexture)
-                        mIdx  = self.extractSetTexMatch(normTexture, texNodes)
+                        # normalTextureMapping
+                        bump2d = aom.MFnDependencyNode(aiNormalCam.source().node())
+                        if bum2d != None and bump2d.typeName == "bump2d":
+                            normTexture = aom.MFnDependencyNode(bump2d.findPlug("bumpValue", True).source().node())
+                            if normTexture != None:
+                                p2dTT = self.getPlace2dFromMayaTexture(normTexture)
+                                mIdx  = self.extractSetTexMatch(normTexture, texNodes)
 
-                        if mapInt > 0:
-                            mapStr += ','
-                        mapStr += '{"fieldName":"normalTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping").asString() + '",'
-                        mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
-                        mapInt +=1
+                                if mapInt > 0:
+                                    mapStr += ','
+                                mapStr += '{"fieldName":"normalTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                                mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                                mapInt +=1
 
-                                        
-                # emissiveTextureMapping
-                emisTexture = aom.MFnDependencyNode(aiEmisColor.source().node())
-                if emisTexture != None:
-                    p2dTT = self.getPlace2dFromMayaTexture(emisTexture)
-                    mIdx  = self.extractSetTexMatch(emisTexture, texNodes)
+                                                
+                        # emissiveTextureMapping
+                        emisTexture = aom.MFnDependencyNode(aiEmisColor.source().node())
+                        if emisTexture != None:
+                            p2dTT = self.getPlace2dFromMayaTexture(emisTexture)
+                            mIdx  = self.extractSetTexMatch(emisTexture, texNodes)
 
-                    if mapInt > 0:
-                        mapStr += ','
-                    mapStr += '{"fieldName":"emissiveTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping").asString() + '",'
-                    mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
-                    mapInt +=1
+                            if mapInt > 0:
+                                mapStr += ','
+                            mapStr += '{"fieldName":"emissiveTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
+                    else:
+                        # baseTextureMapping
+                        baseTexture = aom.MFnDependencyNode(aiBaseColor.source().node())
+                        if baseTexture != None:
+                            p2dTT = self.getPlace2dFromMayaTexture(baseTexture)
+                            mIdx  = self.extractSetTexMatch(baseTexture, texNodes)
+                            mapStr += '{"fieldName":"baseTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
+                        # occlusionTextureMapping and metallicRoughnessTextureMapping
+                        omrTexture = aom.MFnDependencyNode(aiBase.source().node())
+                        if omrTexture != None:
+                            p2dTT = self.getPlace2dFromMayaTexture(omrTexture)
+                            mIdx  = self.extractSetTexMatch(omrTexture, texNodes)
 
+                            if mapInt > 0:
+                                mapStr += ','
+                            mapStr += '{"fieldName":"occlusionTextureMapping","mapName":"'              + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
+                        
+                            mapStr += ',{"fieldName":"metallicRoughnessTextureMapping","mapName":"'     + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
+
+                        # normalTextureMapping
+                        bump2d = aom.MFnDependencyNode(aiNormalCam.source().node())
+                        if bum2d != None and bump2d.typeName == "bump2d":
+                            normTexture = aom.MFnDependencyNode(bump2d.findPlug("bumpValue", True).source().node())
+                            if normTexture != None:
+                                p2dTT = self.getPlace2dFromMayaTexture(normTexture)
+                                mIdx  = self.extractSetTexMatch(normTexture, texNodes)
+
+                                if mapInt > 0:
+                                    mapStr += ','
+                                mapStr += '{"fieldName":"normalTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                                mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                                mapInt +=1
+
+                                                
+                        
             elif matNode.typeName == "standardSurface":
                 pass
             elif matNode.typeName == "usdPreviewSurface":
@@ -1330,27 +1478,39 @@ class RKOrganizer():
             mappings[i] = mapStr
             
         # Apply mappings to components
-        lNames = []
-        sNames = []
-        dTypes = []
+        strList = []
+        lName = "jsonTextureMappings_"
+        sName = "jtm_"
         tIdx   = self.newTemplateId(mesh)
         faceIDs = []
         
+        
         for j in range(len(mappings)):
-            lNames.append(depNode.name() + '_longMapping_' + str(j))
-            sNames.append(depNode.name() + '_mapping_'     + str(j))
-            dTypes.append("string")
-        mesh.createBlindDataType(iIdx, lNames, sNames, dTypes)
+            tStrList = []
+            tStrList.append(lName + str(j))
+            tStrList.append(sName + str(j))
+            tStrList.append("string")
+            tTuple = (tStrList)
+            strList.append(tTuple)
+        mesh.createBlindDataType(tIdx, strList)
+        
+        
+        #mesh.createBlindDataType(iIdx, (lName, sName, dType))
         
         for j in range(len(components)):
-            mpIter = aom.MItMeshPolygon(mesh.dagPath(), components[j])
+            msList = aom.MSelectionList()
+            msList.add(mesh.name())
+            tDagPath = msList.getDagPath(0)
+            
+            mpIter = aom.MItMeshPolygon(tDagPath, components[j])
+#            mpIter = aom.MItMeshPolygon(mesh.dagPath(), components[j])
             faceIDs.clear()
             
             while not mpIter.isDone():
                 faceIDs.append(mpIter.index())
                 mpIter.next()
             
-            mesh.setStringBlindData(faceIDs, aom.MFn.kMeshPolygonComponent, tIdx, lNames[j], mappings[j])
+            mesh.setStringBlindData(faceIDs, aom.MFn.kMeshPolygonComponent, tIdx, lName + str(j), mappings[j])
             
         return tIdx
     
@@ -1364,18 +1524,21 @@ class RKOrganizer():
     def processForAppearance(self, myMesh, shadingEngineObj, component, parentNode, bdID, cField="appearance", index=0):
         texTrans = []
         depNode = aom.MFnDependencyNode(shadingEngineObj)
-        faceIDs, mapJSON = myMesh.getStringBindData(aom.MFn.kMeshPolygonComponent, bdID, depNode.name() + "_mapping_" + str(index))
+        faceIDs, mapJSON = myMesh.getStringBlindData(aom.MFn.kMeshPolygonComponent, bdID, "jsonTextureMappings_" + str(index))
         mappings = json.loads(mapJSON[0])
 
+        print("Before Appearance")
         # Create an Appearance Node using the name of the Shader Engine node.
         bna = self.processBasicNodeAddition(depNode, parentNode, cField, "Appearance")
         if bna[0] == False:
+            print("After Appearance")
             # Lists for tracking Maya texture nodes and place2dTexture* nodes - (*equivelent to X3D TextureTransform node)
             mTextureNodes        = []
+            mTextureFields       = []
             retPlace2d           = []
 
             x3dAppearance = bna[1]
-            matNode = aom.MFnDependencyNode(depNode.findPlug("surfaceShader").source().node())
+            matNode = aom.MFnDependencyNode(depNode.findPlug("surfaceShader", True).source().node())
             
             ##########################################################################################
             # *** Use normal maps designed for OpenGL. Do NOT use normal maps designed for Direct X. #
@@ -1383,9 +1546,143 @@ class RKOrganizer():
             # This gets exported as an X3D Material node. Yawn... this is boring.
             #############################################################################################
             if   matNode.typeName == "phong" or matNode.typeName == "phongE" or matNode.typeName == "blinn" or matNode.typeName == "lambert":
-                x3dMat = self.processBasicNodeAddition(matNode, x3dApperance, "material", "Material")
+                x3dMat = self.processBasicNodeAddition(matNode, x3dAppearance, "material", "Material")
                 if x3dMat[0] == False:
-                    pass
+                    material = x3dMat[1]
+                    retPlace2d.clear()
+                    
+                    ambientIntensity = matNode.findPlug("diffuse", False)
+                    ambientTexture   = matNode.findPlug("ambientColor", True)
+                    diffuseColor     = matNode.findPlug("color", False)
+                    diffuseTexture   = matNode.findPlug("color", True)
+                    emissiveColor    = matNode.findPlug("incandescence", False)
+                    emissiveTexture  = matNode.findPlug("incandescence", True)
+                    
+                    nScaleSet = False
+                    normalScale = None
+                    if   matNode.typeName == "phongE":
+                        normalScale   = matNode.findPlug("roughness", True)
+                        nScaleSet = True
+                    elif matNode.typeName == "blinn":
+                        normalScale   = matNode.findPlug("eccentricity", True)
+                        nScaleSet = True
+                    aBump2d           = matNode.findPlug("normalCamera", True)
+                    
+                    occlIsSet = False
+                    occlusionStrength = None
+                    occlusionTexture  = None
+                    specularColor     = None
+                    specularTexture   = None
+                    specIsSet = False
+                    
+                    if   matNode.typeName != "lambert":
+                        occlusionStrength = matNode.findPlug("reflectivity", False)
+                        occlusionTexture  = matNode.findPlug("reflectedColor", True)
+                        occlIsSet = True
+                        specularColor     = matNode.findPlug("specularColor", False)
+                        specularTexture   = matNode.findPlug("specularColor", True)
+                        specIsSet = True
+                    
+                    shineIsSet        = False
+                    isCosPower        = False
+                    shininess         = None
+                    shininessTexture  = None
+                    if   matNode.typeName == "phong":
+                        shininess        = matNode.findPlug("cosinePower", False)
+                        shininessTexture = matNode.findPlug("reflectedColor", True)
+                        isCosPower = True
+                        shineIsSet = True
+                    elif matNode.typeName == "phongE":
+                        shininess        = matNode.findPlug("highlightSize", False)
+                        shininessTexture = matNode.findPlug("whiteness", True)
+                        shineIsSet = True
+                    elif matNode.typeName == "blinn":
+                        shininess        = matNode.findPlug("specularRollOff", False)
+                        shininessTexture = matNode.findPlug("reflectedColor", True)
+                        shineIsSet = True
+                    
+                    transparency         = matNode.findPlug("transparency", False)
+                    
+                    
+                    material.ambientIntensity = ambientIntensity.asFloat()
+                    
+                    ambTex = ambientTexture.source().node()
+                    if not ambTex.isNull() and (ambTex.apiType() == rkfn.kTexture2d or ambTex.apiType() == rkfn.kLayeredTexture):
+                        mTextureNodes.append(aom.MFnDependencyNode(ambTex))
+                        mTextureFields.append("ambientTexture")
+                        retPlace2d.append(None)
+                    
+                    diffTex = diffuseTexture.source().node()
+                    if not diffTex.isNull() and (diffTex.apiType() == rkfn.kTexture2d or diffTex.apiType() == rkfn.kLayeredTexture):
+                        mTextureNodes.append(aom.MFnDependencyNode(diffTex))
+                        mTextureFields.append("diffuseTexture")
+                        retPlace2d.append(None)
+                        material.diffuseColor = (1.0, 1.0, 1.0)
+                    else:
+                        material.diffuseColor = (diffuseColor.child(0).asFloat(), diffuseColor.child(1).asFloat(), diffuseColor.child(2).asFloat())
+                    
+                    emisTex = emissiveTexture.source().node()
+                    if not emisTex.isNull() and (emisTex.apiType() == rkfn.kTexture2d or emisTex.apiType() == rkfn.kLayeredTexture):
+                        mTextureNodes.append(aom.MFnDependencyNode(emisTex))
+                        mTextureFields.append("emissiveTexture")
+                        retPlace2d.append(None)
+                        material.emissiveColor = (0.0, 0.0, 0.0)
+                    else:
+                        material.emissiveColor = (emissiveColor.child(0).asFloat(), emissiveColor.child(1).asFloat(), emissiveColor.child(2).asFloat())
+                        
+                    if nScaleSet == True:
+                        material.normalScale = normalScale.asFloat()
+
+                    bumpObj = aBump2d.source().node()
+                    if not bumpObj.isNull() and (bumpObj.apiType() == rkfn.kBump):
+                        normTex = aom.MFnDependencyNode(bumpObj).findPlug("bumpValue", True).source().node()
+                        if not normTex.isNull() and (normTex.apiType() == rkfn.kTexture2d or normTex.apiType() == rkfn.kLayeredTexture):
+                            mTextureNodes.append(aom.MFnDependencyNode(normTex))
+                            mTextureFields.append("normalTexture")
+                            retPlace2d.append(None)
+                        
+                    if occlIsSet == True:
+                        material.occlusionStrength = occlusionStrength.asFloat()
+                        
+                    if occlIsSet == True:
+                        occlTex = occlusionTexture.source().node()
+                        if not occlTex.isNull() and (occlTex.apiType() == rkfn.kTexture2d or occlTex.apiType() == rkfn.kLayeredTexture):
+                            mTextureNodes.append(aom.MFnDependencyNode(occlTex))
+                            mTextureFields.append("occlusionTexture")
+                            retPlace2d.append(None)
+                    
+                    if specIsSet == True:
+                        specTex = specularTexture.source().node()
+                        if not specTex.isNull() and (specTex.apiType() == rkfn.kTexture2d or specTex.apiType() == rkfn.kLayeredTexture):
+                            mTextureNodes.append(aom.MFnDependencyNode(specTex))
+                            mTextureFields.append("specularTexture")
+                            retPlace2d.append(None)
+                            material.specularColor = (0.0, 0.0, 0.0)
+                        else:
+                            material.specularColor = (specularColor.child(0).asFloat(), specularColor.child(1).asFloat(), specularColor.child(2).asFloat())
+                            
+                    if shineIsSet == True:
+                        shinVal = shininess.asFloat()
+                        if isCosPower == True:
+                            shinVal = shinVal / 100.0
+                        material.shininess = shinVal 
+                        
+                    if shineIsSet == True:
+                        shinTex = shininessTexture.source().node()
+                        if not shinTex.isNull() and (shinTex.apiType() == rkfn.kTexture2d or shinTex.apiType() == rkfn.kLayeredTexture):
+                            mTextureNodes.append(aom.MFnDependencyNode(shinTex))
+                            mTextureFields.append("shininessTexture")
+                            retPlace2d.append(None)
+                    
+                    material.transparency = (transparency.child(0).asFloat() + transparency.child(1).asFloat() + transparency.child(2).asFloat()) / 3.0
+                    
+                    mtexLen = len(mTextureNodes)
+                    for a in range(mtexLen):
+                        gPlace2d = self.processTexture(mTextureNodes[a].object().apiType(), mTextureNodes[a], material, mTextureFields[a])
+                        if not gPlace2d.isNull():
+                            texturemapping = getattr(material, mTextureFields[a] + "Mapping")
+                            texturemapping = self.getMappingValue(mappings, mTextureFields[a] + "Mapping")
+                            retPlace2d[a]  = gPlace2d
                 
             #############################################################################################
             # This gets exported as an X3D PhysicalMaterial node
@@ -1408,14 +1705,14 @@ class RKOrganizer():
                     if x3dMat[0] == False:
                         physMat = x3dMat[1]
                         
-                        aiBase       = matNode.findPlug("base")
-                        aiBaseColor  = matNode.findPlug("baseColor")
-                        aiMetalness  = matNode.findPlug("metalness")
-                        aiSpecular   = matNode.findPlug("specular")
-                        aiRoughness  = matNode.findPlug("specularRoughness")
-                        aiNormalCam  = matNode.findPlug("normalCamera")
-                        aiEmisColor  = matNode.findPlug("emissionColor")
-                        aiEmisWeight = matNode.findPlug("emission")
+                        aiBase       = matNode.findPlug("base", True)
+                        aiBaseColor  = matNode.findPlug("baseColor", True)
+                        aiMetalness  = matNode.findPlug("metalness", True)
+                        aiSpecular   = matNode.findPlug("specular", True)
+                        aiRoughness  = matNode.findPlug("specularRoughness", True)
+                        aiNormalCam  = matNode.findPlug("normalCamera", True)
+                        aiEmisColor  = matNode.findPlug("emissionColor", True)
+                        aiEmisWeight = matNode.findPlug("emission", True)
                         
                         # Chec k for an aiMultiply node
                         checkNode = aom.MFnDependencyNode(aiBaseColor.source().node())
@@ -1436,9 +1733,9 @@ class RKOrganizer():
                             retPlace2d.append(None)
                             retPlace2d.append(None)
                             
-                            baseTexture = aom.MFnDependencyNode(checkNode.findPlug("input1").source().node())
+                            baseTexture = aom.MFnDependencyNode(checkNode.findPlug("input1", True).source().node())
                             btType = baseTexture.object().apiType()
-                            occlTexture = aom.MFnDependencyNode(checkNode.findPlug("input2R").source().node())
+                            occlTexture = aom.MFnDependencyNode(checkNode.findPlug("input2R", True).source().node())
                             otType = occlTexture.object().apiType()
                             
                             if (btType == rkfn.kTexture2d or btType == rkfn.kLayeredTexture) and (otType == rkfn.kTexture2d or otType == rkfn.kLayeredTexture):
@@ -1448,7 +1745,7 @@ class RKOrganizer():
                                 bump2d = aom.MFnDependencyNode(aiNormalCam.source().node())
                                 if bump2d.typeName == "bump2d":
                                     #bump2d is to be used as a "Tangent Space Normals"
-                                    normTexture = aom.MFnDependencyNode(bump2d.findPlug("bumpValue").source().node())
+                                    normTexture = aom.MFnDependencyNode(bump2d.findPlug("bumpValue", True).source().node())
                                     ntType = normTexture.object().apiType()
                                     
                                     if ntType == rkfn.kTexture2d or ntType == rkfn.kLayeredTexture:
@@ -1472,18 +1769,22 @@ class RKOrganizer():
                                                 place2dNT = self.processTexture(ntType, mTextureNodes[nIdx], physMat, "normalTexture")
                                                 place2dOT = self.processTexture(otType, mTextureNodes[oIdx], physMat, "occlusionTexture")
                                                 
-                                                if place2dBT != None:
+                                                if not place2dBT.isNull():
                                                     physMat.baseTextureMapping              = self.getMappingValue(mappings, "baseTextureMapping")
+                                                    retPlace2d[0] = place2dBT
                                                     
-                                                if place2dET != None:
+                                                if not place2dET.isNull():
                                                     physMat.emissiveTextureMapping          = self.getMappingValue(mappings, "emissiveTextureMapping")
+                                                    retPlace2d[1] = place2dET
                                                     
-                                                if place2dOT != None:
+                                                if not place2dOT.isNull():
                                                     physMat.metallicRoughnessTextureMapping = self.getMappingValue(mappings, "metallicRoughnessTextureMapping")
                                                     physMat.occlusionTextureMapping         = self.getMappingValue(mappings, "occlusionTextureMapping")
+                                                    retPlace2d[2] = place2dOT
                                                     
-                                                if place2dNT != None:
+                                                if not place2dNT.isNull():
                                                     physMat.normalTextureMapping            = self.getMappingValue(mappings, "normalTextureMapping")
+                                                    retPlace2d[3] = place2dNT
 
                                                 #Add Code Here - physMat.transparency 0
                                                 
@@ -1507,7 +1808,53 @@ class RKOrganizer():
                         # Otherwise assume Verge3D Style of Maya material - (More styles can be added in the future)
                         #############################################################################################
                         else:
-                            return
+                            # aiBase       = matNode.findPlug("base")
+                            # aiBaseColor  = matNode.findPlug("baseColor")
+                            # aiMetalness  = matNode.findPlug("metalness")
+                            # aiSpecular   = matNode.findPlug("specular")
+                            # aiRoughness  = matNode.findPlug("specularRoughness")
+                            # aiNormalCam  = matNode.findPlug("normalCamera")
+                            # aiEmisColor  = matNode.findPlug("emissionColor")
+                            # aiEmisWeight = matNode.findPlug("emission")
+                            
+                            # normTexture = aom.MFnDependencyNode(bump2d.findPlug("bumpValue").source().node())
+
+                            retPlace2d.clear()
+
+                            baseTex = aiBaseColor.source().node()
+                            if not baseTex.isNull() and (baseTex.apiType() == rkfn.kTexture2d or baseTex.apiType() == rkfn.kLayeredTexture):
+                                mTextureNodes.append(aom.MFnDependencyNode(baseTex))
+                                mTextureFields.append("baseTexture")
+                                retPlace2d.append(None)
+
+                            omrTex = aiBase.source().node()
+                            if not omrTex.isNull() and (omrTex.apiType() == rkfn.kTexture2d or omrTex.apiType() == rkfn.kLayeredTexture):
+                                genTexture = aom.MFnDependencyNode(omrTex)
+                                mTextureNodes.append(genTexture)
+                                mTextureFields.append("metallicRoughnessTexture")
+                                retPlace2d.append(None)
+
+                                mTextureNodes.append(genTexture)
+                                mTextureFields.append("occlusionTexture")
+                                retPlace2d.append(None)
+                                
+                            bumpTex = aiNormalCam.source().node()
+                            if not bumpTex.isNull() and bumpTex.apiType() == rkfn.kBump:
+                                normTex = aom.MFnDependencyNode(bumpTex).findPlug("bumpValue", True).source().node()
+                                if not normTex.isNull() and (normTex.apiType() == rkfn.kTexture2d or normTex.apiType() == rkfn.kLayeredTexture):
+                                    mTextureNodes.append(aom.MFnDependencyNode(baseTex))
+                                    mTextureFields.append("normalTexture")
+                                    retPlace2d.append(None)
+                                    
+                            mtexLen = len(mTextureNodes)
+                            for a in range(mtexLen):
+                                gPlace2d = self.processTexture(mTextureNodes[a].object().apiType(), mTextureNodes[a], physMat, mTextureFields[a])
+                                if not gPlace2d.isNull():
+                                    texturemapping = getattr(material, mTextureFields[a] + "Mapping")
+                                    texturemapping = self.getMappingValue(mappings, mTextureFields[a] + "Mapping")
+                                    retPlace2d[a]  = gPlace2d
+
+                            
                 except:
                     self.rkio.cMessage("Object not found error while traversing aiStandardSurface Up Stream Dependency Graph. Skipping Material export. Check your shader inputs.")
                     return
@@ -1569,7 +1916,7 @@ class RKOrganizer():
             textTransforms = []
             
             for place in retPlace2d:
-                if place != None:
+                if place:# != None:
                     textTransforms.append(place)
             
             if   len(textTransforms) == 1:
@@ -1606,12 +1953,12 @@ class RKOrganizer():
             
     def setTextureTransformFields(self, place2d, x3dtt):
         # Set the 'center' field of TextureTransform
-        centerXY = place2d.findPlug("offset").array()
+        centerXY = place2d.findPlug("offset", False).array()
         x3dtt.center = (centerXY[0].asFloat(), centerXY[1].asFloat())
 
         # Set the 'mapping' field of TextureTransform
         try:
-            x3dtt.mapping = place2d.findPlug("x3dTextureMapping").asString()
+            x3dtt.mapping = place2d.findPlug("x3dTextureMapping", False).asString()
         except:
             print("x3dTextureMapping is not defined.")
 
@@ -1619,14 +1966,14 @@ class RKOrganizer():
         # TODO
         
         # Set the 'rotation' field of TextureTransform
-        x3dtt.rotation = place2d.findPlug("rotateFrame").asFloat()
+        x3dtt.rotation = place2d.findPlug("rotateFrame", False).asFloat()
 
         # Set the 'scale' field of TextureTransform
-        scaleXY = place2d.findPlug("coverage").array()
+        scaleXY = place2d.findPlug("coverage", False).array()
         x3dtt.scale = (scaleXY[0].asFloat(), scaleXY[1].asFloat())
         
         # Set the 'translation' field of TextureTransform
-        transXY = place2d.findPlug("translateFrame").array()
+        transXY = place2d.findPlug("translateFrame", False).array()
         x3dtt.translation = (transXY[0].asFloat(), transXY[1].asFloat())
 
     #This method may be eliminated
@@ -1634,17 +1981,20 @@ class RKOrganizer():
         pass
 
     def processForGeometry(self, myMesh, shaders, meshComps, x3dParentNode, bdID, nodeName=None, cField="geometry", nodeType="IndexedFaceSet", index=0):
-        #dagNode.getPath().fullPathName()
-        #tMesh = aom.MFnMesh(dagNode.getPath().fullPathName())
+        meshMP = 0
         if nodeName == None:
             nodeName = myMesh.name()
 
         depNode = aom.MFnDependencyNode(shaders[index])
-        faceIDs, mapJSON = myMesh.getStringBindData(aom.MFn.kMeshPolygonComponent, bdID, depNode.name() + "_mapping_" + str(index))
+        faceIDs, mapJSON = myMesh.getStringBlindData(aom.MFn.kMeshPolygonComponent, bdID, "jsonTextureMappings_" + str(index))
         mappings = json.loads(mapJSON[0])
         
         if nodeType == "IndexedFaceSet":
-            mIter = aom.MItMeshPolygon(myMesh.dagPath(), meshComps[index])
+            msList = aom.MSelectionList()
+            msList.add(myMesh.name())
+            tDagPath = msList.getDagPath(0)
+            
+            mIter = aom.MItMeshPolygon(tDagPath, meshComps[index])
             
             geomName = nodeName + "_IFS"
             if index > 1:
@@ -1662,14 +2012,16 @@ class RKOrganizer():
                     
                     # point field of Coordinate node
                     points = myMesh.getFloatPoints()
+                    meshMP = len(points)
                     for point in points:
                         coordbna[1].point.append((point.x, point.y, point.z))
             
                 # Using the MItMeshPolygon Iterator and the propoper sub-component
                 # this secion of the code builds the array of MFInt32 field of IndexedFaceSet
                 while not mIter.isDone():
-                    vertices = mIter.getVertices()
-                    for vIdx in vertices:
+                    #vertices = mIter.getVertices()
+                    nVerts = mIter.polygonVertexCount()
+                    for vIdx in range(nVerts):
                         mIdx = mIter.vertexIndex(vIdx)
                         bna[1].coordIndex.append(mIdx)
                     bna[1].coordIndex.append(-1)
@@ -1729,6 +2081,53 @@ class RKOrganizer():
                 # If textures exists for this mesh, then get texture coordiante index values
                 ####### if hasTexCoord:
                 #######    bna[1].texCoordIndex = self.getTextureCoordIndex(dagNode)
+                
+                ### faceIDs and mappings and uvSetName
+                if mappings != None:
+                   
+                    mapLen = len(mappings['mappings'])
+                    bnaTXC = None
+                    
+                    mtxHasBeen = False
+                    if mapLen > 1:
+                        bnaTXC = self.processBasicNodeAddition(myMesh, bna[1], "texCoord", "MultiTextureCoordinate", geomName + "_MTC_" + str(index))
+                        mtxHasBeen = bnaTXC[0]
+
+                    if mtxHasBeen == False and mapLen > 0:
+
+                        texCoords = []
+                        for item in mappings['mappings']:
+                            texCoords.append([])
+                            
+                        mIter.reset()
+                        while not mIter.isDone():
+                            vertices = mIter.getVertices()
+                            
+                            for vIdx in vertices:
+                                mIdx = mIter.vertexIndex(vIdx)
+                                
+                                for t in range(mapLen):
+                                    tMap = mappings['mappings'][t]
+                                    mu,mv = mIter.getUV(vIdx, tMap['uvSetName'])
+                                    texCoords[t].append((mu, mv))
+                                    
+                                bna[1].texCoordIndex.append(mIdx)
+                            bna[1].texCoordIndex.append(-1)
+                            mIter.next()
+
+                        txcParent = bna[1]
+                        if bnaTXC != None:
+                            txcParent = bnaTXC
+                            
+                        for n in range(mapLen):
+                            item = mappings['mappings'][n]
+                            txc = self.processBasicNodeAddition(myMesh, txcParent, "texCoord", "TextureCoordinate", geomName + "_TC_" + str(index) + "_" +str(n))
+                            if txc[0] == False:
+                                for ptx in texCoords[n]:
+                                    txc[1].point.append(ptx)
+                                txc[1].mapping = item['mapName']
+
+
 
 
     def processForColorNode(self, myMesh, mIter, nodeName, nodeType, x3dParent, cpv=True, cField="color", idx=0):
@@ -1834,7 +2233,7 @@ class RKOrganizer():
         usedUVSets = []
         texNodes   = []
         
-        textureList = self.getShaderTexturesInOrder(shader)
+        textureList = self.gatherShaderTextures(shader) #getShaderTexturesInOrder(shader)
         
         if len(textureList) == 0:
             return (usedUVSets, texNodes)
@@ -1858,6 +2257,8 @@ class RKOrganizer():
 
 
 
+    # Method slated for removal.
+    '''
     def processForTexCoordNode(self, myMesh, shader, x3dParent, parentName, cField="texCoord"):
         usedUVSets = []
         texNodes   = []
@@ -1866,59 +2267,41 @@ class RKOrganizer():
         
                         
         # TODO - implement TextureCoordinate, TextureTransform, and texCoordIndex info
-    
-    
+    '''
+    def gatherShaderTextures(self, shader):
+        textureList = []
+        
+        depNode = aom.MFnDependencyNode(shader) #shader is a shadingEngine object
+        matNode = aom.MFnDependencyNode(depNode.findPlug("surfaceShader", True).source().node())
+
+        matIter = aom.MItDependencyGraph(matNode.object(), aom.MItDependencyGraph.kUpstream, aom.MItDependencyGraph.kDepthFirst, aom.MItDependencyGraph.kNodeLevel)
+        
+        while not matIter.isDone():
+            mObject = matIter.currentNode()
+            if mObject.apiType() == rkfn.kLayeredTexture or mObject.apiType() == rkfn.kTexture2d:
+                tFound = False
+                tNode = aom.MFnDependencyNode(mObject)
+
+                for t in textureList:
+                    if t.name() == tNode.name():
+                        tFound = True
+
+                if iFound == False:
+                    textureList.append(tNode)
+                if mObject.apiType() == rkfn.kLayeredTexture:
+                    matIter.prune()
+            
+            matIter.next()
+        
+        return textureList
+
+        
     def getShaderTexturesInOrder(self, shader):
         textureList = []
         
         depNode = aom.MFnDependencyNode(shader) #shader is a shadingEngine object
-        matNode = aom.MFnDependencyNode(depNode.findPlug("surfaceShader").source().node())
+        matNode = aom.MFnDependencyNode(depNode.findPlug("surfaceShader", True).source().node())
         
-        '''
-        # JSON for storing xxxTextureMapping's of this appearance node in the Maya shader engine to be used later in the processForGeometry 
-        # method to add mappings as appropriate for TextureCoordinate and TextureTransform nodes.
-        {
-            "shaderEngines":
-            [
-                {
-                    "shaderName": "somename",
-                    "mappings":
-                    [
-                        {
-                            "fieldName": "baseTextureMapping",
-                            "mapName": "coolMappingName",
-                            "uvSetName": "coolUVSet",
-                            "textureTransformName": "place2dTexture"
-                        },
-                        {
-                            "fieldName": "emissiveTextureMapping",
-                            "mapName": "coolMappingName1",
-                            "uvSetName": "coolUVSet1",
-                            "textureTransformName": "place2dTexture1"
-                        }
-                    ]
-                },
-                {
-                    "shaderName": "someOtherName",
-                    "mappings":
-                    [
-                        {
-                            "fieldName": "baseTextureMapping",
-                            "mapName": "otherCoolMappingName",
-                            "uvSetName": "coolUVSet",
-                            "textureTransformName": "otherPlace2dTexture"
-                        },
-                        {
-                            "fieldName": "emissiveTextureMapping",
-                            "mapName": "otherCoolMappingName1",
-                            "uvSetName": "coolUVSet1",
-                            "textureTransformName": "otherPlace2dTexture1"
-                        }
-                    ]
-                }
-            ]
-        }
-        '''
 
         #################################################################################
         # Material Node Texture Fields:
@@ -1961,7 +2344,27 @@ class RKOrganizer():
         ##################################################################################
         
         elif matNode.typeName == "aiStandardSurface":
-            pass
+            # Assumes that this SufaceShader is connected to textures using a graph similar in layout to that defined
+            # in the Abe Leal 3D Tutorial on YouTube
+            # https://www.youtube.com/watch?v=Zy0dYnHMRPY
+            aiSIter = aom.MItDependencyGraph(matNode.object(), aom.MItDependencyGraph.kUpstream, aom.MItDependencyGraph.kDepthFirst, aom.MItDependencyGraph.kNodeLevel)
+            
+            while not aiSIter.isDone():
+                mObject = aiSIter.currentNode()
+                if mObject.apiType() == rkfn.kLayeredTexture or mObject.apiType() == rkfn.kTexture2d:
+                    tFound = False
+                    tNode = aom.MFnDependencyNode(mObject)
+
+                    for t in textureList:
+                        if t.name() == tNode.name():
+                            tFound = True
+
+                    if iFound == False:
+                        textureList.append(tNode)
+                    if mObject.apiType() == rkfn.kLayeredTexture:
+                        aiSIter.prune()
+                
+                aiSIter.next()
 
         elif matNode.typeName == "standardSurface":
             pass
@@ -1973,7 +2376,7 @@ class RKOrganizer():
             pass
 
         elif matNode.typeName == "shaderfxShader":
-            pass #TODO: not yet supported    
+            pass #TODO: not yet supported
         
         #################################################################################
         # UnlitMaterial Node Texture Fields (TODO: NOT YET SUPPORTED):
@@ -1988,38 +2391,8 @@ class RKOrganizer():
         return textureList
              
     
-    def processForTexCoordNode(self, dagNode, x3dParent, parentName, subNode=0, cField="texCoord"):
-        mMesh = aom.MFnMesh(dagNode.object())
-        uvSetNames = mMesh.getUVSetNames()
-        
-        hasTextures, usedUVSets = self.getUsedUVSetsInOrder(mMesh, uvSetNames, subNode)
-        
-        if hasTextures == False:
-            return False
-        
-        #TODO: process texture coordinate node
-        hasMulti = False
-        if len(usedUVSets) > 1:
-            for i in range(len(usedUVSets)):
-                if usedUVSets[0]  != usedUVSets[i]:
-                    hasMulti = True
-
-        if hasMulti:
-            self.processMultiTextureCoordNode(dagNode, usedUVSets,    subNode)
-        else:
-            self.processSingleTexCoordNode(   dagNode, usedUVSets[0], subNode)
-        
-        return True
-    
-    def processMultiTextureCoordNode(self, dagNode, uvSets, subNode, cField="texCoord"):
-        mMesh = aom.MFnMesh(dagNode.object())
-        mtcName = mMesh.name() + "_" + str(subNode) + "_mtc"
-        #TODO: Finish this node creator
-    
-    def processSingleTexCoordNode(self, dagNode, uvSet, subNode, cField="texCoord"):
-        mMesh = aom.MFnMesh(dagNode.object())
-        #TODO: Finish this node creator
-        
+    #Slated to be removed
+    '''
     def getUsedUVSetsInOrder(self, mMesh, uvSetNames, subNode): # hasT - the return value
         
         hasTextures = True
@@ -2047,6 +2420,8 @@ class RKOrganizer():
                                 returnList[j] = uvSetNames[i]
         
         return hasTextures, returnList
+    '''
+    
     
     def getColorIndex(self, dagNode):
         pass
@@ -2083,6 +2458,7 @@ class RKOrganizer():
     #    - normal (map)      - captures the extra detail when baking from a high poly to low poly model
     #    - height (map)      - used for displacement
     ##################################################
+    ''' - Slated for removal.
     def getShaderTexturesInOrder(mMesh, subNode):
         textureList = []
         shaders, groups = mMesh.getConnectedSetsAndMembers(0, True)
@@ -2130,7 +2506,7 @@ class RKOrganizer():
             while not depIt.isDone():
                 textureList.append(aom.MFnDependencyNode(depIt.currentNode()).name())
                 depIt.next()
-            '''
+            
             if   shader.typeName == "aiStandardSurface":
                 pass
             elif shader.typeName == "usdPreviewSurface":
@@ -2155,8 +2531,10 @@ class RKOrganizer():
                 pass
             elif shader.typeName == "phongE":
                 pass
-            '''        
+                    
         return textureList
+    '''    
+    
         
     def processTexture(self, mApiType, mTextureNode, x3dParent, x3dField, getPlace2d=True):
         
@@ -2177,7 +2555,7 @@ class RKOrganizer():
 
                     x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
                     if x3dTexture[0] == False:
-                        filePath = mTextureNode.findPlug("fileTextureName").asString()
+                        filePath = mTextureNode.findPlug("fileTextureName", False).asString()
                         fileName = self.rkint.getFileName(filePath)
                         fileExt  = os.path.splitext(fileName)[1]
                         fileName = os.path.splitext(fileName)[0]
@@ -2233,8 +2611,8 @@ class RKOrganizer():
                         x3dTexture[1].url.append(fullWebTexPath)
                         
                     if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
-                        x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU").asBool()
-                        x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV").asBool()
+                        x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU", False).asBool()
+                        x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV", False).asBool()
 
                 else:
                     x3dNodeType = "PixelTexture"
@@ -2243,8 +2621,8 @@ class RKOrganizer():
                         x3dTexture[1].image = self.rkint.image2pixel(mTextureNode.object())
 
                         if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
-                            x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU").asBool()
-                            x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV").asBool()
+                            x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU", False).asBool()
+                            x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV", False).asBool()
 
             elif mTextureNode.typeName == "movie":
                 x3dNodeType = "MovieTexture"
@@ -2252,7 +2630,7 @@ class RKOrganizer():
                 
                 x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
                 if x3dTexture[0] == False:
-                    filePath = mTextureNode.findPlug("fileTextureName").asString()
+                    filePath = mTextureNode.findPlug("fileTextureName", False).asString()
                     fileName = self.rkint.getFileName(filePath)
                     fileExt  = os.path.splitext(fileName)[1]
                     fileName = os.path.splitext(fileName)[0]
@@ -2313,8 +2691,8 @@ class RKOrganizer():
                         x3dTexture[1].url.append(fullWebTexPath)
                         
                     if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
-                        x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU").asBool()
-                        x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV").asBool()
+                        x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU", False).asBool()
+                        x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV", False).asBool()
 
                     #TextureProperties   - TODO at a later date
                 
@@ -2413,8 +2791,8 @@ class RKOrganizer():
                             x3dTexture[1].url.append(x3dURIData)
                             
                         if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
-                            x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU").asBool()
-                            x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV").asBool()
+                            x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU", False).asBool()
+                            x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV", False).asBool()
 
 
                 else:
@@ -2424,8 +2802,8 @@ class RKOrganizer():
                         x3dTexture[1].image = self.rkint.image2pixel(mTextureNode.object())
 
                         if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
-                            x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU").asBool()
-                            x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV").asBool()
+                            x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU", False).asBool()
+                            x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV", False).asBool()
                     
 
         elif mApiTypeType == rkfn.kLayeredTexture:#TODO: MultiTexture
@@ -2480,8 +2858,8 @@ class RKOrganizer():
                     x3dTexture[1].url.append(fullWebTexPath)
                     
                 if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
-                    x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU").asBool()
-                    x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV").asBool()
+                    x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU", False).asBool()
+                    x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV", False).asBool()
                         
             else:
                 x3dNodeType = "PixelTexture"
@@ -2490,8 +2868,8 @@ class RKOrganizer():
                     x3dTexture[1].image = self.rkint.image2pixel(mTextureNode.object())
 
                     if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
-                        x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU").asBool()
-                        x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV").asBool()
+                        x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU", False).asBool()
+                        x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV", False).asBool()
                 
         return mPlace2d
         
