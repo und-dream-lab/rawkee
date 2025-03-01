@@ -184,14 +184,28 @@ class RKIO():
         print(self.fullPath)
         print(self.exEncoding)
         
-        if   self.exEncoding == X3DXENC:
-            print(x3dDoc.XML())
-        elif self.exEncoding == X3DVENC:
-            print(x3dDoc.VRML())
-        elif self.exEncoding == X3DJENC:
-            print(json.dumps(xmltodict.parse(x3dDoc.XML()), indent=4))
+        with open(fullPath, "w") as self.exFile:
+            if   self.exEncoding == "x3d":
+                self.exFile.write(x3dDoc.XML())
+                
+            elif self.exEncoding == "x3dv":
+                self.exFile.write(x3dDoc.VRML())
+                
+            elif self.exEncoding == "x3dj":
+                self.exFile.write(json.dumps(xmltodict.parse(x3dDoc.XML()), indent=4))
+                
+            elif self.exEncoding == "json":
+                self.exFile.write(json.dumps(xmltodict.parse(x3dDoc.XML()), indent=4))
+                
+            elif self.exEncoding == "html":
+                htmlHeader  = '<html>\n\t<head>\n'
+                htmlHeader += '\t\t<meta charset="utf-8">\n\t\t<script src="x3dom-1.8.3/x3dom-full.js"></script>\n'
+                htmlHeader += '\t\t<link rel="stylesheet" href="x3dom-1.8.3/x3dom.css">\n\t</head>\n\t<body>\n'
+                htmlHeader += '\t\t<div style="width: 600px; height: 600px;">\n'
+                self.exFile.write(htmlHeader)
+                self.exFile.write(x3dDoc.HTML5())
+                htmlFooder = "\n\t</body>\n</html>"
 
-        #with open(fullPath, "w") as self.exFile:
         #    self.startDocument()
 
     def profileDecl(self):
