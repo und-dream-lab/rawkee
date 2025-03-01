@@ -986,8 +986,8 @@ class RKFOptsDialog(QtWidgets.QDialog):
     
     def saveOptionsExportX3D(self):
         self.saveOptions()
-        self.exportX3D()
         self.close()
+        self.exportX3D()
         
     def saveOptions(self):
         #print("Options Saved!")
@@ -1041,8 +1041,11 @@ class RKFOptsDialog(QtWidgets.QDialog):
         
     def exportX3D(self):
         #print("X3D Exported!") TODO
-        #rkX3DExport
-        #rkX3DSelExport
+        if self.rkExportMode == 0:
+            if self.dialogTitle == "X3D Export Options":
+                cmds.rkX3DExport()
+            else:
+                cmds.rkX3DExportOp()
         #rawkeeCASExport - TODO - at least stub it
         #rawkeeCASSelExport - TODO - at least stub it
         pass

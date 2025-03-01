@@ -70,7 +70,7 @@ class RKWeb3D():
         self.fullPath = ""
         self.selectedFilter = ""
         #                       self.x3dfilters = "X3D XML (*.x3d);;X3D Classic (*.x3dv);;X3D Binary (*.x3db);;X3D Enhanced Binary (*.x3de);;X3D JSON (*.x3dj);;X3D JSON (*.json);;VRML97 (*.wrl);;Web3D Files (*.x3d *.x3db *.x3de *.x3dj *.x3dv *.json *.wrl)"
-        self.x3dfilters = "X3D XML (*.x3d);;X3D Classic (*.x3dv);;VRML 97 (*.wrl);;X3D JSON (*.x3dj);;X3D JSON (*.json);;Web3D Files (*.x3d *.x3dv *.wrl *.x3dj *.json)"
+        self.x3dfilters = "X3D XML (*.x3d);;X3D Classic (*.x3dv);;X3D JSON (*.x3dj);;X3D JSON (*.json);;X3D HTML5 (*.html);;Web3D Files (*.x3d *.x3dv *.x3dj *.json *.html)"
         
         # Setup the main 'RawKee X3D' plugin menu
         self.rkMenuName ="rawkee_menu"
@@ -260,10 +260,15 @@ class RKWeb3D():
             
             # Write the X3D data to a file.
             exEncoding     = "x3d"
-            if   self.selectedFilter == "X3D Classic (*.x3dv)":
+            fext = os.path.splitext(self.fullPath)[1]
+            if   fext == ".x3dv":
                 exEncoding = "x3dv"
-            elif self.selectedFilter == "X3D JSON (*.x3dj)"     or self.selectedFilter == "X3D JSON (*.json)":
+            elif fext == ".x3dj":
                 exEncoding = "x3dj"
+            elif fext == ".json":
+                exEncoding = "json"
+            elif fext == ".html":
+                exEncoding = "html"
 
             rko.rkio.x3d2disk(x3dDoc, self.fullPath, exEncoding)
             

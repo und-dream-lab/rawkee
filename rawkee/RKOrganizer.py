@@ -911,31 +911,64 @@ class RKOrganizer():
     ######################################################################################################################
     #   Basic Node Functions
     def processBasicNodeAddition(self, depNode, x3dParentNode, x3dFieldName, x3dType, nodeName=None):
+        # Determine the DEF/USE value of the node to be created
         if nodeName == None:
             nodeName = depNode.name()
+            
+        # Create Node from String where x3dType is a string that identifies 
+        # the type of X3D to be created. Must be a node defined by the X3D 4.0 Specification.
         tNode = self.rkio.createNodeFromString(x3dType)
-        print(tNode)
         
+        # Print node object to the console. Mostly included here to let the user
+        # know that the scene is being constucted.
+        print(tNode)
+        #self.rkio.cMessage(tNode)
+        
+        # Check to see if the node has previously been created with a DEF 
+        # attribute.
         hasBeen = self.rkio.checkIfHasBeen(nodeName)
+        
+        # If has been created already, assign the "nodeName" value to the 
+        # X3D node's USE attribute and leave the DEF attribute as None.
         if hasBeen == True:
-            #self.rkio.useDecl(tNode, nodeName, x3dParentNode, x3dFieldName)
             tNode.USE = nodeName
+        
+        # However, if the node has not been previously created, set the 
+        # X3D node's DEF attribute to the value of "nodeName", and then
+        # record the node has having been created by calling the 
+        # "setHasBeen()" method.
         else:
             tNode.DEF = nodeName
             self.rkio.setAsHasBeen(nodeName, tNode)
             
+        # Now it is time to add the new node to the X3D Scene. First 
+        # we must obtain the value of the X3D Field of the parent by 
+        # calling "getattr". Doing so will return the field's value, 
+        # which will either be a "list" (populated or empty) or a 
+        # 'None' value.           
         nodeField = getattr(x3dParentNode, x3dFieldName)
+        
+        # Once this value has been obtained, we check to see if the
+        # value is an 'instance' of the 'list' data type. If it is 
+        # an instance of the list data type, then append the new 
+        # X3D node to this list.
         if isinstance(nodeField, list):
-            self.rkio.cMessage(x3dFieldName)
             nodeField.append(tNode)
+            
+        # If the value is not an instance of list, then use the 
+        # 'setattr' method to set the parent's field value to the 
+        # value of the new X3D node.
         else:
             setattr(x3dParentNode, x3dFieldName, tNode)
-#                print("working here")
-#                self.rkio.cMessage("Not a list")
-#                self.rkio.cMessage(x3dFieldName)
-#                print(nodeField)
-#                nodeField = tNode
-#                print(nodeField)
+            
+        # Return a list containing the value of 'hasBeen', which lets
+        # the calling section of code know whether the X3D node in question
+        # had once before, already been added to the scene. This allows the 
+        # section of the code that originally called this method to know 
+        # whether other X3D field values should be added to this new node.
+        # And then also return the new node so if it does need values 
+        # assigned to it's other attributes, the section of the code that
+        # called this metod can do so.
         return [hasBeen, tNode]
     
     def getX3DParentAndContainerField(self, dagNode, dragPath=None):
@@ -2064,8 +2097,10 @@ class RKOrganizer():
                     # more with normals because we are using
                     # the default values for IndexedFaceSet nodes
                     # where there is no other info required by the spec.
-                    bna[1].normalPerVertex = True
-                elif self.rkNormalOpts == 1 or self.rkNormalOpts == 3:
+                    ##### bna[1].normalPerVertex = True
+                    pass
+                    
+                elif self.rkNormalOpts == 1 or self.rkNormalOpts == 4:
                     # Normals Per Vertex Values
                     bna[1].normalPerVertex = True
                     self.processForNormalNode(myMesh, mIter, nodeName, "Normal", bna[1], idx=index)
@@ -2074,14 +2109,6 @@ class RKOrganizer():
                     bna[1].normalPerVertex = False
                     self.processForNormalNode(myMesh, mIter, nodeName, "Normal", bna[1], npv=False, idx=index)
 
-                # Get mesh texture coordiantes if the mesh has textures.
-                #             # SFNode texCoord
-                ####### hasTexCoord = self.processForTexCoordNode(dagNode, bna[1], geomName, place2d) #TODO: change place2d with texTrans
-                
-                # If textures exists for this mesh, then get texture coordiante index values
-                ####### if hasTexCoord:
-                #######    bna[1].texCoordIndex = self.getTextureCoordIndex(dagNode)
-                
                 ### faceIDs and mappings and uvSetName
                 if mappings != None:
                    
@@ -2134,7 +2161,7 @@ class RKOrganizer():
         colorNodeName = nodeName + "_" + nodeType + "_" + str(idx)
 
         mColors = ()
-        mIndex = ()
+        mIndex = []
 
         mIter.reset()
         
@@ -2153,9 +2180,9 @@ class RKOrganizer():
             if cpv == True:
                 for c in colorList:
                     if nodeType == "Color":
-                        mColors.append((c.r, c.g, c.b))
+                        mColors = mColors + (c.r, c.g, c.b)
                     else:
-                        mColors.append((c.r, c.g, c.b, c.a))
+                        mColors = mColors + (c.r, c.g, c.b, c.a)
                     mIndex.append(fCount)
                     fCount += 1
                 mIndex.append(-1)
@@ -2172,15 +2199,16 @@ class RKOrganizer():
                 tb = sc.b / vCount
                 ta = sc.a / vCount
                 if nodeType == "Color":
-                    mColors.append((tr, tg, tb))
+                    mColors = mColors + (tr, tg, tb)
                 else:
-                    mColors.append((tr, tg, tb, ta))
+                    mColors = mColors + (tr, tg, tb, ta)
                 mIndex.append(fCount)
                 fCount += 1
 
             mIter.next()
 
-        x3dParent.colorIndex = mIndex
+        tIndex = (mIndex)
+        x3dParent.colorIndex = tIndex
         
         bna = self.processBasicNodeAddition(myMesh, x3dParent, cField, nodeType, colorNodeName)
         if bna[0] == False:
@@ -2194,29 +2222,36 @@ class RKOrganizer():
         normalNodeName = nodeName + "_" + nodeType + "_" + str(idx)
 
         mNormal = ()
-        mIndex  = ()
+        mIndex  = []
         
         mIter.reset()
 
         fCount = 0
         
         while not mIter.isDone():
-            if nvp == True:
+            if npv == True:
                 tns = mIter.getNormals()
                 for tn in tns:
-                    mNormal.append(tn.x, tn.y, tn.z)
+                    mNormal = mNormal + (tn.x, tn.y, tn.z)
                     mIndex.append(fCount)
                     fCount += 1
                 mIndex.append(-1)
             else:
                 tn = mIter.getNormal()
-                mNormal.append((tn.x, tn.y, tn.z))
+                mNormal = mNormal + (tn.x, tn.y, tn.z)
                 mIndex.append(fCount)
                 fCount += 1
-                
+            
+            mCount = fCount % 10
+            messageVal = "Normal generation is complex, this may take a while."
+            for mcIdx in range(mCount):
+                messageVal += "."
+            print(messageVal)
             mIter.next()
 
-        x3dParent.normalIndex = mIndex
+        tIndex = (mIndex)
+        x3dParent.normalIndex = tIndex
+        print("Normal Calculation is Complete")
 
         bna = self.processBasicNodeAddition(myMesh, x3dParent, cField, "Normal", normalNodeName)
         if bna[0] == False:
@@ -2224,6 +2259,8 @@ class RKOrganizer():
             
             # Assign MFVec3f to the node.
             bna[1].vector = mNormal
+            
+            print("Normal Node Created.")
             
     
     def getUsedUVSetsAndTexturesInOrder(self, myMesh, shader):
