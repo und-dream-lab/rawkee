@@ -387,6 +387,8 @@ class RKInterfaces():
         return dataURI
 
     def copyFile(self, inPath, outPath):
+        print(inPath)
+        print(outPath)
         try:
             with open(inPath, 'rb') as inFile, open(outPath, 'wb') as outFile:
                 while True:
