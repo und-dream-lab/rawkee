@@ -192,7 +192,7 @@ class RKIO():
                 self.exFile.write(x3dDoc.VRML())
                 
             elif self.exEncoding == "x3dj":
-                self.exFile.write(json.dumps(xmltodict.parse(x3dDoc.XML()), indent=4))
+                self.exFile.write(x3dDoc.JSON())
                 
             elif self.exEncoding == "json":
                 self.exFile.write(json.dumps(xmltodict.parse(x3dDoc.XML()), indent=4))

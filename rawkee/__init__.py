@@ -4,5 +4,6 @@ from . import RKIO
 from . import RKOrganizer
 from . import RKWeb3D
 from . import RKSceneEditor
+from . import RKSceneTraversal
 from . import RKXScene
 from . import RKXNodes
