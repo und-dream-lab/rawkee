@@ -919,6 +919,9 @@ class RKOrganizer():
         # the type of X3D to be created. Must be a node defined by the X3D 4.0 Specification.
         tNode = self.rkio.createNodeFromString(x3dType)
         
+        # Add the 'containerField' name to this node to export for XML encodings.
+        tNode._RK__containerField = x3dFieldName
+        
         # Print node object to the console. Mostly included here to let the user
         # know that the scene is being constucted.
         print(tNode)
@@ -1996,18 +1999,13 @@ class RKOrganizer():
     
             
     def setTextureTransformFields(self, place2d, x3dtt):
-        
-        print("Called setTextureTransformFields")
-        
         # Set the 'center' field of TextureTransform
         x3dtt.center = (place2d.findPlug("offsetU", False).asFloat(), place2d.findPlug("offsetV", False).asFloat())
 
         # Set the 'mapping' field of TextureTransform
         try:
             tmVal = place2d.findPlug("x3dTextureMapping", False).asString()
-            x3dtt._TextureTransform__mapping = tmVal
-            print(tmVal)
-            print(x3dtt._TextureTransform__mapping)
+            x3dtt._RK__mapping = tmVal
         except:
             print("x3dTextureMapping is not defined.")
 
@@ -2022,8 +2020,6 @@ class RKOrganizer():
         
         # Set the 'translation' field of TextureTransform
         x3dtt.translation = (place2d.findPlug("translateFrameU", False).asFloat(), place2d.findPlug("translateFrameV", False).asFloat())
-        
-        print(vars(x3dtt))
 
     #This method may be eliminated
     def processMaterial(self):
@@ -2672,6 +2668,7 @@ class RKOrganizer():
 
                     # If the with DataURI option is selected, convert contents of movie file to a DataURI string.
                     if self.rkFileTexNode == 1:
+                        print("Printing LocalTexWrite:\n" + localTexWrite )
                         x3dURIData = self.rkint.media2uri(localTexWrite)
                         x3dTexture[1].url.append(x3dURIData)
                     else:

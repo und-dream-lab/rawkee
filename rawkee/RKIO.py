@@ -13,119 +13,14 @@ import maya.api.OpenMaya as aom
 ########################################################
 # This module installed in mayapy using pip.         ### 
 ########################################################
+from rawkee import RKSceneTraversal
+
 import xmltodict
 import json
 import io
 from x3d import *                                    ###
 ########################################################
 
-msEmpty:    Final[str] = ""
-
-msBox:      Final[str] = "Box"
-msCone:     Final[str] = "Cone"
-msCylinder: Final[str] = "Cylinder"
-msSphere:   Final[str] = "Sphere"
-
-msIndexedFaceSet: Final[str] = "IndexedFaceSet"
-
-msColor:                  Final[str] = "Color"
-msColorRGBA:              Final[str] = "ColorRGBA"
-msCoordinate:             Final[str] = "Coordinate"
-msMultiTextureCoordinate: Final[str] = "MultiTextureCoordinate"
-msNormal:                 Final[str] = "Normal"
-msTextureCoordinate:      Final[str] = "TextureCoordinate"
-
-msAnchor:    Final[str] = "Anchor"
-msInline:    Final[str] = "Inline"
-msCollision: Final[str] = "Collision"
-msGroup:     Final[str] = "Group"
-msLOD:       Final[str] = "LOD"
-msSwitch:    Final[str] = "Switch"
-msTransform: Final[str] = "Transform"
-msBillboard: Final[str] = "Billboard"
-
-msShape:      Final[str] = "Shape"
-msAppearance: Final[str] = "Appearance"
-msMaterial:   Final[str] = "Material"
-
-msNavigationInfo: Final[str] = "NavigationInfo"
-msWorldInfo:      Final[str] = "WorldInfo"
-msViewpoint:      Final[str] = "Viewpoint"
-
-msDirectionalLight: Final[str] = "DirectionalLight"
-msSpotLight:        Final[str] = "SpotLight"
-msPointLight:       Final[str] = "PointLight"
-
-msColorInterpolator:       Final[str] = "ColorInterpolator"
-msOrientationInterpolator: Final[str] = "OrientationInterpolator"
-msPositionInterpolator:    Final[str] = "PositionInterpolator"
-msScalarInterpolator:      Final[str] = "ScalarInterpolator"
-
-msCoordinateInterpolator: Final[str] = "CoordinateInterpolator"
-msNormalInterpolator:     Final[str] = "NormalInterpolator"
-
-msBooleanSequencer: Final[str] = "BooleanSequencer"
-msIntegerSequencer: Final[str] = "IntegerSequencer"
-
-msBooleanTrigger: Final[str] = "BooleanTrigger"
-msBooleanToggle:  Final[str] = "BooleanToggle"
-msBooleanFilter:  Final[str] = "BooleanFilter"
-msIntegerTrigger: Final[str] = "IntegerTrigger"
-msTimeTrigger:    Final[str] = "TimeTrigger"
-
-msCylinderSensor:   Final[str] = "CylinderSensor"
-msKeySensor:        Final[str] = "KeySensor"
-msLoadSensor:       Final[str] = "LoadSensor"
-msPlaneSensor:      Final[str] = "PlaneSensor"
-msProximitySensor:  Final[str] = "ProximitySensor"
-msSphereSensor:     Final[str] = "SphereSensor"
-msStringSensor:     Final[str] = "StringSensor"
-msTimeSensor:       Final[str] = "TimeSensor"
-msTouchSensor:      Final[str] = "TouchSensor"
-msVisibilitySensor: Final[str] = "VisibilitySensor"
-
-msImageTexture:          Final[str] = "ImageTexture"
-msPixelTexture:          Final[str] = "PixelTexture"
-msMovieTexture:          Final[str] = "MovieTexture"
-msMultiTexture:          Final[str] = "MultiTexture"
-msTextureTransform:      Final[str] = "TextureTransform"
-msMultiTextureTransform: Final[str] = "MultiTextureTransform"
-
-msAudioClip: Final[str] = "AudioClip"
-msSound:     Final[str] = "Sound"
-
-msScript:    Final[str] = "Script"
-
-msMetaD:  Final[str] = "MetadataDouble"
-msMetaF:  Final[str] = "MetadataFloat"
-msMetaI:  Final[str] = "MetadataInteger"
-msMetaSe: Final[str] = "MetadataSet"
-msMetaSt: Final[str] = "MetadataString"
-
-# RigidBody Phyisics Component: 2
-msColShape:            Final[str] = "CollidableShape"
-msRigidBodyCollection: Final[str] = "RigidBodyCollection"
-msRigidBody:           Final[str] = "RigidBody"
-msCollisionCollection: Final[str] = "CollisionCollection"
-msCollisionSpace:      Final[str] = "CollisionSpace"
-msCollisionSensor:     Final[str] = "CollisionSensor"
-
-# H-Anim Component: 1
-msHAnimDisplacer: Final[str] = "HAnimDisplacer"
-msHAnimHumanoid:  Final[str] = "HAnimHumanoid"
-msHAnimJoint:     Final[str] = "HAnimJoint"
-msHAnimSegment:   Final[str] = "HAnimSegment"
-msHAnimSite:      Final[str] = "HAnimSite"
-
-# IODevice Component: 2
-msGamepadSensor:  Final[str] = "GamepadSensor"
-
-msRoute:          Final[str] = "ROUTE"
-
-msfield:          Final[str] = "field"
-
-ftSFNode:         Final[str] = "SFNode"
-ftMFNode:         Final[str] = "MFNode"
 
 # --define-- defValue "------"
 
@@ -174,10 +69,20 @@ class RKIO():
         self.debugging = True
         
         self.x3d_scene = None
+        
+        self.trv = RKSceneTraversal.RKSceneTraversal()
 
 
-    # Function that writes to disk.
+    # Function that writes to disk. TODO
     def x3d2disk(self, x3dDoc, fullPath, exEncoding):
+        
+        with open(fullPath, "w") as self.exFile:
+            self.trv.startExport(x3dDoc, self.exFile, exEncoding)
+        
+        return 
+        
+        ####################################################
+        
         self.fullPath   = fullPath
         self.exEncoding = exEncoding
         

@@ -147,21 +147,21 @@ global proc setDefRKOptVars()
     {
     }else{
         print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
-		optionVar -sv "rkImagePath" "/images";
+		optionVar -sv "rkImagePath" "images/";
     }
     
     if(`optionVar -exists "rkAudioPath"`)
     {
     }else{
         print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
-		optionVar -sv "rkAudioPath" "/audio";
+		optionVar -sv "rkAudioPath" "audio/";
     }
     
     if(`optionVar -exists "rkInlinePath"`)
     {
     }else{
         print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
-		optionVar -sv "rkInlinePath" "/inline";
+		optionVar -sv "rkInlinePath" "inline/";
     }
     
 	if(`optionVar -exists "rk2dTexWrite"`){

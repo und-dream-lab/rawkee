@@ -25,17 +25,26 @@ class RKSceneTraversal():
             self.enc = encx
         elif encoding == "x3dv":
             self.enc = encv
-        elif encoding == "x3dj":
+        elif encoding == "x3dj" or encoding == "json":
             self.enc = encj
         elif encoding == "html":
             self.enc = ench
             
         self.writeHeader()
-        for node in x3dDoc.Scene.children:
-            self.processNode(node, False)
+        scLen = len(x3dDoc.Scene.children)
+        for idx in range(scLen):
+            node = x3dDoc.Scene.children[idx]
+            
+            tMulti = False
+            if encoding == "x3dj" or encoding == "json":
+                tMulti = True
+            if idx < (scLen - 1):
+                self.processNode(node, tMulti, True)
+            else:
+                self.processNode(node, tMulti, False)
         self.writeFooter()
 
-    def processNode(self, node, isMulti):
+    def processNode(self, node, isMulti, addComma):
         nType   = type(node).__name__
 
         sFieldsList = []
@@ -44,18 +53,24 @@ class RKSceneTraversal():
         sNodeList  = []
         mNodeList   = []
         
+        pastMeta = False
+        
+        print(nType)
+        print(node)
         nDict = vars(node)
         for key, value in nDict.items():
             keyp = key.split('_')
             if   keyp[1] == "X3DNode":
-                if   keyp[3] == "DEF" and value != "":
+                if   keyp[3] == "DEF" and value != None:
                     sFieldsList.append("DEF")
                     
-                elif keyp[3] == "USE" and value != "":
+                elif keyp[3] == "USE" and value != None:
                     sFieldsList.append("USE")
                     
-                elif keyp[3] == "metadata" and value != None:
-                    sNodeList.append("metadata")
+                elif keyp[3] == "metadata":
+                    pastMeta = True
+                    if value != None:
+                        sNodeList.append("metadata")
                     
             elif keyp[1] == "RK":
                 if   keyp[3] == "containerField" and value != "":
@@ -65,18 +80,23 @@ class RKSceneTraversal():
                     sFieldsList.append("_RK__mapping")
                 
             elif keyp[1] == nType:
+                if pastMeta == False:
+                    continue
+                    
                 if  isinstance(value, list):
                     if len(value) > 0:
-                        if isinstance(value[0], x3d.Node):
-                            mNodeList.append(keyp[3])
+                        if isinstance(value[0], (str, float, int, tuple, bool, type(None) ) ):
+                            if value[0] != None:
+                                mFieldsList.append(keyp[3])
                         else:
-                            mFieldsList.append(keyp[3])
-                            
+                            mNodeList.append(keyp[3])
+
                 else:
-                    if isinstance(value, x3d.Node):
-                        sNodeList.append(keyp[3])
+                    if isinstance(value, (str, float, int, tuple, bool, type(None) ) ):
+                        if value != None:
+                            sFieldsList.append(keyp[3])
                     else:
-                        sFieldsList.append(keyp[3])
+                        sNodeList.append(keyp[3])
 
         ########################################################
         # Fix for x3d.py misordering of "joints" and "skeleton" 
@@ -96,27 +116,27 @@ class RKSceneTraversal():
                     mNodeList[jIdx] = "skeleton"
                     mNodeList[sIdx] = "joints"
                     
-        self.processSortedNode(nType, node, sFieldsList, mFieldsList, sNodeList, mNodeList, isMulti)
+        self.processSortedNode(nType, node, sFieldsList, mFieldsList, sNodeList, mNodeList, isMulti, addComma)
 
 
         
-    def processSortedNode(self, nType, node, sFieldList, mFieldList, sNodeList, mNodeList, isMulti):
+    def processSortedNode(self, nType, node, sFieldList, mFieldList, sNodeList, mNodeList, isMulti, addComma):
         
         if sFieldList[0] == "USE":
-            processUsed(nType, node)
+            processUsed(nType, node, isMulti, addComma)
         else:
             if   self.enc == encx:
-                self.processNodeAsXML(nType, node, sFieldList, mFieldList, sNodeList, mNodeList)
+                self.processNodeAsXML( nType, node, True,  sFieldList, mFieldList, sNodeList, mNodeList)
             elif self.enc == encv:
-                self.processNodeAsVRML(nType, node, sFieldList, mFieldList, sNodeList, mNodeList, isMulti)
+                self.processNodeAsVRML(nType, node, False, sFieldList, mFieldList, sNodeList, mNodeList, isMulti)
             elif self.enc == encj:
-                self.processNodeAsJSON(nType, node, sFieldList, mFieldList, sNodeList, mNodeList, isMulti)
+                self.processNodeAsJSON(nType, node, False, sFieldList, mFieldList, sNodeList, mNodeList, isMulti, addComma)
             elif self.enc == ench:
-                self.processNodeAsXML(nType, node, sFieldList, mFieldList, sNodeList, mNodeList)
+                self.processNodeAsXML( nType, node, True,  sFieldList, mFieldList, sNodeList, mNodeList)
 
 
     
-    def processUsed(self, nType, node):
+    def processUsed(self, nType, node, isMulti, addComma):
         mainline = ""
         if   self.enc == encx:
             mainline = "<" + nType + " USE='" + node.USE + "'"
@@ -127,6 +147,9 @@ class RKSceneTraversal():
             
         elif self.enc == encv:
             mainline = "USE " + node.USE
+            if isMulti == False:
+                self.writeRemaining(mainline)
+                return
             
         elif self.enc == encj:
             #{ "NodeType":
@@ -135,6 +158,11 @@ class RKSceneTraversal():
             #    }
             #}
             mainline = '{"' + nType + '":{"@USE":"' + node.USE + '"}}'
+            if addComma == True:
+                mainline += ","
+            if isMulti == False:
+                self.writeRemaining(mainline)
+                return
             
         elif self.enc == ench:
             mainline = "<" + nType + " USE='" + node.USE + "'"
@@ -147,7 +175,7 @@ class RKSceneTraversal():
 
 
 
-    def processNodeAsVRML(self, nType, node, sFieldList, mFieldList, sNodeList, mNodeList, isMulti):
+    def processNodeAsVRML(self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, isMulti):
         mainline = ""
         
         if isMulti == True:
@@ -156,25 +184,273 @@ class RKSceneTraversal():
             self.writeRemaining("DEF " + node.DEF + " " + nType + " {")
         self.itabs()
         
-        # TODO: sFieldList
+        sflLen = len(sFieldList)
+        mflLen = len(mFieldList)
+        snlLen = len(sNodeList)
+        mnlLen = len(mNodeList)
+        for fIdx in range(sflLen):
+            tField = sFieldList[fIdx]
+            if   tField == "_RK__mapping":
+                tField  =  "mapping"
+            elif tField == "_RK__containerField":
+                tField  =  "containerField"
+                ####################################################
+                # 'containerField' does not get used in VRML export,
+                # so skip this iteration of the loop.
+                ####################################################
+                if showCF == False:
+                    continue
+                
+            elif tField == "DEF":
+                # Don't write out DEF as a node field
+                continue
+                
+            value = getattr(node, sFieldList[fIdx])
+            sValue = ""
+            
+            if isinstance(value, tuple):
+                sValue = ' '.join([str(item) for item in value])
+                sValue = sValue.strip()
+                
+            elif isinstance(value, bool):
+                if value == True:
+                    sValue = 'TRUE'
+                else:
+                    sValue = 'FALSE'
+                    
+            elif isinstance(value, str):
+                sValue = '"' + value + '"'
+                if value == "":
+                    # if the string has nothing in it, then don't export this field
+                    continue
+                
+            else:
+                sValue = str(value)
+                
+            pVal = tField + ' ' + sValue
+            
+            self.writeLine(pVal)
+            
+        for idx in range(mflLen):
+            field = mFieldList[idx]
+            
+            values = getattr(node, field)
+            sValue = ""
+            
+            if isinstance(values[0], tuple):
+                tvLen = len(values)
+                for vIdx in range(tvLen):
+                    tValue = ' '.join([str(item) for item in values[vIdx]])
+                    tValue = tValue.strip()
+                    sValue = sValue + tValue
+                    if vIdx < (tvLen - 1):
+                        sValue = sValue + ', '
+                
+            elif isinstance(values[0], bool):
+                tvLen = len(values)
+                for vIdx in range(tvLen):
+                    if value[vIdx] == True:
+                        sValue = sValue + 'TRUE'
+                    else:
+                        sValue = sValue + 'FALSE'
+                    if vIdx < (tvLen - 1):
+                        sValue = sValue + ', '
+                
+            elif isinstance(values[0], str):
+                tvLen = len(values)
+                for vIdx in range(tvLen):
+                    sValue = sValue + '"' + values[vIdx] + '"'
+                    if vIdx < (tvLen - 1):
+                        sValue = sValue + ', '
+                
+            else:
+                tvLen = len(values)
+                for vIdx in range(tvLen):
+                    sValue = sValue + str(values[vIdx])
+                    if vIdx < (tvLen - 1):
+                        sValue = sValue + ', '
         
-        # TODO: mFieldList
+            pVal = field + ' [ ' + sValue + ' ]'
+            
+            self.writeLine(pVal)
         
-        # TODO: sNodeList
-        
-        # TODO: mNodeList
+        for nIdx in range(snlLen):
+            field = sNodeList[nIdx]
+            tNode = getattr(node, field)
+            sValue = field
+            self.writePrefix(sValue)
+            self.processNode(tNode, False, False)
+
+        for nIdx in range(mnlLen):
+            mField = mNodeList[nIdx]
+            mList = getattr(node, mField)
+            
+            vValue = mField + ' ['
+            self.writeLine(vValue)
+            self.itabs()
+                        
+            vLen = len(mList)
+            for vIdx in range(vLen):
+                mNode = mList[vIdx]
+                self.processNode(mNode, True, False)
+            self.dtabs()
+            self.writeLine(']')
         
         self.dtabs()
         self.writeLine("}")
 
 
 
-    def processNodeAsJSON(self, nType, node, sFieldList, mFieldList, sNodeList, mNodeList, isMulti):
-        pass
+    def processNodeAsJSON(self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, isMulti, addComma):
+        mainline = ''
+        if isMulti == True:
+            self.writeLine(     '{ "' + nType + '":')
+        else:
+            self.writeRemaining('{ "' + nType + '":')
+        self.itabs()
+        self.writeLine('{')
+        self.itabs()
+        
+        sflLen = len(sFieldList)
+        mflLen = len(mFieldList)
+        snlLen = len(sNodeList)
+        mnlLen = len(mNodeList)
+        for fIdx in range(sflLen):
+            tField = sFieldList[fIdx]
+            if   tField == "_RK__mapping":
+                tField  =  "mapping"
+            elif tField == "_RK__containerField":
+                tField  =  "containerField"
+                ####################################################
+                # 'containerField' does not get used in JSON export,
+                # so skip this iteration of the loop.
+                ####################################################
+                if showCF == False:
+                    continue
+                
+            value = getattr(node, sFieldList[fIdx])
+            sValue = ""
+            
+            if isinstance(value, tuple):
+                sValue = ', '.join([str(item) for item in value])
+                sValue = sValue.strip()
+                sValue = '[ ' + sValue + ' ]'
+                
+            elif isinstance(value, bool):
+                if value == True:
+                    sValue = 'true'
+                else:
+                    sValue = 'false'
+                    
+            elif isinstance(value, str):
+                sValue = '"' + value + '"'
+                if value == "":
+                    # if the string has nothing in it, then don't export this field
+                    continue
+                
+            else:
+                sValue = str(value)
+                
+            pVal = '"@' + tField + '": ' + sValue
+            
+            if fIdx < (sflLen - 1) or mflLen > 0 or snlLen > 0 or mnlLen > 0:
+                pVal = pVal + ','
+                
+            self.writeLine(pVal)
+            
+        for idx in range(mflLen):
+            field = mFieldList[idx]
+            
+            values = getattr(node, field)
+            sValue = ""
+            
+            if isinstance(values[0], tuple):
+                tvLen = len(values)
+                for vIdx in range(tvLen):
+                    tValue = ', '.join([str(item) for item in values[vIdx]])
+                    tValue = tValue.strip()
+                    
+                    sValue = sValue + tValue
+                    if vIdx < (tvLen - 1):
+                        sValue = sValue + ', '
+                
+            elif isinstance(values[0], bool):
+                tvLen = len(values)
+                for vIdx in range(tvLen):
+                    if values[vIdx] == True:
+                        sValue = sValue + 'true'
+                    else:
+                        sValue = sValue + 'false'
+                    if vIdx < (tvLen - 1):
+                        sValue = sValue + ', '
+                
+            elif isinstance(values[0], str):
+                tvLen = len(values)
+                for vIdx in range(tvLen):
+                    sValue = sValue + '"' + values[vIdx] + '"'
+                    if vIdx < (tvLen - 1):
+                        sValue = sValue + ', '
+                
+            else:
+                tvLen = len(values)
+                for vIdx in range(tvLen):
+                    sValue = sValue + str(values[vIdx])
+                    if vIdx < (tvLen - 1):
+                        sValue = sValue + ', '
+        
+            pVal = '"@' + field + '": [ ' + sValue + ' ]'
+            
+            if idx < (mflLen - 1) or snlLen > 0 or mnlLen > 0:
+                pVal = pVal + ','
+                
+            self.writeLine(pVal)
+        
+        for nIdx in range(snlLen):
+            field = sNodeList[nIdx]
+                
+            tNode = getattr(node, field)
+            
+            sValue = '"-' + field + '":'
+            
+            self.writePrefix(sValue)
+            
+            hasComma = False
+            if nIdx < (snlLen - 1) or mnlLen > 0:
+                hasComma = True
+                
+            self.processNode(tNode, False, hasComma)
+
+        for nIdx in range(mnlLen):
+            mField = mNodeList[nIdx]
+            mList = getattr(node, mField)
+            
+            vValue = '"-' + mField + '": ['
+            self.writeLine(vValue)
+            self.itabs()
+                        
+            vLen = len(mList)
+            for vIdx in range(vLen):
+                mNode = mList[vIdx]
+                hasComma = False
+                if vIdx < (vLen - 1):
+                    hasComma = True
+                    
+                self.processNode(mNode, True, hasComma)
+            self.dtabs()
+            self.writeLine(']')
+        
+        self.dtabs()
+        self.writeLine('}')
+        self.dtabs()
+        #self.writePrefix('}')
+        if addComma == True:
+            self.writeLine('},')
+        else:
+            self.writeLine('}')
 
 
 
-    def processNodeAsXML( self, nType, node, sFieldList, mFieldList, sNodeList, mNodeList):
+    def processNodeAsXML( self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList):
         cap = "/>"
         mainline = "<" + nType
         for field in sFieldList:
@@ -183,6 +459,11 @@ class RKSceneTraversal():
                 tField =  "mapping"
             elif field == "_RK__containerField":
                 tField =  "containerField"
+                
+                # It may not be adventageous to always add the containerField
+                if showCF == False:
+                    continue
+                
             mainline = mainline + " " + tField + "='"
             
             value = getattr(node, field)
@@ -262,12 +543,12 @@ class RKSceneTraversal():
             
         for field in sNodeList:
             fNode = getattr(node, field)
-            self.processNode(fNode, False)
+            self.processNode(fNode, False, False)
             
         for field in mNodeList:
             fList = getattr(node, field)
             for fNode in fList:
-                self.processNode(fNode, True)
+                self.processNode(fNode, True, False)
                 
         self.dtabs()
         if len(sNodeList) > 0 or len(mNodeList) > 0:
@@ -309,23 +590,39 @@ class RKSceneTraversal():
                     
         elif self.enc == encv:
             self.writeLine('#VRML V4.0 utf8')
-            self.writeLine('#X3D-to-ClassicVRML serialization autogenerated by X3DPSAIL x3d.py')
-            self.writeLine('#Exported from RawKee X3D Exporter for Maya - Python Edition')
+            self.writeLine('')
             self.writeLine('PROFILE Full')
+            self.writeLine('')
+            self.writeLine('META "generator" "RawKee X3D Exporter for Maya 2025+ [Python Edition], https://github.com/und-dream-lab/rawkee/"')
+            self.writeLine('')
             
         elif self.enc == encj:
             self.writeLine('{')
             self.itabs()
-            self.writeLine('"X3D":,')
-            self.writeLine('{')
+            self.writeLine('"X3D": {')
             self.itabs()
             self.writeLine('"encoding":"UTF-8",')
-            self.writeLine('"$id":"https://www.web3d.org/specifications/x3d-4.0-JSONSchema.json",')
-            self.writeLine('"$schema":"https://json-schema.org/draft/2020-12/schema",')
-            self.writeLine('"@version":"4.0",')
-            self.writeLine('"@profile":"Full",')
-            self.writeLine('"Scene":')
+            self.writeLine('"@profile": "Full",')
+            self.writeLine('"@version": "4.0",')
+            self.writeLine('"@xsd:noNamespaceSchemaLocation": "https://www.web3d.org/specifications/x3d-4.0.xsd",')
+            self.writeLine('"JSON schema": "https://www.web3d.org/specifications/x3d-4.0-JSONSchema.json",')
+            self.writeLine('"head": {')
+            self.itabs()
+            self.writeLine('"meta": [')
+            self.itabs()
             self.writeLine('{')
+            self.itabs()
+            self.writeLine('"@name": "generator",')
+            self.writeLine('"@content": "RawKee X3D Exporter for Maya 2025+ [Python Edition], https://github.com/und-dream-lab/rawkee/"')
+            self.dtabs()
+            self.writeLine('}')
+            self.dtabs()
+            self.writeLine(']')
+            self.dtabs()
+            self.writeLine('},')
+            self.writeLine('"Scene": {')
+            self.itabs()
+            self.writeLine('"-children": [')
             self.itabs()
             
         elif self.enc == ench:
@@ -357,9 +654,12 @@ class RKSceneTraversal():
             self.writeLine("</X3D>")
                     
         elif self.enc == encv:
+            self.writeLine('')
             self.writeLine('#End of File')
             
         elif self.enc == encj:
+            self.dtabs()
+            self.writeLine(']')
             self.dtabs()
             self.writeLine('}')
             self.dtabs()
@@ -376,8 +676,6 @@ class RKSceneTraversal():
             self.writeLine("</body>")
             self.dtabs()
             self.writeLine("</html>")
-
-                
 
     def itabs(self):
         self.tabs += 1
