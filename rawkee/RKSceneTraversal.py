@@ -46,6 +46,7 @@ class RKSceneTraversal():
 
     def processNode(self, node, isMulti, addComma):
         nType   = type(node).__name__
+        compNode = self.createNodeFromString(nType)
 
         sFieldsList = []
         mFieldsList  = []
@@ -55,21 +56,19 @@ class RKSceneTraversal():
         
         pastMeta = False
         
-        print(nType)
-        print(node)
         nDict = vars(node)
         for key, value in nDict.items():
             keyp = key.split('_')
             if   keyp[1] == "X3DNode":
-                if   keyp[3] == "DEF" and value != None:
+                if   keyp[3] == "DEF" and node.DEF != None:
                     sFieldsList.append("DEF")
                     
-                elif keyp[3] == "USE" and value != None:
+                elif keyp[3] == "USE" and node.USE != None:
                     sFieldsList.append("USE")
                     
                 elif keyp[3] == "metadata":
                     pastMeta = True
-                    if value != None:
+                    if compNode.metadata != node.metadata: #value != None:
                         sNodeList.append("metadata")
                     
             elif keyp[1] == "RK":
@@ -84,7 +83,7 @@ class RKSceneTraversal():
                     continue
                     
                 if  isinstance(value, list):
-                    if len(value) > 0:
+                    if getattr(compNode,keyp[3]) != value:#len(value) > 0:
                         if isinstance(value[0], (str, float, int, tuple, bool, type(None) ) ):
                             if value[0] != None:
                                 mFieldsList.append(keyp[3])
@@ -92,12 +91,15 @@ class RKSceneTraversal():
                             mNodeList.append(keyp[3])
 
                 else:
-                    if isinstance(value, (str, float, int, tuple, bool, type(None) ) ):
-                        if value != None:
+                    if getattr(compNode,keyp[3]) != value:
+                        if isinstance(value, (str, float, int, tuple, bool, type(None) ) ):
+                            #if value != None:
                             sFieldsList.append(keyp[3])
-                    else:
-                        sNodeList.append(keyp[3])
+                        else:
+                            #if getattr(compNode,keyp[3]) != value:
+                            sNodeList.append(keyp[3])
 
+        
         ########################################################
         # Fix for x3d.py misordering of "joints" and "skeleton" 
         # fields in its HAnimHumanoid node implementation.
@@ -112,9 +114,17 @@ class RKSceneTraversal():
                 elif mNodeList[idx] == "skeleton":
                     sIdx = idx
                 
-                if sIdx != -1 and jIdx != -1:
+                hasDEF = False
+                if compNode.skelelton != node.skeleton:
+                    for rj in getattr(node, "skeleton"):
+                        if type(rj).__name__ == "HAnimJoint" and (rj.DEF != '' or rj.DEF != None):
+                            hasDEF = True
+
+                if sIdx > -1 and jIdx > -1 and sIdx > jIdx and hasDEF == True:
                     mNodeList[jIdx] = "skeleton"
                     mNodeList[sIdx] = "joints"
+        
+        compNode = None
                     
         self.processSortedNode(nType, node, sFieldsList, mFieldsList, sNodeList, mNodeList, isMulti, addComma)
 
@@ -683,3 +693,289 @@ class RKSceneTraversal():
     def dtabs(self):
         if self.tabs > 0:
             self.tabs -= 1
+            
+    def createNodeFromString(self, x3dType):
+        x3dNodeMapping = {
+            ####################################### A
+            'AcousticProperties':AcousticProperties,
+            'Analyser':Analyser,
+            'Anchor':Anchor,
+            'Appearance':Appearance,
+            'Arc2D':Arc2D,
+            'ArcClose2D':ArcClose2D,
+            'AudioClip':AudioClip,
+            'AudioDestination':AudioDestination,
+            ####################################### B
+            'Background':Background,
+            'BallJoint':BallJoint,
+            'Billboard':Billboard,
+            'BiquadFilter':BiquadFilter,
+            'BlendedVolumeStyle':BlendedVolumeStyle,
+            'BooleanFilter':BooleanFilter,
+            'BooleanSequencer':BooleanSequencer,
+            'BooleanToggle':BooleanToggle,
+            'BooleanTrigger':BooleanTrigger,
+            'BoundaryEnhancementVolumeStyle':BoundaryEnhancementVolumeStyle,
+            'BoundedPhysicsModel':BoundedPhysicsModel,
+            'Box':Box,
+            'BufferAudioSource':BufferAudioSource,
+            ####################################### C
+            'CADAssembly':CADAssembly,
+            'CADFace':CADFace,
+            'CADLayer':CADLayer,
+            'CADPart':CADPart,
+            'CartoonVolumeStyle':CartoonVolumeStyle,
+            'ChannelMerger':ChannelMerger,
+            'ChannelSelector':ChannelSelector,
+            'ChannelSplitter':ChannelSplitter,
+            'Circle2D':Circle2D,
+            'ClipPlane':ClipPlane,
+            'CollidableOffset':CollidableOffset,
+            'CollidableShape':CollidableShape,
+            'Collision':Collision,
+            'CollisionCollection':CollisionCollection,
+            'CollisionSensor':CollisionSensor,
+            'CollisionSpace':CollisionSpace,
+            'Color':Color,
+            'ColorChaser':ColorChaser,
+            'ColorDamper':ColorDamper,
+            'ColorInterpolator':ColorInterpolator,
+            'ColorRGBA':ColorRGBA,
+            'ComposedCubeMapTexture':ComposedCubeMapTexture,
+            'ComposedShader':ComposedShader,
+            'ComposedTexture3D':ComposedTexture3D,
+            'ComposedVolumeStyle':ComposedVolumeStyle,
+            'Cone':Cone,
+            'ConeEmitter':ConeEmitter,
+            'Contact':Contact,
+            'Contour2D':Contour2D,
+            'ContourPolyline2D':ContourPolyline2D,
+            'Convolver':Convolver,
+            'Coordinate':Coordinate,
+            'CoordinateChaser':CoordinateChaser,
+            'CoordinateDamper':CoordinateDamper,
+            'CoordinateDouble':CoordinateDouble,
+            'CoordinateInterpolator':CoordinateInterpolator,
+            'CoordinateInterpolator2D':CoordinateInterpolator2D,
+            'Cylinder':Cylinder,
+            'CylinderSensor':CylinderSensor,
+            ####################################### D
+            'Delay':Delay,
+            'DirectionalLight':DirectionalLight,
+            'DISEntityManager':DISEntityManager,
+            'DISEntityTypeMapping':DISEntityTypeMapping,
+            'Disk2D':Disk2D,
+            'DoubleAxisHingeJoint':DoubleAxisHingeJoint,
+            'DynamicsCompressor':DynamicsCompressor,
+            ####################################### E
+            'EaseInEaseOut':EaseInEaseOut,
+            'EdgeEnhancementVolumeStyle':EdgeEnhancementVolumeStyle,
+            'ElevationGrid':ElevationGrid,
+            'EspduTransform':EspduTransform,
+            'ExplosionEmitter':ExplosionEmitter,
+            'Extrusion':Extrusion,
+            ####################################### F
+            'FillProperties':FillProperties,
+            'FloatVertexAttribute':FloatVertexAttribute,
+            'Fog':Fog,
+            'FogCoordinate':FogCoordinate,
+            'FontStyle':FontStyle,
+            'ForcePhysicsModel':ForcePhysicsModel,
+            ####################################### G
+            'Gain':Gain,
+            'GeneratedCubeMapTexture':GeneratedCubeMapTexture,
+            'GeoCoordinate':GeoCoordinate,
+            'GeoElevationGrid':GeoElevationGrid,
+            'GeoLocation':GeoLocation,
+            'GeoLOD':GeoLOD,
+            'GeoMetadata':GeoMetadata,
+            'GeoOrigin':GeoOrigin,
+            'GeoPositionInterpolator':GeoPositionInterpolator,
+            'GeoProximitySensor':GeoProximitySensor,
+            'GeoTouchSensor':GeoTouchSensor,
+            'GeoTransform':GeoTransform,
+            'GeoViewpoint':GeoViewpoint,
+            'Group':Group,
+            ####################################### H
+            'HAnimDisplacer':HAnimDisplacer,
+            'HAnimHumanoid':HAnimHumanoid,
+            'HAnimJoint':HAnimJoint,
+            'HAnimMotion':HAnimMotion,
+            'HAnimSegment':HAnimSegment,
+            'HAnimSite':HAnimSite,
+            ####################################### I
+            'ImageCubeMapTexture':ImageCubeMapTexture,
+            'ImageTexture':ImageTexture,
+            'ImageTexture3D':ImageTexture3D,
+            'IndexedFaceSet':IndexedFaceSet,
+            'IndexedLineSet':IndexedLineSet,
+            'IndexedQuadSet':IndexedQuadSet,
+            'IndexedTriangleFanSet':IndexedTriangleFanSet,
+            'IndexedTriangleSet':IndexedTriangleSet,
+            'IndexedTriangleStripSet':IndexedTriangleStripSet,
+            'Inline':Inline,
+            'IntegerSequencer':IntegerSequencer,
+            'IntegerTrigger':IntegerTrigger,
+            'IsoSurfaceVolumeData':IsoSurfaceVolumeData,
+            ####################################### K
+            'KeySensor':KeySensor,
+            ####################################### L
+            'Layer':Layer,
+            'LayerSet':LayerSet,
+            'Layout':Layout,
+            'LayoutGroup':LayoutGroup,
+            'LayoutLayer':LayoutLayer,
+            'LinePickSensor':LinePickSensor,
+            'LineProperties':LineProperties,
+            'LineSet':LineSet,
+            'ListenerPointSource':ListenerPointSource,
+            'LoadSensor':LoadSensor,
+            'LocalFog':LocalFog,
+            'LOD':LOD,
+            ####################################### M
+            'Material':Material,
+            'Matrix3VertexAttribute':Matrix3VertexAttribute,
+            'Matrix4VertexAttribute':Matrix4VertexAttribute,
+            'MetadataBoolean':MetadataBoolean,
+            'MetadataDouble':MetadataDouble,
+            'MetadataFloat':MetadataFloat,
+            'MetadataInteger':MetadataInteger,
+            'MetadataSet':MetadataSet,
+            'MetadataString':MetadataString,
+            'MicrophoneSource':MicrophoneSource,
+            'MotorJoint':MotorJoint,
+            'MovieTexture':MovieTexture,
+            'MultiTexture':MultiTexture,
+            'MultiTextureCoordinate':MultiTextureCoordinate,
+            'MultiTextureTransform':MultiTextureTransform,
+            ####################################### N
+            'NavigationInfo':NavigationInfo,
+            'Normal':Normal,
+            'NormalInterpolator':NormalInterpolator,
+            'NurbsCurve':NurbsCurve,
+            'NurbsCurve2D':NurbsCurve2D,
+            'NurbsOrientationInterpolator':NurbsOrientationInterpolator,
+            'NurbsPatchSurface':NurbsPatchSurface,
+            'NurbsPositionInterpolator':NurbsPositionInterpolator,
+            'NurbsSet':NurbsSet,
+            'NurbsSurfaceInterpolator':NurbsSurfaceInterpolator,
+            'NurbsSweptSurface':NurbsSweptSurface,
+            'NurbsSwungSurface':NurbsSwungSurface,
+            'NurbsTextureCoordinate':NurbsTextureCoordinate,
+            'NurbsTrimmedSurface':NurbsTrimmedSurface,
+            ####################################### O
+            'OpacityMapVolumeStyle':OpacityMapVolumeStyle,
+            'OrientationChaser':OrientationChaser,
+            'OrientationDamper':OrientationDamper,
+            'OrientationInterpolator':OrientationInterpolator,
+            'OrthoViewpoint':OrthoViewpoint,
+            'OscillatorSource':OscillatorSource,
+            ####################################### P
+            'PackagedShader':PackagedShader,
+            'ParticleSystem':ParticleSystem,
+            'PeriodicWave':PeriodicWave,
+            'PhysicalMaterial':PhysicalMaterial,
+            'PickableGroup':PickableGroup,
+            'PixelTexture':PixelTexture,
+            'PixelTexture3D':PixelTexture3D,
+            'PlaneSensor':PlaneSensor,
+            'PointEmitter':PointEmitter,
+            'PointLight':PointLight,
+            'PointPickSensor':PointPickSensor,
+            'PointProperties':PointProperties,
+            'PointSet':PointSet,
+            'Polyline2D':Polyline2D,
+            'PolylineEmitter':PolylineEmitter,
+            'Polypoint2D':Polypoint2D,
+            'PositionChaser':PositionChaser,
+            'PositionChaser2D':PositionChaser2D,
+            'PositionDamper':PositionDamper,
+            'PositionDamper2D':PositionDamper2D,
+            'PositionInterpolator':PositionInterpolator,
+            'PositionInterpolator2D':PositionInterpolator2D,
+            'PrimitivePickSensor':PrimitivePickSensor,
+            'ProgramShader':ProgramShader,
+            'ProjectionVolumeStyle':ProjectionVolumeStyle,
+            'ProximitySensor':ProximitySensor,
+            ####################################### Q
+            'QuadSet':QuadSet,
+            ####################################### R
+            'ReceiverPdu':ReceiverPdu,
+            'Rectangle2D':Rectangle2D,
+            'RigidBody':RigidBody,
+            'RigidBodyCollection':RigidBodyCollection,
+            ####################################### S
+            'ScalarChaser':ScalarChaser,
+            'ScalarDamper':ScalarDamper,
+            'ScalarInterpolator':ScalarInterpolator,
+            'ScreenFontStyle':ScreenFontStyle,
+            'ScreenGroup':ScreenGroup,
+            'Script':Script,
+            'SegmentedVolumeData':SegmentedVolumeData,
+            'ShadedVolumeStyle':ShadedVolumeStyle,
+            'ShaderPart':ShaderPart,
+            'ShaderProgram':ShaderProgram,
+            'Shape':Shape,
+            'SignalPdu':SignalPdu,
+            'SilhouetteEnhancementVolumeStyle':SilhouetteEnhancementVolumeStyle,
+            'SingleAxisHingeJoint':SingleAxisHingeJoint,
+            'SliderJoint':SliderJoint,
+            'Sound':Sound,
+            'SpatialSound':SpatialSound,
+            'Sphere':Sphere,
+            'SphereSensor':SphereSensor,
+            'SplinePositionInterpolator':SplinePositionInterpolator,
+            'SplinePositionInterpolator2D':SplinePositionInterpolator2D,
+            'SplineScalarInterpolator':SplineScalarInterpolator,
+            'SpotLight':SpotLight,
+            'StaticGroup':StaticGroup,
+            'StreamAudioDestination':StreamAudioDestination,
+            'StreamAudioSource':StreamAudioSource,
+            'StringSensor':StringSensor,
+            'SurfaceEmitter':SurfaceEmitter,
+            'Switch':Switch,
+            ####################################### T
+            'TexCoordChaser2D':TexCoordChaser2D,
+            'TexCoordDamper2D':TexCoordDamper2D,
+            'Text':Text,
+            'TextureBackground':TextureBackground,
+            'TextureCoordinate':TextureCoordinate,
+            'TextureCoordinate3D':TextureCoordinate3D,
+            'TextureCoordinate4D':TextureCoordinate4D,
+            'TextureCoordinateGenerator':TextureCoordinateGenerator,
+            'TextureProjector':TextureProjector,
+            'TextureProjectorParallel':TextureProjectorParallel,
+            'TextureProperties':TextureProperties,
+            'TextureTransform':TextureTransform,
+            'TextureTransform3D':TextureTransform3D,
+            'TextureTransformMatrix3D':TextureTransformMatrix3D,
+            'TimeSensor':TimeSensor,
+            'TimeTrigger':TimeTrigger,
+            'ToneMappedVolumeStyle':ToneMappedVolumeStyle,
+            'TouchSensor':TouchSensor,
+            'Transform':Transform,
+            'TransformSensor':TransformSensor,
+            'TransmitterPdu':TransmitterPdu,
+            'TriangleFanSet':TriangleFanSet,
+            'TriangleSet':TriangleSet,
+            'TriangleSet2D':TriangleSet2D,
+            'TriangleStripSet':TriangleStripSet,
+            'TwoSidedMaterial':TwoSidedMaterial,
+            ####################################### U
+            'UniversalJoint':UniversalJoint,
+            'UnlitMaterial':UnlitMaterial,
+            ####################################### V
+            'Viewpoint':Viewpoint,
+            'ViewpointGroup':ViewpointGroup,
+            'Viewport':Viewport,
+            'VisibilitySensor':VisibilitySensor,
+            'VolumeData':VolumeData,
+            'VolumeEmitter':VolumeEmitter,
+            'VolumePickSensor':VolumePickSensor,
+            ####################################### W
+            'WaveShaper':WaveShaper,
+            'WindPhysicsModel':WindPhysicsModel,
+            'WorldInfo':WorldInfo
+        }
+        
+        return x3dNodeMapping[x3dType]()
