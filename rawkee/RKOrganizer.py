@@ -346,20 +346,13 @@ class RKOrganizer():
         parentDagPaths   = []
 
         # Grab the selected Transforms
-        activeList = aom.MGlobal.getActiveSelectionList()
-        iterGP = aom.MItSelectionList( activeList, aom.MFn.kDagNode )
-        itDag  = aom.MItDag(aom.MItDag.kBreadthFirst, aom.MFn.kTransform)
+        activeList = aom.MGlobal.getActiveSelectionList(True)
+        iterGP = aom.MItSelectionList( activeList, aom.MFn.kTransform )
         
-        dagList  = []
-        dragList = []
-        
-        while iterGP.isDone() != False:
-            dagPath = iterGP.getDagPath()
-            if dagPath != None:
-                itDag.reset(dagPath, aom.MItDag.kDepthFirst, aom.MFn.kTransform)
-                topNode = aom.MFnDagNode(itDag.root())
-                selectedDagNodes.append(topNode)
-                parentDagPaths.append(topNode.getPath().fullPathName()) # this is wrong, this is not the parent dagpath of this node.
+        while not iterGP.isDone():
+            dagPath   = iterGP.getDagPath()
+            selectedDagNodes.append(aom.MFnDagNode(dagPath))
+            parentDagPaths.append("|!!!!!_!!!!!|world")
             iterGP.next()
             
         return parentDagPaths, selectedDagNodes
@@ -1163,7 +1156,7 @@ class RKOrganizer():
         shaders, meshComps = myMesh.getConnectedSetsAndMembers(0, True)
 
         # Generate Mesh / Shader Combo Mappings
-        bdID = self.genMSComboMappings(myMesh, shaders, meshComps)
+        self.genMSComboMappings(myMesh, shaders, meshComps)
         
         # Check for Metadata - TODO: skipping how this is done here for the moment.
         
@@ -1224,12 +1217,9 @@ class RKOrganizer():
                 sbna[1].bboxCenter = self.rkint.getSFVec3fFromList(cen)
                 sbna[1].bboxSize   = self.rkint.getSFVec3fFromList(bbSize)
 
-                # trackTextureTransforms(self, shaderName, texTransList):
-                # getTexTransList(self, shaderName):
-                self.processForAppearance(myMesh, shaders[idx], meshComps[idx], sbna[1], bdID, cField="appearance", index=idx)
+                self.processForAppearance(myMesh, shaders[idx], meshComps[idx], sbna[1], cField="appearance", index=idx)
                 
-                #ifsName = shapeName + "_IFS"
-                self.processForGeometry(  myMesh, shaders, meshComps, sbna[1], bdID, nodeName=shapeName, cField="geometry", nodeType="IndexedFaceSet", index=idx)
+                self.processForGeometry(  myMesh, shaders, meshComps, sbna[1], nodeName=shapeName, cField="geometry", nodeType="IndexedFaceSet", index=idx)
 
 
     def genMSComboMappings(self, mesh, shaders, components):
@@ -1513,48 +1503,31 @@ class RKOrganizer():
             
             mappings[i] = mapStr
             
-        # Apply mappings to components
-        strList = []
-        lName = "jsonTextureMappings_"
-        sName = "jtm_"
-        tIdx   = self.newTemplateId(mesh)
-        faceIDs = []
+        mapJSON = '{"shadingEngines":['
         
-        
-        for j in range(len(mappings)):
-            tStrList = []
-            tStrList.append(lName + str(j))
-            tStrList.append(sName + str(j))
-            tStrList.append("string")
-            tTuple = (tStrList)
-            strList.append(tTuple)
-        mesh.createBlindDataType(tIdx, strList)
-        
-        
-        #mesh.createBlindDataType(iIdx, (lName, sName, dType))
-        
-        for j in range(len(components)):
-            msList = aom.MSelectionList()
-            msList.add(mesh.name())
-            tDagPath = msList.getDagPath(0)
+        mapLen = len(mappings)
+        for mIdx in range(mapLen):
+            mapJSON += mappings[mIdx]
+            if mIdx < mapLen -1:
+                mapJSON += ','
+        mapJSON += ']}'
+
+        pFound = False
+        try:
+            plug = mesh.findPlug("x3dTextureMappings", False)
+            plug.setString(mapJSON)
+        except:
+            attrFn = aom.MFnTypedAttribute()
+            newAttr = attrFn.create("x3dTextureMappings", "x3dTMaps", aom.MFnData.kString)
+            attrFn.storable = False
+            attrFn.keyable  = False
+            mesh.addAttribute(newAttr)
             
-            mpIter = aom.MItMeshPolygon(tDagPath, components[j])
-#            mpIter = aom.MItMeshPolygon(mesh.dagPath(), components[j])
-            faceIDs.clear()
-            
-            while not mpIter.isDone():
-                faceIDs.append(mpIter.index())
-                mpIter.next()
-            
-            mesh.setStringBlindData(faceIDs, aom.MFn.kMeshPolygonComponent, tIdx, lName + str(j), mappings[j])
-            
-        return tIdx
-    
+            plug = mesh.findPlug("x3dTextureMappings", False)
+            plug.setString(mapJSON)
+
     
     def extractSetTexMatch(self, texture, texNodes):
-        print("Ex called.")
-        print(texture)
-        print(texNodes)
         for i in range(len(texNodes)):
             print(texture.name())
             print(texNodes[i].name())
@@ -1562,11 +1535,14 @@ class RKOrganizer():
                 return i
 
     
-    def processForAppearance(self, myMesh, shadingEngineObj, component, parentNode, bdID, cField="appearance", index=0):
+    def processForAppearance(self, myMesh, shadingEngineObj, component, parentNode, cField="appearance", index=0):
         texTrans = []
         depNode = aom.MFnDependencyNode(shadingEngineObj)
-        faceIDs, mapJSON = myMesh.getStringBlindData(aom.MFn.kMeshPolygonComponent, bdID, "jsonTextureMappings_" + str(index))
-        mappings = json.loads(mapJSON[0])
+        
+        mapJSON = myMesh.findPlug("x3dTextureMappings", False).asString()
+        meshTMaps = json.loads(mapJSON)
+        allMaps = meshTMaps['shadingEngines']
+        mappings = allMaps[index]
 
         print("Before Appearance")
         # Create an Appearance Node using the name of the Shader Engine node.
@@ -2025,15 +2001,18 @@ class RKOrganizer():
     def processMaterial(self):
         pass
 
-    def processForGeometry(self, myMesh, shaders, meshComps, x3dParentNode, bdID, nodeName=None, cField="geometry", nodeType="IndexedFaceSet", index=0):
+    def processForGeometry(self, myMesh, shaders, meshComps, x3dParentNode, nodeName=None, cField="geometry", nodeType="IndexedFaceSet", index=0):
         meshMP = 0
         if nodeName == None:
             nodeName = myMesh.name()
 
         depNode = aom.MFnDependencyNode(shaders[index])
-        faceIDs, mapJSON = myMesh.getStringBlindData(aom.MFn.kMeshPolygonComponent, bdID, "jsonTextureMappings_" + str(index))
-        mappings = json.loads(mapJSON[0])
-        
+
+        mapJSON = myMesh.findPlug("x3dTextureMappings", False).asString()
+        meshTMaps = json.loads(mapJSON)
+        allMaps = meshTMaps['shadingEngines']
+        mappings = allMaps[index]
+
         if nodeType == "IndexedFaceSet":
             msList = aom.MSelectionList()
             msList.add(myMesh.name())
@@ -2132,6 +2111,7 @@ class RKOrganizer():
                         bnaTXC = self.processBasicNodeAddition(myMesh, bna[1], "texCoord", "MultiTextureCoordinate", geomName + "_MTC_" + str(index))
                         mtxHasBeen = bnaTXC[0]
 
+                    # Write out TextureCoordinate nodes
                     if mtxHasBeen == False and mapLen > 0:
 
                         tPolyVerts = 0
@@ -2139,7 +2119,12 @@ class RKOrganizer():
                         while not mIter.isDone():
                             tPolyVerts += mIter.polygonVertexCount()
                             mIter.next()
-                            
+                    
+                        # The texCoords list is a list of lists, so that
+                        # it is a list of "points" array for each TextureCoordinate that aligns each 'mapping'.
+                        # The total number of 2D (u,v) poins in each points array is equal to the value of 
+                        # tPolyVerts. We are populating each list in the texCoords list with points equal to
+                        # (0.0, 0.0)
                         texCoords = []
                         for item in mappings['mappings']:
                             tpv = []
@@ -2147,10 +2132,34 @@ class RKOrganizer():
                                 tpv.append((0.0, 0.0))
                             texCoords.append(tpv)
                         
+                        
                         idxCount = 0
                         mIter.reset()
                         while not mIter.isDone():
-                            #vertices = mIter.getVertices()
+                            '''
+                            nVerts = mIter.polygonVertexCount()
+                            for t in range(mapLen):
+                                tMap = mappings['mappings'][t]
+                                hasUV = mIter.hasUVs(tMap['uvSetName'])
+                                ul = []
+                                vl = []
+                                if hasUV == True:
+                                    ul, vl = mIter.getUVs(tMap['uvSetName'])
+                                else:
+                                    for lIdx in range(nVerts):
+                                        ul.append(0.0)
+                                        vl.append(0.0)
+
+                                for uIdx in range(nVerts):
+                                    texCoords[t][idxCount+uIdx] = (ul[uIdx], vl[uIdx])
+                            
+                            for nvIdx in range(nVerts):
+                                bna[1].texCoordIndex.append(idxCount)
+                                idxCount += 1
+                            
+                            bna[1].texCoordIndex.append(-1)
+                            mIter.next()
+                            '''
                             nVerts = mIter.polygonVertexCount()
                             hasUV  = mIter.hasUVs()
                             

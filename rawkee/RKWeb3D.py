@@ -183,11 +183,11 @@ class RKWeb3D():
         print("The Global")
     
     # Export Function
-    def activateExportFunctions(self):
+    def activateExportFunctions(self, expMode):
         print("RawKee X3D Export")
         
         # Set Export Mode
-        cmds.optionVar(iv=('rkExportMode', 0))
+        cmds.optionVar(iv=('rkExportMode', expMode))
 
         #############################################
         # Prepare New X3D Document with Scene
@@ -205,7 +205,13 @@ class RKWeb3D():
         if self.curDir == "":
             self.curDir = cmds.internalVar(userAppDir=True)
 
-        self.dirPath = self.curDir
+        if expMode == 0:
+            self.dirPath = cmds.optionVar( q='rkPrjDir')
+        elif expMode == 1:
+            self.dirPath = cmds.optionVar( q='rkCastlePrjDir')
+        else:
+            self.dirPath = self.curDir
+            
         self.fullPath = self.dirPath
         self.fullPath, self.selectedFilter = QtWidgets.QFileDialog.getSaveFileName(self.mayaWin, QtCore.QObject.tr("RawKee - Export File As..."), self.fullPath, QtCore.QObject.tr(self.x3dfilters))
         print(self.selectedFilter)
@@ -283,11 +289,110 @@ class RKWeb3D():
         
         
     # Export Function
-    def activateSelExportFunctions(self):
-        # Set Export Mode
-        cmds.optionVar(iv=('rkExportMode', 0))
-
+    def activateSelExportFunctions(self, expMode):
         print("RawKee X3D Selected Export")
+
+        # Set Export Mode
+        cmds.optionVar(iv=('rkExportMode', expMode))
+
+        #############################################
+        # Prepare New X3D Document with Scene
+        profileType = "Full"
+        x3dVersion  = "4.0"
+        x3dDoc = rkx3d.X3D(profile=profileType, version=x3dVersion)
+        x3dDoc.Scene = rkx3d.Scene()
+
+        #############################################
+        # Get File Path From QFileDialog File Chooser
+        # Placing this activity here because users
+        # expect the file chooser to appear 
+        # immediately when attempting a file 
+        # save/export.
+        if self.curDir == "":
+            self.curDir = cmds.internalVar(userAppDir=True)
+
+        if expMode == 0:
+            self.dirPath = cmds.optionVar( q='rkPrjDir')
+        elif expMode == 1:
+            self.dirPath = cmds.optionVar( q='rkCastlePrjDir')
+        else:
+            self.dirPath = self.curDir
+
+        self.fullPath = self.dirPath
+        self.fullPath, self.selectedFilter = QtWidgets.QFileDialog.getSaveFileName(self.mayaWin, QtCore.QObject.tr("RawKee - Export File As..."), self.fullPath, QtCore.QObject.tr(self.x3dfilters))
+        print(self.selectedFilter)
+
+        #############################################
+        # Making certain there is a valid file path 
+        # before proceeding.
+        if self.fullPath != None and self.fullPath != "":
+        
+            # TODO Move this to the actual export call - From RKUtils.py 
+            #processNonFileTextures()
+        
+            #########################################
+            # Create the Object that organizes the 
+            # data in the maya scen to be 
+            # copied into the X3D Document object
+            rko = RKOrganizer.RKOrganizer()
+        
+            #########################################
+            # Rethink if we want this code here
+            # Commenting it out for now.
+            '''
+            # Setup Basic File Path Info
+            self.rko.fileName = self.fullPath
+            idx = self.rko.fileName.rfind("/")
+            self.rko.localPath = self.rko.fileName[:idx+1]
+            print(self.rko.localPath)
+            
+            
+            ###############################################
+            #x3dEO.setFileSax3dWriter(tempFile);
+            self.rko.rkio.fullPath = self.rko.fileName
+            
+            #x3dEO.setExportStyle(filter());
+            self.rko.setExportStyle(self.selectedFilter)
+            '''
+
+            ###############################################
+            # Commenting this out for now. But will 
+            # probably will still use it at some point,
+            # though it may be called from another lcoation
+            # in the code.
+            #############################
+            rko.organizeExport() # TODO - Required to keep the scene traversal from crashing, becauese the 'ignore' methods are called here.
+            #############################
+
+            # Grab Transforms parented to the real root.
+            parentDagPaths, topDagNodes = rko.getSelectedDagNodes()
+            
+            # Traverse DAG and map node data to X3D
+            rko.maya2x3d(x3dDoc.Scene, parentDagPaths, topDagNodes, self.pVersion)
+            
+            # Write the X3D data to a file.
+            exEncoding     = "x3d"
+            fext = os.path.splitext(self.fullPath)[1]
+            if   fext == ".x3dv":
+                exEncoding = "x3dv"
+            elif fext == ".x3dj":
+                exEncoding = "x3dj"
+            elif fext == ".json":
+                exEncoding = "json"
+            elif fext == ".html":
+                exEncoding = "html"
+
+            rko.rkio.x3d2disk(x3dDoc, self.fullPath, exEncoding)
+            
+            # Delete the RKOrganizer object.
+            del rko
+            
+        else:
+            print("User Cancelled file selection.")
+        
+        # Delete the X3D Document object now that it is no longer being used.
+        del x3dDoc
+
 
 
     # Export Options Function

@@ -1045,10 +1045,13 @@ class RKFOptsDialog(QtWidgets.QDialog):
             if self.dialogTitle == "X3D Export Options":
                 cmds.rkX3DExport()
             else:
-                cmds.rkX3DExportOp()
-        #rawkeeCASExport - TODO - at least stub it
-        #rawkeeCASSelExport - TODO - at least stub it
-        pass
+                cmds.rkX3DSelExport()
+        elif self.rkExportMode == 1:
+            if self.dialogTitle == "Castle Export All - Options":
+                cmds.rkCASExport()
+            else:
+                cmds.rkCASSelExport()
+
         
         
 if __name__ == "__main__":

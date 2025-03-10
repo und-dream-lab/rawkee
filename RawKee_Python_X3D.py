@@ -132,7 +132,28 @@ class RKX3DExport(aom.MPxCommand):
         global rkWeb3D
         
         if rkWeb3D is not None:
-            rkWeb3D.activateExportFunctions()
+            rkWeb3D.activateExportFunctions(0)
+        else:
+            print("rkWeb3D was None")
+
+
+
+# Creating the MEL Command for the RawKee's function to activate export function
+class RKCASExport(aom.MPxCommand):
+    kPluginCmdName = "rkCASExport"
+
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+
+    @staticmethod
+    def cmdCreator():
+        return RKCASExport()
+        
+    def doIt(self, args):
+        global rkWeb3D
+        
+        if rkWeb3D is not None:
+            rkWeb3D.activateExportFunctions(1)
         else:
             print("rkWeb3D was None")
 
@@ -153,7 +174,28 @@ class RKX3DSelExport(aom.MPxCommand):
         global rkWeb3D
         
         if rkWeb3D is not None:
-            rkWeb3D.activateSelExportFunctions()
+            rkWeb3D.activateSelExportFunctions(0)
+        else:
+            print("rkWeb3D was None")
+
+
+
+# Creating the MEL Command for the RawKee's function to activate export function
+class RKCASSelExport(aom.MPxCommand):
+    kPluginCmdName = "rkCASSelExport"
+
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+
+    @staticmethod
+    def cmdCreator():
+        return RKCASSelExport()
+        
+    def doIt(self, args):
+        global rkWeb3D
+        
+        if rkWeb3D is not None:
+            rkWeb3D.activateSelExportFunctions(1)
         else:
             print("rkWeb3D was None")
 
@@ -242,7 +284,7 @@ class RKX3DSetProject(aom.MPxCommand):
 
 
 # Creating the MEL Command for the RawKee's function to activate export function
-class RKX3DCastleProject(aom.MPxCommand):
+class RKCASSetProject(aom.MPxCommand):
     kPluginCmdName = "rkCASSetProject"
 
     def __init__(self):
@@ -250,7 +292,7 @@ class RKX3DCastleProject(aom.MPxCommand):
 
     @staticmethod
     def cmdCreator():
-        return RKX3DCastleProject()
+        return RKCASSetProject()
         
     def doIt(self, args):
         global rkWeb3D
@@ -261,7 +303,7 @@ class RKX3DCastleProject(aom.MPxCommand):
             print("rkWeb3D was None")
 
 
-class RKX3DCastleExportOp(aom.MPxCommand):
+class RKCASExportOp(aom.MPxCommand):
     kPluginCmdName = "rkCASExportOp"
 
     def __init__(self):
@@ -269,7 +311,7 @@ class RKX3DCastleExportOp(aom.MPxCommand):
 
     @staticmethod
     def cmdCreator():
-        return RKX3DCastleExportOp()
+        return RKCASExportOp()
         
     def doIt(self, args):
         global rkWeb3D
@@ -280,7 +322,7 @@ class RKX3DCastleExportOp(aom.MPxCommand):
             print("rkWeb3D was None")
 
 
-class RKX3DCastleSelExportOp(aom.MPxCommand):
+class RKCASSelExportOp(aom.MPxCommand):
     kPluginCmdName = "rkCASSelExportOp"
 
     def __init__(self):
@@ -288,7 +330,7 @@ class RKX3DCastleSelExportOp(aom.MPxCommand):
 
     @staticmethod
     def cmdCreator():
-        return RKX3DCastleSelExportOp()
+        return RKCASSelExportOp()
         
     def doIt(self, args):
         global rkWeb3D
@@ -402,27 +444,27 @@ def initializePlugin(plugin):
     ##################################
     try:
         
-        #pluginFn.registerCommand(RKWeb3DExporter.kPluginCmdName, RKWeb3DExporter.cmdCreator)
         #pluginFn.registerCommand(        RKServer.kPluginCmdName,         RKServer.cmdCreator)
         #pluginFn.registerCommand(          RKAddX3DSound.kPluginCmdName,     RKAddX3DSound.cmdCreator)
-        pluginFn.registerCommand(       RKSetAsBillboard.kPluginCmdName,        RKSetAsBillboard.cmdCreator)
-        pluginFn.registerCommand(         RKAddCollision.kPluginCmdName,          RKAddCollision.cmdCreator)
-        pluginFn.registerCommand(             RKAddGroup.kPluginCmdName,              RKAddGroup.cmdCreator)
-        pluginFn.registerCommand(            RKAddSwitch.kPluginCmdName,             RKAddSwitch.cmdCreator)
-        pluginFn.registerCommand(                 RKInfo.kPluginCmdName,                  RKInfo.cmdCreator)
-        pluginFn.registerCommand(          RKX3DExportOp.kPluginCmdName,           RKX3DExportOp.cmdCreator)
-        pluginFn.registerCommand(            RKX3DExport.kPluginCmdName,             RKX3DExport.cmdCreator)
-        pluginFn.registerCommand(       RKX3DSelExportOp.kPluginCmdName,        RKX3DSelExportOp.cmdCreator)
-        pluginFn.registerCommand(         RKX3DSelExport.kPluginCmdName,          RKX3DSelExport.cmdCreator)
-        pluginFn.registerCommand(          RKX3DImportOp.kPluginCmdName,           RKX3DImportOp.cmdCreator)
-        pluginFn.registerCommand(            RKX3DImport.kPluginCmdName,             RKX3DImport.cmdCreator)
-        #pluginFn.registerCommand(        RKPrimeX3DScene.kPluginCmdName,        RKPrimeX3DScene.cmdCreator)
-        pluginFn.registerCommand(               RKTestIt.kPluginCmdName,                RKTestIt.cmdCreator)
-        pluginFn.registerCommand(      RKShowSceneEditor.kPluginCmdName,       RKShowSceneEditor.cmdCreator)
-        pluginFn.registerCommand(        RKX3DSetProject.kPluginCmdName,         RKX3DSetProject.cmdCreator)
-        pluginFn.registerCommand(     RKX3DCastleProject.kPluginCmdName,      RKX3DCastleProject.cmdCreator)
-        pluginFn.registerCommand(    RKX3DCastleExportOp.kPluginCmdName,     RKX3DCastleExportOp.cmdCreator)
-        pluginFn.registerCommand( RKX3DCastleSelExportOp.kPluginCmdName,  RKX3DCastleSelExportOp.cmdCreator)
+        pluginFn.registerCommand( RKSetAsBillboard.kPluginCmdName,  RKSetAsBillboard.cmdCreator)
+        pluginFn.registerCommand(   RKAddCollision.kPluginCmdName,    RKAddCollision.cmdCreator)
+        pluginFn.registerCommand(       RKAddGroup.kPluginCmdName,        RKAddGroup.cmdCreator)
+        pluginFn.registerCommand(      RKAddSwitch.kPluginCmdName,       RKAddSwitch.cmdCreator)
+        pluginFn.registerCommand(           RKInfo.kPluginCmdName,            RKInfo.cmdCreator)
+        pluginFn.registerCommand(    RKX3DExportOp.kPluginCmdName,     RKX3DExportOp.cmdCreator)
+        pluginFn.registerCommand(      RKX3DExport.kPluginCmdName,       RKX3DExport.cmdCreator)
+        pluginFn.registerCommand( RKX3DSelExportOp.kPluginCmdName,  RKX3DSelExportOp.cmdCreator)
+        pluginFn.registerCommand(   RKX3DSelExport.kPluginCmdName,    RKX3DSelExport.cmdCreator)
+        pluginFn.registerCommand(    RKX3DImportOp.kPluginCmdName,     RKX3DImportOp.cmdCreator)
+        pluginFn.registerCommand(      RKX3DImport.kPluginCmdName,       RKX3DImport.cmdCreator)
+        pluginFn.registerCommand(         RKTestIt.kPluginCmdName,          RKTestIt.cmdCreator)
+        pluginFn.registerCommand(RKShowSceneEditor.kPluginCmdName, RKShowSceneEditor.cmdCreator)
+        pluginFn.registerCommand(  RKX3DSetProject.kPluginCmdName,   RKX3DSetProject.cmdCreator)
+        pluginFn.registerCommand(  RKCASSetProject.kPluginCmdName,   RKCASSetProject.cmdCreator)
+        pluginFn.registerCommand(    RKCASExportOp.kPluginCmdName,     RKCASExportOp.cmdCreator)
+        pluginFn.registerCommand( RKCASSelExportOp.kPluginCmdName,  RKCASSelExportOp.cmdCreator)
+        pluginFn.registerCommand(      RKCASExport.kPluginCmdName,       RKCASExport.cmdCreator)
+        pluginFn.registerCommand(   RKCASSelExport.kPluginCmdName,    RKCASSelExport.cmdCreator)
 
         
     except:
@@ -451,24 +493,25 @@ def uninitializePlugin(plugin):
     '''
     ##################################
     try:
-        pluginFn.deregisterCommand(RKX3DCastleSelExportOp.kPluginCmdName)
-        pluginFn.deregisterCommand(   RKX3DCastleExportOp.kPluginCmdName)
-        pluginFn.deregisterCommand(    RKX3DCastleProject.kPluginCmdName)
-        pluginFn.deregisterCommand(       RKX3DSetProject.kPluginCmdName)
-        pluginFn.deregisterCommand(     RKShowSceneEditor.kPluginCmdName)
-        pluginFn.deregisterCommand(              RKTestIt.kPluginCmdName)
-        #pluginFn.deregisterCommand(      RKPrimeX3DScene.kPluginCmdName)
-        pluginFn.deregisterCommand(           RKX3DImport.kPluginCmdName)
-        pluginFn.deregisterCommand(         RKX3DImportOp.kPluginCmdName)
-        pluginFn.deregisterCommand(        RKX3DSelExport.kPluginCmdName)
-        pluginFn.deregisterCommand(      RKX3DSelExportOp.kPluginCmdName)
-        pluginFn.deregisterCommand(           RKX3DExport.kPluginCmdName)
-        pluginFn.deregisterCommand(         RKX3DExportOp.kPluginCmdName)
-        pluginFn.deregisterCommand(                RKInfo.kPluginCmdName)
-        pluginFn.deregisterCommand(           RKAddSwitch.kPluginCmdName)
-        pluginFn.deregisterCommand(            RKAddGroup.kPluginCmdName)
-        pluginFn.deregisterCommand(        RKAddCollision.kPluginCmdName)
-        pluginFn.deregisterCommand(      RKSetAsBillboard.kPluginCmdName)
+        pluginFn.deregisterCommand(   RKCASSelExport.kPluginCmdName)
+        pluginFn.deregisterCommand(      RKCASExport.kPluginCmdName)
+        pluginFn.deregisterCommand( RKCASSelExportOp.kPluginCmdName)
+        pluginFn.deregisterCommand(    RKCASExportOp.kPluginCmdName)
+        pluginFn.deregisterCommand(  RKCASSetProject.kPluginCmdName)
+        pluginFn.deregisterCommand(  RKX3DSetProject.kPluginCmdName)
+        pluginFn.deregisterCommand(RKShowSceneEditor.kPluginCmdName)
+        pluginFn.deregisterCommand(         RKTestIt.kPluginCmdName)
+        pluginFn.deregisterCommand(      RKX3DImport.kPluginCmdName)
+        pluginFn.deregisterCommand(    RKX3DImportOp.kPluginCmdName)
+        pluginFn.deregisterCommand(   RKX3DSelExport.kPluginCmdName)
+        pluginFn.deregisterCommand( RKX3DSelExportOp.kPluginCmdName)
+        pluginFn.deregisterCommand(      RKX3DExport.kPluginCmdName)
+        pluginFn.deregisterCommand(    RKX3DExportOp.kPluginCmdName)
+        pluginFn.deregisterCommand(           RKInfo.kPluginCmdName)
+        pluginFn.deregisterCommand(      RKAddSwitch.kPluginCmdName)
+        pluginFn.deregisterCommand(       RKAddGroup.kPluginCmdName)
+        pluginFn.deregisterCommand(   RKAddCollision.kPluginCmdName)
+        pluginFn.deregisterCommand( RKSetAsBillboard.kPluginCmdName)
         #pluginFn.deregisterCommand(    RKAddX3DSound.kPluginCmdName)
         #pluginFn.deregisterCommand(         RKServer.kPluginCmdName)
         
@@ -531,91 +574,3 @@ if __name__ == "__main__":
     cmds.evalDeferred('if cmds.pluginInfo("{0}", q=True, loaded=True): cmds.unloadPlugin("{0}")'.format(plugin_name))
     cmds.evalDeferred('if not cmds.pluginInfo("{0}", q=True, loaded=True): cmds.loadPlugin("{0}")'.format(plugin_name))
     cmds.evalDeferred('cmds.createNode("x3dSound")')
-
-
-
-'''
-		aom.MGlobal.executeCommandStringResult("source x3d.mel")
-		aom.MGlobal.executeCommandStringResult("source x3dUtilCommands.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_scenegraph_ui_tree.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_exporter_procedures.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_routing_scripts.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_ie_menus.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_switch_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_lod_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_collision_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_navigationinfo_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_worldinfo_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_transform_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_proximitysensor_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_touchsensor_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_timesensor_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_viewpoint_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_orientationinterpolator_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_positioninterpolator_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_script_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_node_creation_procs.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_appearance_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_box_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_color_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_colorrgba_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_cone_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_coordinate_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_cylinder_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_directionallight_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_group_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_imagetexture_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_movietexture_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_indexedfaceset_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_material_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_metadatadouble_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_metadatafloat_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_metadatainteger_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_metadataset_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_metadatastring_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_normal_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_pointlight_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_shape_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_spotlight_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_texturetransform_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_texturecoordinate_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_sphere_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_anchor_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_billboard_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_inline_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_colorinterpolator_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_scalarinterpolator_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_coordinateinterpolator_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_normalinterpolator_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_booleansequencer_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_integersequencer_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_booleantrigger_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_booleantoggle_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_integertrigger_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_timetrigger_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_cylindersensor_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_keysensor_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_loadsensor_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_planesensor_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_spheresensor_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_stringsensor_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_visibilitysensor_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_pixeltexture_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_multitexturecoordinate_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_multitexturetransform_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_multitexture_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_audioclip_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_sound_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_booleanfilter_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_collidableshape_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_hanimhumanoid_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_hanimjoint_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_hanimsite_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_gamepadsensor_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_rigidbodycollection_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_rigidbody_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_collisioncollection_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_collisionspace_tables.mel")
-		aom.MGlobal.executeCommandStringResult("source x3d_collisionsensor_tables.mel")
-		aom.MGlobal.executeCommandStringResult("setUpX3DMenus")
-'''
