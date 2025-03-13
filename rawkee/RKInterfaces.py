@@ -3,6 +3,7 @@ import maya.cmds as cmds
 import maya.mel  as mel
 
 import numpy as np
+import array
 from typing import Final
 
 # Needed for Data URIs
@@ -332,10 +333,12 @@ class RKInterfaces():
         #return True
 
     
-    def image2pixel(self, fileNodeObj):
+    def image2pixel(self, imgPath):
         pixelData = ()
         
-        fImage = aom.MImage.readFromTextureNode(fileNodeObj)
+        fImage = aom.MImage()
+        fImage = fImage.readFromFile(imgPath)
+        
         w, h = fImage.getSize()
 
         rkAdjTexSize   = cmds.optionVar( q='rkAdjTexSize'  )
@@ -346,25 +349,43 @@ class RKInterfaces():
 
             fImage.resize(w, h, False)
             
-        pixelPointer   = fImage.pixels()
+        pPtr      = fImage.pixels()
+        pDepth    = fImage.depth()
         
-        pixelLenth     = w * h * 4
+        nPix      = w * h
+        nBytes    = nPix * pDepth
+        pixArray  = ctypes.cast(pPtr, ctypes.POINTER(ctypes.c_ubyte * nBytes)).contents
+        pixelData = pixelData + (w, h, pDepth)
+        print("Width: " + str(w) + ", Height: " + str(h) + ", Depth: " + str(pDepth) + ", Pixels: " + str(nPix) + ", Array Length: " + str(nBytes))
+
+        pIdx = 0
+        while pIdx < nBytes:
+            pixNum     = pixArray[pIdx]     # r
+            
+            if pDepth > 1:
+                pixNum = pixNum << 8
+                newNum = pixArray[pIdx + 1] # g
+                pixNum = pixNum + newNum
+                
+            if pDepth > 2:
+                pixNum = pixNum << 8
+                newNum = pixArray[pIdx + 2] # b
+                pixNum = pixNum + newNum
+                
+            if pDepth > 3:
+                pixNum = pixNum << 8
+                newNum = pixArray[pIdx + 3] # a
+                pixNum = pixNum + newNum
+
+            pixelData = pixelData + (hex(pixNum),)
+            pIdx += pDepth
+
+            if (pIdx // pDepth) // 50000 == (pIdx // pDepth) / 50000:
+                print("Pixel IDX: " +  str(pIdx // pDepth) + " out of " + str(nPix))
+                
+        fImage.release()
         
-        pixelDataArray = (ctypes.c_ubyte * pixelLenth).from_address(pixelPointer)
-        
-        pixelDataBytes = bytearray(pixelDataArray)
-        
-        pixelData = pixelData + (x, h, pixelLenth)
-        
-        for idx in range(pixelLenth):
-            y = idx // w
-            x = idx - (w * row)
-            jmp = ((y * w) + x) * 4
-            r, g, b, a = pixelDataBytes[jmp:(jmp + 4)]
-            pixel = (r, g, b, a)
-            pixelData = pixelData + pixel
-        
-        return pixeData
+        return pixelData
 
         
     # Creating a Data URI from any file type.

@@ -205,6 +205,11 @@ class RKOrganizer():
 
         # Object used to get the Root of the DAG for export.
         self.worldRoot = None
+        
+        ################################
+        self.imageMoveDir  = ""
+        self.audioMoveDir  = ""
+        self.inlineMoveDir = ""
 
 
     def __del__(self):
@@ -288,9 +293,11 @@ class RKOrganizer():
     # the X3D Scenegraph that roughly corresponds to there     #
     # locations in the Maya DAG/DepGraph. Returns nothing.     #
     ############################################################
-    def maya2x3d(self, x3dScene, parentDagPaths, dagNodes, pVersion):
+    def maya2x3d(self, x3dScene, parentDagPaths, dagNodes, pVersion, fullPath):
         self.loadRawKeeOptions()
-        
+
+        self.checkSubDirs(fullPath)
+
         self.rkio.comments.clear()
         self.rkio.comments.append(pVersion)
         self.rkio.commentNames.clear()
@@ -2034,22 +2041,43 @@ class RKOrganizer():
                 if coordbna[0] == False:
                     # TODO: Metadata processing
                     
+                    
                     # point field of Coordinate node
                     points = myMesh.getFloatPoints()
                     meshMP = len(points)
                     for point in points:
                         coordbna[1].point.append((point.x, point.y, point.z))
             
-                # Using the MItMeshPolygon Iterator and the propoper sub-component
-                # this secion of the code builds the array of MFInt32 field of IndexedFaceSet
-                while not mIter.isDone():
-                    #vertices = mIter.getVertices()
-                    nVerts = mIter.polygonVertexCount()
-                    for vIdx in range(nVerts):
-                        mIdx = mIter.vertexIndex(vIdx)
-                        bna[1].coordIndex.append(mIdx)
-                    bna[1].coordIndex.append(-1)
-                    mIter.next()
+                    # Using the MItMeshPolygon Iterator and the propoper sub-component
+                    # this secion of the code builds the array of MFInt32 field of IndexedFaceSet
+                    while not mIter.isDone():
+                        #vertices = mIter.getVertices()
+                        nVerts = mIter.polygonVertexCount()
+                        for vIdx in range(nVerts):
+                            mIdx = mIter.vertexIndex(vIdx)
+                            bna[1].coordIndex.append(mIdx)
+                        bna[1].coordIndex.append(-1)
+                        mIter.next()
+                    
+                #
+                #
+                #####
+                '''
+                    ciValue = 0
+                    points = myMesh.getFloatPoints()
+                    while not mIter.isDone():
+                        verts = mIter.getVertices()
+                        for vex in verts:
+                            mPoint = points[vex]
+                            coordbna[1].point.append((mPoint.x, mPoint.y, mPoint.z))
+                            bna[1].coordIndex.append(ciValue)
+                            ciValue += 1
+                        bna[1].coordIndex.append(-1)
+                        mIter.next()
+                '''
+                #####
+                #
+                #
                     
                 ##### Add an X3DColorNode
                 # Code for Adding a Color/ColorRGBA Node to the 'color' field of the IFS
@@ -2671,7 +2699,8 @@ class RKOrganizer():
 
                         if self.rk2dTexWrite == True:
                             localTexWrite   = localTexWrite   + fileName
-                            self.rkint.copyFile(filePath, localTexWrite)
+                            movePath = self.imageMoveDir + "/" + fileName
+                            self.rkint.copyFile(filePath, movePath)
                         else:
                             localTexWrite = filePath
 
@@ -2693,7 +2722,8 @@ class RKOrganizer():
                     x3dNodeType = "PixelTexture"
                     x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
                     if x3dTexture[0] == False:
-                        x3dTexture[1].image = self.rkint.image2pixel(mTextureNode.object())
+                        print("PixelTexture One - Around 2725")
+                        x3dTexture[1].image = self.rkint.image2pixel(mTextureNode.findPlug("fileTextureName", False).asString())
 
                         if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
                             x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU", False).asBool()
@@ -2753,7 +2783,8 @@ class RKOrganizer():
                         
                         if self.rkMovTexWrite == True:
                             localTexWrite = localTexWrite + fileName
-                            self.rkint.copyFile(filePath, localTexWrite)
+                            movePath = self.imageMoveDir + "/" + fileName
+                            self.rkint.copyFile(filePath, movePath)
                         else:
                             localTexWrite = filePath
 
@@ -2876,7 +2907,10 @@ class RKOrganizer():
                     x3dNodeType = "PixelTexture"
                     x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
                     if x3dTexture[0] == False:
-                        x3dTexture[1].image = self.rkint.image2pixel(mTextureNode.object())
+                        print("PixelTexture One - Around 2910")
+                        localTTexWrite = self.imageMoveDir + "/" + mTextureNode.name() + ".tif"
+                        self.rkint.proc2file(mTextureNode.object(), localTTexWrite, 'tif') 
+                        x3dTexture[1].image = self.rkint.image2pixel(localTTexWrite)
 
                         if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
                             x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU", False).asBool()
@@ -2943,7 +2977,10 @@ class RKOrganizer():
                 x3dNodeType = "PixelTexture"
                 x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
                 if x3dTexture[0] == False:
-                    x3dTexture[1].image = self.rkint.image2pixel(mTextureNode.object())
+                    print("PixelTexture One - Around 2978")
+                    localTTexWrite = self.imageMoveDir + "/" + mTextureNode.name() + ".tif"
+                    self.rkint.proc2file(mTextureNode.object(), localTTexWrite, 'tif') 
+                    x3dTexture[1].image = self.rkint.image2pixel(localTTexWrite)
 
                     if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
                         x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU", False).asBool()
@@ -3072,9 +3109,6 @@ class RKOrganizer():
     # Function that gathers data necesasry for export
     def organizeExport(self):
         
-        # This method extracts the export options information for us from the optionVar variables.
-        self.grabExporterOptions()
-        
         # Test if RK-IO is traversing the DAG for the purpose of Building an X3D tree for the RawKee GUI
         # If not, then execute the following funtions perparing for export.
         if self.isTreeBuilding == False:
@@ -3154,183 +3188,23 @@ class RKOrganizer():
         nodeNames = []
         return nodeNames
         
-    '''
-      This method extracts the export options information for us from the 
-        optionVar variables
-    '''
-    def grabExporterOptions(self):
-        # User feedback letting the content author know that the plugin is retrieving the export options.
-        if self.isTreeBuilding == False:
-            self.rkio.cMessage("Analyzing export options.")    # sax3dw.msg.set("Analyzing export options.") #<--- Is this necessary?
-            self.rkio.cMessage(" ")                            # sax3dw.msg.set(" ") #<--- Is this necessary?
 
-
-        inlineNodeArray = self.getInlineNodeNames() #String array
-        exInline = False
+    def checkSubDirs(self, fullPath):
+        pdir = os.path.dirname(fullPath)
         
-        if len(inlineNodeArray) > 0:
-            exInline = True
+        imgPath = os.path.dirname(pdir + "/" + cmds.optionVar( q='rkImagePath' ))
+        audPath = os.path.dirname(pdir + "/" + cmds.optionVar( q='rkAudioPath' ))
+        inlPath = os.path.dirname(pdir + "/" + cmds.optionVar( q='rkInlinePath'))
+        
+        if not os.path.exists(imgPath):
+            os.mkdir(imgPath)
 
-        optionsArray = self.optionsString.split('*') #String Array
-        for i, rkFlag in enumerate(optionsArray):
-            if rkFlag == "x3dUseEmpties":
-                if rkFlag[i+1] == "0":
-                    self.useEmpties = False
-                else:
-                    self.useEmpties = True
-            elif rkFlag == "x3dExportMetadata":
-                if rkFlag[i+1] == "0":
-                    self.exMetadata = False
-                else:
-                    self.exMetadata = True
-            elif rkFlag == "x3dConsolidateMedia":
-                if rkFlag[i+1] == "0":
-                    self.conMedia = False
-                    self.rkint.setConsolidate(False)
-                else:
-                    self.conMedia = True
-                    self.rkint.setConsolidate(True)
-            elif rkFlag == "x3dFileOverwrite":
-                if rkFlag[i+1] == "0":
-                    self.fileOverwrite = False
-                else:
-                    self.fileOverwrite = True
-            elif rkFlag == "x3dExportTextures":
-                if rkFlag[i+1] == "0":
-                    self.exTextures = False
-                else:
-                    self.exTextures = True
-            elif rkFlag == "x3dTextureDirectory":
-                self.getTextureDir = rkFlag[i+1]
-                if self.getTextureDir == " ":
-                    self.getTextureDir = ""
-            elif rkFlag == "x3dNPV":
-                self.npvNonD = int(rkFlag[i+1])
-                if self.npvNonD == 1:
-                    self.rkint.setGlobalNPV(True)
-                    pass
-                else:
-                    self.rkint.setGlobalNPV(False)
-                    pass
-            elif rkFlag == "x3dCreaseAngle":
-                self.caGlobalValue = float(rkFlag[i+1])
-                self.rkint.setGlobalCA(self.caGlobalValue)
-            elif rkFlag == "x3dExportAudio":
-                if rkFlag[i+1] == "0":
-                    self.exAudio = False
-                else:
-                    self.exAudio = True
-            elif rkFlag == "x3dRigidBodyExport":
-                if rkFlag[i+1] == "0":
-                    self.exRigidBody = False
-                else:
-                    self.exRigidBody = True
-            elif rkFlag == "x3dHAnimExport":
-                if rkFlag[i+1] == "0":
-                    self.exHAnim = False
-                else:
-                    self.exHAnim = True
-            elif rkFlag == "x3dIODeviceExport":
-                if rkFlag[i+1] == "0":
-                    self.exIODevice = False
-                else:
-                    self.exIODevice = True
-            elif rkFlag == "x3dNSHAnim": # Non-Standard HAnim
-                if rkFlag[i+1] == "0":
-                    self.nonStandardHAnim = False
-                else:
-                    self.nonStandardHAnim = True
-            elif rkFlag == "x3dBCFlag":
-                if rkFlag[i+1] == "0":
-                    self.exBCFlag = 0
-                elif rkFlag[i+1] == "2":
-                    self.exBCFlag = 2
-                else:
-                    self.exBCFlag = 1
-            elif rkFlag == "x3dAudioDirectory":
-                self.getAudioDir = rkFlag[i+1]
-                if self.getAudioDir == " ":
-                    self.getAudioDir = ""
-            elif rkFlag == "x3dUseRelURL":
-                if rkFlag[i+1] == "0":
-                    self.useRelURL = False
-                else:
-                    self.useRelURL = True
-                self.rkint.setUseRelURL(self.useRelURL)
-            elif rkFlag == "x3dUseRelURLW":
-                if rkFlag[i+1] == "0":
-                    self.useRelURLW = False
-                else:
-                    self.useRelURLW = True
-                self.rkint.setUseRelURLW(self.useRelURLW)
-            elif rkFlag == "x3dInlineDirectory":
-                self.getInlineDir = rkFlag[i+1]
-                if self.getInlineDir == " ":
-                    self.getInlineDir = ""
-            elif rkFlag == "x3dBaseUrl":
-                self.exBaseURL = rkFlag[i+1]
-                if self.exBaseURL == " ":
-                    self.exBaseURL = ""
-            elif rkFlag == "x3dTextTempStore":
-                self.tempTexturePath = rkFlag[i+1]
-            elif rkFlag == "updateMethod":
-                updateString = rkFlag[i+1]
-                if updateString == "1":
-                    self.updateMethod = 1
-                elif updateString == "2":
-                    self.updateMethod = 2
-                else:
-                    self.updateMethod = 0
+        if not os.path.exists(audPath):
+            os.mkdir(audPath)
 
-        if self.isTreeBuilding == False:
-            imagePath = self.getTextureDir
-            
-            if self.getTextureDir != "":
-                ipArray = imagePath.split('/')
-                newIP = ""
-                for rkIP in ipArray:
-                    newIP = newIP + rkIP
-                    newIP = newIP + "/"
-                imagePath = newIP
-                self.rkint.setImageDir(imagePath)
+        if not os.path.exists(inlPath):
+            os.mkdir(inlPath)
 
-            audioPath = self.getAudioDir
-            if self.getAudioDir != "":
-                apArray = audioPath.split('/')
-                newAP == ""
-                
-                for rkAP in apArray:
-                    newAP = newAP + rkAP
-                    newAP = newAP + "/"
-                audioPath = newAP
-                self.rkint.setAudioDir(audioPath)
-
-            inlinePath = self.getInlineDir
-            if self.getInlineDir != "":
-                inArray = inlinePath.split('/')
-                newIN = ""
-                for rkIN in inArray:
-                    newIN = newIN + rkIN
-                    newIN = newIN + "/"
-                inlinePath = newIN
-                self.rkint.setInlineDir(inlinePath)
-
-            basePath = ""
-            if self.exBaseURL != "":
-                basePath = self.exBaseURL
-                urlend = basePath.rfind('/');
-                strLen = len(basePath)
-                if strLen > 0:
-                    strLen = strLen - 1
-                if urlend != strLen and len(basePath) > 0:
-                    basePath = basePath + "/"
-                self.rkint.setBaseUrl(basePath)
-
-            self.localImagePath = self.localPath;
-            self.localImagePath = self.localImagePath + imagePath
-
-            self.localAudioPath = self.localPath;
-            self.localAudioPath = self.localAudioPath + audioPath
-
-            self.localInlinePath = self.localPath;
-            self.localInlinePath = self.localInlinePath  + inlinePath
+        self.imageMoveDir  = imgPath
+        self.audioMoveDir  = audPath
+        self.inlineMoveDir = inlPath

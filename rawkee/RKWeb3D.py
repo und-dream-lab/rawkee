@@ -262,7 +262,7 @@ class RKWeb3D():
             parentDagPaths, topDagNodes = rko.getAllTopDagNodes()
             
             # Traverse DAG and map node data to X3D
-            rko.maya2x3d(x3dDoc.Scene, parentDagPaths, topDagNodes, self.pVersion)
+            rko.maya2x3d(x3dDoc.Scene, parentDagPaths, topDagNodes, self.pVersion, self.fullPath)
             
             # Write the X3D data to a file.
             exEncoding     = "x3d"
@@ -381,7 +381,7 @@ class RKWeb3D():
                 exEncoding = "json"
             elif fext == ".html":
                 exEncoding = "html"
-
+                
             rko.rkio.x3d2disk(x3dDoc, self.fullPath, exEncoding)
             
             # Delete the RKOrganizer object.

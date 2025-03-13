@@ -142,7 +142,7 @@ class RKSceneTraversal():
             elif self.enc == encj:
                 self.processNodeAsJSON(nType, node, False, sFieldList, mFieldList, sNodeList, mNodeList, isMulti, addComma)
             elif self.enc == ench:
-                self.processNodeAsXML( nType, node, True,  sFieldList, mFieldList, sNodeList, mNodeList)
+                self.processNodeAsHTML( nType, node, True,  sFieldList, mFieldList, sNodeList, mNodeList)
 
 
     
@@ -566,6 +566,108 @@ class RKSceneTraversal():
                 
 
 
+    def processNodeAsHTML( self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList):
+        cap = ">"
+        mainline = "<" + nType
+        for field in sFieldList:
+            tField = field
+            if   field == "_RK__mapping":
+                tField =  "mapping"
+            elif field == "_RK__containerField":
+                tField =  "containerField"
+                
+                # It may not be adventageous to always add the containerField
+                if showCF == False:
+                    continue
+                
+            mainline = mainline + " " + tField + "='"
+            
+            value = getattr(node, field)
+            sValue = ""
+            
+            if isinstance(value, tuple):
+                sValue = " ".join([str(item) for item in value])
+                sValue = sValue.strip()
+                
+            elif isinstance(value, bool):
+                if value == True:
+                    sValue = "true"
+                else:
+                    sValue = "false"
+                    
+            elif isinstance(value, str):
+                sValue = value
+                
+            else:
+                sValue = str(value)
+            
+            mainline = mainline + sValue + "'"
+        
+        if len(mFieldList) == 0:
+            mainline += cap
+            
+        self.writeLine(mainline)
+        self.itabs()
+        
+        mflLen = len(mFieldList)
+        for idx in range(mflLen):
+            fieldLine = mFieldList[idx] + "='"
+            values = getattr(node, mFieldList[idx])
+            sValue = ""
+            if   isinstance(values[0], tuple):
+                tvLen = len(values)
+                for vIdx in range(tvLen):
+                    tValue = " ".join([str(item) for item in values[vIdx]])
+                    tValue = tValue.strip()
+                    sValue = sValue + tValue
+                    if vIdx < (tvLen - 1):
+                        sValue += ", "
+                
+            elif isinstance(values[0], bool):
+                tvLen = len(values)
+                for vIdx in range(tvLen):
+                    tValue = "true"
+                    if values[vIdx] == False:
+                        tValue = "false"
+                    sValue = sValue + tValue
+                    if vIdx < (tvLen - 1):
+                        sValue += ", "
+                
+            elif isinstance(values[0], str):
+                tvLen = len(values)
+                for vIdx in range(tvLen):
+                    tValue = '"' + values[vIdx] + '"'
+                    sValue = sValue + tValue
+                    if vIdx < (tvLen - 1):
+                        sValue += ", "
+                
+            else:
+                tvLen = len(values)
+                for vIdx in range(tvLen):
+                    tValue = str(values[vIdx])
+                    sValue = sValue + tValue
+                    if vIdx < (tvLen - 1):
+                        sValue += ", "
+
+            fieldLine = fieldLine + sValue + "'"
+            if idx == mflLen - 1:
+                fieldLine += cap
+            self.writeLine(fieldLine)
+            
+        for field in sNodeList:
+            fNode = getattr(node, field)
+            self.processNode(fNode, False, False)
+            
+        for field in mNodeList:
+            fList = getattr(node, field)
+            for fNode in fList:
+                self.processNode(fNode, True, False)
+                
+        self.dtabs()
+        self.writeLine("</" + nType + ">")
+                
+
+
     def writePrefix(self, prefix):
         myline = ''
         
@@ -649,9 +751,10 @@ class RKSceneTraversal():
             self.itabs()
             self.writeLine("<div style='width: 600px; height: 600px;'>")
             self.itabs()
-            self.writeLine("<?xml version='1.0' encoding='UTF-8'?>")
-            self.writeLine("<!DOCTYPE X3D PUBLIC 'ISO//Web3D//DTD X3D 4.0//EN' 'https://www.web3d.org/specifications/x3d-4.0.dtd'>")
-            self.writeLine("<X3D profile='Full' version='4.0' xmlns:xsd='http://www.w3.org/2001/XMLSchema-instance' xsd:noNamespaceSchemaLocation='https://www.web3d.org/specifications/x3d-4.0.xsd'>")
+#            self.writeLine("<?xml version='1.0' encoding='UTF-8'?>")
+#            self.writeLine("<!DOCTYPE X3D PUBLIC 'ISO//Web3D//DTD X3D 4.0//EN' 'https://www.web3d.org/specifications/x3d-4.0.dtd'>")
+#            self.writeLine("<X3D profile='Full' version='4.0' xmlns:xsd='http://www.w3.org/2001/XMLSchema-instance' xsd:noNamespaceSchemaLocation='https://www.web3d.org/specifications/x3d-4.0.xsd'>")
+            self.writeLine("<X3D>")
             self.itabs()
             self.writeLine("<Scene>")
             self.itabs()
