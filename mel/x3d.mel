@@ -286,16 +286,19 @@ global proc setDefRKOptVars()
 	
 	if(`optionVar -exists "rkColorOpts"`){
 	}else{
-    //bool
 		optionVar -iv rkColorOpts 0;
 	}
 
 	if(`optionVar -exists "rkNormalOpts"`){
 	}else{
-    //bool
 		optionVar -iv rkNormalOpts 0;
 	}
-
+    
+	if(`optionVar -exists "rkHtmlShaderOpts"`){
+	}else{
+		optionVar -iv rkHtmlShaderOpts 0;
+	}
+    
 	if(`optionVar -exists "rkFrontLoadExt"`){
 	}else{
     //bool
