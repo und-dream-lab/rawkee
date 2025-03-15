@@ -2,6 +2,7 @@ import sys
 import os
 import x3d
 from x3d import *
+from rawkee.RKPseudoNode import *
 from typing import Final
 
 
@@ -46,84 +47,107 @@ class RKSceneTraversal():
 
     def processNode(self, node, isMulti, addComma):
         nType   = type(node).__name__
-        compNode = self.createNodeFromString(nType)
-
+        
         sFieldsList = []
         mFieldsList  = []
         
         sNodeList  = []
         mNodeList   = []
-        
+            
+        compNode = self.createNodeFromString(nType)
         pastMeta = False
-        
         nDict = vars(node)
-        for key, value in nDict.items():
-            keyp = key.split('_')
-            if   keyp[1] == "X3DNode":
-                if   keyp[3] == "DEF" and node.DEF != None:
+        chkVal = self.isNonX3D(nType)
+        
+        if chkVal == True:
+            for key, value in nDict.items():
+                if key == "DEF" and value != '':
                     sFieldsList.append("DEF")
-                    
-                elif keyp[3] == "USE" and node.USE != None:
+                elif key == "USE" and value != '':
                     sFieldsList.append("USE")
-                    
-                elif keyp[3] == "metadata":
-                    pastMeta = True
-                    if compNode.metadata != node.metadata: #value != None:
-                        sNodeList.append("metadata")
-                    
-            elif keyp[1] == "RK":
-                if   keyp[3] == "containerField" and value != "":
-                    sFieldsList.append("_RK__containerField")
-                    
-                elif keyp[3] == "mapping" and value != "":
-                    sFieldsList.append("_RK__mapping")
-                
-            elif keyp[1] == nType:
-                if pastMeta == False:
-                    continue
-                    
-                if  isinstance(value, list):
-                    if getattr(compNode,keyp[3]) != value:#len(value) > 0:
+                elif isinstance(value, list):
+                    if getattr(compNode,key) != value:#len(value) > 0:
                         if isinstance(value[0], (str, float, int, tuple, bool, type(None) ) ):
                             if value[0] != None:
-                                mFieldsList.append(keyp[3])
+                                mFieldsList.append(key)
                         else:
-                            mNodeList.append(keyp[3])
+                            mNodeList.append(key)
+                elif getattr(compNode,key) != value:
+                    if isinstance(value, (str, float, int, tuple, bool, type(None) ) ):
+                        #if value != None:
+                        sFieldsList.append(key)
+                    else:
+                        #if getattr(compNode,keyp[3]) != value:
+                        sNodeList.append(key)
+                        
+        else:
+            for key, value in nDict.items():
+                keyp = key.split('_')
+                if   keyp[1] == "X3DNode":
+                    if   keyp[3] == "DEF" and node.DEF != None:
+                        sFieldsList.append("DEF")
+                        
+                    elif keyp[3] == "USE" and node.USE != None:
+                        sFieldsList.append("USE")
+                        
+                    elif keyp[3] == "metadata":
+                        pastMeta = True
+                        if compNode.metadata != node.metadata: #value != None:
+                            sNodeList.append("metadata")
+                        
+                elif keyp[1] == "RK":
+                    if   keyp[3] == "containerField" and value != "":
+                        sFieldsList.append("_RK__containerField")
+                        
+                    elif keyp[3] == "mapping" and value != "":
+                        sFieldsList.append("_RK__mapping")
+                    
+                elif keyp[1] == nType:
+                    if pastMeta == False:
+                        continue
+                        
+                    if  isinstance(value, list):
+                        if getattr(compNode,keyp[3]) != value:#len(value) > 0:
+                            if isinstance(value[0], (str, float, int, tuple, bool, type(None) ) ):
+                                if value[0] != None:
+                                    mFieldsList.append(keyp[3])
+                            else:
+                                mNodeList.append(keyp[3])
 
-                else:
-                    if getattr(compNode,keyp[3]) != value:
-                        if isinstance(value, (str, float, int, tuple, bool, type(None) ) ):
-                            #if value != None:
-                            sFieldsList.append(keyp[3])
-                        else:
-                            #if getattr(compNode,keyp[3]) != value:
-                            sNodeList.append(keyp[3])
+                    else:
+                        if getattr(compNode,keyp[3]) != value:
+                            if isinstance(value, (str, float, int, tuple, bool, type(None) ) ):
+                                #if value != None:
+                                sFieldsList.append(keyp[3])
+                            else:
+                                #if getattr(compNode,keyp[3]) != value:
+                                sNodeList.append(keyp[3])
 
-        
-        ########################################################
-        # Fix for x3d.py misordering of "joints" and "skeleton" 
-        # fields in its HAnimHumanoid node implementation.
-        ########################################################
-        if nType == "HAnimHumanoid":
-            jIdx = -1
-            sIdx = -1
             
-            for idx in range(len(mNodeList)):
-                if   mNodeList[idx] == "joints":
-                    jIdx = idx
-                elif mNodeList[idx] == "skeleton":
-                    sIdx = idx
+            ########################################################
+            # Fix for x3d.py misordering of "joints" and "skeleton" 
+            # fields in its HAnimHumanoid node implementation.
+            ########################################################
+            if nType == "HAnimHumanoid":
+                jIdx = -1
+                sIdx = -1
                 
-                hasDEF = False
-                if compNode.skelelton != node.skeleton:
-                    for rj in getattr(node, "skeleton"):
-                        if type(rj).__name__ == "HAnimJoint" and (rj.DEF != '' or rj.DEF != None):
-                            hasDEF = True
+                for idx in range(len(mNodeList)):
+                    if   mNodeList[idx] == "joints":
+                        jIdx = idx
+                    elif mNodeList[idx] == "skeleton":
+                        sIdx = idx
+                    
+                    hasDEF = False
+                    if compNode.skelelton != node.skeleton:
+                        for rj in getattr(node, "skeleton"):
+                            if type(rj).__name__ == "HAnimJoint" and (rj.DEF != '' or rj.DEF != None):
+                                hasDEF = True
 
-                if sIdx > -1 and jIdx > -1 and sIdx > jIdx and hasDEF == True:
-                    mNodeList[jIdx] = "skeleton"
-                    mNodeList[sIdx] = "joints"
-        
+                    if sIdx > -1 and jIdx > -1 and sIdx > jIdx and hasDEF == True:
+                        mNodeList[jIdx] = "skeleton"
+                        mNodeList[sIdx] = "joints"
+            
         compNode = None
                     
         self.processSortedNode(nType, node, sFieldsList, mFieldsList, sNodeList, mNodeList, isMulti, addComma)
@@ -846,6 +870,7 @@ class RKSceneTraversal():
             'ColorDamper':ColorDamper,
             'ColorInterpolator':ColorInterpolator,
             'ColorRGBA':ColorRGBA,
+            'CommonSurfaceShader':CommonSurfaceShader,#             From rawkee.RKPseudoNode, not x3d.py
             'ComposedCubeMapTexture':ComposedCubeMapTexture,
             'ComposedShader':ComposedShader,
             'ComposedTexture3D':ComposedTexture3D,
@@ -1084,3 +1109,12 @@ class RKSceneTraversal():
         }
         
         return x3dNodeMapping[x3dType]()
+
+    def isNonX3D(self, x3dType):
+        if x3dType == "CommonSurfaceShader": #             From rawkee.RKPseudoNode, not x3d.py
+#            print("Inside isNonX3D (NOT X3D):" + x3dType)
+            return True
+#        else:
+#            print("Inside isNonX3D (IS X3D):" + x3dType)
+        
+        return False

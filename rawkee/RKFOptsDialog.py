@@ -224,6 +224,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.rkDefTexHeight    = cmds.optionVar( q='rkDefTexHeight'   )
         self.rkColorOpts       = cmds.optionVar( q='rkColorOpts'      )
         self.rkNormalOpts      = cmds.optionVar( q='rkNormalOpts'     )
+        self.rkHtmlShaderOpts  = cmds.optionVar( q='rkHtmlShaderOpts' )
         
         self.rkFrontLoadExt    = cmds.optionVar( q='rkFrontLoadExt'   )
         
@@ -823,7 +824,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         layoutSixteen.addStretch()
         
         
-        # Option Sixteen
+        # Option Seventeen
         layoutSeventeen = QtWidgets.QHBoxLayout()
         self.colorLabel = QtWidgets.QLabel("Mesh Color Per Vertex Options:")
         self.colorLabel.setAlignment(QtCore.Qt.AlignRight)
@@ -843,24 +844,65 @@ class RKFOptsDialog(QtWidgets.QDialog):
         layoutSeventeen.addWidget(self.colorOptions)
         layoutSeventeen.addStretch()
         
+        # Option Eighteen
+        layoutEighteen = QtWidgets.QHBoxLayout()
+        self.matLabel  = QtWidgets.QLabel("Maya Shader Options:")
+        self.matSuffix = QtWidgets.QLabel("(HTML Encoding Only)")
+        self.matLabel.setAlignment(QtCore.Qt.AlignRight)
+        self.matSuffix.setAlignment(QtCore.Qt.AlignLeft)
+        self.matLabel.setFixedWidth(250)
+        self.matSuffix.setFixedWidth(150)
+        self.matLabel.setObjectName("RKOptPanel")
+        self.matSuffix.setObjectName("RKOptPanel")
+        
+        self.matOptions = QtWidgets.QComboBox()
+        self.matOptions.addItems(["Export as CommonSurfaceShader", "Export as Material (Old School)", "Export as Material (X3D 4.0)"])
+        self.matOptions.setFixedWidth(250)
+        ##############################################################
+        # For HTML export only (aka X3DOM) Set the how basic Maya Phong, PhongE, Blinn, and Lambert shaders will exported.
+        # Common     - These shaders will be exported as an extended X3DOM node called a CommonSurfaceShader per the example found
+        # Surface      on the X3DOM Documentation Site - https://doc.x3dom.org/tutorials/lighting/commonSurfaceShaderNode/index.html
+        # Shader       Only extures identified from examing upstream connections to the shader attributes of 'color', 'specularColor', 
+        #              'reflectedColor', and 'normalCamera' will be exported to the following corresponding CommonSurfaceShader fields
+        #              of 'diffuseTexture', specularTexture', 'shininessTexture', and 'normalTexture'. All other attributes with 
+        #              upstream connections to textures will be ignored. All other non-texture attributes will be exported as appropriate
+        #
+        # Old School - The only texture to be exported, will be the one that is connected to the 'color' attribute. This 
+        #              texture will be the added to the 'texture' field of an Appearance node. The only other attributes 
+        #              values that will be exported will be ones that do not have textures connected to them. These attribute 
+        #              values will be exported as fields of a Material node from a spec before texture fields were added to the
+        #              Material node.
+        #
+        # Material   - This is included for future spec compatibility, but is not currently recommended for use as X3DOM does not support
+        # (X3D 4.0)    it. Textures will be exported in the same manner as they are for XML, VRML, and JSON encodings.
+        # 
+        self.matOptions.setCurrentIndex(self.rkHtmlShaderOpts)
+        self.matOptions.setObjectName("RKOptPanel")
+        # Add change method here
+        
+        layoutEighteen.addWidget(self.matLabel)
+        layoutEighteen.addWidget(self.matOptions)
+        layoutEighteen.addWidget(self.matSuffix)
+        layoutEighteen.addStretch()
+        
         
         ##### Setting up the main layout #####
 
         # Section Header
-        textureSection = QtWidgets.QLabel("Texture Options")
-        textureSection.setObjectName("RKOptPanel")
-
         generalSection = QtWidgets.QLabel("Media & Node Options")
         generalSection.setObjectName("RKOptPanel")
+
+        meshSection    = QtWidgets.QLabel("Mesh/Shape & Shader/Material Options")
+        meshSection.setObjectName("RKOptPanel")
+        
+        textureSection = QtWidgets.QLabel("Texture Options")
+        textureSection.setObjectName("RKOptPanel")
 
         pathLabelText  = "Domain & Path Options"
         if self.rkExportMode == 1:
             pathLabelText  = "Game Engine Path Options"
         pathSection    = QtWidgets.QLabel(pathLabelText)
         pathSection.setObjectName("RKOptPanel")
-        
-        meshSection    = QtWidgets.QLabel("Mesh & Shape Options")
-        meshSection.setObjectName("RKOptPanel")
         
         convLayout = QtWidgets.QHBoxLayout()
         spaceConv  = QtWidgets.QLabel(" ")
@@ -911,6 +953,8 @@ class RKFOptsDialog(QtWidgets.QDialog):
         layout.addWidget(meshSection)
         layout.addLayout(layoutSixteen)
         layout.addLayout(layoutSeventeen)
+        #if self.rkExportMode == 0:
+        #    layout.addLayout(layoutEighteen)
 
         layout.addWidget(separator2)
 
@@ -1034,6 +1078,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         
         cmds.optionVar( iv=('rkColorOpts',       self.colorOptions.currentIndex()           ))
         cmds.optionVar( iv=('rkNormalOpts',      self.normalOptions.currentIndex()          ))
+        cmds.optionVar( iv=('rkHtmlShaderOpts',  self.matOptions.currentIndex()             ))
         
         cmds.optionVar( iv=('rkFrontLoadExt',    self.frontLoadURICheckBox.isChecked()      ))
         

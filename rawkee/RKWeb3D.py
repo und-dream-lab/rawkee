@@ -261,9 +261,6 @@ class RKWeb3D():
             # Grab Transforms parented to the real root.
             parentDagPaths, topDagNodes = rko.getAllTopDagNodes()
             
-            # Traverse DAG and map node data to X3D
-            rko.maya2x3d(x3dDoc.Scene, parentDagPaths, topDagNodes, self.pVersion, self.fullPath)
-            
             # Write the X3D data to a file.
             exEncoding     = "x3d"
             fext = os.path.splitext(self.fullPath)[1]
@@ -276,6 +273,10 @@ class RKWeb3D():
             elif fext == ".html":
                 exEncoding = "html"
 
+            # Traverse DAG and map node data to X3D
+            rko.maya2x3d(x3dDoc.Scene, parentDagPaths, topDagNodes, self.pVersion, self.fullPath, exEncoding)
+
+            # Write X3D Scenegraph to Disk
             rko.rkio.x3d2disk(x3dDoc, self.fullPath, exEncoding)
             
             # Delete the RKOrganizer object.
@@ -367,9 +368,6 @@ class RKWeb3D():
             # Grab Transforms parented to the real root.
             parentDagPaths, topDagNodes = rko.getSelectedDagNodes()
             
-            # Traverse DAG and map node data to X3D
-            rko.maya2x3d(x3dDoc.Scene, parentDagPaths, topDagNodes, self.pVersion)
-            
             # Write the X3D data to a file.
             exEncoding     = "x3d"
             fext = os.path.splitext(self.fullPath)[1]
@@ -382,6 +380,10 @@ class RKWeb3D():
             elif fext == ".html":
                 exEncoding = "html"
                 
+            # Traverse DAG and map node data to X3D
+            rko.maya2x3d(x3dDoc.Scene, parentDagPaths, topDagNodes, self.pVersion, exEncoding)
+
+            # Write X3D Scenegraph to disk.
             rko.rkio.x3d2disk(x3dDoc, self.fullPath, exEncoding)
             
             # Delete the RKOrganizer object.
