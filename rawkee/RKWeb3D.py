@@ -229,34 +229,7 @@ class RKWeb3D():
             # data in the maya scen to be 
             # copied into the X3D Document object
             rko = RKOrganizer.RKOrganizer()
-        
-            #########################################
-            # Rethink if we want this code here
-            # Commenting it out for now.
-            '''
-            # Setup Basic File Path Info
-            self.rko.fileName = self.fullPath
-            idx = self.rko.fileName.rfind("/")
-            self.rko.localPath = self.rko.fileName[:idx+1]
-            print(self.rko.localPath)
-            
-            
-            ###############################################
-            #x3dEO.setFileSax3dWriter(tempFile);
-            self.rko.rkio.fullPath = self.rko.fileName
-            
-            #x3dEO.setExportStyle(filter());
-            self.rko.setExportStyle(self.selectedFilter)
-            '''
-
-            ###############################################
-            # Commenting this out for now. But will 
-            # probably will still use it at some point,
-            # though it may be called from another lcoation
-            # in the code.
-            #############################
-            rko.organizeExport() # TODO - Required to keep the scene traversal from crashing, becauese the 'ignore' methods are called here.
-            #############################
+            rko.prepForSceneTraversal()
 
             # Grab Transforms parented to the real root.
             parentDagPaths, topDagNodes = rko.getAllTopDagNodes()
@@ -336,34 +309,7 @@ class RKWeb3D():
             # data in the maya scen to be 
             # copied into the X3D Document object
             rko = RKOrganizer.RKOrganizer()
-        
-            #########################################
-            # Rethink if we want this code here
-            # Commenting it out for now.
-            '''
-            # Setup Basic File Path Info
-            self.rko.fileName = self.fullPath
-            idx = self.rko.fileName.rfind("/")
-            self.rko.localPath = self.rko.fileName[:idx+1]
-            print(self.rko.localPath)
-            
-            
-            ###############################################
-            #x3dEO.setFileSax3dWriter(tempFile);
-            self.rko.rkio.fullPath = self.rko.fileName
-            
-            #x3dEO.setExportStyle(filter());
-            self.rko.setExportStyle(self.selectedFilter)
-            '''
-
-            ###############################################
-            # Commenting this out for now. But will 
-            # probably will still use it at some point,
-            # though it may be called from another lcoation
-            # in the code.
-            #############################
-            rko.organizeExport() # TODO - Required to keep the scene traversal from crashing, becauese the 'ignore' methods are called here.
-            #############################
+            rko.prepForSceneTraversal()
 
             # Grab Transforms parented to the real root.
             parentDagPaths, topDagNodes = rko.getSelectedDagNodes()
