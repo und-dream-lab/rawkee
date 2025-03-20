@@ -2233,7 +2233,7 @@ class RKOrganizer():
         # Set the 'mapping' field of TextureTransform
         try:
             tmVal = place2d.findPlug("x3dTextureMapping", False).asString()
-            x3dtt._RK__mapping = tmVal
+            x3dtt.mapping = tmVal
         except:
             print("x3dTextureMapping is not defined.")
 

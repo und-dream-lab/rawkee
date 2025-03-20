@@ -99,8 +99,8 @@ class RKSceneTraversal():
                     if   keyp[3] == "containerField" and value != "":
                         sFieldsList.append("_RK__containerField")
                         
-                    elif keyp[3] == "mapping" and value != "":
-                        sFieldsList.append("_RK__mapping")
+#                    elif keyp[3] == "mapping" and value != "":
+#                        sFieldsList.append("_RK__mapping")
                     
                 elif keyp[1] == nType:
                     if pastMeta == False:
@@ -224,9 +224,10 @@ class RKSceneTraversal():
         mnlLen = len(mNodeList)
         for fIdx in range(sflLen):
             tField = sFieldList[fIdx]
-            if   tField == "_RK__mapping":
-                tField  =  "mapping"
-            elif tField == "_RK__containerField":
+#            if   tField == "_RK__mapping":
+#                tField  =  "mapping"
+#            elif tField == "_RK__containerField":
+            if tField == "_RK__containerField":
                 tField  =  "containerField"
                 ####################################################
                 # 'containerField' does not get used in VRML export,
@@ -351,9 +352,10 @@ class RKSceneTraversal():
         mnlLen = len(mNodeList)
         for fIdx in range(sflLen):
             tField = sFieldList[fIdx]
-            if   tField == "_RK__mapping":
-                tField  =  "mapping"
-            elif tField == "_RK__containerField":
+#            if   tField == "_RK__mapping":
+#                tField  =  "mapping"
+#            elif tField == "_RK__containerField":
+            if tField == "_RK__containerField":
                 tField  =  "containerField"
                 ####################################################
                 # 'containerField' does not get used in JSON export,
@@ -489,9 +491,10 @@ class RKSceneTraversal():
         mainline = "<" + nType
         for field in sFieldList:
             tField = field
-            if   field == "_RK__mapping":
-                tField =  "mapping"
-            elif field == "_RK__containerField":
+#            if   field == "_RK__mapping":
+#                tField =  "mapping"
+#            elif field == "_RK__containerField":
+            if field == "_RK__containerField":
                 tField =  "containerField"
                 
                 # It may not be adventageous to always add the containerField
@@ -595,9 +598,10 @@ class RKSceneTraversal():
         mainline = "<" + nType
         for field in sFieldList:
             tField = field
-            if   field == "_RK__mapping":
-                tField =  "mapping"
-            elif field == "_RK__containerField":
+#            if   field == "_RK__mapping":
+#                tField =  "mapping"
+#            elif field == "_RK__containerField":
+            if field == "_RK__containerField":
                 tField =  "containerField"
                 
                 # It may not be adventageous to always add the containerField
