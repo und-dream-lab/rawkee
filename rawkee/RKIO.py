@@ -18,7 +18,7 @@ from rawkee import RKSceneTraversal
 import xmltodict
 import json
 import io
-from x3d import *                                    ###
+from rawkee.x3d import *                                    ###
 #from rawkee.RKPseudoNode import *                    ###
 ########################################################
 

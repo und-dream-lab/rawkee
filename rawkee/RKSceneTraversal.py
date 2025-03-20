@@ -1,7 +1,7 @@
 import sys
 import os
-import x3d
-from x3d import *
+import rawkee.x3d
+from rawkee.x3d import *
 from rawkee.RKPseudoNode import *
 from typing import Final
 

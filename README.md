@@ -20,7 +20,6 @@ Some tutorials for RawKee C++ Edition (v 1.1.0/1.2.0) can be found at the Intern
 
 ## Required Python Packages in addition to standard Maya Python API 1.0/2.0 packages (mayapy).
 Some of the packages listed may require a pip install regarless of what the list below explicitly states.
-- x3d           (pip install required)
 - pillow        (pip install required)
 - ffmpeg-python (pip install required)
 - nodejs-bin    (pip install required) -- Required by Sunrize Editor, Will be optional.
