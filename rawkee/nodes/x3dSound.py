@@ -1,4 +1,4 @@
-import x3d
+import rawkee.x3d
 
 import maya.api.OpenMaya as aom
 import maya.api.OpenMayaUI as aomui

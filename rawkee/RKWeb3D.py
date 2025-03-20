@@ -24,7 +24,7 @@ from rawkee.RKFOptsDialog import RKFOptsDialog
 
 #from rawkee.RKUtils import *
 
-import x3d              as rkx3d
+import rawkee.x3d              as rkx3d
 
 try:
     from PySide2           import QtCore
