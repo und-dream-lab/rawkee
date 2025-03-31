@@ -99,18 +99,18 @@ class RKSceneTraversal():
                     if   keyp[3] == "containerField" and value != "":
                         sFieldsList.append("_RK__containerField")
                         
-#                    elif keyp[3] == "mapping" and value != "":
-#                        sFieldsList.append("_RK__mapping")
-                    
                 elif keyp[1] == nType:
                     if pastMeta == False:
                         continue
-                        
-                    if  isinstance(value, list):
+                    
+                    # For some reason the '_Normal__vector' attribute doesn't show up as an instance of a list, eventhough it should.
+                    # So I added a one-off check for the vector attribute.
+                    if  isinstance(value, list) or (keyp[1] == "Normal" and keyp[3] == "vector"):
                         if getattr(compNode,keyp[3]) != value:#len(value) > 0:
                             if isinstance(value[0], (str, float, int, tuple, bool, type(None) ) ):
                                 if value[0] != None:
                                     mFieldsList.append(keyp[3])
+                                    print('M Field: ' + keyp[3])
                             else:
                                 mNodeList.append(keyp[3])
 
@@ -119,6 +119,7 @@ class RKSceneTraversal():
                             if isinstance(value, (str, float, int, tuple, bool, type(None) ) ):
                                 #if value != None:
                                 sFieldsList.append(keyp[3])
+                                print('S Field: ' + keyp[3])
                             else:
                                 #if getattr(compNode,keyp[3]) != value:
                                 sNodeList.append(keyp[3])
@@ -346,15 +347,15 @@ class RKSceneTraversal():
         self.writeLine('{')
         self.itabs()
         
-        sflLen = len(sFieldList)
-        mflLen = len(mFieldList)
-        snlLen = len(sNodeList)
-        mnlLen = len(mNodeList)
+        sflLen = len(sFieldList) # sflLen
+        mflLen = len(mFieldList) # mflLen
+        snlLen = len(sNodeList)  # snlLen
+        mnlLen = len(mNodeList)  # mnlLen
         for fIdx in range(sflLen):
+            
+            
             tField = sFieldList[fIdx]
-#            if   tField == "_RK__mapping":
-#                tField  =  "mapping"
-#            elif tField == "_RK__containerField":
+
             if tField == "_RK__containerField":
                 tField  =  "containerField"
                 ####################################################
@@ -389,9 +390,12 @@ class RKSceneTraversal():
                 
             pVal = '"@' + tField + '": ' + sValue
             
-            if fIdx < (sflLen - 1) or mflLen > 0 or snlLen > 0 or mnlLen > 0:
+            # Since _RK__containerField/containerField is not used inside the node brackets, we use the fIdx < (sflLen - n) where 'n' needs to be a 2 instead of a 1 since
+            # we are not printing out containerField here. In VRML export, this check is not needed because the field values do not have a terminator, and the X3D and HTML
+            # 'n' is set to 1 as the exports have the containerField withing the XML tag.
+            if fIdx < (sflLen - 2) or mflLen > 0 or snlLen > 0 or mnlLen > 0:
                 pVal = pVal + ','
-                
+
             self.writeLine(pVal)
             
         for idx in range(mflLen):
