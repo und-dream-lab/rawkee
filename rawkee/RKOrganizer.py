@@ -798,7 +798,7 @@ class RKOrganizer():
         
         return None
         
-    def checkForUnboundJoints(self, dagNode):
+    def checkForMayaJoints(self, dagNode):
         #Traverse Maya Scene Downward without using an MFIt object
         cNum = dagNode.childCount()
         for i in range(cNum):
@@ -813,12 +813,16 @@ class RKOrganizer():
     ######################################################################################################################
     # HAnimHumanoid Related Functions
     ######################################################################################################################
-    def processHAnimHumanoid(self, dragPath, dagNode, x3dPF, bpNode):
+    #def processHAnimHumanoid(self, dragPath, dagNode, x3dPF, bpNode):
+    def processHAnimHumanoid(self, dragPath, dagNode, x3dPF):
         depNode = aom.MFnDependencyNode(dagNode.object())
         dragPath = dragPath + "|" + depNode.name()
         bna = self.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "HAnimHumanoid")
+        
         if bna[0] == False:
             self.processBasicTransformFields(depNode, bna[1])
+            
+            bpNode = self.getBindPoseNode(dagNode)
             
             #Traverse Maya Scene Downward without using an MFIt object
             groupDag = aom.MFnDagNode(depNode.object())
@@ -830,7 +834,8 @@ class RKOrganizer():
                 if   dagChild.typeName == "joint":
                     self.processHAnimJoint(dragPath, dagChild, cFields="skeleton")
                     
-                elif dagChild.typeName == "transform" or dagChild.typeName == "lodGroup" or dagChild.typeName == "mesh":
+                elif bpNode != None:
+                #dagChild.typeName == "transform" or dagChild.typeName == "lodGroup" or dagChild.typeName == "mesh":
                     cField = "skin"
                     
                     uDesignated = ""
@@ -862,7 +867,7 @@ class RKOrganizer():
                     animMessage = "Sorry - Node: " + thisChild.name() + " of Type: " + thisChild.typeName + " is not yet supported by RawKee Python for HAnim export.\n"
                     animMessage = animMessage + "Skipping node.\n"
                     self.rkio.cmessage(animMessage)
-            
+                    
             self.convertMayaAnimClips_To_HAnimMotion(dragPath, bpNode)
 
     def processHAnimJoint(self, dragPath, jNode, cField="children"):
@@ -1075,16 +1080,17 @@ class RKOrganizer():
                 # is, that means this 'transform' hosts a character rig as a child, and should
                 # be processed as an HAnimHumanoid X3D node.
                 ###############################################################################
-                bpNode = self.getBindPoseNode(dagNode)
+                ###### bpNode = self.getBindPoseNode(dagNode)
                 
                 # There maybe a type of transform node that should be exported as an 
                 # HAnimHumanoid node, but is not connect to a BindPose node.
                 # TODO: Check for this situation and call a processHAnimHumoind method that
                 # can accoutn for this.
-                if bpNode != None:
-                    self.processHAnimHumanoid(       dragPath, dagNode, x3dPF, bpNode)
-                if self.checkForUnboundJoints(dagNode):
-                    self.processUnboundHAnimHumanoid(dragPath, dagNode, x3dPF)
+                ###### if bpNode != None:
+                ######     self.processHAnimHumanoid(       dragPath, dagNode, x3dPF, bpNode)
+                if self.checkForMayaJoints(dagNode):
+                    self.processHAnimHumanoid(       dragPath, dagNode, x3dPF)
+                    #self.processUnboundHAnimHumanoid(dragPath, dagNode, x3dPF)
                 else:
                     self.processTransformSorting(    dragPath, dagNode, x3dPF)
 
@@ -1133,7 +1139,13 @@ class RKOrganizer():
             if dagNode.typeName == "transform":
                 self.processMayaTransformNode(dragPath, dagNode, cField)
             elif dagNode.typeName == "mesh":
-                self.processMayaMesh(dragPath, dagNode, cField)
+                if dagNode.isIntermediateObject == True:
+                    newDragPath, newDagNode = self.processForIntermediateMesh(dragPath, dagNode)
+                    if newDagNode != None:
+                        self.processMayaMesh(newDragPath, newDagNode, cField)
+                else:
+                    self.processMayaMesh(dragPath, dagNode, cField)
+                    
             elif dagNode.typeName == "lodGroup":
                 self.processMayaLOD(dragPath, dagNode, cField)
         else:
@@ -1144,6 +1156,23 @@ class RKOrganizer():
 #####################################################
 ############    Other Functions     #################
 #####################################################
+
+    def processForIntermediateMesh(self, dragPath, dagNode):
+        newDragPath = None
+        newDagNode  = None
+        
+        iRels = cmds.listRelatives(dagNode.name(), allDescendents=True, noIntermediate=True, fullPath=True)
+        meshShapes = cmds.ls(iRels, type="mesh")
+        
+        if meshShapes:
+            selection_list = om.MSelectionList()
+            selection_list.add(meshShapes[0])
+            mObj = selection_list.getDependNode(0)
+            newDagNode = aom.MFnDagNode(mObj)
+            newDragPath = dragPath
+        
+        return (newDragPath, newDagNode)
+        
     
     def processMayaMesh(self, dragPath, dagNode, cField="children"):
         
@@ -1435,10 +1464,12 @@ class RKOrganizer():
                         mTextureNodes.append(aom.MFnDependencyNode(emisTex))
                         mTextureFields.append("emissiveTexture")
                         if xhtml:
-                            material.emissiveTextureCoordiantesId = texCount
+                            material.emissiveTextureCoordinatesId = texCount
                             texCount += 1
-                        else:
-                            retPlace2d.append(None)
+#                        else:
+#                            retPlace2d.append(None)
+                        retPlace2d.append(None) # Test Export for More Dynamic Content
+                            
                     else:
                         if xhtml:
                             material.emissiveFactor = (emissiveColor.child(0).asFloat(), emissiveColor.child(1).asFloat(), emissiveColor.child(2).asFloat())
@@ -1464,10 +1495,11 @@ class RKOrganizer():
                                 material.normalBias  = normalBias
                                 material.normalScale = normalScale
                                 material.normalSpace = normalSpace
-                                material.normalTextureCoordiantesId = texCount
+                                material.normalTextureCoordinatesId = texCount
                                 texCount += 1
-                            else:
-                                retPlace2d.append(None)
+#                            else:
+#                                retPlace2d.append(None)
+                            retPlace2d.append(None) # Test Export for dynamic content
                         
                     if occlIsSet == True:
                         material.occlusionStrength = occlusionStrength.asFloat()
@@ -1501,7 +1533,8 @@ class RKOrganizer():
                                 texCount += 1
                             else:
                                 material.specularColor  = (1.0, 1.0, 1.0)
-                                retPlace2d.append(None)
+#                                retPlace2d.append(None)
+                            retPlace2d.append(None) # Test export for more dynamic content
                         else:
                             if xhtml:
                                 material.specularFactor = (specularColor.child(0).asFloat(), specularColor.child(1).asFloat(), specularColor.child(2).asFloat())
@@ -1515,15 +1548,22 @@ class RKOrganizer():
                             mTextureFields.append("shininessTexture")
 
                             if matNode.typeName == "phongE":
-                                material.shininess = 1 - shininess.asFloat()
+                                if xhtml:
+                                    material.shininessFactor = shininess.asFloat()
+                                else:
+                                    material.shininess = 1 - shininess.asFloat()
 
                             if xhtml:
-                                material.shininessTextureCoordiantesId = texCount
+                                material.shininessTextureCoordinatesId = texCount
                                 texCount += 1
-                            else:
-                                retPlace2d.append(None)
+#                            else:
+#                                retPlace2d.append(None)
+                            retPlace2d.append(None) # test export for more dynamic content
                         else:
-                            material.shininess = 1 - shininess.asFloat()
+                            if xhtml:
+                                material.shininessFactor = shininess.asFloat()
+                            else:
+                                material.shininess = 1 - shininess.asFloat()
                     
                     trans = (transparency.child(0).asFloat() + transparency.child(1).asFloat() + transparency.child(2).asFloat()) / 3.0
                     if xhtml:
@@ -1532,7 +1572,7 @@ class RKOrganizer():
                         if not alphaTex.isNull() and (alphaTex.apiType() == rkfn.kTexture2d or alphaTex.apiType() == rkfn.kFileTexture or alphaTex.apiType() == rkfn.kLayeredTexture):
                             mTextureNodes.append(aom.MFnDependencyNode(alphaTex))
                             mTextureFields.append("alphaTexture")
-                            material.alphaTextureCoordiantesId = texCount
+                            material.alphaTextureCoordinatesId = texCount
                             texCount += 1
                         if setTransmission == True:
                             missionTex = transmissionTexture.source().node()
@@ -1541,7 +1581,7 @@ class RKOrganizer():
                                 mTextureNodes.append(aom.MFnDependencyNode(missionTex))
                                 mTextureFields.append("transmissionTexture")
                                 material.transmissionFactor = (tmFactor, tmFactor, tmFactor)
-                                material.transmissionTextureCoordiantesId = texCount
+                                material.transmissionTextureCoordinatesId = texCount
                                 texCount += 1
                             else:
                                 tmFactor = transmissionFactor.asFloat() * ((trDepth.asFloat() + trFocus.asFloat())/2)
@@ -1642,7 +1682,7 @@ class RKOrganizer():
                                     retPlace2d.append(None)
                                 else:
                                     mTextureFields.append("diffuseTexture")
-                                    comShad.diffuseTextureCoordiantesId = texCount
+                                    comShad.diffuseTextureCoordinatesId = texCount
                                     texCount += 1
 
                             if xhtml == False:
@@ -1663,7 +1703,7 @@ class RKOrganizer():
                                     physMat.emissiveColor  = (eWeight, eWeight, eWeight)
                                 else:
                                     comShad.emissiveFactor = (eWeight, eWeight, eWeight)
-                                    comShad.emissiveTextureCoordiantesId = texCount
+                                    comShad.emissiveTextureCoordinatesId = texCount
                                     texCount += 1
                             else:
                                 if xhtml == False:
@@ -1699,7 +1739,7 @@ class RKOrganizer():
                                         if xhtml == False:
                                             retPlace2d.append(None)
                                         else:
-                                            comShad.normalTextureCoordiantesId = texCount
+                                            comShad.normalTextureCoordinatesId = texCount
                                             texCount += 1
                                             
                             if xhtml == False:
@@ -1747,7 +1787,7 @@ class RKOrganizer():
                                     retPlace2d.append(None)
                                 else:
                                     mTextureFields.append("diffuseTexture")
-                                    comShad.diffuseTextureCoordiantesId = texCount
+                                    comShad.diffuseTextureCoordinatesId = texCount
                                     texCount += 1
                             else:
                                 if xhtml == False:
@@ -1778,7 +1818,7 @@ class RKOrganizer():
                                     if xhtml == False:
                                         retPlace2d.append(None)
                                     else:
-                                        comShad.normalTextureCoordiantesId = texCount
+                                        comShad.normalTextureCoordinatesId = texCount
                                         texCount += 1
 
                             
@@ -1792,7 +1832,7 @@ class RKOrganizer():
                                     physMat.emissiveColor  = (eWeight, eWeight, eWeight)
                                 else:
                                     comShad.emissiveFactor = (eWeight, eWeight, eWeight)
-                                    comShad.emissiveTextureCoordiantesId = texCount
+                                    comShad.emissiveTextureCoordinatesId = texCount
                                     texCount += 1
                             else:
                                 if xhtml == False:
@@ -1872,7 +1912,7 @@ class RKOrganizer():
                                 retPlace2d.append(None)
                             else:
                                 mTextureFields.append("diffuseTexture")
-                                comShad.diffuseTextureCoordiantesId = texCount
+                                comShad.diffuseTextureCoordinatesId = texCount
                                 texCount += 1
                         else:
                             if xhtml == False:
@@ -1919,7 +1959,7 @@ class RKOrganizer():
                             if xhtml == False:
                                 retPlace2d.append(None)
                             else:
-                                comShad.normalTextureCoordiantesId = texCount
+                                comShad.normalTextureCoordinatesId = texCount
                                 texCount += 1
                         
                         
@@ -1933,7 +1973,7 @@ class RKOrganizer():
                                 physMat.emissiveColor  = (eWeight, eWeight, eWeight)
                             else:
                                 comShad.emissiveFactor = (eWeight, eWeight, eWeight)
-                                comShad.emissiveTextureCoordiantesId = texCount
+                                comShad.emissiveTextureCoordinatesId = texCount
                                 texCount += 1
                         else:
                             if xhtml == False:
@@ -2071,7 +2111,7 @@ class RKOrganizer():
                             if xhtml == False:
                                 retPlace2d.append(None)
                             else:
-                                comShad.normalTextureCoordiantesId = texCount
+                                comShad.normalTextureCoordinatesId = texCount
                                 texCount += 1
 
                         
@@ -2082,7 +2122,7 @@ class RKOrganizer():
                             if xhtml == False:
                                 retPlace2d.append(None)
                             else:
-                                comShad.emissiveTextureCoordiantesId = texCount
+                                comShad.emissiveTextureCoordinatesId = texCount
                                 texCount += 1
 
                         
@@ -2477,10 +2517,14 @@ class RKOrganizer():
     
     def extractSetTexMatch(self, texture, texNodes):
         for i in range(len(texNodes)):
-            print(texture.name())
-            print(texNodes[i].name())
-            if texture.name() == texNodes[i].name():
-                return i
+            try:
+                print(texture.name())
+                print(texNodes[i].name())
+                if texture.name() == texNodes[i].name():
+                    return i
+            except:
+                print(str(i))
+                pass
 
     
     def getMappingValue(self, mappings, fieldName):
@@ -2716,7 +2760,7 @@ class RKOrganizer():
 
                         txcParent = bna[1]
                         if bnaTXC != None:
-                            txcParent = bnaTXC
+                            txcParent = bnaTXC[1]
                             
                         for n in range(mapLen):
                             item = mappings['mappings'][n]
@@ -2842,19 +2886,24 @@ class RKOrganizer():
         texNodes   = []
         
         textureList = self.gatherShaderTextures(shader) #getShaderTexturesInOrder(shader)
+        print("TextureList: " + str(len(textureList)))
         
         if len(textureList) == 0:
             return (usedUVSets, texNodes)
         
         for t in textureList:
+            print("GetUsed - textureList: " + t.name())
             usedUVSets.append("map1")
             texNodes.append(None)
             
         for i in range(len(uvSetNames)):
+            print("My UV Set Names: " + uvSetNames[i])
+            print("My mesh name: " + myMesh.name())
             assocTexObj = myMesh.getAssociatedUVSetTextures(uvSetNames[i])
             
             for j in range(len(assocTexObj)):
                 texDep = aom.MFnDependencyNode(assocTexObj[j])
+                print("Assoc Text Obj - texDep: " + texDep.name())
                 
                 for k in range(len(textureList)):
                     if texDep.name() == textureList[k].name():
@@ -2885,6 +2934,7 @@ class RKOrganizer():
 
                 if tFound == False:
                     textureList.append(tNode)
+                    print("Add to my Texture List: " + tNode.name())
                 if mObject.apiType() == rkfn.kLayeredTexture:
                     matIter.prune()
         
