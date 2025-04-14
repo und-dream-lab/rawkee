@@ -63,6 +63,7 @@ class CommonSurfaceShader():
         self.normalTexture                = None            # -----------NA------------         # normalTexture           None
         self.normalTextureChannelMask     = 'rgb'
         self.normalTextureCoordinatesId   = 0               # -----------NA------------         # normalTextureMapping    ''
+#            normalTextureCoordinatesId
         self.normalTextureId              = -1
         
         self.reflectionFactor             = (0.0, 0.0, 0.0)
@@ -80,13 +81,14 @@ class CommonSurfaceShader():
         self.shininessFactor              = 0.2             # shininess        0.2              # shininess               0.2
         self.shininessTexture             = None            # -----------NA------------         # shininessTexture        None
         self.shininessTextureChannelMask  = 'a'
-        self.shininessTextureCoordiantesId = 0               # -----------NA------------         # shininessTextureMapping ''
+        self.shininessTextureCoordinatesId = 0               # -----------NA------------         # shininessTextureMapping ''
         self.shininessTextureId           = -1
         
         self.specularFactor               = (0.0, 0.0, 0.0) # specularColor    0.0 0.0 0.0      # specularColor           0.0 0.0 0.0
         self.specularTexture              = None            # -----------NA------------         # specularTexture         None
         self.specularTextureChannelMask   = 'rgb'
-        self.specularTextureCoordiantesId = 0               # -----------NA------------         # specularTextureMapping  ''
+        self.specularTextureCoordinatesId = 0               # -----------NA------------         # specularTextureMapping  ''
+#            specularTextureCoordinatesId
         self.specularTextureId            = -1
         
         self.tangentTextureCoordinatesId  = -1

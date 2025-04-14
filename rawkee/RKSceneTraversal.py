@@ -115,6 +115,8 @@ class RKSceneTraversal():
                                 mNodeList.append(keyp[3])
 
                     else:
+                        if keyp[3] == "global": # This is a temp fix for lighting nodes that have the 'global_' field.
+                            keyp[3] = "global_"
                         if getattr(compNode,keyp[3]) != value:
                             if isinstance(value, (str, float, int, tuple, bool, type(None) ) ):
                                 #if value != None:
@@ -158,7 +160,7 @@ class RKSceneTraversal():
     def processSortedNode(self, nType, node, sFieldList, mFieldList, sNodeList, mNodeList, isMulti, addComma):
         
         if sFieldList[0] == "USE":
-            processUsed(nType, node, isMulti, addComma)
+            self.processUsed(nType, node, isMulti, addComma)
         else:
             if   self.enc == encx:
                 self.processNodeAsXML( nType, node, True,  sFieldList, mFieldList, sNodeList, mNodeList)
@@ -177,7 +179,7 @@ class RKSceneTraversal():
             mainline = "<" + nType + " USE='" + node.USE + "'"
             cf = getattr(node, "_RK__containerField")
             if cf != None:
-                mainline += "containerField='" + cf + "'"
+                mainline += " containerField='" + cf + "'"
             mainline += "/>"
             
         elif self.enc == encv:
@@ -203,8 +205,8 @@ class RKSceneTraversal():
             mainline = "<" + nType + " USE='" + node.USE + "'"
             cf = getattr(node, "_RK__containerField")
             if cf != None:
-                mainline += "containerField='" + cf + "'"
-            mainline += "/>"
+                mainline += " containerField='" + cf + "'"
+            mainline += "></" + nType + ">"
             
         self.writeLine(mainline)
 

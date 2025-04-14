@@ -327,7 +327,7 @@ class RKWeb3D():
                 exEncoding = "html"
                 
             # Traverse DAG and map node data to X3D
-            rko.maya2x3d(x3dDoc.Scene, parentDagPaths, topDagNodes, self.pVersion, exEncoding)
+            rko.maya2x3d(x3dDoc.Scene, parentDagPaths, topDagNodes, self.pVersion, self.fullPath, exEncoding)
 
             # Write X3D Scenegraph to disk.
             rko.rkio.x3d2disk(x3dDoc, self.fullPath, exEncoding)
