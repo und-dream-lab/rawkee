@@ -3,6 +3,7 @@ import maya.cmds as cmds
 import maya.mel  as mel
 
 import maya.api.OpenMaya as aom
+import maya.api.OpenMayaAnim as aoma
 from   maya.api.OpenMaya import MFn as rkfn
 
 from rawkee.RKInterfaces import *
@@ -725,7 +726,12 @@ class RKOrganizer():
         x3dNode.rotation = self.rkint.getSFRotation(tForm.rotation(aom.MSpace.kTransform, True).asAxisAngle())
 
         #X3D Scale - tForm.scale() returns a List [ x, y, z] What? Why not an MVector Autodesk?
-        x3dNode.scale = self.rkint.getSFVec3fFromList(tForm.scale())
+        chVals = tForm.scale()
+        if depNode.typeName == "joint":
+            chVals[0] = abs(chVals[0])
+            chVals[1] = abs(chVals[1])
+            chVals[2] = abs(chVals[2])
+        x3dNode.scale = self.rkint.getSFVec3fFromList(chVals)
         
         ############################################################################################
         # X3D scaleOrientation - TODO
@@ -798,6 +804,17 @@ class RKOrganizer():
         
         return None
         
+    def getBindPoseNodes(self, dagNode):
+        
+        bpList = []
+        for plug in dagNode.getConnections():
+            depNode = aom.MFnDependencyNode(plug.connectedTo(False, True)[0].node())
+            
+            if depNode.typeName == "bindPose":
+                bpList.append(depNode)
+        
+        return bpList
+        
     def checkForMayaJoints(self, dagNode):
         #Traverse Maya Scene Downward without using an MFIt object
         cNum = dagNode.childCount()
@@ -822,87 +839,296 @@ class RKOrganizer():
         if bna[0] == False:
             self.processBasicTransformFields(depNode, bna[1])
             
-            bpNode = self.getBindPoseNode(dagNode)
+            #############################################################################################
+            #############################################################################################
+            #############################################################################################
+            ###
+            ###
+            ###    Beginning of Parsing the Character Rig - This could get quite complex.
+            ###
+            ###
+            #############################################################################################
+            #############################################################################################
+            #############################################################################################
             
-            #Traverse Maya Scene Downward without using an MFIt object
+            
+            # MFnDagNode version of Humanoid Node
             groupDag = aom.MFnDagNode(depNode.object())
             cNum = groupDag.childCount()
             
+            # Revised SkinCluster Search via Skeleton Joints
+            sc = []
             for i in range(cNum):
+                dChild = aom.MFnDagNode(groupDag.child(i))
+                if dChild.typeName == "joint":
+                    self.getJointSkinClusters(dChild, sc)
+                    
+            # Revised gather up Skinned Meshes
+            sm = []
+            for s in sc:
+                self.getSkinClusterMeshes(s, sm)
                 
+            # Get Weight/point Index Offset and Skin Coordinate Node name.
+            # wio length might be 0 and cName might equal "" if sm length is 0.
+            wio, cName = self.getSkinCoordinateNode(depNode, bna[1], sm)
+            
+            # Get Normal Vertex Index Offset and Skin Normal Node name
+            # Depnding on export options 'sno' length might = 0, and 
+            # sName might be equial to "".
+            sno, sName = self.getSkinNormalNode(depNode, bna[1], sm)
+            
+            # Adds X3D Shape nodes to 'skin' field of the humanoid. Assumes 
+            # that mesh is point values are in world coordinates.
+            smLen = len(sm)
+            snLen = len(sno)
+            for i in range(smLen):
+                # This is needed if the sno length is zero so as not to throw an out-of-bounds error on the list.
+                if snLen == 0:
+                    sno.append(snLen)
+                self.processMayaMesh(dragPath, aom.MFnDagNode(sm[i].object()), "skin", wio[i], sno[i], cName, sName)
+                
+            # Does the HAnimHumanoid have skin weights
+            hasSW = False
+            if len(sc) > 0:
+                hasSW = True
+                
+            # Traverse the Skeleton
+            for i in range(cNum):
                 dagChild = aom.MFnDagNode(groupDag.child(i))
                 if   dagChild.typeName == "joint":
-                    self.processHAnimJoint(dragPath, dagChild, cFields="skeleton")
+                    self.processHAnimJoint(dragPath, dagChild, bna[1], bna[1], cField="skeleton", sc=sc, wo=wio, sk=sm, hasSC=hasSW)
                     
-                elif bpNode != None:
-                #dagChild.typeName == "transform" or dagChild.typeName == "lodGroup" or dagChild.typeName == "mesh":
-                    cField = "skin"
-                    
-                    uDesignated = ""
-                    try:
-                        ucField     = dagChild.findPlug("x3dContainerField", False)
-                        uDesignated = ucField.asString()
-                        
-                    except:
-                        pass
-                
-                    if uDesignated != "":
-                        cField = uDesignated
-                    
-                    if   cField == "skin":
-                        self.processHAnimSkin(   dragPath, dagChild)
-                        
-                    elif cField == "sites" or cField == "viewpoints":
-                        self.processHAnimSite(   dragPath, dagChild, cField)
-                        
-                    elif cField == "segments":
-                        self.processHAnimSegment(dragPath, dagChild)
-                        
-                    else:
-                        animMessage = "Sorry - 'containerField' value: '" + cField + "' is not recognized as a valid 'containerField' value for HAnimHumanoid.\n"
-                        animMessage = animMessage + "Skipping Node: " + dagChild.name() + " of Maya Type: " + dagChild.typeName + ".\n"
-                        self.rkio.cmessage(animMessage)
-                        
-                else:
-                    animMessage = "Sorry - Node: " + thisChild.name() + " of Type: " + thisChild.typeName + " is not yet supported by RawKee Python for HAnim export.\n"
-                    animMessage = animMessage + "Skipping node.\n"
-                    self.rkio.cmessage(animMessage)
-                    
-            self.convertMayaAnimClips_To_HAnimMotion(dragPath, bpNode)
+            ###### self.convertMayaAnimClips_To_HAnimMotion(dragPath, bpNode)
 
-    def processHAnimJoint(self, dragPath, jNode, cField="children"):
-        if cField == "skeleton":
-            # TODO: If the 'cField' arguement is set to "skeleton", then add joint to "skeleton" containerField of the X3D 
-            #       HAnimHumanoid node with a "USE", but do not call the 'setAsHasBeen' method. Then:
-            #       - Then reprocess this jNode (maya dag node) by calling the 'processHAnimJoint' method by setting the 
-            #         'cField' variable to "joints" in the method's arguements.
-            pass
-        elif cField == "joints":
-            # TODO: If the 'cField' arguement is set to "joints", then call 'checkIfHasBeen' method.
-            # --- If the 'hasBeen' result is False, then:
-            #       - call the 'setAsHasBeen' method for this node
-            #       - add this joint to the "joints" field of the HAninHumanoid X3D node using the DEF designator
-            #       - call the 'setAsHasBeen' method on this node
-            #       - using a 'for' loop, process all of its children based on the appropriate node type. Any children 
-            #         that are Maya 'joint' nodes should be processed by calling 'processHAnimJoint' method without 
-            #         setting the 'cField' argument.
-            # --- If the 'hasBeen' result is True, then:
-            #       - add this joint to the "joints" field of the HAnimHumanoid X3D node using the USE designator.
-            pass
-        elif cField == "children":
-            # TODO: If the 'cField' argument is set to "children", then call 'checkIfHasBeen' method.
-            # --- if the hasBeen' result is False, then:
-            #       - call the 'setAsHasBeen' method for this node.
-            #       - add this joint to the "children" field of the HAnimJoint parent node using the DEF designator.
-            #       - using a 'for' loop, process all of its children based on the appropriate node type. Any children 
-            #         that are Maya 'joint' nodes should be processed by calling 'processHAnimJoint' method without 
-            #         setting the 'cField' argument.
-            #       - then reprocess this jNode (maya dag node) by calling the 'processHAnimJoint' method by settting the
-            #         'cField' method argument to "joints"
-            # --- If the 'hasBeen' result is True, then:
-            #       - add this joint to the "children" field of the HAnimJoint parent node using the USE designator.
-            pass
+
+    def getSkinNormalNode(self, depNode, x3dParent, skm):
+        sno = []
+        nName = ""
         
+        if self.rkNormalOpts > 0 and len(skm) > 0:
+            nName = depNode.name() + "_Normal"
+            normalbna = self.processBasicNodeAddition(depNode, x3dParent, "skinNormal", "Normal", nName)
+
+            for sm in skm:
+                mIter = aom.MItMeshPolygon(sm.object())
+                slen = len(sno)
+                offset = 0
+                while not mIter.isDone():
+                    #Normals Per Vertex
+                    if self.rkNormalOpts == 1 or self.rkNormalOpts == 4:
+                        tns = mIter.getNormals()
+                        for tn in tns:
+                            if normalbna[0] == False:
+                                normalbna[1].vector.append((tn.x, tn.y, tn.z))
+                            offset += 1
+                        
+                    #Normals Per Face
+                    elif self.rkNormalOpts == 2 or self.rkNormalOpts == 3:
+                        tn = mIter.getNormal()
+                        if normalbna[0] == False:
+                            normalbna[1].vector.append((tn.x, tn.y, tn.z))
+                        offset += 1
+                        
+                    mIter.next()
+                if slen > 0:
+                    offset = offset + sno[slen-1]
+                sno.append(offset)
+            
+            # Need to shift the Noraml offset over, because index 0 should have a
+            # value of 0
+            n = len(sno)
+            last = 0
+            for nIdx in range(n):
+                tLast = sno[nIdx]
+                sno[nIdx] = last
+                last = tLast
+
+        return sno, nName
+
+
+    def getSkinCoordinateNode(self, depNode, x3dParent, skm):
+        ##### Add an X3D Coordiante Node
+        wio = []
+        cName = ""
+        if len(skm) > 0:
+            cName = depNode.name() + "_Coord"
+            coordbna = self.processBasicNodeAddition(depNode, x3dParent, "skinCoord", "Coordinate", cName)
+            for sm in skm:
+                points = sm.getFloatPoints()
+                wlen = len(wio)
+                offset = 0
+                for point in points:
+                    if coordbna[0] == False:
+                        coordbna[1].point.append((point.x, point.y, point.z))
+                    offset += 1
+                if wlen > 0:
+                    offset = offset + wio[wlen-1]
+                wio.append(offset)
+            
+            # Need to shift the Weigth/Coordiante offset over, because index 0 should have a
+            # value of 0
+            n = len(wio)
+            last = 0
+            for nIdx in range(n):
+                tLast = wio[nIdx]
+                wio[nIdx] = last
+                last = tLast
+
+        return wio, cName
+
+    def getSkinClusterMeshes(self, sc, sm):
+        skCluster = aoma.MFnSkinCluster(sc.object())
+        geoDags = skCluster.getOutputGeometry()
+        for gd in geoDags:
+            skDag = aom.MFnDagNode(gd)
+            if skDag.typeName == "mesh":
+                wasFound = False
+                for sms in sm:
+                    if sms.name() == skDag.name():
+                        wasFound = True
+                if wasFound == False:
+                    sm.append(aom.MFnMesh(skDag.object()))
+        
+        
+    def getJointSkinClusters(self, jNode, sc):
+        scIter = aom.MItDependencyGraph(aom.MFnDependencyNode(jNode.object()).object(), rkfn.kSkinClusterFilter, aom.MItDependencyGraph.kDownstream, aom.MItDependencyGraph.kBreadthFirst, aom.MItDependencyGraph.kNodeLevel)
+        while not scIter.isDone():
+            tNode = aom.MFnDependencyNode(scIter.currentNode())
+            wasFound = False
+            for s in sc:
+                if s.name() == tNode.name():
+                    wasFound = True
+            if wasFound == False:
+                sc.append(tNode)
+            scIter.next()
+            
+        cNum = jNode.childCount()
+        for g in range(cNum):
+            dChild = aom.MFnDagNode(jNode.child(g))
+            if dChild.typeName == "joint":
+                self.getJointSkinClusters(dChild, sc)
+                
+
+    # sc is MFnSkinCluster list, wo is list of ints that are the per-mesh offset from 0 of the weights index for that mesh, sk is MFnMesh node list
+    def processHAnimJoint(self, dragPath, jNode, x3dHumanoid, x3dParent, cField="children", sc=[], wo=[], sk=[], hasSC=False):
+        dragPath = dragPath + "|" + jNode.name()
+
+        bna   = self.processBasicNodeAddition(jNode, x3dParent,   cField,   "HAnimJoint")
+        bnajt = self.processBasicNodeAddition(jNode, x3dHumanoid, "joints", "HAnimJoint")
+    
+
+        if bna[0] == False:
+            #######################################
+            # Process X3D Fields
+            #######################################
+            self.processBasicTransformFields(jNode, bna[1])
+
+            #######################################
+            # Has Skin Weights? Process Weights
+            #######################################
+            hasSW = False
+            if hasSC == True:
+                hasSW = True
+                #self.assignWeights(jNode, bna[1], wo, sk)
+            
+            #######################################
+            # Process Children of Joint Node
+            #######################################
+
+            # Prep variables for a possible HAnimSegment node
+            hasSegments = False
+            bnaSeg = []
+            segName = jNode.name() + "_segment"
+
+            # Count up children
+            groupDag = aom.MFnDagNode(jNode.object())
+            cNum = groupDag.childCount()
+        
+            # First Pass - Interate children with a priority of HAnimJoint nodes
+            for i in range(cNum):
+                dagChild = aom.MFnDagNode(groupDag.child(i))
+                if   dagChild.typeName == "joint":
+                    self.processHAnimJoint(dragPath, dagChild, x3dHumanoid, bna[1], cField="children", sc=sc, wo=wo, sk=sk, hasSC=hasSW)
+                elif dagChild.typeName == "transform":
+                    if hasSegments == False:
+                        hasSegments = True
+                        bnaSeg  = self.processBasicNodeAddition(jNode, bna[1],      "children", "HAnimSegment", nodeName=segName)
+                        bnaSeg2 = self.processBasicNodeAddition(jNode, x3dHumanoid, "segments", "HAnimSegment", nodeName=segName)
+                        
+            if hasSegments == True:
+                for i in range(cNum):
+                    dagChild = aom.MFnDagNode(groupDag.child(i))
+                    if dagChild.typeName == "transform":
+                        self.traverseDownward(dragPath + "|" + segName, dagChild)
+                
+
+    def assignWeights(self, jNode, x3dNode, wo, sk):
+        # Locally Connected SkinClusters
+        mySC   = []
+        
+        # Locally Influnced Meshes
+        myMesh = []
+        
+        # Local Mesh Order Indecies
+        myIdx  = []
+        
+        # Get the SkinClusters connected to this joint only.
+        scIter = aom.MItDependencyGraph(aom.MFnDependencyNode(jNode.object()).object(), rkfn.kSkinClusterFilter, aom.MItDependencyGraph.kDownstream, aom.MItDependencyGraph.kBreadthFirst, aom.MItDependencyGraph.kNodeLevel)
+        while not scIter.isDone():
+            tNode = aom.MFnDependencyNode(scIter.currentNode())
+            wasFound = False
+            for s in mySC:
+                if s.name() == tNode.name():
+                    wasFound = True
+            if wasFound == False:
+                mySC.append(tNode)
+            scIter.next()
+            
+        for sc in mySC:
+            self.getSkinClusterMeshes(sc, myMesh)
+
+        # Get proper mesh order for Weight Index
+        cmLen = len(sk)
+        for i in range(cmLen):
+            for m in myMesh:
+                if sk[i].name() == m.name():
+                    myIdx.append(i)
+
+        for idx in myIdx:
+            jlist = aom.MSelectionList()
+            jlist.add(jNode.name())
+            jlist.add(sk[idx].name())
+            jpath = jlist.getDagPath(0)
+            mpath, mobj = jlist.getComponent(1)
+
+            for tsc in mySC:
+                try:
+                    print("Joint: " + jNode.name() + ", Mesh: " + sk[idx].name() + ", SkinCluster: " + tsc.name())
+                    scomp = aom.MFnSingleIndexedComponent(mobj)
+                    vobj  = scomp.create(rkfn.kMeshVertComponent)
+                    vLen  = len(sk[idx].getFloatPoints())
+                    vtx   = []
+                    for ivx in range(vLen):
+                        vtx.append(ivx)
+                    scomp.addElements(vtx)
+                    
+                    skCluster = aoma.MFnSkinCluster(tsc.object())
+                    pIdx = skCluster.indexForInfluenceObject(jpath)
+
+                    # Print for debugging
+                    weights = skCluster.getWeights(mpath, vobj, pIdx)
+
+                    # Weight Values to be set
+                    if len(weights) > 0:
+                        for vIdx in range(vLen):
+                            #if weights[vIdx] > 0:
+                            x3dNode.skinCoordIndex.append(vIdx + wo[idx])
+                            x3dNode.skinCoordWeight.append(weights[vIdx])
+                except:
+                    print("FAILED !!! on - Joint: " + jNode.name() + ", Mesh: " + sk[idx].name() + ", SkinCluster: " + tsc.name())
+                    
+                            
+
     def convertMayaAnimClips_To_HAnimMotion(self, dragPath, bpNode, cField="motions"):
         pass
         
@@ -933,7 +1159,8 @@ class RKOrganizer():
         
         # Print node object to the console. Mostly included here to let the user
         # know that the scene is being constucted.
-        print(tNode)
+###        print(tNode)
+#        print("DEF: " + nodeName)
         #self.rkio.cMessage(tNode)
         
         # Check to see if the node has previously been created with a DEF 
@@ -1134,20 +1361,24 @@ class RKOrganizer():
         nodeName = dagNode.name()
         
         if self.rkio.checkIfIgnored(nodeName) == False:
-            #Use cMessage instead of print so that we can block Verbose Export at the cMessage Level
-            self.rkio.cMessage("Node was NOT ignored: " + dagNode.typeName + ", NodeName: " + nodeName)
-            if dagNode.typeName == "transform":
-                self.processMayaTransformNode(dragPath, dagNode, cField)
-            elif dagNode.typeName == "mesh":
-                if dagNode.isIntermediateObject == True:
-                    newDragPath, newDagNode = self.processForIntermediateMesh(dragPath, dagNode)
-                    if newDagNode != None:
-                        self.processMayaMesh(newDragPath, newDagNode, cField)
-                else:
-                    self.processMayaMesh(dragPath, dagNode, cField)
-                    
-            elif dagNode.typeName == "lodGroup":
-                self.processMayaLOD(dragPath, dagNode, cField)
+            
+            if self.rkio.checkForRawKeeNoExportLayer(dagNode) == False:
+                #Use cMessage instead of print so that we can block Verbose Export at the cMessage Level
+                self.rkio.cMessage("Node was NOT ignored: " + dagNode.typeName + ", NodeName: " + nodeName)
+                if dagNode.typeName == "transform":
+                    self.processMayaTransformNode(dragPath, dagNode, cField)
+                elif dagNode.typeName == "mesh":
+                    if dagNode.isIntermediateObject == True:
+                        newDragPath, newDagNode = self.processForIntermediateMesh(dragPath, dagNode)
+                        if newDagNode != None:
+                            self.processMayaMesh(newDragPath, newDagNode, cField)
+                    else:
+                        self.processMayaMesh(dragPath, dagNode, cField)
+                        
+                elif dagNode.typeName == "lodGroup":
+                    self.processMayaLOD(dragPath, dagNode, cField)
+            else:
+                self.rkio.cMessage("Node: " + nodeName + " will not be exported as it is connected to the 'RawKeeNoExport' Maya layer")
         else:
             self.rkio.cMessage("Sorry - Node: " + nodeName + " of Type: " + dagNode.typeName + " is not yet supported for RawKee export.")
             
@@ -1174,7 +1405,7 @@ class RKOrganizer():
         return (newDragPath, newDagNode)
         
     
-    def processMayaMesh(self, dragPath, dagNode, cField="children"):
+    def processMayaMesh(self, dragPath, dagNode, cField="children", cOffset=0, nOffset=0, sharedCoord="", sharedNormal=""):
         
         supMeshName = dagNode.name()
 
@@ -1263,35 +1494,9 @@ class RKOrganizer():
 #                    self.processForAppearance(myMesh, shaders[idx], meshComps[idx], sbna[1], cField="appearance", index=idx)
                 self.processForAppearance(myMesh, shaders[idx], meshComps[idx], sbna[1], cField="appearance", index=idx)
                 
-                self.processForGeometry(  myMesh, shaders, meshComps, sbna[1], nodeName=shapeName, cField="geometry", nodeType="IndexedFaceSet", index=idx)
+                self.processForGeometry(  myMesh, shaders, meshComps, sbna[1], nodeName=shapeName, cField="geometry", nodeType="IndexedFaceSet", index=idx, gcOffset=cOffset, gnOffset=nOffset, gsharedCoord=sharedCoord, gsharedNormal=sharedNormal)
 
-    '''
-    def processForAppearanceHTML(self, myMesh, shadingEngineObj, component, parentNode, cField="appearance", index=0):
-        texTrans = []
-        depNode = aom.MFnDependencyNode(shadingEngineObj)
-        
-        mapJSON = myMesh.findPlug("x3dTextureMappings", False).asString()
-        meshTMaps = json.loads(mapJSON)
-        allMaps = meshTMaps['shadingEngines']
-        mappings = allMaps[index]
-        isStringRay = False
 
-        bna = self.processBasicNodeAddition(depNode, parentNode, cField, "Appearance")
-        if bna[0] == False:
-            # Lists for tracking Maya texture nodes and place2dTexture* nodes - (*equivelent to X3D TextureTransform node)
-            mTextureNodes        = []
-            mTextureFields       = []
-            retPlace2d           = []
-
-            x3dAppearance = bna[1]
-            shadeNode = aom.MFnDependencyNode(depNode.findPlug("surfaceShader"     , True).source().node())
-            displNode = aom.MFnDependencyNode(depNode.findPlug("displacementShader", True).source().node())
-        
-            x3dShader = self.processBasicNodeAddition(matNode, x3dAppearance, "shaders", "CommonSurfaceShader")
-            if x3dShader[0] == False:
-                commShader = x3dShader[1]
-    '''
-        
     def processForAppearance(self, myMesh, shadingEngineObj, component, parentNode, cField="appearance", index=0):
         texTrans = []
         depNode = aom.MFnDependencyNode(shadingEngineObj)
@@ -1303,6 +1508,7 @@ class RKOrganizer():
         isStringRay = False
 
         print("Before Appearance")
+        print(mapJSON)
         # Create an Appearance Node using the name of the Shader Engine node.
         bna = self.processBasicNodeAddition(depNode, parentNode, cField, "Appearance")
         if bna[0] == False:
@@ -1590,6 +1796,8 @@ class RKOrganizer():
                         material.transparency = trans
                     
                     mtexLen = len(mTextureNodes)
+                    
+                    print("MTEXTURE LENGTH: " + str(mtexLen))
 
                     if xhtml == False:
                         for a in range(mtexLen):
@@ -1597,6 +1805,7 @@ class RKOrganizer():
                             if not gPlace2d.object().isNull():
                                 texturemapping = self.getMappingValue(mappings, mTextureFields[a] + "Mapping")
                                 setattr(material, mTextureFields[a] + "Mapping", texturemapping)
+                                print("Mapping: " + mTextureFields[a] + "Mapping")
                                 retPlace2d[a]  = gPlace2d
                     else:
                         for a in range(mtexLen):
@@ -1847,6 +2056,8 @@ class RKOrganizer():
                                 comShad.alphaFactor  = (aiOpacity.child(0).asFloat() + aiOpacity.child(1).asFloat() + aiOpacity.child(2).asFloat()) / 3.0
                             
                             mtexLen = len(mTextureNodes)
+
+                            print("MTEXTURE LENGTH - B: " + str(mtexLen))
                             
                             for a in range(mtexLen):
                                 if xhtml == False:
@@ -1990,6 +2201,8 @@ class RKOrganizer():
                             
                         mtexLen = len(mTextureNodes)
                         
+                        print("MTEXTURE LENGTH - C: " + str(mtexLen))
+
                         for a in range(mtexLen):
                             if xhtml == False:
                                 gPlace2d = self.processTexture(mTextureNodes[a].object().apiType(), mTextureNodes[a], physMat, mTextureFields[a])
@@ -2127,6 +2340,8 @@ class RKOrganizer():
 
                         
                         mtexLen = len(mTextureNodes)
+
+                        print("MTEXTURE LENGTH - D: " + str(mtexLen))
                         
                         for a in range(mtexLen):
                             if xhtml == False:
@@ -2209,7 +2424,351 @@ class RKOrganizer():
             #
             ########################################################################
     
+    # Assumes that the function has been passed a 'Connected' plug)
+    def surfGraphForTextureNode(self, matPlug):
+        tFound = False
+        tNode  = None
+        
+        textIter = aom.MItDependencyGraph(matPlug, rkfn.kFileTexture, aom.MItDependencyGraph.kUpstream, aom.MItDependencyGraph.kDepthFirst, aom.MItDependencyGraph.kNodeLevel)
+        
+        while not textIter.isDone():
+            try:
+                cNode = textIter.currentNode()
+                if tFound == False and cNode.apiType() == rkfn.kFileTexture:
+                    tFound = True
+                    tNode  = aom.MFnDependencyNode(cNode)
+            except:
+                print("failed kFileTexture")
+                
+            textIter.next()
+
+        textIter = aom.MItDependencyGraph(matPlug, rkfn.kTexture2d, aom.MItDependencyGraph.kUpstream, aom.MItDependencyGraph.kDepthFirst, aom.MItDependencyGraph.kNodeLevel)
+
+        if tFound == False:
+            while not textIter.isDone():
+                try:
+                    cNode = textIter.currentNode()
+                    if tFound == False and cNode.apiType() == rkfn.kTexture2d:
+                        tFound = True
+                        tNode  = aom.MFnDependencyNode(cNode)
+                except:
+                    print("failed kTexture2d")
+                
+                textIter.next()
+
+        return tFound, tNode
+
     
+    def genMSComboMappings(self, mesh, shaders, components):
+        mappings = []
+        
+        for i in range(len(shaders)):
+            mappings.append("")
+            shader = shaders[i]
+            comp   = components[i]
+            depNode = aom.MFnDependencyNode(shader)
+            matPlug = depNode.findPlug("surfaceShader", True)
+            
+            if matPlug.isConnected:
+                matNode = aom.MFnDependencyNode(matPlug.source().node())
+                
+                usedUVSets, texNodes = self.getUsedUVSetsAndTexturesInOrder(mesh, shader)
+                
+                mapInt  = 0
+                mapStr  = '{"shaderName":"' + depNode.name() + '",'
+                mapStr += '"mappings":['
+############
+                if  matNode.typeName == "phong" or matNode.typeName == "phongE" or matNode.typeName == "blinn" or matNode.typeName == "lambert":
+                    
+                    matAmbientColor  = matNode.findPlug("ambientColor", True)                 # ambientTexture
+                    matColor         = matNode.findPlug("color", True)                        # diffuseTexture
+                    matIncandescence = matNode.findPlug("incandescence", True)                # emissiveTexture
+                    matNormalCamera  = matNode.findPlug("normalCamera", True)                 # normalTexture
+                    
+                    matReflectedColor = None
+                    matSpecularColor  = None
+                    matWhiteness      = None
+                    
+                    if matNode.typeName != "lambert":
+                        matReflectedColor = matNode.findPlug("reflectedColor", True)          # occlusionTexture
+                        matSpecularColor  = matNode.findPlug("specularColor", True)           # specularTexture
+                        if  matNode.typeName == "phongE":
+                            matWhiteness  = matNode.findPlug("whiteness", True)               # shininessTexture
+                        else:
+                            matWhiteness  = matNode.findPlug("reflectedColor", True)          # shininessTexture
+                    
+                    ambientTexture   = None
+                    diffuseTexture   = None
+                    emissiveTexture  = None
+                    normalTexture    = None
+                    occlusionTexture = None
+                    specularTexture  = None
+                    shininessTexture = None
+                    
+                    ####################################################################################
+                    # surfGraphForTextureNode only returns True if apiType is kTexture2d or kFileTexture
+                    ####################################################################################
+                    
+                    # ambientTextureMapping
+                    if matAmbientColor.isConnected:
+                        tFound, ambientTexture = self.surfGraphForTextureNode(matAmbientColor)
+                        if tFound == True:
+                            p2dTT = self.getPlace2dFromMayaTexture(ambientTexture)
+                            mIdx  = self.extractSetTexMatch(ambientTexture, texNodes)
+                            mapStr += '{"fieldName":"ambientTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
+                    
+                    if matColor.isConnected:
+                        tFound, diffuseTexture = self.surfGraphForTextureNode(matColor)
+                        if tFound == True:
+                            p2dTT = self.getPlace2dFromMayaTexture(diffuseTexture)
+                            mIdx  = self.extractSetTexMatch(diffuseTexture, texNodes)
+                            if mapInt > 0:
+                                mapStr += ','
+                            mapStr += '{"fieldName":"diffuseTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
+                        else:
+                            print("Diffuse Texture Not Found")
+                    else:
+                        print("matColor is not connected")
+                    
+                    if matIncandescence.isConnected:
+                        tFound, emissiveTexture = self.surfGraphForTextureNode(matIncandescence)
+                        if tFound == True:
+                            p2dTT = self.getPlace2dFromMayaTexture(emissiveTexture)
+                            mIdx  = self.extractSetTexMatch(emissiveTexture, texNodes)
+                            if mapInt > 0:
+                                mapStr += ','
+                            mapStr += '{"fieldName":"emissiveTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
+                            
+                    if matNormalCamera.isConnected:
+                        tFound, normalTexture = self.surfGraphForTextureNode(matNormalCamera)
+                        if tFound == True:
+                            p2dTT = self.getPlace2dFromMayaTexture(normalTexture)
+                            mIdx  = self.extractSetTexMatch(normalTexture, texNodes)
+                            if mapInt > 0:
+                                mapStr += ','
+                            mapStr += '{"fieldName":"normalTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
+                    
+                    if matNode.typeName != "lambert":
+                        if matReflectedColor.isConnected:
+                            tFound, occlusionTexture = self.surfGraphForTextureNode(matReflectedColor)
+                            if tFound == True:
+                                p2dTT = self.getPlace2dFromMayaTexture(occlusionTexture)
+                                mIdx  = self.extractSetTexMatch(occlusionTexture, texNodes)
+                                if mapInt > 0:
+                                    mapStr += ','
+                                mapStr += '{"fieldName":"occlusionTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                                mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                                mapInt +=1
+
+                        if matSpecularColor.isConnected:
+                            tFound, specularTexture = self.surfGraphForTextureNode(matSpecularColor)
+                            if tFound == True:
+                                p2dTT = self.getPlace2dFromMayaTexture(specularTexture)
+                                mIdx  = self.extractSetTexMatch(specularTexture, texNodes)
+                                if mapInt > 0:
+                                    mapStr += ','
+                                mapStr += '{"fieldName":"specularTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                                mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                                mapInt +=1
+                        
+                        if matWhiteness.isConnected:
+                            tFound, shininessTexture = self.surfGraphForTextureNode(matWhiteness)
+                            if tFound == True:
+                                p2dTT = self.getPlace2dFromMayaTexture(shininessTexture)
+                                mIdx  = self.extractSetTexMatch(shininessTexture, texNodes)
+                                if mapInt > 0:
+                                    mapStr += ','
+                                mapStr += '{"fieldName":"shininessTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                                mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                                mapInt +=1
+                else:
+                    # Attribute Names:
+                    # Default to StingRay PBS names
+                    attColor = "TEX_color_map"
+                    attEmiss = "TEX_emissive_map"
+                    attMetal = "TEX_metallic_map"
+                    attRough = "TEX_roughness_map"
+                    attNorm  = "TEX_normal_map"
+                    attOccl  = "TEX_ao_map"
+                    attExtra = ""
+                    
+                    if matNode.typeName == "usdPreviewSurface":
+                        attColor = "diffuseColor"
+                        attEmiss = "emissiveColor"
+                        attMetal = "metallic"
+                        attRough = "roughness"
+                        attNorm  = "normal"
+                        attOccl  = "occlusion"
+                        
+                        #Test for Specular Color
+                        usdSpecularColor = matNode.findPlug("specularColor", True)
+                        if usdSpecularColor.isConnected:
+                            attRough = "specularColor"
+                    elif matNode.typeName == "aiStandardSurface" or matNode.typeName == "standardSurface":
+                        attColor = "baseColor"
+                        attEmiss = "emission"
+                        attMetal = "metalness"#         B
+                        attRough = "specularRoughness"# G
+                        attNorm  = "normalCamera"
+                        attOccl  = "specular"#          R
+                        
+                        #Test for Multiplier Node for 'Abe Leal 3D' / 'Unreal 4 Packed' Style
+                        ssBaseColor = matNode.findPlug("baseColor", True)
+                        if ssBaseColor.isConnected:
+                            ssNode = ssBaseColor.source().node()
+                            ssDepNode = aom.MFnDependencyNode(ssNode)
+                            if ssDepNode.typeName == "aiMultiply":
+                                attExtra = "baseColor"
+                    
+                    # aiStandardSurface or standardSurface
+                    #ssBaseColor  = matNode.findPlug("baseColor", True)#                 color                                          (Verge3D/Other Style of Maya material)
+                    #                                                                    aiMultiply - input1: color, input2: occlusion  ('Abe Leal 3D' / 'Unreal 4 Packed' Style)
+                    #ssEmisWeight = matNode.findPlug("emission", True)#                  emissive                                       (All Styles)
+                    #ssMetalness  = matNode.findPlug("metalness", True)#                 metallic                                       (All Styles)
+                    #ssRoughness  = matNode.findPlug("specularRoughness", True)#         roughness                                      (All Styles)
+                    #ssSpecular   = matNode.findPlug("specular", True)#                  occlusion (also with 'base' attribute)         (Verge3D Style of Maya material)
+                    #ssNormalCam  = matNode.findPlug("normalCamera", True)#              normal                                         (All Styles)
+                    
+                    # USD Preview Surface
+                    #usdDiffuseColor   = matNode.findPlug("diffuseColor", True)#         color
+                    #usdEmissiveColor  = matNode.findPlug("emissiveColor", True)#        emissive
+                    #usdMetallic       = matNode.findPlug("metallic", True)#             metallic                                       (Verge 3D Style)
+                    #usdRoughness      = matNode.findPlug("roughness", True)#            roughness                                      (Verge 3D Style)
+                    #usdOcclusion      = matNode.findPlug("occlusion", True)#            occlusion
+                    #usdNormal         = matNode.findPlug("normal", True)#               normal
+                    #usdSpecularColor  = matNode.findPlug("specularColor", True)#        metallic/roughess                              (Other style)
+                    #usdOpacity        = matNode.findPlug("opacity", False)
+                    
+                    # Stringray PBS
+                    #styColrMap = matNode.findPlug("TEX_color_map",     True)#           color
+                    #styEmisMap = matNode.findPlug("TEX_emissive_map",  True)#           emissive
+                    #styMetlMap = matNode.findPlug("TEX_metallic_map",  True)#           metallic
+                    #styRougMap = matNode.findPlug("TEX_roughness_map", True)#           roughness
+                    #styNormMap = matNode.findPlug("TEX_normal_map",    True)#           normal
+                    #styOcclMap = matNode.findPlug("TEX_ao_map",        True)#           occlusion
+                    
+                    matColor = matNode.findPlug(attColor, True)
+                    matOccl  = matNode.findPlug(attOccl,  True)
+                    if attExtra == "baseColor":
+                        attColor = "input1"
+                        attOccl  = "input2R"
+                        ssNode   = matNode.findPlug(attExtra, True).source().node()
+                        matColor = aom.MFnDependencyNode(ssNode).findPlug(attColor)
+                        matOccl  = aom.MFnDependencyNode(ssNode).findPlug(attOccl)
+                    matEmiss = matNode.findPlug(attEmiss, True)
+                    matMetal = matNode.findPlug(attMetal, True)
+                    matRough = matNode.findPlug(attRough, True)
+                    matNorm  = matNode.findPlug(attNorm,  True)
+                    
+                    if matColor.isConnected:
+                        tFound, baseTexture = self.surfGraphForTextureNode(matColor)
+                        if tFound == True:
+                            p2dTT = self.getPlace2dFromMayaTexture(baseTexture)
+                            mIdx  = self.extractSetTexMatch(baseTexture, texNodes)
+                            if mapInt > 0:
+                                mapStr += ','
+                            mapStr += '{"fieldName":"baseTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
+                    
+                    if matEmiss.isConnected:
+                        tFound, emissiveTexture = self.surfGraphForTextureNode(matEmiss)
+                        if tFound == True:
+                            p2dTT = self.getPlace2dFromMayaTexture(emissiveTexture)
+                            mIdx  = self.extractSetTexMatch(emissiveTexture, texNodes)
+                            if mapInt > 0:
+                                mapStr += ','
+                            mapStr += '{"fieldName":"emissiveTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
+                    
+                    # Ideally, we'd look for a way to combine separate textures here. But that's advanced coding for another time or location in the code. For now
+                    # we have to assume that these Texutres are the same texture in the DependencyGraph
+                    if matMetal.isConnected:
+                        tFound, metallicRoughnessTexture = self.surfGraphForTextureNode(matMetal)
+                        if tFound == True:
+                            p2dTT = self.getPlace2dFromMayaTexture(metallicRoughnessTexture)
+                            mIdx  = self.extractSetTexMatch(metallicRoughnessTexture, texNodes)
+                            if mapInt > 0:
+                                mapStr += ','
+                            mapStr += '{"fieldName":"metallicRoughnessTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
+                        elif matRough.isConnected:
+                            ttFound, metallicRoughnessTexture = self.surfGraphForTextureNode(matRough)
+                            if ttFound == True:
+                                p2dTT = self.getPlace2dFromMayaTexture(metallicRoughnessTexture)
+                                mIdx  = self.extractSetTexMatch(metallicRoughnessTexture, texNodes)
+                                if mapInt > 0:
+                                    mapStr += ','
+                                mapStr += '{"fieldName":"metallicRoughnessTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                                mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                                mapInt +=1
+                    
+                    # This gets weird, in that in the X3D PhysicalMaterial node, these are likely to be separate Textures, but in Maya they are often linked to the same
+                    # texture node as the Roughness and Metallic shader attributes
+                    if matOccl.isConnected:
+                        tFound, occlusionTexture = self.surfGraphForTextureNode(matOccl)
+                        if tFound == True:
+                            p2dTT = self.getPlace2dFromMayaTexture(occlusionTexture)
+                            mIdx  = self.extractSetTexMatch(occlusionTexture, texNodes)
+                            if mapInt > 0:
+                                mapStr += ','
+                            mapStr += '{"fieldName":"occlusionTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
+                    
+                    if matNorm.isConnected:
+                        tFound, normalTexture = self.surfGraphForTextureNode(matNorm)
+                        if tFound == True:
+                            p2dTT = self.getPlace2dFromMayaTexture(normalTexture)
+                            mIdx  = self.extractSetTexMatch(normalTexture, texNodes)
+                            if mapInt > 0:
+                                mapStr += ','
+                            mapStr += '{"fieldName":"normalTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
+                            mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
+                            mapInt +=1
+############
+                mapStr += ']}'
+                
+                mappings[i] = mapStr
+                
+            else:
+                print("No SurfaceShader Connection Found")
+    
+        mapJSON = '{"shadingEngines":['
+        
+        mapLen = len(mappings)
+        for mIdx in range(mapLen):
+            mapJSON += mappings[mIdx]
+            if mIdx < mapLen -1:
+                mapJSON += ','
+        mapJSON += ']}'
+
+        pFound = False
+        try:
+            plug = mesh.findPlug("x3dTextureMappings", False)
+            plug.setString(mapJSON)
+        except:
+            attrFn = aom.MFnTypedAttribute()
+            newAttr = attrFn.create("x3dTextureMappings", "x3dTMaps", aom.MFnData.kString)
+            attrFn.storable = False
+            attrFn.keyable  = False
+            mesh.addAttribute(newAttr)
+            
+            plug = mesh.findPlug("x3dTextureMappings", False)
+            plug.setString(mapJSON)
+
+
+    '''
     def genMSComboMappings(self, mesh, shaders, components):
         mappings = []
         
@@ -2447,8 +3006,24 @@ class RKOrganizer():
                             mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
                             mapInt +=1
                         # occlusionTextureMapping and metallicRoughnessTextureMapping
+#                        print("Base End")
+#                        bValue = aiBase.source().node()
+#                        if bValue == None:
+#                            print("BValue was None")
+#                        else:
+#                            print("BValue was not None")
+#                        print("BValue")
+#                        print(type(bValue))
+#                        print(bValue.apiType())
+#                        if aiBase.isConnected:
+#                            print("aiBase is connected")
+#                        else:
+#                            print("aiBase is not connected")
                         omrTexture = aom.MFnDependencyNode(aiBase.source().node())
                         if omrTexture != None:
+#                            print("OMR Name: " + omrTexture.name())
+#                            print(omrTexture)
+#                            print(None)
                             p2dTT = self.getPlace2dFromMayaTexture(omrTexture)
                             mIdx  = self.extractSetTexMatch(omrTexture, texNodes)
 
@@ -2461,6 +3036,7 @@ class RKOrganizer():
                             mapStr += ',{"fieldName":"metallicRoughnessTextureMapping","mapName":"'     + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
                             mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
                             mapInt +=1
+                        print("Roughness End")
 
                         # normalTextureMapping
                         bump2d = aom.MFnDependencyNode(aiNormalCam.source().node())
@@ -2475,6 +3051,7 @@ class RKOrganizer():
                                 mapStr += '{"fieldName":"normalTextureMapping","mapName":"' + p2dTT.findPlug("x3dTextureMapping", False).asString() + '",'
                                 mapStr += '"uvSetName":"' + usedUVSets[mIdx] + '","textureTransformName":"' + p2dTT.name() + '"}'
                                 mapInt +=1
+                        print("Normal End")
 
                                                 
                         
@@ -2513,6 +3090,7 @@ class RKOrganizer():
             
             plug = mesh.findPlug("x3dTextureMappings", False)
             plug.setString(mapJSON)
+    '''
 
     
     def extractSetTexMatch(self, texture, texNodes):
@@ -2560,7 +3138,7 @@ class RKOrganizer():
     def processMaterial(self):
         pass
 
-    def processForGeometry(self, myMesh, shaders, meshComps, x3dParentNode, nodeName=None, cField="geometry", nodeType="IndexedFaceSet", index=0):
+    def processForGeometry(self, myMesh, shaders, meshComps, x3dParentNode, nodeName=None, cField="geometry", nodeType="IndexedFaceSet", index=0, gcOffset=0, gnOffset=0, gsharedCoord="", gsharedNormal=""):
         meshMP = 0
         if nodeName == None:
             nodeName = myMesh.name()
@@ -2588,18 +3166,11 @@ class RKOrganizer():
                 # TODO: Future code for implementing 'attrib'
 
                 ##### Add an X3D Coordiante Node
-                geoNameCoord = nodeName + "_Coord"
-                coordbna = self.processBasicNodeAddition(myMesh, bna[1], "coord", "Coordinate", geoNameCoord)
-                if coordbna[0] == False:
-                    # TODO: Metadata processing
-                    
-                    
-                    # point field of Coordinate node
-                    points = myMesh.getFloatPoints()
-                    meshMP = len(points)
-                    for point in points:
-                        coordbna[1].point.append((point.x, point.y, point.z))
-            
+                
+                #### use gsharedCoord if this is a mesh in an HAnimHumanoid
+                if gsharedCoord != "":
+                    coordbna = self.processBasicNodeAddition(myMesh, bna[1], "coord", "Coordinate", gsharedCoord)
+
                     # Using the MItMeshPolygon Iterator and the propoper sub-component
                     # this secion of the code builds the array of MFInt32 field of IndexedFaceSet
                     while not mIter.isDone():
@@ -2607,9 +3178,33 @@ class RKOrganizer():
                         nVerts = mIter.polygonVertexCount()
                         for vIdx in range(nVerts):
                             mIdx = mIter.vertexIndex(vIdx)
-                            bna[1].coordIndex.append(mIdx)
+                            bna[1].coordIndex.append(mIdx + gcOffset)
                         bna[1].coordIndex.append(-1)
                         mIter.next()
+
+                else:
+                    geoNameCoord = nodeName + "_Coord"
+                    coordbna = self.processBasicNodeAddition(myMesh, bna[1], "coord", "Coordinate", geoNameCoord)
+                    if coordbna[0] == False:
+                        # TODO: Metadata processing
+                        
+                        
+                        # point field of Coordinate node
+                        points = myMesh.getFloatPoints()
+                        meshMP = len(points)
+                        for point in points:
+                            coordbna[1].point.append((point.x, point.y, point.z))
+                
+                        # Using the MItMeshPolygon Iterator and the propoper sub-component
+                        # this secion of the code builds the array of MFInt32 field of IndexedFaceSet
+                        while not mIter.isDone():
+                            #vertices = mIter.getVertices()
+                            nVerts = mIter.polygonVertexCount()
+                            for vIdx in range(nVerts):
+                                mIdx = mIter.vertexIndex(vIdx)
+                                bna[1].coordIndex.append(mIdx)
+                            bna[1].coordIndex.append(-1)
+                            mIter.next()
                     
                 #
                 #
@@ -2674,11 +3269,12 @@ class RKOrganizer():
                 elif self.rkNormalOpts == 1 or self.rkNormalOpts == 4:
                     # Normals Per Vertex Values
                     bna[1].normalPerVertex = True
-                    self.processForNormalNode(myMesh, mIter, nodeName, "Normal", bna[1], idx=index)
+                    
+                    self.processForNormalNode(myMesh, mIter, nodeName, "Normal", bna[1], idx=index, nOffset=gnOffset, sharedNormal=gsharedNormal)
                 else:
                     # Normals Per Face Values
                     bna[1].normalPerVertex = False
-                    self.processForNormalNode(myMesh, mIter, nodeName, "Normal", bna[1], npv=False, idx=index)
+                    self.processForNormalNode(myMesh, mIter, nodeName, "Normal", bna[1], npv=False, idx=index, nOffset=gnOffset, sharedNormal=gsharedNormal)
 
                 ### faceIDs and mappings and uvSetName
                 if mappings != None:
@@ -2764,7 +3360,7 @@ class RKOrganizer():
                             
                         for n in range(mapLen):
                             item = mappings['mappings'][n]
-                            txc = self.processBasicNodeAddition(myMesh, txcParent, "texCoord", "TextureCoordinate", geomName + "_TC_" + str(index) + "_" +str(n))
+                            txc = self.processBasicNodeAddition(myMesh, txcParent, "texCoord", "TextureCoordinate", geomName + "_TC_" + str(index) + "_" + str(n))
                             if txc[0] == False:
                                 for ptx in texCoords[n]:
                                     txc[1].point.append(ptx)
@@ -2833,49 +3429,54 @@ class RKOrganizer():
             bna[1].color = mColors
             
         
-    def processForNormalNode(self, myMesh, mIter, nodeName, nodeType, x3dParent, npv=True, cField="normal", idx=0):
+    def processForNormalNode(self, myMesh, mIter, nodeName, nodeType, x3dParent, npv=True, cField="normal", idx=0, nOffset=0, sharedNormal=""):
         normalNodeName = nodeName + "_" + nodeType + "_" + str(idx)
 
-        mNormal = ()
-        mIndex  = []
-        
+        #mNormal = []
+        #mIndex  = []
         mIter.reset()
-
         fCount = 0
-        
-        while not mIter.isDone():
-            if npv == True:
-                tns = mIter.getNormals()
-                for tn in tns:
-                    mNormal = mNormal + (tn.x, tn.y, tn.z)
-                    mIndex.append(fCount)
+
+        if sharedNormal != "":
+            bna = self.processBasicNodeAddition(myMesh, x3dParent, cField, "Normal", sharedNormal)
+
+            while not mIter.isDone():
+                if npv == True:
+                    tns = mIter.getNormals()
+                    for tn in tns:
+                        x3dParent.normalIndex.append(fCount + nOffset)
+                        fCount += 1
+                    x3dParent.normalIndex.append(-1)
+                else:
+                    x3dParent.normalIndex.append(fCount + nOffset)
                     fCount += 1
-                mIndex.append(-1)
-            else:
-                tn = mIter.getNormal()
-                mNormal = mNormal + (tn.x, tn.y, tn.z)
-                mIndex.append(fCount)
-                fCount += 1
-            
-            mCount = fCount % 10
-            messageVal = "Normal generation is complex, this may take a while."
-            for mcIdx in range(mCount):
-                messageVal += "."
-            print(messageVal)
-            mIter.next()
+                mIter.next()
+        else:
+            bna = self.processBasicNodeAddition(myMesh, x3dParent, cField, "Normal", normalNodeName)
+            if bna[0] == False:
+                # TODO: Future code for implementing 'metadata'
+                
+                while not mIter.isDone():
+                    if npv == True:
+                        tns = mIter.getNormals()
+                        for tn in tns:
+                            bna[1].vector.append((tn.x, tn.y, tn.z))
+                            x3dParent.normalIndex.append(fCount)
+                            fCount += 1
+                        x3dParent.normalIndex.append(-1)
+                    else:
+                        tn = mIter.getNormal()
+                        bna[1].vector.append((tn.x, tn.y, tn.z))
+                        x3dParent.normalIndex.append(fCount)
+                        fCount += 1
+                    
+                    mIter.next()
 
-        tIndex = (mIndex)
-        x3dParent.normalIndex = tIndex
-        print("Normal Calculation is Complete")
+                # Assign MFVec3f to the node.
+                #bna[1].vector = mNormal
 
-        bna = self.processBasicNodeAddition(myMesh, x3dParent, cField, "Normal", normalNodeName)
-        if bna[0] == False:
-            # TODO: Future code for implementing 'metadata'
-            
-            # Assign MFVec3f to the node.
-            bna[1].vector = mNormal
-            
-            print("Normal Node Created.")
+        
+                
             
     
     def getUsedUVSetsAndTexturesInOrder(self, myMesh, shader):

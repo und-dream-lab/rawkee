@@ -110,7 +110,7 @@ class RKSceneTraversal():
                             if isinstance(value[0], (str, float, int, tuple, bool, type(None) ) ):
                                 if value[0] != None:
                                     mFieldsList.append(keyp[3])
-                                    print('M Field: ' + keyp[3])
+                                    #print('M Field: ' + keyp[3])
                             else:
                                 mNodeList.append(keyp[3])
 
@@ -121,7 +121,7 @@ class RKSceneTraversal():
                             if isinstance(value, (str, float, int, tuple, bool, type(None) ) ):
                                 #if value != None:
                                 sFieldsList.append(keyp[3])
-                                print('S Field: ' + keyp[3])
+                                #print('S Field: ' + keyp[3])
                             else:
                                 #if getattr(compNode,keyp[3]) != value:
                                 sNodeList.append(keyp[3])
@@ -142,7 +142,7 @@ class RKSceneTraversal():
                         sIdx = idx
                     
                     hasDEF = False
-                    if compNode.skelelton != node.skeleton:
+                    if compNode.skeleton != node.skeleton:
                         for rj in getattr(node, "skeleton"):
                             if type(rj).__name__ == "HAnimJoint" and (rj.DEF != '' or rj.DEF != None):
                                 hasDEF = True

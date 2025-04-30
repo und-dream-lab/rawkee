@@ -5,6 +5,7 @@ import maya.mel  as mel
 from typing import Final
 
 import maya.api.OpenMaya as aom
+from   maya.api.OpenMaya import MFn as rkfn
 
 ########################################################
 ####   Python implementation of C++ sax3dWriter     ####
@@ -397,8 +398,21 @@ class RKIO():
             if nodeName == self.ignoredNodes[i]:
                 hasBeen = True
             i = i + 1
-            
+        
         return hasBeen
+        
+    def checkForRawKeeNoExportLayer(self, depNode):
+
+        layIter = aom.MItDependencyGraph(depNode.object(), rkfn.kDisplayLayer, aom.MItDependencyGraph.kUpstream, aom.MItDependencyGraph.kDepthFirst, aom.MItDependencyGraph.kNodeLevel)
+
+        while not layIter.isDone():
+            mObject = layIter.currentNode()
+            layNode = aom.MFnDependencyNode(mObject)
+            if layNode.name() == "RawKeeNoExport":
+                return True
+            layIter.next()
+            
+        return False
 
     def setAsHasBeen(self, nodeName, x3dNode):
         self.haveBeenNodes.append(nodeName)
