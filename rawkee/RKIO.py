@@ -424,6 +424,21 @@ class RKIO():
         a value of True if a match for a node name is found
         in this List
     '''
+    
+    def getGeneratedX3D(self, namedDEF):
+        foundNode = None
+        
+        for xNode in self.generatedX3D:
+            try:
+                if xNode.DEF == namedDEF:
+                    foundNode = xNode
+                    break
+            except Exception as e:
+                #print(f"An error occurred: {e}. Skipping node...")
+                pass
+                
+        return foundNode
+    
     def checkIfHasBeen(self, nodeName):
         
         for aName in self.haveBeenNodes:
