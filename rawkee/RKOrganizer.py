@@ -830,7 +830,6 @@ class RKOrganizer():
     ######################################################################################################################
     # HAnimHumanoid Related Functions
     ######################################################################################################################
-    #def processHAnimHumanoid(self, dragPath, dagNode, x3dPF, bpNode):
     def processHAnimHumanoid(self, dragPath, dagNode, x3dPF):
         depNode = aom.MFnDependencyNode(dagNode.object())
         dragPath = dragPath + "|" + depNode.name()
@@ -870,6 +869,8 @@ class RKOrganizer():
                 dagChild = aom.MFnDagNode(groupDag.child(i))
                 if   dagChild.typeName == "joint":
                     self.processHAnimJoint(dragPath, dagChild, bna[1], bna[1], cField="skeleton", sk=sm)
+#                else:
+#                    print("Skeleton Traverse Miss: " + dagChild.name() + ", Type:"+ dagChild.typeName)
 
                 
             # Get Weight/point Index Offset and Skin Coordinate Node name.
@@ -895,7 +896,6 @@ class RKOrganizer():
             ###### self.convertMayaAnimClips_To_HAnimMotion(dragPath, bpNode)
             
 
-
     def getMeshFromJoint(self, jNode, sm):
         mIter = aom.MItDependencyGraph(jNode.object(), rkfn.kMesh, aom.MItDependencyGraph.kDownstream, aom.MItDependencyGraph.kBreadthFirst, aom.MItDependencyGraph.kNodeLevel)
         while not mIter.isDone():
@@ -909,6 +909,7 @@ class RKOrganizer():
             
             mIter.next()
 
+
     def getSkinNormalNode(self, depNode, x3dParent, skm):
         sno = []
         nName = ""
@@ -916,8 +917,8 @@ class RKOrganizer():
         if self.rkNormalOpts > 0 and len(skm) > 0:
             nName = depNode.name() + "_Normal"
             normalbna = self.processBasicNodeAddition(depNode, x3dParent, "skinNormal", "Normal", nName)
-#            normalbna = self.processBasicNodeAddition(depNode, x3dParent, "skinBindingNormals", "Normal", nName)
-#            sknbna    = self.processBasicNodeAddition(depNode, x3dParent, "skinNormal", "Normal", nName)
+            #normalbna = self.processBasicNodeAddition(depNode, x3dParent, "skinBindingNormals", "Normal", nName)
+            #sknbna    = self.processBasicNodeAddition(depNode, x3dParent, "skinNormal", "Normal", nName)
 
             for sm in skm:
                 interSM = self.getIntermediateMesh(sm)
@@ -1014,6 +1015,7 @@ class RKOrganizer():
             
         return None
 
+
     def collectSkinWeightsForMesh(self, mNode, xjList, wio, mIdx):
         smlist = aom.MSelectionList()
         smlist.add(mNode.name())
@@ -1031,69 +1033,29 @@ class RKOrganizer():
         
         if len(skClusters) > 0:
                 
-            testList = aom.MSelectionList()
-            jDagPath = []
-            for item in xjList:
-                testList.add(item.USE)
-            for z in range(testList.length()):
-                jDagPath.append(testList.getDagPath(z))
-            
-            print("SkinCluster: " + skClusters[0].name() + ", Mesh Name: " + mNode.name())
+            dPaths = skClusters[0].influenceObjects()
+            meshWeights, numInf = skClusters[0].getWeights(mpath, shape_comp)
+            nVtx = mNode.numVertices
             
             lWeights = []
             
-            for jdPath in jDagPath:
-                try:
-                    tValue = skClusters[0].indexForInfluenceObject(jdPath)
-                    lWeights.append(skClusters[0].getWeights(mpath, shape_comp, tValue))
-                    #print("TValue: " + str(tValue) + ", DP - " + jdPath.fullPathName())
-                except Exception as e:
-                    eWeights = [0 for m in range(mNode.numVertices)]
-                    lWeights.append(eWeights)
-                    #print("Dag Path: " + jdPath.fullPathName() + " - Did not work.")
-                    #print(f"An error occurred: {e}")
+            for i in range(numInf):
+                lWeights.append([])
             
-            for l in range(len(xjList)):
-                x3dJoint = self.rkio.getGeneratedX3D(xjList[l].USE)
+            for i in range(nVtx):
+                nextWeight = i * numInf
+                for j in range(numInf):
+                    lWeights[j].append(meshWeights[nextWeight+j])
+
+            for l in range(len(dPaths)):
+                x3dJoint = self.rkio.getGeneratedX3D(dPaths[l].partialPathName())
                 
                 jWeights = lWeights[l]
-                for vIdx in range(mNode.numVertices):
-                    x3dJoint.skinCoordIndex.append(vIdx + wio[mIdx])
-                    x3dJoint.skinCoordWeight.append(jWeights[vIdx])
+                for vIdx in range(nVtx):
+                    if jWeights[vIdx] > 0:
+                        x3dJoint.skinCoordIndex.append(vIdx + wio[mIdx])
+                        x3dJoint.skinCoordWeight.append(jWeights[vIdx])
 
-
-    def getSkinClusterMeshes(self, sc, sm):
-        skCluster = aoma.MFnSkinCluster(sc.object())
-        geoDags = skCluster.getOutputGeometry()
-        for gd in geoDags:
-            skDag = aom.MFnDagNode(gd)
-            if skDag.typeName == "mesh":
-                wasFound = False
-                for sms in sm:
-                    if sms.name() == skDag.name():
-                        wasFound = True
-                if wasFound == False:
-                    sm.append(aom.MFnMesh(skDag.object()))
-        
-        
-    def getJointSkinClusters(self, jNode, sc):
-        scIter = aom.MItDependencyGraph(aom.MFnDependencyNode(jNode.object()).object(), rkfn.kSkinClusterFilter, aom.MItDependencyGraph.kDownstream, aom.MItDependencyGraph.kBreadthFirst, aom.MItDependencyGraph.kNodeLevel)
-        while not scIter.isDone():
-            tNode = aom.MFnDependencyNode(scIter.currentNode())
-            wasFound = False
-            for s in sc:
-                if s.name() == tNode.name():
-                    wasFound = True
-            if wasFound == False:
-                sc.append(tNode)
-            scIter.next()
-            
-        cNum = jNode.childCount()
-        for g in range(cNum):
-            dChild = aom.MFnDagNode(jNode.child(g))
-            if dChild.typeName == "joint":
-                self.getJointSkinClusters(dChild, sc)
-                
 
     # sc is MFnSkinCluster list, wo is list of ints that are the per-mesh offset from 0 of the weights index for that mesh, sk is MFnMesh node list
     def processHAnimJoint(self, dragPath, jNode, x3dHumanoid, x3dParent, cField="children", sc=[], wo=[], sk=[], hasSC=False, jOffset=(0.0, 0.0, 0.0)):
@@ -1149,121 +1111,20 @@ class RKOrganizer():
                     bnaSeg2 = self.processBasicNodeAddition(jNode, x3dHumanoid, "segments", "HAnimSegment", nodeName=mySegName)
                     
                     if bnaSeg[0] == False:
-                        bnaSeg[1].centerOfMass = bna[1].center
+                    #    bnaSeg[1].centerOfMass = bna[1].center
+                        pass
                     
                     self.traverseDownward(dragPath + "|" + mySegName, dagChild)
                     x3dTransChild = self.rkio.getGeneratedX3D(dagChild.name())
                     x3dTransChild.translation = bna[1].center
 
+#                else:
+#                    print("Skeleton Traverse Miss: " + dagChild.name() + ", Type: "+ dagChild.typeName)
 
-    def assignWeights(self, jNode, x3dNode, wo, sk):
-        # Locally Connected SkinClusters
-        mySC   = []
-        
-        # Locally Influnced Meshes
-        myMesh = []
-        
-        # Local Mesh Order Indecies
-        myIdx  = []
-        
-        # Get the SkinClusters connected to this joint only.
-        scIter = aom.MItDependencyGraph(aom.MFnDependencyNode(jNode.object()).object(), rkfn.kSkinClusterFilter, aom.MItDependencyGraph.kDownstream, aom.MItDependencyGraph.kBreadthFirst, aom.MItDependencyGraph.kNodeLevel)
-        while not scIter.isDone():
-            tNode = aom.MFnDependencyNode(scIter.currentNode())
-            wasFound = False
-            for s in mySC:
-                if s.name() == tNode.name():
-                    wasFound = True
-            if wasFound == False:
-                mySC.append(tNode)
-            scIter.next()
-            
-        for sc in mySC:
-            self.getSkinClusterMeshes(sc, myMesh)
+                
 
-        # Get proper mesh order for Weight Index
-        cmLen = len(sk)
-        for i in range(cmLen):
-            for m in myMesh:
-                if sk[i].name() == m.name():
-                    myIdx.append(i)
-
-        
-        for idx in myIdx:
-            jlist = aom.MSelectionList()
-            jlist.add(jNode.name())
-            jlist.add(sk[idx].name())
-            jpath = jlist.getDagPath(0)
-            mpath, mobj = jlist.getComponent(1)
-
-            for tsc in mySC:
-                try:
-                    print("")
-                    comp_ids = [i for i in range(sk[idx].numPolygons)]
-                    single_fn = aom.MFnSingleIndexedComponent()
-                    shape_comp = single_fn.create(aom.MFn.kMeshVertComponent)
-                    single_fn.addElements(comp_ids)
-
-                    fClusters = self.getSkinClusterFromMesh(mpath, tsc.name())
-                    
-                    if len(fClusters) > 0:
-                        skCluster = fClusters[0]
-                    
-                        nInf = len(skCluster.influenceObjects())
-                        
-                        pIdx = skCluster.indexForInfluenceObject(jpath)
-                        print("JP: " + jpath.fullPathName())
-                        print("MP: " + mpath.fullPathName())
-                        print("dagPaths: PASS")
-                        print("Node Type Name: " + skCluster.typeName + ", " + skCluster.name())
-
-                        #weights, infInt = skCluster.getWeights(mpath, shape_comp)
-
-
-                        #print("jNode: API Type" + aom.MFnDagNode(jpath).object().apiTypeStr())
-                        #print("SComp: API Type" + shape_comp.object().apiTypeStr())
-                        
-                        #print("pIdx: " + str(pIdx))
-                        
-                        if pIdx < nInf:
-                            weights = skCluster.getWeights(mpath, shape_comp, pIdx)
-                            print("Weights: PASS")
-
-                            for vIdx in range(len(weights)):
-                                x3dNode.skinCoordIndex.append(vIdx + wo[idx])
-                                x3dNode.skinCoordWeight.append(weights[vIdx])
-                            
-                    print("Success @@@ - Joint: " + jNode.name() + ", Mesh: " + sk[idx].name() + ", SkinCluster: " + tsc.name())
-
-                except Exception as e:
-                    print(f"An error occurred: {e}")
-                    print("FAILED !!! on - Joint: " + jNode.name() + ", Mesh: " + sk[idx].name() + ", SkinCluster: " + tsc.name())
-                    
-                            
-    def getSkinClusterFromMesh(self, mpath, skName):
-        skClusters = []
-        dgIter = aom.MItDependencyGraph(mpath.node(), rkfn.kSkinClusterFilter, aom.MItDependencyGraph.kUpstream, aom.MItDependencyGraph.kBreadthFirst, aom.MItDependencyGraph.kNodeLevel)
-        while not dgIter.isDone():
-            current_node = dgIter.currentNode()
-            if aom.MFnDependencyNode(current_node).name() == skName:
-                skClusters.append(aoma.MFnSkinCluster(current_node))
-                print("Found my SkinCluster - " + skName)
-            else:
-                print("SkinCluster not found: " + aom.MFnDependencyNode(current_node).name())
-            dgIter.next()
-        
-        return skClusters
 
     def convertMayaAnimClips_To_HAnimMotion(self, dragPath, bpNode, cField="motions"):
-        pass
-        
-    def processHAnimSegment(self, dragPath, segNode, cField="segments"):
-        pass
-
-    def processHAnimSkin(self, dragPath, skNode, cField="skin"):
-        pass
-        
-    def processHAnimDisplacer(self, dragPath, disNode, cField="displacers"):
         pass
         
 
@@ -1427,22 +1288,13 @@ class RKOrganizer():
                     self.rkio.cMessage("Do nothing. MetadataSet nodes are not processed by this function.")
                 
             if isTransform == True:
-                ###############################################################################
-                # Check to see if the 'transform' node is connected to a 'bindPose' node. if it
-                # is, that means this 'transform' hosts a character rig as a child, and should
-                # be processed as an HAnimHumanoid X3D node.
-                ###############################################################################
-                ###### bpNode = self.getBindPoseNode(dagNode)
-                
-                # There maybe a type of transform node that should be exported as an 
-                # HAnimHumanoid node, but is not connect to a BindPose node.
-                # TODO: Check for this situation and call a processHAnimHumoind method that
-                # can accoutn for this.
-                ###### if bpNode != None:
-                ######     self.processHAnimHumanoid(       dragPath, dagNode, x3dPF, bpNode)
+                ###########################################################################
+                # Check this transform to see if it has a joint as a direct child. If so 
+                # call a processHAnimHumoind method to process this transform as an 
+                # HAnimHumanoid node.
+                ###########################################################################
                 if self.checkForMayaJoints(dagNode):
                     self.processHAnimHumanoid(       dragPath, dagNode, x3dPF)
-                    #self.processUnboundHAnimHumanoid(dragPath, dagNode, x3dPF)
                 else:
                     self.processTransformSorting(    dragPath, dagNode, x3dPF)
 
