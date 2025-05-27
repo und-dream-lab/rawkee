@@ -80,6 +80,7 @@ class RKWeb3D():
         
         self.x3dDocs = []
         
+        
     def __del__(self):
         self.removeRawKeeMenu()
         #self.termServer()
@@ -146,14 +147,41 @@ class RKWeb3D():
         # Finishing off the  X3D Plug-in menu
         #--------------------------------------------------------------------
         cmds.setParent(self.rkMenuName, menu=True)
-        cmds.menuItem(divider=True, dividerLabel='RawKee Editors')
-        cmds.menuItem(label='X3D Interaction Editor', command='maya.cmds.rkShowSceneEditor()')                # -command "showX3DIEditor";
-        #cmds.menuItem(label='X3D Character Editor')                  # -command "x3dCharacterEditor";
-        #cmds.menuItem(label='X3D Animation Editor')                  # -command "x3dAnimationEditor";
+        cmds.menuItem(divider=True, dividerLabel='RawKee Editors and Tools')
+        cmds.menuItem(label='X3D Interaction Editor',             command='maya.cmds.rkShowSceneEditor()'    )                # -command "showX3DIEditor";
+        cmds.menuItem(label='X3D Character and Animation Editor', command='maya.cmds.rkShowCharacterEditor()')                # -command "x3dCharacterEditor";
+        cmds.menuItem(label='X3D General Animation Editor')                  # -command "x3dAnimationEditor";
+        #cmds.menuItem(divider=True, dividerLabel=' ')
+        '''
+        cmds.menuItem(label='Create HAnim Skeleton', subMenu=True)                # -command "x3dCharacterEditor";
+        cmds.menuItem(label='HAnimHumanoid with LOA 0 (Zero ) Skeleton')
+        cmds.menuItem(label='HAnimHumanoid with LOA 1 (One  ) Skeleton')
+        cmds.menuItem(label='HAnimHumanoid with LOA 2 (Two  ) Skeleton')
+        cmds.menuItem(label='HAnimHumanoid with LOA 3 (Three) Skeleton')
+        cmds.menuItem(label='HAnimHumanoid with LOA 4 (Four ) Skeleton')
 
+        cmds.setParent(self.rkMenuName, menu=True)
+        
+        #####################################################################
+        # Check to see if the Advanced Skeleton script is installed
+        # and if so, create a menu item for setting up an AS GameSkeletonRoot
+        # joint.
+        #####################################################################
+        asExists = mel.eval("exists asCreateGameEngineRootMotion")
+        if asExists == True:
+            cmds.menuItem('RawKee Functions for Advanced Skeleton', subMenu=True)
+            cmds.menuItem(label='Create GameSkeleton for X3D/HAnim', command='maya.cmds.rkAdvancedSkeleton()')
+            cmds.menuItem(label='Set HAnim I-Pose for GameSkeleton') #command='maya.cmds.rkSetIPoseForASGS()'
+            cmds.menuItem(label='Copy/Bind Selected Meshes to GameSkeleton') #command='maya.cmds.rkCopyBindForASGS()'
+            cmds.menuItem(label='Transfer SkinWeights from to GameSkeleton') #command='maya.cmds.rkTransferWeightsASGS()'
+
+            cmds.setParent(self.rkMenuName, menu=True)
+        '''
+        #cmds.menuItem(divider=True, dividerLabel=' ')
 
         cmds.menuItem(divider=True, dividerLabel='Code Repositories')
-        cmds.menuItem(label='RawKee GitHub Python Repo')
+        cmds.menuItem(label='RawKee GitHub Python Repo', command='maya.cmds.rkShowRawKee()')
+        cmds.menuItem(label='Node Sticker - GitHub Repo / MIT License', command='maya.cmds.rkShowNodeSticker()')
         cmds.menuItem(divider=True, dividerLabel='Websites')
         cmds.menuItem(label='Univ. of North Dakota - DREAM Lab')
         cmds.menuItem(label='Web3D Consortium')
@@ -478,6 +506,34 @@ class RKWeb3D():
         print("Qt Style Sheet Applied", end="")
 
 
+
+# Creating the MEL Command for Adding Advanced Skeleton compatibility to RawKee
+class RKAdvancedSkeleton(aom.MPxCommand):
+    kPluginCmdName = "rkAdvancedSkeleton"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+
+    @staticmethod
+    def cmdCreator():
+        return RKAdvancedSkeleton()
+        
+    def doIt(self, args):
+        mel.eval('AdvancedSkeleton')
+        mel.eval('asCreateGameEngineRootMotion()')
+        mel.eval('asCustomOrientJointsCreate()')
+        haName = mel.eval('group -n HAnimHumanoid_01 GameSkeletonRoot')
+        jrList = aom.MSelectionList()
+        jrList.add("GameSkeletonRoot")
+        gsrNode = aom.MFnDagNode(jrList.getDagPath(0))
+        cNode = aom.MFnDependencyNode(gsrNode.child(0))
+        command = 'setAttr "' + cNode.name() + '.visibility" 1'
+        mel.eval(command)
+        cmds.addAttr(haName, longName="loa", attributeType='long', defaultValue=-1, minValue=-1, maxValue=4)
+        cmds.addAttr(haName, longName="skeletalConfiguration", dataType="string")
+        cmds.setAttr(haName + ".skeletalConfiguration", "CUSTOM", type="string")
+        mel.eval('asCustomOrientJointsConnect()')
+    
 
 # Creating the MEL Command for the RawKee's Command to add a switch node
 class RKAddCollision(aom.MPxCommand):

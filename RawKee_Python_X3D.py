@@ -1,9 +1,17 @@
 import sys
 import os
 from rawkee import RKWeb3D
-from rawkee.RKWeb3D import RKAddSwitch, RKAddGroup, RKAddCollision, RKSetAsBillboard, RKAddX3DSound, RKTestIt
+from rawkee.RKWeb3D import RKAddSwitch, RKAddGroup, RKAddCollision, RKSetAsBillboard, RKAddX3DSound, RKAdvancedSkeleton, RKTestIt
 from rawkee.RKSceneEditor import *
-#### from rawkee.nodes.x3dSound import X3DSound, X3DSoundDrawOverride
+from rawkee.RKCharacterEditor import *
+
+# From Early 2000s C++ Registered Node IDs
+from rawkee.nodes.x3dTimeSensor import X3DTimeSensor
+from rawkee.nodes.x3dSound import X3DSound, X3DSoundDrawOverride
+
+# From 2024 RawKee PE Registered Node IDSs
+from rawkee.nodes.x3dHAnimMotion import X3DHAnimMotion
+
 #### from rawkee.nodes.X3D_Scene import X3D_Scene, RKPrimeX3DScene
 #### from rawkee.nodes.X3D_Transform import X3D_Transform
 #### from rawkee.nodes.X3D_Group import X3D_Group
@@ -17,6 +25,8 @@ from maya import mel  as mel
 import maya.api.OpenMaya as aom
 import maya.api.OpenMayaRender as omr
 import maya.api.OpenMayaUI as omui
+
+import webbrowser
 
 #http Service
 from nodejs import npx
@@ -37,6 +47,9 @@ RAWKEE_MINOR   = "0"
 RAWKEE_MICRO   = "0"
 RAWKEE_VERSION = RAWKEE_MAJOR + "." + RAWKEE_MINOR + "." + RAWKEE_MICRO
 RAWKEE_TITLE   = "RawKee X3D Exporter for Maya - Python Version: " + RAWKEE_VERSION
+
+RAWKEE_BASE    = ""
+RAWKEE_ICONS   = ""
 
 # Maya API 2.0 function required for Plugins
 def maya_useNewAPI():
@@ -94,6 +107,35 @@ class RKInfo(aom.MPxCommand):
     def doIt(self, args):
         print(RAWKEE_TITLE)
 
+
+# Creating the MEL Command for showing the Node Sticker Website
+class RKShowNodeSticker(aom.MPxCommand):
+    kPluginCmdName = "rkShowNodeSticker"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowNodeSticker()
+        
+    def doIt(self, args):
+        webbrowser.open_new("https://github.com/davidlatwe/NodeSticker")
+
+
+# Creating the MEL Command for showing the Node Sticker Website
+class RKShowRawKee(aom.MPxCommand):
+    kPluginCmdName = "rkShowRawKee"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowRawKee()
+        
+    def doIt(self, args):
+        webbrowser.open_new("https://github.com/und-dream-lab/rawkee/")
 
 
 # Creating the MEL Command for the RawKee's function to activate import function
@@ -372,13 +414,50 @@ class RKShowSceneEditor(aom.MPxCommand):
         
 
 
+class RKShowCharacterEditor(aom.MPxCommand):
+    kPluginCmdName = "rkShowCharacterEditor"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowCharacterEditor()
+        
+    def doIt(self, args):
+        print("RawKee X3D - Character Editor")
+        #cmds.rkPrimeX3DScene()
+        
+        global rkWeb3D
+        if rkWeb3D is not None:
+            characterEditorControlName = RKCharacterEditor.character_editor_control_name()
+        
+            if cmds.workspaceControl(characterEditorControlName, exists=True):
+                #Must Close before Delete
+                cmds.workspaceControl(characterEditorControlName, e=True, close=True, closeCommand=RKCharacterEditor.workplace_close_command())
+                cmds.deleteUI(characterEditorControlName)
+            
+            rkCEditor = RKCharacterEditor()
+            #rkCEditor.setRKWeb3D(rkWeb3D)
+            rkCEditor.show(dockable=True, uiScript=RKCharacterEditor.workspace_ui_script())
+        else:
+            print("RKWeb3D is not set!")
+        
+
+
 # Initialize the plug-in
 def initializePlugin(plugin):
+
     print("Made possible by the: Alias Research Donation Program\n\n")
     pluginFn = aom.MFnPlugin(plugin, RAWKEE_VENDOR, RAWKEE_VERSION)
  
     # RawKee Utility Functions required to be in MEL format such as functions related to AE Templates.
     mel.eval('source "x3d.mel"')
+    try:
+        mel.eval('source "AdvancedSkeletonFiles/../AdvancedSkeleton.mel"')
+        print("Sourced mel scripts for Advanced Skeleton toolset. Adding Advanced Skeleton functionality to RawKee HAnim Character Export")
+    except:
+        print("Advanced Skeleton Not Found\nDownload and install Advanced Skeleton to add additional HAnim Character functionality to RawKee.\nhttps://animationstudios.com.au/")
     
     # Source all the X3D Field names for use in Import/Export and the Interaction Editor
     #mel.eval('source "x3d_source_field_tables.mel"')
@@ -405,13 +484,34 @@ def initializePlugin(plugin):
                               X3D_Transform.TYPE_ID,             # unique id that identifiesnode
                               X3D_Transform.creator,             # function/method that returns new instance of class
                               X3D_Transform.initialize)          # function/method that will initialize all attributes of node
-
+    '''
+    try:
         pluginFn.registerNode(X3DSound.TYPE_NAME,         # name of node
                               X3DSound.TYPE_ID,           # unique id that identifiesnode
                               X3DSound.creator,                 # function/method that returns new instance of class
                               X3DSound.initialize,              # function/method that will initialize all attributes of node
                               aom.MPxNode.kLocatorNode,         # type of node to be registered
                               X3DSound.DRAW_CLASSIFICATION)     # 
+    except:
+        aom.MGlobal.displayError("Failed to register node: {0}".format(X3DSound.kPluginNodeName))
+                              
+    try:
+        pluginFn.registerNode(X3DHAnimMotion.TYPE_NAME,         # name of node
+                              X3DHAnimMotion.TYPE_ID,           # unique id that identifiesnode
+                              X3DHAnimMotion.creator,                 # function/method that returns new instance of class
+                              X3DHAnimMotion.initialize,              # function/method that will initialize all attributes of node
+                              aom.MPxNode.kLocatorNode)         # type of node to be registered
+    except:
+        aom.MGlobal.displayError("Failed to register node: {0}".format(X3DHAnimMotion.kPluginNodeName))
+                              
+    try:
+        pluginFn.registerNode(X3DTimeSensor.TYPE_NAME,         # name of node
+                              X3DTimeSensor.TYPE_ID,           # unique id that identifiesnode
+                              X3DTimeSensor.creator,                 # function/method that returns new instance of class
+                              X3DTimeSensor.initialize,              # function/method that will initialize all attributes of node
+                              aom.MPxNode.kLocatorNode)         # type of node to be registered
+    except:
+        aom.MGlobal.displayError("Failed to register node: {0}".format(X3DTimeSensor.kPluginNodeName))
                               
 #        pluginFn.registerNode(X3DViewpointCamera.kPluginNodeName, # name of node
 #                              X3DViewpointCamera.kPluginNodeId,   # unique id that identifiesnode
@@ -419,12 +519,10 @@ def initializePlugin(plugin):
 #                              X3DViewpointCamera.initialize,      # function/method that will initialize all attributes of node
 #                              aom.MPxNode.kCameraSetNode)         # type of node to be registered
                               
-    except:
-        aom.MGlobal.displayError("Failed to register node: {0}".format(X3DSound.kPluginNodeName))
+        
+
     '''
-    
     ##################################
-    '''
     REGISTERING Custom X3D Node Draw Overrides
     '''
     ##################################
@@ -446,6 +544,9 @@ def initializePlugin(plugin):
         
         #pluginFn.registerCommand(        RKServer.kPluginCmdName,         RKServer.cmdCreator)
         #pluginFn.registerCommand(          RKAddX3DSound.kPluginCmdName,     RKAddX3DSound.cmdCreator)
+        pluginFn.registerCommand(RKShowNodeSticker.kPluginCmdName,  RKShowNodeSticker.cmdCreator)
+        pluginFn.registerCommand(     RKShowRawKee.kPluginCmdName,       RKShowRawKee.cmdCreator)
+        
         pluginFn.registerCommand( RKSetAsBillboard.kPluginCmdName,  RKSetAsBillboard.cmdCreator)
         pluginFn.registerCommand(   RKAddCollision.kPluginCmdName,    RKAddCollision.cmdCreator)
         pluginFn.registerCommand(       RKAddGroup.kPluginCmdName,        RKAddGroup.cmdCreator)
@@ -458,7 +559,11 @@ def initializePlugin(plugin):
         pluginFn.registerCommand(    RKX3DImportOp.kPluginCmdName,     RKX3DImportOp.cmdCreator)
         pluginFn.registerCommand(      RKX3DImport.kPluginCmdName,       RKX3DImport.cmdCreator)
         pluginFn.registerCommand(         RKTestIt.kPluginCmdName,          RKTestIt.cmdCreator)
-        pluginFn.registerCommand(RKShowSceneEditor.kPluginCmdName, RKShowSceneEditor.cmdCreator)
+        
+        pluginFn.registerCommand(   RKAdvancedSkeleton.kPluginCmdName,    RKAdvancedSkeleton.cmdCreator)
+        pluginFn.registerCommand(RKShowCharacterEditor.kPluginCmdName, RKShowCharacterEditor.cmdCreator)
+        pluginFn.registerCommand(    RKShowSceneEditor.kPluginCmdName,     RKShowSceneEditor.cmdCreator)
+        
         pluginFn.registerCommand(  RKX3DSetProject.kPluginCmdName,   RKX3DSetProject.cmdCreator)
         pluginFn.registerCommand(  RKCASSetProject.kPluginCmdName,   RKCASSetProject.cmdCreator)
         pluginFn.registerCommand(    RKCASExportOp.kPluginCmdName,     RKCASExportOp.cmdCreator)
@@ -477,7 +582,27 @@ def initializePlugin(plugin):
     global rkWeb3D
     rkWeb3D = RKWeb3D.RKWeb3D()
     rkWeb3D.pVersion = RAWKEE_TITLE
-    rkWeb3D.setMyStyleSheet(RKWeb3D.__file__.replace("\\", "/").rsplit("/", 1)[0])
+    
+    RAWKEE_BASE = RKWeb3D.__file__.replace("\\", "/").rsplit("/", 1)[0]
+
+    rkWeb3D.setMyStyleSheet(RAWKEE_BASE)
+    
+    osDiv = ":"
+    if os.name == "nt":
+        osDiv = ";"
+    RAWKEE_ICONS = RAWKEE_BASE + "/nodes/icons" + osDiv
+    
+    iconpath = mel.eval('getenv XBMLANGPATH')
+    
+    ipIdx = iconpath.find(RAWKEE_ICONS)
+    if ipIdx < 0:
+        newpath = RAWKEE_ICONS
+        newpath = newpath + iconpath
+        cmdEval = 'putenv "XBMLANGPATH" '
+        cmdEval = cmdEval + '"' + newpath + '"'
+        mel.eval(cmdEval)
+    
+    
 
 
     
@@ -499,7 +624,11 @@ def uninitializePlugin(plugin):
         pluginFn.deregisterCommand(    RKCASExportOp.kPluginCmdName)
         pluginFn.deregisterCommand(  RKCASSetProject.kPluginCmdName)
         pluginFn.deregisterCommand(  RKX3DSetProject.kPluginCmdName)
-        pluginFn.deregisterCommand(RKShowSceneEditor.kPluginCmdName)
+
+        pluginFn.deregisterCommand(    RKShowSceneEditor.kPluginCmdName)
+        pluginFn.deregisterCommand(RKShowCharacterEditor.kPluginCmdName)
+        pluginFn.deregisterCommand(   RKAdvancedSkeleton.kPluginCmdName)
+
         pluginFn.deregisterCommand(         RKTestIt.kPluginCmdName)
         pluginFn.deregisterCommand(      RKX3DImport.kPluginCmdName)
         pluginFn.deregisterCommand(    RKX3DImportOp.kPluginCmdName)
@@ -512,6 +641,10 @@ def uninitializePlugin(plugin):
         pluginFn.deregisterCommand(       RKAddGroup.kPluginCmdName)
         pluginFn.deregisterCommand(   RKAddCollision.kPluginCmdName)
         pluginFn.deregisterCommand( RKSetAsBillboard.kPluginCmdName)
+
+        pluginFn.deregisterCommand(     RKShowRawKee.kPluginCmdName)
+        pluginFn.deregisterCommand(RKShowNodeSticker.kPluginCmdName)
+
         #pluginFn.deregisterCommand(    RKAddX3DSound.kPluginCmdName)
         #pluginFn.deregisterCommand(         RKServer.kPluginCmdName)
         
@@ -536,16 +669,18 @@ def uninitializePlugin(plugin):
     DEREGISTERING Custom X3D Nodes
     '''
     ##################################
-    '''
+
     try:
 #        pluginFn.deregisterNode(X3DViewpointCamera.kPluginNodeId)
-        pluginFn.deregisterNode(           X3DSound.TYPE_ID)
-        pluginFn.deregisterNode(      X3D_Transform.TYPE_ID)
-        pluginFn.deregisterNode(          X3D_Group.TYPE_ID)
-        pluginFn.deregisterNode(          X3D_Scene.TYPE_ID)
+        pluginFn.deregisterNode(      X3DSound.TYPE_ID)
+        pluginFn.deregisterNode(X3DHAnimMotion.TYPE_ID)
+        pluginFn.deregisterNode( X3DTimeSensor.TYPE_ID)
+#        pluginFn.deregisterNode(      X3D_Transform.TYPE_ID)
+#        pluginFn.deregisterNode(          X3D_Group.TYPE_ID)
+#        pluginFn.deregisterNode(          X3D_Scene.TYPE_ID)
     except:
         aom.MGlobal.displayError("Failed to deregister a node.")#{0}".format(X3DSound.TYPE_NAME))
-    '''
+
     ##################################################################
     # Removal of Remote Menu Sysem for RawKee from Maya Main Window
     ##################################################################
@@ -560,10 +695,34 @@ def uninitializePlugin(plugin):
         cmds.workspaceControl(sceneEditorControlName, e=True, close=True, closeCommand=RKSceneEditor.workplace_close_command())
         cmds.deleteUI(sceneEditorControlName)
     
+    characterEditorControlName = RKCharacterEditor.character_editor_control_name()
+
+    if cmds.workspaceControl(characterEditorControlName, exists=True):
+        #Must Close before Delete
+        cmds.workspaceControl(characterEditorControlName, e=True, close=True, closeCommand=RKCharacterEditor.workplace_close_command())
+        cmds.deleteUI(characterEditorControlName)
+    
     # Delete the RKWeb3D object that is the menu system and 
     # export function system for the MayaMainWindow
     global rkWeb3D
     del rkWeb3D
+
+    iconpath = mel.eval('getenv XBMLANGPATH')
+    
+    RAWKEE_BASE = RKWeb3D.__file__.replace("\\", "/").rsplit("/", 1)[0]
+    
+    osDiv = ":"
+    if os.name == "nt":
+        osDiv = ";"
+    RAWKEE_ICONS = RAWKEE_BASE + "/nodes/icons" + osDiv
+
+    ipIdx = iconpath.find(RAWKEE_ICONS)
+    if ipIdx > -1:
+        newpath = iconpath.replace(RAWKEE_ICONS, "")
+        cmdEval = 'putenv "XBMLANGPATH" '
+        cmdEval = cmdEval + '"' + newpath + '"'
+        mel.eval(cmdEval)
+
 
 
 

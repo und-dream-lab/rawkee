@@ -126,9 +126,9 @@ class X3DSoundDrawOverride(aomr.MPxDrawOverride):
 
     NAME = "X3DSoundDrawOverride"
     
-
+    #obj - MObject, None - Geometry Draw Override Callback, bool - isAlwaysDirty flag - True override is always updated without checking dirty state of obj
     def __init__(self, obj):
-        super(X3DSoundDrawOverride, self).__init__(obj, None, False) #obj - MObject, None - Geometry Draw Override Callback, bool - isAlwaysDirty flag - True override is always updated without checking dirty state of obj
+        super(X3DSoundDrawOverride, self).__init__(obj, None, False) 
         
     def supportedDrawAPIs(self):
         return aomr.MRenderer.kAllDevices

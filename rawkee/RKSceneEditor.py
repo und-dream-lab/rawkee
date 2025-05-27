@@ -79,7 +79,7 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         super().__init__()
         
         self.setObjectName(self.OBJECT_NAME)
-        self.setWindowTitle("RawKee X3D - Interaction Editor - Now with MORE X_ITE-ment AND x3dom (Freedom)!")
+        self.setWindowTitle("RawKee PE - X3D Interaction Editor - Now with MORE X_ITE-ment AND x3dom (Freedom)!")
         self.setMinimumSize(600,400)
         
         self.node_editor_name = ""

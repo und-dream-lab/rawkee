@@ -1,0 +1,25 @@
+global proc AEx3dTimeSensorTemplate( string $nodeName )
+{
+     editorTemplate -beginScrollLayout;
+		editorTemplate -beginLayout "X3D TimeSensor Fields" -collapse false;
+            editorTemplate -addControl "cycleInterval";
+            editorTemplate -addControl "description";
+            editorTemplate -addControl "enabled";
+            editorTemplate -addControl "loop";
+            editorTemplate -addControl "pauseTime";
+            editorTemplate -addControl "resumeTime";
+            editorTemplate -addControl "startTime";
+            editorTemplate -addControl "stopTime";
+        editorTemplate -endLayout;
+		editorTemplate -as;
+		editorTemplate -beginLayout "Maya Timeline Settings" -collapse false;
+            editorTemplate -addControl "keyFrameStep";
+            editorTemplate -addControl "startFrame";
+            editorTemplate -addControl "stopFrame";
+            editorTemplate -addControl "framesPerSecond";
+		editorTemplate -endLayout;
+        editorTemplate -suppress "exportAsSplines";
+        editorTemplate -suppress "animationPackage";
+		editorTemplate -aec -ecl "Other" -collapse true;
+     editorTemplate -endLayout;
+}

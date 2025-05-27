@@ -10,6 +10,7 @@ global proc AEx3dSoundTemplate( string $nodeName )
 		editorTemplate -addControl "minFront";
 		editorTemplate -addControl "priority";
 		editorTemplate -addControl "spatialize";
+		editorTemplate -as;
 		editorTemplate -aec -ecl "Extra Attributes";
      editorTemplate -endLayout;
 }

@@ -227,9 +227,7 @@ class RKSceneTraversal():
         mnlLen = len(mNodeList)
         for fIdx in range(sflLen):
             tField = sFieldList[fIdx]
-#            if   tField == "_RK__mapping":
-#                tField  =  "mapping"
-#            elif tField == "_RK__containerField":
+
             if tField == "_RK__containerField":
                 tField  =  "containerField"
                 ####################################################
@@ -242,6 +240,9 @@ class RKSceneTraversal():
             elif tField == "DEF":
                 # Don't write out DEF as a node field
                 continue
+                
+            elif tField == "global_":
+                tField = "global"
                 
             value = getattr(node, sFieldList[fIdx])
             sValue = ""
@@ -366,6 +367,10 @@ class RKSceneTraversal():
                 ####################################################
                 if showCF == False:
                     continue
+                    
+            elif tField == "global_":
+                tField = "global"
+
                 
             value = getattr(node, sFieldList[fIdx])
             sValue = ""
@@ -479,7 +484,14 @@ class RKSceneTraversal():
                     
                 self.processNode(mNode, True, hasComma)
             self.dtabs()
-            self.writeLine(']')
+#            self.writeLine(']')
+            self.writePrefix(']')
+            
+            if nIdx < (mnlLen - 1):
+                self.writeRemaining(',')
+            else:
+                self.writeRemaining('')
+                
         
         self.dtabs()
         self.writeLine('}')
@@ -497,15 +509,16 @@ class RKSceneTraversal():
         mainline = "<" + nType
         for field in sFieldList:
             tField = field
-#            if   field == "_RK__mapping":
-#                tField =  "mapping"
-#            elif field == "_RK__containerField":
+
             if field == "_RK__containerField":
                 tField =  "containerField"
                 
                 # It may not be adventageous to always add the containerField
                 if showCF == False:
                     continue
+
+            elif tField == "global_":
+                tField = "global"
                 
             mainline = mainline + " " + tField + "='"
             
@@ -604,9 +617,6 @@ class RKSceneTraversal():
         mainline = "<" + nType
         for field in sFieldList:
             tField = field
-#            if   field == "_RK__mapping":
-#                tField =  "mapping"
-#            elif field == "_RK__containerField":
             if field == "_RK__containerField":
                 tField =  "containerField"
                 
@@ -614,6 +624,9 @@ class RKSceneTraversal():
                 if showCF == False:
                     continue
                 
+            elif tField == "global_":
+                tField = "global"
+
             mainline = mainline + " " + tField + "='"
             
             value = getattr(node, field)

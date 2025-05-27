@@ -1,0 +1,28 @@
+global proc AEx3dHAnimMotionTemplate( string $nodeName )
+{
+     editorTemplate -beginScrollLayout;
+		editorTemplate -beginLayout "X3D HAnimMotion Fields" -collapse false;
+            editorTemplate -addControl "channels";
+            editorTemplate -addControl "channelsEnabled";
+            editorTemplate -addControl "description";
+            editorTemplate -addControl "enabled";
+            editorTemplate -addControl "endFrame";
+            editorTemplate -addControl "frameDuration";
+            editorTemplate -addControl "frameIncrement";
+            editorTemplate -addControl "frameIndex";
+            editorTemplate -addControl "joints";
+            editorTemplate -addControl "loa";
+            editorTemplate -addControl "loop";
+            editorTemplate -addControl "name";
+            editorTemplate -addControl "startFrame";
+            editorTemplate -addControl "values";
+        editorTemplate -endLayout;
+		editorTemplate -as;
+		editorTemplate -beginLayout "Maya Timeline Settings" -collapse false;
+            editorTemplate -addControl "timelineStartFrame";
+            editorTemplate -addControl "timelineStopFrame";
+		editorTemplate -endLayout;
+        editorTemplate -suppress "animationPackage";
+		editorTemplate -aec -ecl "Other" -collapse true;
+     editorTemplate -endLayout;
+}
