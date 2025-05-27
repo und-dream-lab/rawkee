@@ -1,4 +1,5 @@
 from . import nodes
+from . import RKCharacterEditor
 #from . import RKFOptsDialog
 from . import RKGraphics
 from . import RKInterfaces

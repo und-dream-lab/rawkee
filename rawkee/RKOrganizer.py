@@ -1032,29 +1032,46 @@ class RKOrganizer():
             scIter.next()
         
         if len(skClusters) > 0:
-                
+            wMethod = skClusters[0].findPlug("skinningMethod", False).asInt()
+
             dPaths = skClusters[0].influenceObjects()
-            meshWeights, numInf = skClusters[0].getWeights(mpath, shape_comp)
+
+            meshWeights = []
+            numInf      = 0
             nVtx = mNode.numVertices
-            
+
+            if wMethod == 0:
+                meshWeights, numInf = skClusters[0].getWeights(     mpath, shape_comp)                
+            else:
+                meshWeights         = skClusters[0].getBlendWeights(mpath, shape_comp)
+                numInf = len(dPaths)
+
             lWeights = []
             
-            for i in range(numInf):
-                lWeights.append([])
-            
-            for i in range(nVtx):
-                nextWeight = i * numInf
-                for j in range(numInf):
-                    lWeights[j].append(meshWeights[nextWeight+j])
-
-            for l in range(len(dPaths)):
-                x3dJoint = self.rkio.getGeneratedX3D(dPaths[l].partialPathName())
+            try:
+                for i in range(numInf):
+                    lWeights.append([])
                 
-                jWeights = lWeights[l]
-                for vIdx in range(nVtx):
-                    if jWeights[vIdx] > 0:
-                        x3dJoint.skinCoordIndex.append(vIdx + wio[mIdx])
-                        x3dJoint.skinCoordWeight.append(jWeights[vIdx])
+                for i in range(nVtx):
+                    nextWeight = i * numInf
+                    for j in range(numInf):
+                        lWeights[j].append(meshWeights[nextWeight+j])
+
+                for l in range(len(dPaths)):
+                    x3dJoint = self.rkio.getGeneratedX3D(dPaths[l].partialPathName())
+                    
+                    jWeights = lWeights[l]
+                    for vIdx in range(nVtx):
+                        if jWeights[vIdx] > 0:
+                            x3dJoint.skinCoordIndex.append(vIdx + wio[mIdx])
+                            x3dJoint.skinCoordWeight.append(jWeights[vIdx])
+            except Exception as e:
+                print(f"Exception Type: {type(e).__name__}")
+                print(f"Exception Message: {e}")                            
+#                print("Node Type: " + aom.MFnDependencyNode(dPaths[l].node()).name() + ", Name: " + dPaths[l].partialPathName())
+
+                
+                
 
 
     # sc is MFnSkinCluster list, wo is list of ints that are the per-mesh offset from 0 of the weights index for that mesh, sk is MFnMesh node list
