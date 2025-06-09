@@ -23,7 +23,7 @@ from rawkee import RKSceneEditor
 from rawkee.RKFOptsDialog import RKFOptsDialog
 
 #from rawkee.RKUtils import *
-
+import rawkee.nodes.sticker    as stk
 import rawkee.x3d              as rkx3d
 
 try:
@@ -180,13 +180,12 @@ class RKWeb3D():
         #cmds.menuItem(divider=True, dividerLabel=' ')
 
         cmds.menuItem(divider=True, dividerLabel='Code Repositories')
-        cmds.menuItem(label='RawKee GitHub Python Repo', command='maya.cmds.rkShowRawKee()')
+        cmds.menuItem(label='RawKee GitHub Python Repo',                command='maya.cmds.rkShowRawKee()')
         cmds.menuItem(label='Node Sticker - GitHub Repo / MIT License', command='maya.cmds.rkShowNodeSticker()')
         cmds.menuItem(divider=True, dividerLabel='Websites')
-        cmds.menuItem(label='Univ. of North Dakota - DREAM Lab')
-        cmds.menuItem(label='Web3D Consortium')
-        cmds.menuItem(label='Metaverse Standards Forum')
-        cmds.menuItem(label='Test Function', command='maya.cmds.rkTestIt()')
+        cmds.menuItem(label='Univ. of North Dakota - DREAM Lab',        command='maya.cmds.rkShowDreamLab()')
+        cmds.menuItem(label='Web3D Consortium',                         command='maya.cmds.rkShowWeb3D()')
+        cmds.menuItem(label='Metaverse Standards Forum',                command='maya.cmds.rkShowMSF()')
         ###################################################
     
         mel.eval('addRawKeeMenuItemsToFileMenu()')
@@ -623,7 +622,80 @@ class RKAddSwitch(aom.MPxCommand):
         cmds.setAttr(node + '.x3dGroupType', "x3dSwitch", type='string', lock=True)
         
 
-# Creating the MEL Command for the RawKee's Command to add a switch node
+# Ceating the MEL Command to set a transform node to HAnimHumanoid mode
+class RKSetAsHAnimHumanoid(aom.MPxCommand):
+    kPluginCmdName = "rkSetAsHAnimHumanoid"
+    
+    kTransNameFlag = "-rkTRN"
+    kTransNameLongFlag = "-rkTransformName"
+    
+    kLOAValueFlag  = '-rkLOA'
+    kLOAValueLongFlag  = "-rkLevelOfArticulation"
+    
+    def __int__(self):
+        aom.MPxCommand.__init__(self)
+        self.tName = ""
+        self.loa = -1
+        
+    @staticmethod
+    def cmdCreator():
+        return RKSetAsHAnimHumanoid()
+        
+    def doIt(self, args):
+        self.tName = cmds.optionVar(q='rkHAnimDEF')
+        
+        if self.tName == "":
+            try:
+                rkSelections = cmds.ls(selection=True)
+                self.tName = rkSelections[0]
+            except:
+                pass
+        else:
+            cmds.optionVar( sv=("rkHAnimDEF", ""))
+            
+        if self.tName != "":
+            selList = aom.MSelectionList()
+            selList.add(self.tName)
+
+            depNode = aom.MFnDependencyNode(selList.getDependNode(0))
+            if depNode.typeName == "transform":
+                newAttrs = False
+                x3dGT = ""
+                try:
+                    nameAndAttr = depNode.name() + ".x3dGroupType"
+                    x3dGT = cmds.getAttr(nameAndAttr)
+                    #if x3dGT == "x3dHAnimHumanoid":
+                    #    hasJoints = True
+                except:
+                    print("x3dGroupType not found")
+                
+                if x3dGT == "":
+                    dagNode = aom.MFnDagNode(selList.getDependNode(0))
+                    for c in range(dagNode.childCount()):
+                        cNode = aom.MFnDependencyNode(dagNode.child(c))
+                        if cNode.typeName == "joint":
+                            newAttrs = True
+
+                if newAttrs == True:
+                    cmds.addAttr(longName='x3dGroupType', dataType='string', keyable=False)
+                    cmds.setAttr(depNode.name() + '.x3dGroupType', "x3dHAnimHumanoid", type='string', lock=True)
+                    cmds.addAttr(longName='x3dLOA', attributeType='long', keyable=False, defaultValue=-1, minValue=-1, maxValue=4)
+                    self.loa = cmds.optionVar(q='rkHAnimLoa')
+                    if self.loa != -1:
+                        cmds.setAttr(depNode.name() + '.x3dLOA', int(self.loa))
+                        cmds.optionVar( iv=('rkHAnimLoa', -1))
+                    try:
+                        stk.put(depNode.name(), "x3dHAnimHumanoid.png")
+                    except Exception as e:
+                        print(f"Exception Type: {type(e).__name__}")
+                        print(f"Exception Message: {e}")                            
+                        print("Oops... Node Sticker Didn't work.")
+
+
+        
+
+
+# Creating the MEL Command for the RawKee's Command to set a transform node to Billboard mode
 class RKSetAsBillboard(aom.MPxCommand):
     kPluginCmdName = "rkSetAsBillboard"
     

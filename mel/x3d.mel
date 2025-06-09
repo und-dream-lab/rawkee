@@ -96,6 +96,15 @@ global proc removeRawKeeMenuItemsFromFileMenu()
     deleteUI -mi rawkeeCastleMenu;
 }
 
+global proc forceAERefresh(string $nodeName)
+{
+	if(`objExists ($nodeName+".x3dCheckIt")`) deleteAttr ($nodeName+".x3dCheckIt");
+	else
+	{
+		addAttr -ln "x3dNoCheck" -h true -at bool $nodeName;
+		renameAttr ($nodeName+".x3dNoCheck") x3dCheckIt;
+	}
+}
 
 //------------------------------------------------------------------
 // Looks to see if global Maya variables exist, and if they don't, 
@@ -310,6 +319,17 @@ global proc setDefRKOptVars()
     //bool
 		optionVar -iv rkExportMode 0;
 	}
+    //Used becasue MPxCommand's with arguments are causing errors
+    //If this can be resolved, then I'd likely not use this anymore.
+    if(`optionVar -exists "rkHAnimDEF"`){
+    }else{
+        optionVar -sv "rkHAnimDEF" "";
+    }
+
+    if(`optionVar -exists "rkHAnimLoa"`){
+    }else{
+        optionVar -iv rkHAnimLoa -1;
+    }
 }
 
 print("The 'x3d.mel' has been sourced.\n");

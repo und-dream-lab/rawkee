@@ -107,6 +107,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
 #        self.rkWeb3D = rkWeb3D
 
     def cleanUpOnEditorClose(self):
+        #print("cleanup")
         pass
         # Release the RKWeb3D object, otherwise it will not
         # later be deleteable when the plugin unloads. If
@@ -134,18 +135,21 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         ##############################################
         # 
         self.gsfLabel = QLabel("Advanced Skeleton Configuration Functions")
+        self.gsfLabel.setObjectName("RKOptPanel")
         self.gsfLabel.setMinimumHeight(30)
         self.gsfLabel.setMaximumHeight(30)
 
         ##############################################
         # 
         self.cgsLabel = QLabel("     X3D/HAnim Compatible GameSkeleton")
+        self.cgsLabel.setObjectName("RKOptPanel")
         self.cgsLabel.setMinimumHeight(30)
         self.cgsLabel.setMaximumHeight(30)
         self.cgsLabel.setMinimumWidth(250)
         self.cgsLabel.setMinimumWidth(250)
         
         self.cgsButton = QtWidgets.QPushButton("Create")
+        self.cgsButton.setObjectName("RKOptPanel")
         self.cgsButton.setMinimumHeight(30)
         self.cgsButton.setMaximumHeight(30)
         self.cgsButton.setMinimumWidth(40)
@@ -154,12 +158,14 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         ##############################################
         # 
         self.agcLabel = QLabel("     Align GameSkeleton Configuration")
+        self.agcLabel.setObjectName("RKOptPanel")
         self.agcLabel.setMinimumHeight(30)
         self.agcLabel.setMaximumHeight(30)
         self.agcLabel.setMinimumWidth(250)
         self.agcLabel.setMinimumWidth(250)
         
         self.agcButton = QtWidgets.QPushButton("Set I-Pose")
+        self.agcButton.setObjectName("RKOptPanel")
         self.agcButton.setMinimumHeight(30)
         self.agcButton.setMaximumHeight(30)
         self.agcButton.setMinimumWidth(40)
@@ -168,12 +174,14 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         ##############################################
         # 
         self.asmLabel = QLabel("     Assign Selected Meshes to GameSkeleton")
+        self.asmLabel.setObjectName("RKOptPanel")
         self.asmLabel.setMinimumHeight(30)
         self.asmLabel.setMaximumHeight(30)
         self.asmLabel.setMinimumWidth(250)
         self.asmLabel.setMinimumWidth(250)
         
         self.asmButton = QtWidgets.QPushButton("Copy and Bind")
+        self.asmButton.setObjectName("RKOptPanel")
         self.asmButton.setMinimumHeight(30)
         self.asmButton.setMaximumHeight(30)
         self.asmButton.setMinimumWidth(40)
@@ -182,12 +190,14 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         ##############################################
         # 
         self.aswLabel = QLabel("     Assign SkinWeights to GameSkeleton")
+        self.aswLabel.setObjectName("RKOptPanel")
         self.aswLabel.setMinimumHeight(30)
         self.aswLabel.setMaximumHeight(30)
         self.aswLabel.setMinimumWidth(250)
         self.aswLabel.setMinimumWidth(250)
         
         self.aswButton = QtWidgets.QPushButton("Transfer Weights")
+        self.aswButton.setObjectName("RKOptPanel")
         self.aswButton.setMinimumHeight(30)
         self.aswButton.setMaximumHeight(30)
         self.aswButton.setMinimumWidth(40)
@@ -198,12 +208,14 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         ##############################################
         # 
         self.humLabel = QLabel("     Humanoid Node DEF:")
+        self.humLabel.setObjectName("RKOptPanel")
         self.humLabel.setMinimumHeight(40)
         self.humLabel.setMaximumHeight(40)
         self.humLabel.setMinimumWidth(250)
         self.humLabel.setMinimumWidth(250)
         
         self.humLEdit = QtWidgets.QLineEdit("HAnimHumanoid_01")
+        self.humLEdit.setObjectName("RKOptPanel")
         self.humLEdit.setMinimumHeight(40)
         self.humLEdit.setMaximumHeight(40)
         self.humLEdit.setMinimumWidth(100)
@@ -212,6 +224,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         ##############################################
         # 
         self.x3dLabel = QLabel("     X3D/HAnim Fields:")
+        self.x3dLabel.setObjectName("RKOptPanel")
         self.x3dLabel.setMinimumHeight(30)
         self.x3dLabel.setMaximumHeight(30)
         self.x3dLabel.setMinimumWidth(250)
@@ -220,12 +233,14 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         ##############################################
         # 
         self.scfLabel = QLabel("          SkeletonConfiguration:")
+        self.scfLabel.setObjectName("RKOptPanel")
         self.scfLabel.setMinimumHeight(40)
         self.scfLabel.setMaximumHeight(40)
         self.scfLabel.setMinimumWidth(250)
         self.scfLabel.setMinimumWidth(250)
         
         self.scfLEdit = QtWidgets.QLineEdit("BASIC")
+        self.scfLEdit.setObjectName("RKOptPanel")
         self.scfLEdit.setEnabled(False)
         self.scfLEdit.setMinimumHeight(40)
         self.scfLEdit.setMaximumHeight(40)
@@ -235,12 +250,14 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         ##############################################
         # 
         self.loaLabel = QLabel("          Level of Articulation:")
+        self.loaLabel.setObjectName("RKOptPanel")
         self.loaLabel.setMinimumHeight(30)
         self.loaLabel.setMaximumHeight(30)
         self.loaLabel.setMinimumWidth(250)
         self.loaLabel.setMinimumWidth(250)
         
         self.loaQCBox = QtWidgets.QComboBox()
+        self.loaQCBox.setObjectName("RKOptPanel")
         self.loaQCBox.addItems(["LOA 0", "LOA 1", "LOA 2", "LOA 3", "LOA 4"])
         self.loaQCBox.setFixedWidth(80)
         self.loaQCBox.setMinimumHeight(30)
@@ -251,10 +268,12 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         ##############################################
         # 
         self.cacLabel = QLabel("          ")
+        self.cacLabel.setObjectName("RKOptPanel")
         self.cacLabel.setMinimumHeight(30)
         self.cacLabel.setMaximumHeight(30)
 
         self.cacButton = QtWidgets.QPushButton("Create HAnim Compliant Skeleton")
+        self.cacButton.setObjectName("RKOptPanel")
         self.cacButton.setMinimumHeight(30)
         self.cacButton.setMaximumHeight(30)
         self.cacButton.setMinimumWidth(200)
@@ -275,11 +294,48 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         ##############################################
         # Skeleton Animation GUI Panel
         self.animationPanel   = QGroupBox()
+        
         self.splitter = QSplitter()
         self.splitter.setOrientation(QtCore.Qt.Orientation.Horizontal)
         self.splitter.setLineWidth(4)
         self.splitter.addWidget(QtWidgets.QLabel("Side A"))
         self.splitter.addWidget(QtWidgets.QLabel("Side B"))
+        
+        self.apHumLabel = QtWidgets.QLabel("Humanoid")
+        self.apHumLabel.setMinimumWidth(100)
+        self.apHumLabel.setMaximumWidth(100)
+        self.apHumName  = QtWidgets.QLineEdit()
+        self.apHumName.setMinimumWidth(250)
+        self.apHumName.setMaximumWidth(250)
+        self.apHumName.setEnabled(False)
+        self.apHumBut   = QtWidgets.QPushButton("Load Selected")
+        self.apHumBut.setMinimumWidth(100)
+        self.apHumBut.setMaximumWidth(100)
+        
+        self.apPkgSpcOne = QtWidgets.QLabel("")
+        self.apPkgSpcOne.setMinimumWidth(100)
+        self.apPkgSpcOne.setMaximumWidth(100)
+        
+        self.apPkgLabel  = QtWidgets.QLabel("Animation Packages")
+        self.apPkgLabel.setMinimumWidth(250)
+        self.apPkgLabel.setMaximumWidth(250)
+        
+        self.apGuiSpcOne = QtWidgets.QLabel("")
+        self.apGuiSpcOne.setMinimumWidth(100)
+        self.apGuiSpcOne.setMaximumWidth(100)
+        
+        self.apGuiLtOne = QtWidgets.QVBoxLayout()
+
+        self.playbackTree = QtWidgets.QTreeWidget()
+        self.playbackTree.setColumnCount(1)
+        self.playbackTree.setHeaderLabels(["Playback Node"])
+        self.playbackTree.setMinimumWidth(250)
+        self.playbackTree.setMaximumWidth(250)
+        self.playbackTree.setMinimumHeight(250)
+        self.playbackTree.setMaximumHeight(250)
+        
+        #self.scPlaybackArea.setWidget(self.playbackTree)
+        self.apGuiLtOne.addWidget(self.playbackTree)
 
         
         ##############################################
@@ -294,10 +350,35 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.bindMeshRow    = QtWidgets.QHBoxLayout()
         self.tWeightsRow    = QtWidgets.QHBoxLayout()
         
-        self.animPanelLt    = QtWidgets.QHBoxLayout()
+        self.animPanelLt    = QtWidgets.QVBoxLayout()
         self.animPanelLt.setContentsMargins(0,0,0,0)
         self.animPanelLt.setSpacing(0)
-        self.animPanelLt.addWidget(self.splitter)
+        
+        self.apRowOneLt     = QtWidgets.QHBoxLayout()
+        self.apRowTwoLt     = QtWidgets.QHBoxLayout()
+        self.apRowThrLt     = QtWidgets.QHBoxLayout()
+        self.animPanelLt.addLayout(self.apRowOneLt)
+        self.animPanelLt.addLayout(self.apRowTwoLt)
+        self.animPanelLt.addLayout(self.apRowThrLt)
+        #self.animPanelLt.addWidget(self.splitter)
+        
+        self.apRowOneLt.setSpacing(10)
+        self.apRowOneLt.addWidget(self.apHumLabel)
+        self.apRowOneLt.addWidget(self.apHumName)
+        self.apRowOneLt.addWidget(self.apHumBut)
+        self.apRowOneLt.addStretch()
+        
+        self.apRowTwoLt.setSpacing(10)
+        self.apRowTwoLt.addWidget(self.apPkgSpcOne)
+        self.apRowTwoLt.addWidget(self.apPkgLabel)
+        self.apRowTwoLt.addStretch()
+        
+        self.apRowThrLt.setSpacing(10)
+        self.apRowThrLt.addWidget(self.apGuiSpcOne)
+        self.apRowThrLt.addLayout(self.apGuiLtOne)
+        self.apRowThrLt.addStretch()
+        
+        self.animPanelLt.addStretch()
 
         self.createGSRow.setContentsMargins(10,10,10,20)
         self.createGSRow.setSpacing(10)
