@@ -1,0 +1,581 @@
+global string $optMenu;
+
+global proc AErkAnimPackTemplate( string $nodeName )
+{
+    editorTemplate -beginScrollLayout;
+		editorTemplate -beginLayout "Animation Package - Mimic Settings" -collapse false;
+            editorTemplate -callCustom "AErkAnimPackTemplateNew" "AErkAnimPackTemplateReplace" "mimickedType";
+            editorTemplate -callCustom "AErkAnimPackTemplateNew" "AErkAnimPackTemplateReplace" "connectedFile";
+		editorTemplate -endLayout;
+		editorTemplate -beginLayout "Maya Timeline Settings" -collapse false;
+            editorTemplate -addControl "keyFrameStep";
+            editorTemplate -addControl "timelineStartFrame";
+            editorTemplate -addControl "timelineStopFrame";
+            editorTemplate -addControl "framesPerSecond";
+		editorTemplate -endLayout;
+        editorTemplate -beginLayout "X3D Node Fields" -collapse false;
+            //editorTemplate -callCustom "AErkAnimPackTemplateNew" "AErkAnimPackTemplateReplace" "channels";
+            editorTemplate -addControl "channels";
+            //editorTemplate -suppress "channelsEnabled";
+            editorTemplate -addControl "cycleInterval";
+            editorTemplate -addControl "autoRefresh";
+            editorTemplate -addControl "autoRefreshTimeLimit";
+            editorTemplate -addControl "description";
+            editorTemplate -addControl "enabled";
+            editorTemplate -addControl "gain";
+            editorTemplate -addControl "load";
+            editorTemplate -addControl "endFrame";
+            editorTemplate -addControl "frameDuration";
+            editorTemplate -addControl "frameIncrement";
+            editorTemplate -addControl "frameIndex";
+            editorTemplate -addControl "joints";
+            editorTemplate -addControl "loa";
+            editorTemplate -addControl "loop";
+            editorTemplate -addControl "name";
+            editorTemplate -addControl "startFrame";
+            editorTemplate -addControl "pauseTime";
+            //editorTemplate -suppress "values";
+            editorTemplate -addControl "pitch";
+            editorTemplate -addControl "resumeTime";
+            editorTemplate -addControl "speed";
+            editorTemplate -addControl "startTime";
+            editorTemplate -addControl "stopTime";
+
+		editorTemplate -endLayout;
+        
+        
+		editorTemplate -as;
+        editorTemplate -suppress "exportAsSplines";
+        editorTemplate -suppress "animationPackage";
+        //editorTemplate -suppress "oldMimickedValue";
+		editorTemplate -aec -ecl "Other" -collapse true;
+    editorTemplate -endLayout;
+}
+
+global proc AErkAnimPackTemplateNew(string $nodeAndAttribute)
+{
+	string $parts[];
+	tokenize($nodeAndAttribute, ".", $parts);
+    
+	setUITemplate -pst attributeEditorPresetsTemplate;
+    if ($parts[1] == "mimickedType" || $parts[1] == "connectedFile")
+    {
+        //print "New\n";
+        //print ($nodeAndAttribute + "\n");
+        rkAnimPack_BuildMimicNodeUI($nodeAndAttribute);
+    }
+    //else
+    //{
+        //print "New X3D Fields\n";
+        //print ($nodeAndAttribute + "\n");
+    //    buildX3DFields($nodeAndAttribute);
+    //}
+}
+
+global proc AErkAnimPackTemplateReplace(string $nodeAndAttribute)
+{
+	string $parts[];
+	tokenize($nodeAndAttribute, ".", $parts);
+    
+    if ($parts[1] == "mimickedType")
+    {
+        //print "Replaced Mimicked Type\n";
+        //print ($nodeAndAttribute + "\n");
+        deleteUI -lay rkAPRow;
+        rkAnimPack_BuildMimicNodeUI($nodeAndAttribute);
+    }
+    
+    if ($parts[1] == "connectedFile")
+    {
+        //print "Replaced Connected Node\n";
+        //print ($nodeAndAttribute + "\n");
+        $isCTL = `control -ex apTSL`;
+        if ($isCTL == true)
+        {
+            deleteUI -ctl apTSL;
+        }
+        
+        $isFP = `control -ex rkAPFileRow`;
+        if($isFP == true)
+        {
+            deleteUI -ctl rkAPFileRow;
+        }
+        
+        rkAnimPack_BuildMimicNodeUI($nodeAndAttribute);
+    }
+}
+
+
+global proc rkAnimPack_BuildMimicNodeUI(string $nodeAndAttribute)
+{
+    global string $optMenu;
+	string $parts[];
+	tokenize($nodeAndAttribute, ".", $parts);
+    string $nodeMt = $parts[0] + ".mimickedType";
+    int $mt = `getAttr $nodeMt`;
+
+    if ($parts[1] == "mimickedType")
+    {
+        rowLayout -numberOfColumns 2 -columnWidth2 200 50 rkAPRow;
+            $optMenu = `optionMenu -label "X3D Node Type" -width 200 -cc ("rkAnimPack_UpdateAssignedMimicType " + $nodeAndAttribute)`;
+                menuItem -label "Not Designated";
+                menuItem -label "AudioClip";
+                menuItem -label "HAnimMotion";
+                menuItem -label "MovieTexture";
+                menuItem -label "TimeSensor";
+                setParent ..;
+            setParent..;
+        
+        if ($mt == 0)
+        {
+            optionMenu -e -value "Not Designated" $optMenu;
+        }
+        if ($mt == 1)
+        {
+            optionMenu -e -value "AudioClip" $optMenu;
+        }
+        if ($mt == 2)
+        {
+            optionMenu -e -value "HAnimMotion" $optMenu;
+        }
+        if ($mt == 3)
+        {
+            optionMenu -e -value "MovieTexture" $optMenu;
+        }
+        if ($mt == 4)
+        {
+            optionMenu -e -value "TimeSensor" $optMenu;
+        }
+    }
+    
+    if ($parts[1] == "connectedFile" && ($mt == 1 || $mt == 3))
+    {
+        string $allNodes[];
+
+        if($mt == 1)
+        {
+            $allNodes = `ls -type "audio"`;
+        }
+        else if($mt == 3)
+        {
+            $allNodes = `ls -type "movie"`;
+        }
+
+        string $conList[] = `listConnections -d false -s true $nodeAndAttribute`;
+        string $sourceNode = "";
+        
+        string $cFileText = `getAttr $nodeAndAttribute`;
+        
+        rowLayout -numberOfColumns 3 -columnWidth3 100 200 50 rkAPFileRow;
+            text -al "left" -label "Media File ";
+            textField -width 200 -fileName $cFileText -en false apFilePath;
+            if($cFileText == "")
+            {
+                iconTextButton -i "navButtonIgnored.png";
+            }
+            else
+            {
+                iconTextButton -i "navButtonConnected.png" -c ("rkAnimPack_SelectMediaNode " + $nodeAndAttribute);
+            }
+            
+            setParent ..;
+
+        string $cParts[];
+        tokenize($conList[0], ".", $cParts);
+        $sourceNode = $cParts[0];
+        
+        textScrollList -el "No Media Nodes Listed" -numberOfRows 8 -sc ("rkAnimPack_UpdateConnectedFile " + $nodeAndAttribute + " " + $mt) -allowMultiSelection false apTSL;
+        
+        for($item in $allNodes)
+        {
+            textScrollList -e -append $item apTSL;
+        }
+        
+        if ($sourceNode != "" )
+        {
+            textScrollList -e -si $sourceNode apTSL;
+        }
+    }
+}
+
+// x3d_autoRefresh          = None # AudioClip, MovieTexture
+// x3d_autoRefreshTimeLimit = None # AudioClip, MovieTexture
+// x3d_gain                 = None # AudioClip, MovieTexture
+// x3d_load                 = None # AudioClip, MovieTexture
+// x3d_pauseTime            = None # AudioClip, MovieTexture, TimeSensor
+// x3d_pitch                = None # AudioClip, MovieTexture
+// x3d_resumeTime           = None # AudioClip, MovieTexture, TimeSensor
+// x3d_startTime            = None # AudioClip, MovieTexture, TimeSensor
+// x3d_stopTime             = None # AudioClip, MovieTexture, TimeSensor
+
+global proc rkAnimPack_SelectMediaNode(string $nodeAndAttribute)
+{
+    string $conList[] = `listConnections -d false -s true $nodeAndAttribute`;
+
+    if(size($conList) > 0)
+    {
+        string $cParts[];
+        tokenize($conList[0], ".", $cParts);
+        select -r $cParts[0];
+    }
+}
+
+global proc rkAnimPack_AddAudioClipAttrs(string $nodeName)
+{
+    addAttr -ln "autoRefresh" -sn "aRefresh" -hasMinValue true -minValue 0.0 -storable true -at "float" $nodeName;
+
+    addAttr -ln "autoRefreshTimeLimit" -sn "arTimeLimit" -hasMinValue true -minValue 0.0 -storable true -at "float" $nodeName;
+    setAttr ($nodeName + ".autoRefreshTimeLimit") 3600.0;
+
+    addAttr -ln "gain" -sn "gn" -storable true -at "float" $nodeName;
+    setAttr ($nodeName + ".gain") 1.0;
+
+    addAttr -ln "load" -sn "ld" -storable true -at bool $nodeName;
+    setAttr ($nodeName + ".load") true;
+    
+    addAttr -ln "pauseTime" -sn "paTime" -storable true -at "float" $nodeName;
+    addAttr -ln "pitch" -sn "ptch" -hasMinValue true -minValue 0.0 -storable true -at "float" $nodeName;
+    setAttr ($nodeName + ".pitch") 1.0;
+
+    addAttr -ln "resumeTime" -sn "reTime" -storable true -at "float" $nodeName;
+    addAttr -ln "startTime" -sn "staTime" -storable true -at "float" $nodeName;
+    addAttr -ln "stopTime" -sn "staoTime" -storable true -at "float" $nodeName;
+}
+
+global proc rkAnimPack_SubAudioClipAttrs(string $nodeName, int $mtu)
+{
+    //print "Sub AudioClip Called...";
+    float $aRefresh = `getAttr ($nodeName + ".autoRefresh")`;
+    float $arLimit  = `getAttr ($nodeName + ".autoRefreshTimeLimit")`;
+    float $rkGain   = `getAttr ($nodeName + ".gain")`;
+    int   $rkLoad   = `getAttr ($nodeName + ".load")`;
+    float $rkPTime  = `getAttr ($nodeName + ".pauseTime")`;
+    float $rkRTime  = `getAttr ($nodeName + ".resumeTime")`;
+    float $rkStaTi  = `getAttr ($nodeName + ".startTime")`;
+    float $rkStoTi  = `getAttr ($nodeName + ".stopTime")`;
+    
+    deleteAttr ($nodeName + ".autoRefresh");
+    deleteAttr ($nodeName + ".autoRefreshTimeLimit");
+    deleteAttr ($nodeName + ".gain");
+    deleteAttr ($nodeName + ".load");
+    deleteAttr ($nodeName + ".pitch");
+    deleteAttr ($nodeName + ".pauseTime");
+    deleteAttr ($nodeName + ".resumeTime");
+    deleteAttr ($nodeName + ".startTime");
+    deleteAttr ($nodeName + ".stopTime");
+    
+    rkAnimPack_ClearConnectedFile(($nodeName + ".connectedFile"), "AudioClip");
+
+    //if     ($mtu     == 1) rkAnimPack_AddAudioClipAttrs   ($nodeName);
+    //else 
+    if ($mtu == 2)
+    {
+        rkAnimPack_AddHAnimMotionAttrs ($nodeName);
+    }
+    else if($mtu == 3) 
+    {
+        rkAnimPack_AddMovieTextureAttrs($nodeName);
+        setAttr ($nodeName + ".autoRefresh") $aRefresh;
+        setAttr ($nodeName + ".autoRefreshTimeLimit") $arLimit;
+        setAttr ($nodeName + ".gain") $rkGain;
+        setAttr ($nodeName + ".load") $rkLoad;
+        setAttr ($nodeName + ".pauseTime") $rkPTime;
+        setAttr ($nodeName + ".resumeTime") $rkRTime;
+        setAttr ($nodeName + ".startTime") $rkStaTi;
+        setAttr ($nodeName + ".stopTime") $rkStoTi;
+    }
+    else if($mtu == 4)
+    {
+        rkAnimPack_AddTimeSensorAttrs  ($nodeName);
+
+        setAttr ($nodeName + ".pauseTime") $rkPTime;
+        setAttr ($nodeName + ".resumeTime") $rkRTime;
+        setAttr ($nodeName + ".startTime") $rkStaTi;
+        setAttr ($nodeName + ".stopTime") $rkStoTi;
+    }
+}
+
+global proc rkAnimPack_AddHAnimMotionAttrs(string $nodeName)
+{
+    addAttr -ln "channels" -sn "chnls" -storable true -dt "string" $nodeName;
+    //x3d_channelsEnabled
+    addAttr -ln "endFrame" -sn "dFrame" -hasMinValue true -minValue 0 -storable true -at long $nodeName;
+
+    addAttr -ln "frameDuration" -sn "frDuration" -hasMinValue true -minValue 0.0 -storable true -at "float" $nodeName;
+    setAttr ($nodeName + ".frameDuration") 0.1;
+
+    addAttr -ln "frameIncrement" -sn "frInc" -storable true -at long $nodeName;
+    setAttr ($nodeName + ".frameIncrement") 1;
+
+    addAttr -ln "frameIndex" -sn "frIdx" -hasMinValue true -minValue 0 -storable true -at long $nodeName;
+    addAttr -ln "joints" -sn "jnts" -storable true -dt "string" $nodeName;
+    addAttr -ln "levelOfArticulation" -sn "loa" -hasMinValue true -minValue -1 -hasMaxValue true -maxValue 4 -storable true -at long $nodeName;
+    setAttr ($nodeName + ".levelOfArticulation") -1;
+
+    addAttr -ln "name" -sn "ne" -storable true -at bool $nodeName;
+    addAttr -ln "startFrame" -sn "staFrame" -hasMinValue true -minValue 0 -storable true -at long $nodeName;
+    //x3d_values          = None    
+}
+
+global proc rkAnimPack_SubHAnimMotionAttrs(string $nodeName, int $mtu)
+{
+    deleteAttr ($nodeName + ".channels");
+    deleteAttr ($nodeName + ".endFrame");
+    deleteAttr ($nodeName + ".frameDuration");
+    deleteAttr ($nodeName + ".frameIncrement");
+    deleteAttr ($nodeName + ".frameIndex");
+    deleteAttr ($nodeName + ".joints");
+    deleteAttr ($nodeName + ".levelOfArticulation");
+    deleteAttr ($nodeName + ".name");
+    deleteAttr ($nodeName + ".startFrame");
+
+    if ($mtu == 1)
+    {
+        rkAnimPack_AddAudioClipAttrs   ($nodeName);
+    }
+    //else if($mtu     == 2) rkAnimPack_AddHAnimMotionAttrs  ($nodeName);
+    else if($mtu == 3)
+    {
+        rkAnimPack_AddMovieTextureAttrs($nodeName);
+    }
+    else if($mtu == 4)
+    {
+        rkAnimPack_AddTimeSensorAttrs  ($nodeName);    
+    }
+}
+
+global proc rkAnimPack_AddMovieTextureAttrs(string $nodeName)
+{
+    addAttr -ln "autoRefresh" -sn "aRefresh" -hasMinValue true -minValue 0.0 -storable true -at "float" $nodeName;
+
+    addAttr -ln "autoRefreshTimeLimit" -sn "arTimeLimit" -hasMinValue true -minValue 0.0 -storable true -at "float" $nodeName;
+    setAttr ($nodeName + ".autoRefreshTimeLimit") 3600.0;
+
+    addAttr -ln "gain" -sn "gn" -storable true -at "float" $nodeName;
+    setAttr ($nodeName + ".gain") 1.0;
+
+    addAttr -ln "load" -sn "ld" -storable true -at bool $nodeName;
+    setAttr ($nodeName + ".load") true;
+    
+    addAttr -ln "pauseTime" -sn "paTime" -storable true -at "float" $nodeName;
+    addAttr -ln "speed" -sn "spd" -storable true -at "float" $nodeName;
+    setAttr ($nodeName + ".speed") 1.0;
+
+    addAttr -ln "resumeTime" -sn "reTime" -storable true -at "float" $nodeName;
+    addAttr -ln "startTime" -sn "staTime" -storable true -at "float" $nodeName;
+    addAttr -ln "stopTime" -sn "stoTime" -storable true -at "float" $nodeName;
+}
+
+global proc rkAnimPack_SubMovieTextureAttrs(string $nodeName, int $mtu)
+{
+    float $aRefresh = `getAttr ($nodeName + ".autoRefresh")`;
+    float $arLimit  = `getAttr ($nodeName + ".autoRefreshTimeLimit")`;
+    float $rkGain   = `getAttr ($nodeName + ".gain")`;
+    int   $rkLoad   = `getAttr ($nodeName + ".load")`;
+    float $rkPTime  = `getAttr ($nodeName + ".pauseTime")`;
+    float $rkRTime  = `getAttr ($nodeName + ".resumeTime")`;
+    float $rkStaTi  = `getAttr ($nodeName + ".startTime")`;
+    float $rkStoTi  = `getAttr ($nodeName + ".stopTime")`;
+    
+    deleteAttr ($nodeName + ".autoRefresh");
+    deleteAttr ($nodeName + ".autoRefreshTimeLimit");
+    deleteAttr ($nodeName + ".gain");
+    deleteAttr ($nodeName + ".load");
+    deleteAttr ($nodeName + ".speed");
+    deleteAttr ($nodeName + ".pauseTime");
+    deleteAttr ($nodeName + ".resumeTime");
+    deleteAttr ($nodeName + ".startTime");
+    deleteAttr ($nodeName + ".stopTime");
+    
+    rkAnimPack_ClearConnectedFile(($nodeName + ".connectedFile"), "MovieTexture");
+    
+    if     ($mtu == 1)
+    {
+        rkAnimPack_AddAudioClipAttrs   ($nodeName);
+        setAttr ($nodeName + ".autoRefresh") $aRefresh;
+        setAttr ($nodeName + ".autoRefreshTimeLimit") $arLimit;
+        setAttr ($nodeName + ".gain") $rkGain;
+        setAttr ($nodeName + ".load") $rkLoad;
+        setAttr ($nodeName + ".pauseTime") $rkPTime;
+        setAttr ($nodeName + ".resumeTime") $rkRTime;
+        setAttr ($nodeName + ".startTime") $rkStaTi;
+        setAttr ($nodeName + ".stopTime") $rkStoTi;
+    }
+    else if($mtu == 2)
+    {
+        rkAnimPack_AddHAnimMotionAttrs  ($nodeName);
+    }
+    //else if($mtu     == 3) rkAnimPack_AddMovieTextureAttrs($nodeName);
+    else if($mtu == 4)
+    {
+        rkAnimPack_AddTimeSensorAttrs  ($nodeName);
+
+        setAttr ($nodeName + ".pauseTime") $rkPTime;
+        setAttr ($nodeName + ".resumeTime") $rkRTime;
+        setAttr ($nodeName + ".startTime") $rkStaTi;
+        setAttr ($nodeName + ".stopTime") $rkStoTi;
+    }
+}
+
+global proc rkAnimPack_AddTimeSensorAttrs(string $nodeName)
+{
+    addAttr -ln "cycleInterval" -sn "cInt" -hasMinValue true -minValue 0.0 -storable true -at "float" $nodeName;
+    setAttr ($nodeName + ".cycleInterval") 1.0;
+
+    addAttr -ln "pauseTime" -sn "paTime" -storable true -at "float" $nodeName;
+    addAttr -ln "resumeTime" -sn "reTime" -storable true -at "float" $nodeName;
+    addAttr -ln "startTime" -sn "staTime" -storable true -at "float" $nodeName;
+    addAttr -ln "stopTime" -sn "stoTime" -storable true -at "float" $nodeName;
+    
+}
+
+global proc rkAnimPack_SubTimeSensorAttrs(string $nodeName, int $mtu)
+{
+    float $rkPTime  = `getAttr ($nodeName + ".pauseTime")`;
+    float $rkRTime  = `getAttr ($nodeName + ".resumeTime")`;
+    float $rkStaTi  = `getAttr ($nodeName + ".startTime")`;
+    float $rkStoTi  = `getAttr ($nodeName + ".stopTime")`;
+    
+    deleteAttr ($nodeName + ".cycleInterval");
+    deleteAttr ($nodeName + ".pauseTime");
+    deleteAttr ($nodeName + ".resumeTime");
+    deleteAttr ($nodeName + ".startTime");
+    deleteAttr ($nodeName + ".stopTime");
+    //if     ($mtu     == 1) rkAnimPack_AddAudioClipAttrs   ($nodeName);
+    //else
+    if ($mtu == 2)
+    {
+        rkAnimPack_AddHAnimMotionAttrs  ($nodeName);
+    }
+    else if($mtu == 3)
+    {
+        rkAnimPack_AddMovieTextureAttrs($nodeName);
+        setAttr ($nodeName + ".pauseTime") $rkPTime;
+        setAttr ($nodeName + ".resumeTime") $rkRTime;
+        setAttr ($nodeName + ".startTime") $rkStaTi;
+        setAttr ($nodeName + ".stopTime") $rkStoTi;
+    }
+    else if($mtu == 4)
+    {
+        rkAnimPack_AddTimeSensorAttrs  ($nodeName);
+
+        setAttr ($nodeName + ".pauseTime") $rkPTime;
+        setAttr ($nodeName + ".resumeTime") $rkRTime;
+        setAttr ($nodeName + ".startTime") $rkStaTi;
+        setAttr ($nodeName + ".stopTime") $rkStoTi;
+    }
+}
+
+global proc rkAnimPack_ClearConnectedFile(string $nodeAndAttribute, string $nodeType)
+{
+    string $conList[] = `listConnections -d false -s true $nodeAndAttribute`;
+    
+    textScrollList -e -ra apTSL;
+    
+    for($cons in $conList)
+    {
+        // string $mystring = "Item one: " + $nodeAndAttribute;
+        // $mystring = $mystring + ", Item two: " + $cons;
+        // $mystring = $mystring + "\n";
+        // print $mystring;
+        
+        if($nodeType == "AudioClip")
+        {
+            disconnectAttr ($cons + ".filename") $nodeAndAttribute;
+            setAttr $nodeAndAttribute -type "string" "";
+        }
+        else if($nodeType == "MovieTexture")
+        {
+            disconnectAttr ($cons + ".fileTextureName") $nodeAndAttribute;
+            setAttr $nodeAndAttribute -type "string" "";
+        }
+    }
+}
+
+global proc rkAnimPack_UpdateConnectedFile(string $nodeAndAttribute, int $mt)
+{
+ 	string $parts[];
+	tokenize($nodeAndAttribute, ".", $parts);
+    
+    string $selectedItem[] = `textScrollList -q -selectItem apTSL`;
+    
+    string $conList[] = `listConnections -d false -s true $nodeAndAttribute`;
+    
+    for($cons in $conList)
+    {
+        // string $mystring = "Item one: " + $nodeAndAttribute;
+        // $mystring = $mystring + ", Item two: " + $cons;
+        // $mystring = $mystring + "\n";
+        // print $mystring;
+        
+        if($mt == 1)
+        {
+            disconnectAttr ($cons + ".filename") $nodeAndAttribute;
+            setAttr $nodeAndAttribute -type "string" "";
+        }
+        else if ($mt == 3)
+        {
+            disconnectAttr ($cons + ".fileTextureName") $nodeAndAttribute;
+            setAttr $nodeAndAttribute -type "string" "";
+        }
+    }
+
+    print ("Item: " + $selectedItem[0] + "\n");
+    string $mType = `nodeType $selectedItem[0]`;
+    
+    if($mType == "audio")
+    {
+        connectAttr ($selectedItem[0] + ".filename") $nodeAndAttribute;
+    }
+    else if($mType == "movie")
+    {
+        connectAttr ($selectedItem[0] + ".fileTextureName") $nodeAndAttribute;
+    }
+
+    forceAERefresh($parts[0]);
+}
+
+global proc rkAnimPack_UpdateAssignedMimicType(string $nodeAndAttribute)
+{
+    global string $optMenu;
+
+    int $oldValue = `getAttr $nodeAndAttribute`;
+    //print "Old Value:";
+    //print $oldValue;
+    
+    string $newValue = `optionMenu -q -value $optMenu`;
+    
+    int $mtu = 0;
+    if ($newValue == "AudioClip"){
+        $mtu = 1;
+    }
+    if ($newValue == "HAnimMotion"){
+        $mtu = 2;
+    }
+    if ($newValue == "MovieTexture"){
+        $mtu = 3;
+    }
+    if ($newValue == "TimeSensor"){
+        $mtu = 4;
+    }
+    
+    setAttr $nodeAndAttribute $mtu;
+    
+ 	string $parts[];
+	tokenize($nodeAndAttribute, ".", $parts);
+    
+    if     ($oldValue == 0)
+    {
+        if      ($mtu == 1) rkAnimPack_AddAudioClipAttrs   ($parts[0]);
+        else if ($mtu == 2) rkAnimPack_AddHAnimMotionAttrs ($parts[0]);
+        else if ($mtu == 3) rkAnimPack_AddMovieTextureAttrs($parts[0]);
+        else if ($mtu == 4) rkAnimPack_AddTimeSensorAttrs  ($parts[0]);
+    }
+    else if($oldValue == 1) rkAnimPack_SubAudioClipAttrs   ($parts[0], $mtu);
+    else if($oldValue == 2) rkAnimPack_SubHAnimMotionAttrs ($parts[0], $mtu);
+    else if($oldValue == 3) rkAnimPack_SubMovieTextureAttrs($parts[0], $mtu);
+    else if($oldValue == 4) rkAnimPack_SubTimeSensorAttrs  ($parts[0], $mtu);
+
+    forceAERefresh($parts[0]);
+    
+}

@@ -1,7 +1,7 @@
 import sys
 import os
 from rawkee import RKWeb3D
-from rawkee.RKWeb3D import RKAddSwitch, RKAddGroup, RKAddCollision, RKSetAsBillboard, RKAddX3DSound, RKAdvancedSkeleton, RKTestIt
+from rawkee.RKWeb3D import RKAddSwitch, RKAddGroup, RKAddCollision, RKSetAsBillboard, RKAddX3DSound, RKAdvancedSkeleton, RKSetAsHAnimHumanoid, RKTestIt
 from rawkee.RKSceneEditor import *
 from rawkee.RKCharacterEditor import *
 
@@ -11,6 +11,10 @@ from rawkee.nodes.x3dSound import X3DSound, X3DSoundDrawOverride
 
 # From 2024 RawKee PE Registered Node IDSs
 from rawkee.nodes.x3dHAnimMotion import X3DHAnimMotion
+from rawkee.nodes.rkAnimPack import RKAnimPack
+
+import rawkee.nodes.sticker    as stk
+
 
 #### from rawkee.nodes.X3D_Scene import X3D_Scene, RKPrimeX3DScene
 #### from rawkee.nodes.X3D_Transform import X3D_Transform
@@ -51,6 +55,8 @@ RAWKEE_TITLE   = "RawKee X3D Exporter for Maya - Python Version: " + RAWKEE_VERS
 RAWKEE_BASE    = ""
 RAWKEE_ICONS   = ""
 
+RKCallBackIDs    = []
+
 # Maya API 2.0 function required for Plugins
 def maya_useNewAPI():
     """
@@ -59,6 +65,9 @@ def maya_useNewAPI():
     """
     pass
 
+def rkUpdateStickers(client_data):
+    stk.reveal()
+    
 
 def startX_ITE(args):
     public_path = RKWeb3D.__file__.replace("\\", "/").rsplit("/", 1)[0]
@@ -123,7 +132,7 @@ class RKShowNodeSticker(aom.MPxCommand):
         webbrowser.open_new("https://github.com/davidlatwe/NodeSticker")
 
 
-# Creating the MEL Command for showing the Node Sticker Website
+# Creating the MEL Command for showing the RawKee GitHub Website
 class RKShowRawKee(aom.MPxCommand):
     kPluginCmdName = "rkShowRawKee"
     
@@ -136,6 +145,51 @@ class RKShowRawKee(aom.MPxCommand):
         
     def doIt(self, args):
         webbrowser.open_new("https://github.com/und-dream-lab/rawkee/")
+
+
+# Creating the MEL Command for showing the DREAM Lab Website
+class RKShowDreamLab(aom.MPxCommand):
+    kPluginCmdName = "rkShowDreamLab"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowDreamLab()
+        
+    def doIt(self, args):
+        webbrowser.open_new("https://dream.crc.und.edu/")
+
+
+# Creating the MEL Command for showing the Web3D Website
+class RKShowWeb3D(aom.MPxCommand):
+    kPluginCmdName = "rkShowWeb3D"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowWeb3D()
+        
+    def doIt(self, args):
+        webbrowser.open_new("https://www.web3d.org/")
+
+
+# Creating the MEL Command for showing the Metaverse Standards Forum Website
+class RKShowMSF(aom.MPxCommand):
+    kPluginCmdName = "rkShowMSF"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowMSF()
+        
+    def doIt(self, args):
+        webbrowser.open_new("https://metaverse-standards.org/")
 
 
 # Creating the MEL Command for the RawKee's function to activate import function
@@ -513,6 +567,15 @@ def initializePlugin(plugin):
     except:
         aom.MGlobal.displayError("Failed to register node: {0}".format(X3DTimeSensor.kPluginNodeName))
                               
+    try:
+        pluginFn.registerNode(RKAnimPack.TYPE_NAME,         # name of node
+                              RKAnimPack.TYPE_ID,           # unique id that identifiesnode
+                              RKAnimPack.creator,                 # function/method that returns new instance of class
+                              RKAnimPack.initialize,              # function/method that will initialize all attributes of node
+                              aom.MPxNode.kLocatorNode)         # type of node to be registered
+    except:
+        aom.MGlobal.displayError("Failed to register node: {0}".format(RKAnimPack.kPluginNodeName))
+                              
 #        pluginFn.registerNode(X3DViewpointCamera.kPluginNodeName, # name of node
 #                              X3DViewpointCamera.kPluginNodeId,   # unique id that identifiesnode
 #                              X3DViewpointCamera.creator,         # function/method that returns new instance of class
@@ -546,7 +609,12 @@ def initializePlugin(plugin):
         #pluginFn.registerCommand(          RKAddX3DSound.kPluginCmdName,     RKAddX3DSound.cmdCreator)
         pluginFn.registerCommand(RKShowNodeSticker.kPluginCmdName,  RKShowNodeSticker.cmdCreator)
         pluginFn.registerCommand(     RKShowRawKee.kPluginCmdName,       RKShowRawKee.cmdCreator)
+        pluginFn.registerCommand(   RKShowDreamLab.kPluginCmdName,     RKShowDreamLab.cmdCreator)
+        pluginFn.registerCommand(      RKShowWeb3D.kPluginCmdName,        RKShowWeb3D.cmdCreator)
+        pluginFn.registerCommand(        RKShowMSF.kPluginCmdName,        RKShowMSF.cmdCreator)
         
+        pluginFn.registerCommand( RKSetAsHAnimHumanoid.kPluginCmdName,  RKSetAsHAnimHumanoid.cmdCreator)
+
         pluginFn.registerCommand( RKSetAsBillboard.kPluginCmdName,  RKSetAsBillboard.cmdCreator)
         pluginFn.registerCommand(   RKAddCollision.kPluginCmdName,    RKAddCollision.cmdCreator)
         pluginFn.registerCommand(       RKAddGroup.kPluginCmdName,        RKAddGroup.cmdCreator)
@@ -584,9 +652,10 @@ def initializePlugin(plugin):
     rkWeb3D.pVersion = RAWKEE_TITLE
     
     RAWKEE_BASE = RKWeb3D.__file__.replace("\\", "/").rsplit("/", 1)[0]
-
     rkWeb3D.setMyStyleSheet(RAWKEE_BASE)
     
+    ################################################################################
+    # Load RawKee Icon Library #####################################################
     osDiv = ":"
     if os.name == "nt":
         osDiv = ";"
@@ -602,7 +671,15 @@ def initializePlugin(plugin):
         cmdEval = cmdEval + '"' + newpath + '"'
         mel.eval(cmdEval)
     
+    ################################################################################
+    # Set Callback Functions #######################################################
+    ################################################################################
     
+    ################################################################################
+    # Function to re-apply stickers to nodes shown in the Outliner. rkUpdateStickers
+    # is called every time the scene needs an update. This causes the nodes with
+    # Node Stickers to be updated in the outliner.
+    RKCallBackIDs.append(aom.MSceneMessage.addCallback(aom.MSceneMessage.kSceneUpdate, rkUpdateStickers))
 
 
     
@@ -642,6 +719,11 @@ def uninitializePlugin(plugin):
         pluginFn.deregisterCommand(   RKAddCollision.kPluginCmdName)
         pluginFn.deregisterCommand( RKSetAsBillboard.kPluginCmdName)
 
+        pluginFn.deregisterCommand( RKSetAsHAnimHumanoid.kPluginCmdName)
+
+        pluginFn.deregisterCommand(        RKShowMSF.kPluginCmdName)
+        pluginFn.deregisterCommand(      RKShowWeb3D.kPluginCmdName)
+        pluginFn.deregisterCommand(   RKShowDreamLab.kPluginCmdName)
         pluginFn.deregisterCommand(     RKShowRawKee.kPluginCmdName)
         pluginFn.deregisterCommand(RKShowNodeSticker.kPluginCmdName)
 
@@ -671,13 +753,10 @@ def uninitializePlugin(plugin):
     ##################################
 
     try:
-#        pluginFn.deregisterNode(X3DViewpointCamera.kPluginNodeId)
+        pluginFn.deregisterNode(    RKAnimPack.TYPE_ID)
         pluginFn.deregisterNode(      X3DSound.TYPE_ID)
         pluginFn.deregisterNode(X3DHAnimMotion.TYPE_ID)
         pluginFn.deregisterNode( X3DTimeSensor.TYPE_ID)
-#        pluginFn.deregisterNode(      X3D_Transform.TYPE_ID)
-#        pluginFn.deregisterNode(          X3D_Group.TYPE_ID)
-#        pluginFn.deregisterNode(          X3D_Scene.TYPE_ID)
     except:
         aom.MGlobal.displayError("Failed to deregister a node.")#{0}".format(X3DSound.TYPE_NAME))
 
@@ -707,8 +786,9 @@ def uninitializePlugin(plugin):
     global rkWeb3D
     del rkWeb3D
 
+    #################################################################################
+    # Unload RawKee Icon Library ####################################################
     iconpath = mel.eval('getenv XBMLANGPATH')
-    
     RAWKEE_BASE = RKWeb3D.__file__.replace("\\", "/").rsplit("/", 1)[0]
     
     osDiv = ":"
@@ -723,7 +803,11 @@ def uninitializePlugin(plugin):
         cmdEval = cmdEval + '"' + newpath + '"'
         mel.eval(cmdEval)
 
-
+    ################################################################################
+    # Remove Callback Functions ####################################################
+    ################################################################################
+    for cbID in RKCallBackIDs:
+        aom.MSceneMessage.removeCallback(cbID)
 
 
 #Only for code development
