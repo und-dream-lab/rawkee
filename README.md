@@ -23,7 +23,6 @@ Some of the packages listed may require a pip install regarless of what the list
 - pillow        (pip install required)
 - ffmpeg-python (pip install required)
 - nodejs-bin    (pip install required) -- Required by Sunrize Editor, Will be optional.
-- screeninfo    (pip isntall required)
 - subprocess - may be removed in the future
 - signal     - may be removed in the future
 - typing

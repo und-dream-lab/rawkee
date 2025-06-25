@@ -30,8 +30,6 @@ except:
     
 import sys
 
-from screeninfo import get_monitors
-
 ########################################
 # Not sure why I imported this
 ########################################
@@ -98,7 +96,8 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         
         self.rkWeb3D = None
         
-        self.node_editor_widget.centerView()
+    def centerNodeEditor(self, qpoint=QPointF(0,0)):
+        self.node_editor_widget.centerViewOn(qpoint)
         
     def setRKWeb3D(self, rkWeb3D):
         # Maybe this should be moved to the constructor.
@@ -339,28 +338,8 @@ class RKCustomNodeEditor(QWidget):
         node3 = RKXNode(self.scene, "RawKeeNode 3", inputs=[1, 2, 3], outputs=[1])
         node3.setPos(600,0)
         
-    def centerView(self):
-        m = get_monitors()
-        #s = self.geometry() #self.view.geometry()
-        n = len(m)
-        x = m[n-1].width  / 2
-        y = m[n-1].height / 2
-        
-        self.view.centerOn(x+(y/2), y/2)
-        
-        for m in get_monitors():
-            print(str(m))
-
-        '''
-        print("Viewport - Width: " + str(x2) + ", Height: " + str(y2))
-        mPoint = self.view.mapFromScene(QPointF(0.0,0.0))
-        
-        pstr = "X: " + str(mPoint.x()) + ", Y: " + str(mPoint.y())
-        
-        mRect = self.view.sceneRect()
-        print(pstr)
-        print(mRect)
-        '''
+    def centerViewOn(self, qpoint=QPointF(0,0)):
+        self.view.centerOn(qpoint)
         
         
     def addDebugContent(self):

@@ -9,6 +9,7 @@ try:
     from PySide2.QtWidgets import *
     from PySide2.QtWidgets import QGraphicsItem as rkgItem
     from PySide2.QtCore    import *
+    from PySide2           import QtUiTools
     
     from shiboken2         import wrapInstance
     from shiboken2         import getCppPointer
@@ -23,7 +24,7 @@ except:
     from PySide6.QtWidgets import *
     from PySide6.QtWidgets import QGraphicsItem as rkgItem
     from PySide6.QtCore    import *
-    from PySide6.QtWebEngineCore  import *
+    from PySide6           import QtUiTools
     
     from shiboken6         import wrapInstance
     from shiboken6         import getCppPointer
@@ -86,6 +87,20 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         
         self.add_to_character_editor_workspace_control()
         
+        self.hanimSkeletonPanel = None
+        self.advancedSkeletonPanel = None
+        self.artPanel = None
+        self.animationPanel = None 
+        #self.testPanel = None
+        
+        self.uiPaths = RKWeb3D.__file__.replace("\\", "/").rsplit("/", 1)[0]
+        self.uiPaths += "/auxilary/"
+        
+        self.hanimPath     = self.uiPaths + "RKCharacterEditorHAnimSkeletonPanel.ui"
+        self.advancedPath  = self.uiPaths + "RKCharacterEditorAdvancedSkeletonPanel.ui"
+        self.artPath       = self.uiPaths + "RKCharacterEditor_aRT_Panel.ui"
+        self.animationPath = self.uiPaths + "RKCharacterEditorAnimationPanel.ui"
+        
         self.create_actions()
 
         self.create_widgets()
@@ -93,6 +108,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.create_layout()
         
         self.create_connections()
+        
 
 ##################################
 #        Probably not needed
@@ -107,8 +123,8 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
 #        self.rkWeb3D = rkWeb3D
 
     def cleanUpOnEditorClose(self):
-        #print("cleanup")
-        pass
+        print("cleanup")
+        #pass
         # Release the RKWeb3D object, otherwise it will not
         # later be deleteable when the plugin unloads. If
         # the object is not deletable, then the __del__ 
@@ -129,361 +145,69 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
 
     def create_actions(self):
         pass
-        
 
     def create_widgets(self):
-        ##############################################
-        # 
-        self.gsfLabel = QLabel("Advanced Skeleton Configuration Functions")
-        self.gsfLabel.setObjectName("RKOptPanel")
-        self.gsfLabel.setMinimumHeight(30)
-        self.gsfLabel.setMaximumHeight(30)
-
-        ##############################################
-        # 
-        self.cgsLabel = QLabel("     X3D/HAnim Compatible GameSkeleton")
-        self.cgsLabel.setObjectName("RKOptPanel")
-        self.cgsLabel.setMinimumHeight(30)
-        self.cgsLabel.setMaximumHeight(30)
-        self.cgsLabel.setMinimumWidth(250)
-        self.cgsLabel.setMinimumWidth(250)
-        
-        self.cgsButton = QtWidgets.QPushButton("Create")
-        self.cgsButton.setObjectName("RKOptPanel")
-        self.cgsButton.setMinimumHeight(30)
-        self.cgsButton.setMaximumHeight(30)
-        self.cgsButton.setMinimumWidth(40)
-        self.cgsButton.setMinimumWidth(40)
-
-        ##############################################
-        # 
-        self.agcLabel = QLabel("     Align GameSkeleton Configuration")
-        self.agcLabel.setObjectName("RKOptPanel")
-        self.agcLabel.setMinimumHeight(30)
-        self.agcLabel.setMaximumHeight(30)
-        self.agcLabel.setMinimumWidth(250)
-        self.agcLabel.setMinimumWidth(250)
-        
-        self.agcButton = QtWidgets.QPushButton("Set I-Pose")
-        self.agcButton.setObjectName("RKOptPanel")
-        self.agcButton.setMinimumHeight(30)
-        self.agcButton.setMaximumHeight(30)
-        self.agcButton.setMinimumWidth(40)
-        self.agcButton.setMinimumWidth(40)
-
-        ##############################################
-        # 
-        self.asmLabel = QLabel("     Assign Selected Meshes to GameSkeleton")
-        self.asmLabel.setObjectName("RKOptPanel")
-        self.asmLabel.setMinimumHeight(30)
-        self.asmLabel.setMaximumHeight(30)
-        self.asmLabel.setMinimumWidth(250)
-        self.asmLabel.setMinimumWidth(250)
-        
-        self.asmButton = QtWidgets.QPushButton("Copy and Bind")
-        self.asmButton.setObjectName("RKOptPanel")
-        self.asmButton.setMinimumHeight(30)
-        self.asmButton.setMaximumHeight(30)
-        self.asmButton.setMinimumWidth(40)
-        self.asmButton.setMinimumWidth(40)
-
-        ##############################################
-        # 
-        self.aswLabel = QLabel("     Assign SkinWeights to GameSkeleton")
-        self.aswLabel.setObjectName("RKOptPanel")
-        self.aswLabel.setMinimumHeight(30)
-        self.aswLabel.setMaximumHeight(30)
-        self.aswLabel.setMinimumWidth(250)
-        self.aswLabel.setMinimumWidth(250)
-        
-        self.aswButton = QtWidgets.QPushButton("Transfer Weights")
-        self.aswButton.setObjectName("RKOptPanel")
-        self.aswButton.setMinimumHeight(30)
-        self.aswButton.setMaximumHeight(30)
-        self.aswButton.setMinimumWidth(40)
-        self.aswButton.setMinimumWidth(40)
-
-        
-        
-        ##############################################
-        # 
-        self.humLabel = QLabel("     Humanoid Node DEF:")
-        self.humLabel.setObjectName("RKOptPanel")
-        self.humLabel.setMinimumHeight(40)
-        self.humLabel.setMaximumHeight(40)
-        self.humLabel.setMinimumWidth(250)
-        self.humLabel.setMinimumWidth(250)
-        
-        self.humLEdit = QtWidgets.QLineEdit("HAnimHumanoid_01")
-        self.humLEdit.setObjectName("RKOptPanel")
-        self.humLEdit.setMinimumHeight(40)
-        self.humLEdit.setMaximumHeight(40)
-        self.humLEdit.setMinimumWidth(100)
-        self.humLEdit.setMinimumWidth(100)
-
-        ##############################################
-        # 
-        self.x3dLabel = QLabel("     X3D/HAnim Fields:")
-        self.x3dLabel.setObjectName("RKOptPanel")
-        self.x3dLabel.setMinimumHeight(30)
-        self.x3dLabel.setMaximumHeight(30)
-        self.x3dLabel.setMinimumWidth(250)
-        self.x3dLabel.setMinimumWidth(250)
-        
-        ##############################################
-        # 
-        self.scfLabel = QLabel("          SkeletonConfiguration:")
-        self.scfLabel.setObjectName("RKOptPanel")
-        self.scfLabel.setMinimumHeight(40)
-        self.scfLabel.setMaximumHeight(40)
-        self.scfLabel.setMinimumWidth(250)
-        self.scfLabel.setMinimumWidth(250)
-        
-        self.scfLEdit = QtWidgets.QLineEdit("BASIC")
-        self.scfLEdit.setObjectName("RKOptPanel")
-        self.scfLEdit.setEnabled(False)
-        self.scfLEdit.setMinimumHeight(40)
-        self.scfLEdit.setMaximumHeight(40)
-        self.scfLEdit.setMinimumWidth(40)
-        self.scfLEdit.setMinimumWidth(40)
-
-        ##############################################
-        # 
-        self.loaLabel = QLabel("          Level of Articulation:")
-        self.loaLabel.setObjectName("RKOptPanel")
-        self.loaLabel.setMinimumHeight(30)
-        self.loaLabel.setMaximumHeight(30)
-        self.loaLabel.setMinimumWidth(250)
-        self.loaLabel.setMinimumWidth(250)
-        
-        self.loaQCBox = QtWidgets.QComboBox()
-        self.loaQCBox.setObjectName("RKOptPanel")
-        self.loaQCBox.addItems(["LOA 0", "LOA 1", "LOA 2", "LOA 3", "LOA 4"])
-        self.loaQCBox.setFixedWidth(80)
-        self.loaQCBox.setMinimumHeight(30)
-        self.loaQCBox.setMaximumHeight(30)
-        self.loaQCBox.setMinimumWidth(130)
-        self.loaQCBox.setMinimumWidth(130)
-
-        ##############################################
-        # 
-        self.cacLabel = QLabel("          ")
-        self.cacLabel.setObjectName("RKOptPanel")
-        self.cacLabel.setMinimumHeight(30)
-        self.cacLabel.setMaximumHeight(30)
-
-        self.cacButton = QtWidgets.QPushButton("Create HAnim Compliant Skeleton")
-        self.cacButton.setObjectName("RKOptPanel")
-        self.cacButton.setMinimumHeight(30)
-        self.cacButton.setMaximumHeight(30)
-        self.cacButton.setMinimumWidth(200)
-        self.cacButton.setMinimumWidth(200)
-
-        ##############################################
-        # HAnim Skeleton GUI Panel
-        self.hanimPanel = QGroupBox()
-        
-        ##############################################
-        # Advanced Skeleton GUI Panel
-        self.advPanel   = QGroupBox()
-        
-        ##############################################
-        # Advanced Skeleton GUI Panel
-        self.antPanel   = QGroupBox()
-        
-        ##############################################
-        # Skeleton Animation GUI Panel
-        self.animationPanel   = QGroupBox()
-        
-        self.splitter = QSplitter()
-        self.splitter.setOrientation(QtCore.Qt.Orientation.Horizontal)
-        self.splitter.setLineWidth(4)
-        self.splitter.addWidget(QtWidgets.QLabel("Side A"))
-        self.splitter.addWidget(QtWidgets.QLabel("Side B"))
-        
-        self.apHumLabel = QtWidgets.QLabel("Humanoid")
-        self.apHumLabel.setMinimumWidth(100)
-        self.apHumLabel.setMaximumWidth(100)
-        self.apHumName  = QtWidgets.QLineEdit()
-        self.apHumName.setMinimumWidth(250)
-        self.apHumName.setMaximumWidth(250)
-        self.apHumName.setEnabled(False)
-        self.apHumBut   = QtWidgets.QPushButton("Load Selected")
-        self.apHumBut.setMinimumWidth(100)
-        self.apHumBut.setMaximumWidth(100)
-        
-        self.apPkgSpcOne = QtWidgets.QLabel("")
-        self.apPkgSpcOne.setMinimumWidth(100)
-        self.apPkgSpcOne.setMaximumWidth(100)
-        
-        self.apPkgLabel  = QtWidgets.QLabel("Animation Packages")
-        self.apPkgLabel.setMinimumWidth(250)
-        self.apPkgLabel.setMaximumWidth(250)
-        
-        self.apGuiSpcOne = QtWidgets.QLabel("")
-        self.apGuiSpcOne.setMinimumWidth(100)
-        self.apGuiSpcOne.setMaximumWidth(100)
-        
-        self.apGuiLtOne = QtWidgets.QVBoxLayout()
-
-        self.playbackTree = QtWidgets.QTreeWidget()
-        self.playbackTree.setColumnCount(1)
-        self.playbackTree.setHeaderLabels(["Playback Node"])
-        self.playbackTree.setMinimumWidth(250)
-        self.playbackTree.setMaximumWidth(250)
-        self.playbackTree.setMinimumHeight(250)
-        self.playbackTree.setMaximumHeight(250)
-        
-        #self.scPlaybackArea.setWidget(self.playbackTree)
-        self.apGuiLtOne.addWidget(self.playbackTree)
-
-        
         ##############################################
         # Creating a Tabbed Panel Widget to hold it all
         self.tab_widget = QTabWidget()
 
 
     def create_layout(self):
-        self.advancedLayout = QtWidgets.QVBoxLayout()
-        self.createGSRow    = QtWidgets.QHBoxLayout()
-        self.setIPoseRow    = QtWidgets.QHBoxLayout()
-        self.bindMeshRow    = QtWidgets.QHBoxLayout()
-        self.tWeightsRow    = QtWidgets.QHBoxLayout()
+        loader = QtUiTools.QUiLoader()
+        #self.testfile = QtCore.QFile(testPath)
+        #self.testfile.open(QtCore.QFile.ReadOnly)
+
+
         
-        self.animPanelLt    = QtWidgets.QVBoxLayout()
-        self.animPanelLt.setContentsMargins(0,0,0,0)
-        self.animPanelLt.setSpacing(0)
+        # Character Animation Tools
+        if not self.animationPanel:
+            animGUIFile = QtCore.QFile(self.animationPath)
+            animGUIFile.open(QtCore.QFile.ReadOnly)
+            self.animationPanel = loader.load(animGUIFile)
+        self.tab_widget.addTab(self.animationPanel, "Character Animation Setup for X3D Export")
         
-        self.apRowOneLt     = QtWidgets.QHBoxLayout()
-        self.apRowTwoLt     = QtWidgets.QHBoxLayout()
-        self.apRowThrLt     = QtWidgets.QHBoxLayout()
-        self.animPanelLt.addLayout(self.apRowOneLt)
-        self.animPanelLt.addLayout(self.apRowTwoLt)
-        self.animPanelLt.addLayout(self.apRowThrLt)
-        #self.animPanelLt.addWidget(self.splitter)
-        
-        self.apRowOneLt.setSpacing(10)
-        self.apRowOneLt.addWidget(self.apHumLabel)
-        self.apRowOneLt.addWidget(self.apHumName)
-        self.apRowOneLt.addWidget(self.apHumBut)
-        self.apRowOneLt.addStretch()
-        
-        self.apRowTwoLt.setSpacing(10)
-        self.apRowTwoLt.addWidget(self.apPkgSpcOne)
-        self.apRowTwoLt.addWidget(self.apPkgLabel)
-        self.apRowTwoLt.addStretch()
-        
-        self.apRowThrLt.setSpacing(10)
-        self.apRowThrLt.addWidget(self.apGuiSpcOne)
-        self.apRowThrLt.addLayout(self.apGuiLtOne)
-        self.apRowThrLt.addStretch()
-        
-        self.animPanelLt.addStretch()
 
-        self.createGSRow.setContentsMargins(10,10,10,20)
-        self.createGSRow.setSpacing(10)
-        self.createGSRow.addWidget(self.cgsLabel)
-        self.createGSRow.addWidget(self.cgsButton)
-        self.createGSRow.addStretch()
-
-        self.setIPoseRow.setContentsMargins(10,10,10,20)
-        self.setIPoseRow.setSpacing(10)
-        self.setIPoseRow.addWidget(self.agcLabel)
-        self.setIPoseRow.addWidget(self.agcButton)
-        self.setIPoseRow.addStretch()
-
-        self.bindMeshRow.setContentsMargins(10,10,10,20)
-        self.bindMeshRow.setSpacing(10)
-        self.bindMeshRow.addWidget(self.asmLabel)
-        self.bindMeshRow.addWidget(self.asmButton)
-        self.bindMeshRow.addStretch()
-
-        self.tWeightsRow.setContentsMargins(10,10,10,20)
-        self.tWeightsRow.setSpacing(10)
-        self.tWeightsRow.addWidget(self.aswLabel)
-        self.tWeightsRow.addWidget(self.aswButton)
-        self.tWeightsRow.addStretch()
-
-        self.advancedLayout.setContentsMargins(10,10,10,10)
-        self.advancedLayout.setSpacing(0)
-        ############### self.advancedLayout.addWidget(self.gsfLabel)
-        self.advancedLayout.addLayout(self.createGSRow)
-        self.advancedLayout.addLayout(self.setIPoseRow)
-        self.advancedLayout.addLayout(self.bindMeshRow)
-        self.advancedLayout.addLayout(self.tWeightsRow)
-        self.advancedLayout.addStretch()
-        
-        self.advPanel.setLayout(self.advancedLayout)
-
-
-        self.hanimLayout    = QtWidgets.QVBoxLayout()
-        self.humanoidRow    = QtWidgets.QHBoxLayout()
-        self.x3dFieldRow    = QtWidgets.QHBoxLayout()
-        self.skelConfRow    = QtWidgets.QHBoxLayout()
-        self.levelOfARow    = QtWidgets.QHBoxLayout()
-        self.createSKRow    = QtWidgets.QHBoxLayout()
-        
-        self.humanoidRow.setContentsMargins(10,10,10,10)
-        self.humanoidRow.setSpacing(10)
-        self.humanoidRow.addWidget(self.humLabel)
-        self.humanoidRow.addWidget(self.humLEdit)
-        self.humanoidRow.addStretch()
-
-        self.x3dFieldRow.setContentsMargins(10,10,10,10)
-        self.x3dFieldRow.setSpacing(10)
-        self.x3dFieldRow.addWidget(self.x3dLabel)
-        self.x3dFieldRow.addStretch()
-
-        self.skelConfRow.setContentsMargins(10,10,10,10)
-        self.skelConfRow.setSpacing(10)
-        self.skelConfRow.addWidget(self.scfLabel)
-        self.skelConfRow.addWidget(self.scfLEdit)
-        self.skelConfRow.addStretch()
-
-        self.levelOfARow.setContentsMargins(10,10,20,20)
-        self.levelOfARow.setSpacing(10)
-        self.levelOfARow.addWidget(self.loaLabel)
-        self.levelOfARow.addWidget(self.loaQCBox)
-        self.levelOfARow.addStretch()
-
-        self.createSKRow.setContentsMargins(10,10,10,10)
-        self.createSKRow.setSpacing(10)
-        self.createSKRow.addWidget(self.cacLabel)
-        self.createSKRow.addWidget(self.cacButton)
-        self.createSKRow.addStretch()
-
-        self.hanimLayout.setContentsMargins(10,10,10,10)
-        self.hanimLayout.setSpacing(10)
-        self.hanimLayout.addLayout(self.humanoidRow)
-        self.hanimLayout.addLayout(self.x3dFieldRow)
-        self.hanimLayout.addLayout(self.skelConfRow)
-        self.hanimLayout.addLayout(self.levelOfARow)
-        self.hanimLayout.addLayout(self.createSKRow)
-        self.hanimLayout.addStretch()
-
-        self.hanimPanel.setLayout(self.hanimLayout)
-        
-        # HAnim Skeleton GUI
-        self.tab_widget.addTab(self.hanimPanel,     "X3D/HAnim Skeleton Creator")
-        
         # Advanced Skeleton Functions
         asExists = mel.eval("exists asCreateGameEngineRootMotion")
         if asExists == True:
-            self.tab_widget.addTab(self.advPanel,   "Advanced Skeleton Functions")
+            #Old
+            #self.tab_widget.addTab(self.advPanel,   "Advanced Skeleton Functions")
+            
+            #New
+            if not self.advancedSkeletonPanel:
+                advGUIFile = QtCore.QFile(self.advancedPath)
+                advGUIFile.open(QtCore.QFile.ReadOnly)
+                self.advancedSkeletonPanel = loader.load(advGUIFile)
+            self.tab_widget.addTab(self.advancedSkeletonPanel, "Advanced Skeleton Functions")
             
         # antCGI Rigging Toolkit
         try:
             from aRT import aRTUI
             print("aRT was found")
-            self.tab_widget.addTab(self.antPanel, "antCGi Rigging Toolkit")
+            #Old
+            #self.tab_widget.addTab(self.artPanel, "aRT Rigging and Animation Toolkit")
+            
+            #New
+            if not self.artPanel:
+                artGUIFile = QtCore.QFile(self.artPath)
+                #artGUIFile.open(QtCore.QFile.ReadOnly)
+                #self.artPanel = loader.load(artGUIFile)
+            #self.tab_widget.addTab(self.artPanel, "aRT Rigging and Animation Toolkit")
+            
         except:
             print("aRT not found")
         
-        self.animationPanel.setLayout(self.animPanelLt)
+        # HAnim Skeleton GUI
+        # Old
+        # self.tab_widget.addTab(self.hanimPanel,     "X3D/HAnim Skeleton Creator")
         
-        # Character Animation Tools
-        self.tab_widget.addTab(self.animationPanel, "Character Animation Setup for X3D Export")
-
+        #New
+        if not self.hanimSkeletonPanel:
+            hanimGUIFile = QtCore.QFile(self.hanimPath)
+            hanimGUIFile.open(QtCore.QFile.ReadOnly)
+            self.hanimSkeletonPanel = loader.load(hanimGUIFile)
+        self.tab_widget.addTab(self.hanimSkeletonPanel, "X3D/HAnim Skeleton Creator")
+        
         ######################################################
         # Top Level Layout                                   #
         main_layout = QtWidgets.QHBoxLayout(self)            #
@@ -491,7 +215,18 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
 
 
     def create_connections(self):
-        pass
+        genButton = self.findChild(QtWidgets.QPushButton, 'genButton')
+        genButton.clicked.connect(self.generateHAnimFromAdvanced)
+        
+        ipoButton = self.findChild(QtWidgets.QPushButton, 'iposeButton')
+        ipoButton.clicked.connect(self.setHAnimIPoseFromAdvanced)
+        
+        cpbButton = self.findChild(QtWidgets.QPushButton, "copyBindButton")
+        cpbButton.clicked.connect(self.copyBindMeshesFromAdvanced)
+        
+        trwButton = self.findChild(QtWidgets.QPushButton, "transferWeightsButton")
+        trwButton.clicked.connect(self.transferWeightsFromAdvanced)
+
         
 
     def buildHAnimAnimationTree(self):
@@ -505,3 +240,28 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
     def getAnimationOptions(self, node):
         pass
 
+    def generateHAnimFromAdvanced(self):
+        try:
+            cmds.rkAdvancedSkeleton()
+        except:
+            print("HAnim from Adv. Skeleton Failed.")
+            
+    def setHAnimIPoseFromAdvanced(self):
+        try:
+            cmds.rkSetIPoseForASGS()
+        except:
+            print("Set HAnim iPose Failed")
+            
+    def copyBindMeshesFromAdvanced(self):
+        try:
+            cmds.rkCopyBindForASGS()
+        except:
+            print("Copy and Bind Meshes Failed")
+            
+    def transferWeightsFromAdvanced(self):
+        try:
+            cmds.rkTransferWeightsASGS()
+        except:
+            print("Weights Transfer Failed")
+            
+    

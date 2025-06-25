@@ -40,6 +40,7 @@ global proc AErkAnimPackTemplate( string $nodeName )
             editorTemplate -addControl "speed";
             editorTemplate -addControl "startTime";
             editorTemplate -addControl "stopTime";
+            editorTemplate -addControl "animationConnections";
 
 		editorTemplate -endLayout;
         
