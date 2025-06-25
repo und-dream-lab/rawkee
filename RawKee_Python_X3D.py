@@ -1,7 +1,7 @@
 import sys
 import os
 from rawkee import RKWeb3D
-from rawkee.RKWeb3D import RKAddSwitch, RKAddGroup, RKAddCollision, RKSetAsBillboard, RKAddX3DSound, RKAdvancedSkeleton, RKSetAsHAnimHumanoid, RKTestIt
+from rawkee.RKWeb3D import RKAddSwitch, RKAddGroup, RKAddCollision, RKSetAsBillboard, RKAddX3DSound, RKAdvancedSkeleton, RKSetIPoseForASGS, RKCopyBindForASGS, RKTransferWeightsASGS, RKSetAsHAnimHumanoid, RKTestIt
 from rawkee.RKSceneEditor import *
 from rawkee.RKCharacterEditor import *
 
@@ -463,6 +463,7 @@ class RKShowSceneEditor(aom.MPxCommand):
             rkSEditor = RKSceneEditor()
             rkSEditor.setRKWeb3D(rkWeb3D)
             rkSEditor.show(dockable=True, uiScript=RKSceneEditor.workspace_ui_script())
+            rkSEditor.centerNodeEditor()
         else:
             print("RKWeb3D is not set!")
         
@@ -629,6 +630,10 @@ def initializePlugin(plugin):
         pluginFn.registerCommand(         RKTestIt.kPluginCmdName,          RKTestIt.cmdCreator)
         
         pluginFn.registerCommand(   RKAdvancedSkeleton.kPluginCmdName,    RKAdvancedSkeleton.cmdCreator)
+        pluginFn.registerCommand(    RKSetIPoseForASGS.kPluginCmdName,     RKSetIPoseForASGS.cmdCreator)
+        pluginFn.registerCommand(    RKCopyBindForASGS.kPluginCmdName,     RKCopyBindForASGS.cmdCreator)
+        pluginFn.registerCommand(RKTransferWeightsASGS.kPluginCmdName, RKTransferWeightsASGS.cmdCreator)
+        
         pluginFn.registerCommand(RKShowCharacterEditor.kPluginCmdName, RKShowCharacterEditor.cmdCreator)
         pluginFn.registerCommand(    RKShowSceneEditor.kPluginCmdName,     RKShowSceneEditor.cmdCreator)
         
@@ -704,6 +709,9 @@ def uninitializePlugin(plugin):
 
         pluginFn.deregisterCommand(    RKShowSceneEditor.kPluginCmdName)
         pluginFn.deregisterCommand(RKShowCharacterEditor.kPluginCmdName)
+        pluginFn.deregisterCommand(RKTransferWeightsASGS.kPluginCmdName)
+        pluginFn.deregisterCommand(    RKCopyBindForASGS.kPluginCmdName)
+        pluginFn.deregisterCommand(    RKSetIPoseForASGS.kPluginCmdName)
         pluginFn.deregisterCommand(   RKAdvancedSkeleton.kPluginCmdName)
 
         pluginFn.deregisterCommand(         RKTestIt.kPluginCmdName)

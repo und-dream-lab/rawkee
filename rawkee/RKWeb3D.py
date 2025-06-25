@@ -519,20 +519,62 @@ class RKAdvancedSkeleton(aom.MPxCommand):
         
     def doIt(self, args):
         mel.eval('AdvancedSkeleton')
-        mel.eval('asCreateGameEngineRootMotion()')
+        #mel.eval('asCreateGameEngineRootMotion()')
         mel.eval('asCustomOrientJointsCreate()')
-        haName = mel.eval('group -n HAnimHumanoid_01 GameSkeletonRoot')
-        jrList = aom.MSelectionList()
-        jrList.add("GameSkeletonRoot")
-        gsrNode = aom.MFnDagNode(jrList.getDagPath(0))
-        cNode = aom.MFnDependencyNode(gsrNode.child(0))
-        command = 'setAttr "' + cNode.name() + '.visibility" 1'
-        mel.eval(command)
+        haName = mel.eval('group -n HAnimHumanoid_01 GameSkeletonRoot_M')
+        cmds.setAttr( "GameSkeletonRoot_M.visibility", 1 )
         cmds.addAttr(haName, longName="loa", attributeType='long', defaultValue=-1, minValue=-1, maxValue=4)
         cmds.addAttr(haName, longName="skeletalConfiguration", dataType="string")
         cmds.setAttr(haName + ".skeletalConfiguration", "CUSTOM", type="string")
         mel.eval('asCustomOrientJointsConnect()')
+
+
+# Creating the MEL Command for seting the i-pose
+class RKSetIPoseForASGS(aom.MPxCommand):
+    kPluginCmdName = "rkSetIPoseForASGS"
     
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKSetIPoseForASGS()
+        
+    def doIt(self, args):
+        print("rkSetIPoseForASGS")
+        
+
+# Creating the MEL Command that copies the skin mesh data and binds
+# it to the HAnim compatible skeleton.
+class RKCopyBindForASGS(aom.MPxCommand):
+    kPluginCmdName = "rkCopyBindForASGS"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKCopyBindForASGS()
+        
+    def doIt(self, args):
+        print("rkCopyBindForASGS")
+
+
+# Creating the MEL Command to transfer weights to HAnim compliant 
+# skelton from advanced skeleton.
+class RKTransferWeightsASGS(aom.MPxCommand):
+    kPluginCmdName = "rkTransferWeightsASGS"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKTransferWeightsASGS()
+        
+    def doIt(self, args):
+        print("rkTransferWeightsASGS")
+        
 
 # Creating the MEL Command for the RawKee's Command to add a switch node
 class RKAddCollision(aom.MPxCommand):

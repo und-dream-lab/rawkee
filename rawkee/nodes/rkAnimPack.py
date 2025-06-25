@@ -120,6 +120,18 @@ class RKAnimPack(aomui.MPxLocatorNode):
     #x3d_startTime     = None #SFTime   [in,out] startTime        0     (-∞,∞)
     #x3d_stopTime      = None #SFTime   [in,out] stopTime         0     (-∞,∞)
     
+    #---------------------------------------------
+    # Dynamic Attributes added via MEL to manage animation connections
+    # select '(rkAnimPack name)';
+    # With an IF statment check to see if 'animationConnections' compound attribute exists, if it doesn't then create it.
+    #      addAttr -ln animationConnections -sn animConn -nc 1 -at compound;
+    # With an IF statement check to see if it already exists, and if not add a new connection for the animation type...
+    #      addAttr -ln (nodename)_(x3d-interpolator-type) -at message -parent animConn
+    # With an IF statement check to see if a connection exists
+    #      isConnected (nodename).message (rkAnimPack name).(nodename)_(x3d-interpolator-type)
+    # If false then make the connection
+    #      connectAttr (nodename).message (rkAnimPack name).(nodename)_(x3d-interpolator-type)
+    
 
     def __init__(self):
         super(RKAnimPack, self).__init__()
