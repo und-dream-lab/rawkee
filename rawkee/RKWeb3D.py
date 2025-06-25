@@ -529,7 +529,7 @@ class RKAdvancedSkeleton(aom.MPxCommand):
         mel.eval('asCustomOrientJointsConnect()')
 
 
-# Creating the MEL Command for seting the i-pose
+# Creating the MEL Command for setting the i-pose
 class RKSetIPoseForASGS(aom.MPxCommand):
     kPluginCmdName = "rkSetIPoseForASGS"
     
