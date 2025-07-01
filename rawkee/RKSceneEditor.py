@@ -95,9 +95,11 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         self.create_connections()
         
         self.rkWeb3D = None
-        
+
+
     def centerNodeEditor(self, qpoint=QPointF(0,0)):
         self.node_editor_widget.centerViewOn(qpoint)
+
         
     def setRKWeb3D(self, rkWeb3D):
         # Maybe this should be moved to the constructor.
@@ -337,7 +339,8 @@ class RKCustomNodeEditor(QWidget):
         node2.setPos(300,0)
         node3 = RKXNode(self.scene, "RawKeeNode 3", inputs=[1, 2, 3], outputs=[1])
         node3.setPos(600,0)
-        
+
+
     def centerViewOn(self, qpoint=QPointF(0,0)):
         self.view.centerOn(qpoint)
         
