@@ -31,8 +31,6 @@ except:
     
 import sys
 
-from screeninfo import get_monitors
-
 ########################################
 # Not sure why I imported this
 ########################################
@@ -91,7 +89,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.advancedSkeletonPanel = None
         self.artPanel = None
         self.animationPanel = None 
-        #self.testPanel = None
+        self.testPanel = None
         
         self.uiPaths = RKWeb3D.__file__.replace("\\", "/").rsplit("/", 1)[0]
         self.uiPaths += "/auxilary/"
@@ -100,6 +98,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.advancedPath  = self.uiPaths + "RKCharacterEditorAdvancedSkeletonPanel.ui"
         self.artPath       = self.uiPaths + "RKCharacterEditor_aRT_Panel.ui"
         self.animationPath = self.uiPaths + "RKCharacterEditorAnimationPanel.ui"
+        self.testPath      = self.uiPaths + "RKQSSTestPanel.ui"
         
         self.create_actions()
 
@@ -196,6 +195,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             
         except:
             print("aRT not found")
+            
         
         # HAnim Skeleton GUI
         # Old
@@ -208,6 +208,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             self.hanimSkeletonPanel = loader.load(hanimGUIFile)
         self.tab_widget.addTab(self.hanimSkeletonPanel, "X3D/HAnim Skeleton Creator")
         
+        # QSS Testing Tab
+        if not self.testPanel:
+            testFile = QtCore.QFile(self.testPath)
+            testFile.open(QtCore.QFile.ReadOnly)
+            self.testPanel = loader.load(testFile)
+        self.tab_widget.addTab(self.testPanel, "QSS Test Panel")
+        
         ######################################################
         # Top Level Layout                                   #
         main_layout = QtWidgets.QHBoxLayout(self)            #
@@ -215,18 +222,45 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
 
 
     def create_connections(self):
-        genButton = self.findChild(QtWidgets.QPushButton, 'genButton')
-        genButton.clicked.connect(self.generateHAnimFromAdvanced)
         
-        ipoButton = self.findChild(QtWidgets.QPushButton, 'iposeButton')
-        ipoButton.clicked.connect(self.setHAnimIPoseFromAdvanced)
-        
-        cpbButton = self.findChild(QtWidgets.QPushButton, "copyBindButton")
-        cpbButton.clicked.connect(self.copyBindMeshesFromAdvanced)
-        
-        trwButton = self.findChild(QtWidgets.QPushButton, "transferWeightsButton")
-        trwButton.clicked.connect(self.transferWeightsFromAdvanced)
+        estIPose  = self.findChild(QtWidgets.QPushButton, 'estIPose')
+        estAPose  = self.findChild(QtWidgets.QPushButton, 'estAPose')
+        estTPose  = self.findChild(QtWidgets.QPushButton, 'estTPose')
 
+        saveIPose  = self.findChild(QtWidgets.QPushButton, 'saveIPose')
+        saveAPose  = self.findChild(QtWidgets.QPushButton, 'saveAPose')
+        saveTPose  = self.findChild(QtWidgets.QPushButton, 'saveTPose')
+
+        gtIPose   = self.findChild(QtWidgets.QPushButton, 'gtIPose'   )
+        gtTPose   = self.findChild(QtWidgets.QPushButton, 'gtTPose'   )
+        gtAPose   = self.findChild(QtWidgets.QPushButton, 'gtAPose'   )
+        asPose    = self.findChild(QtWidgets.QPushButton, 'asPose'    )
+        haDefPose = self.findChild(QtWidgets.QPushButton, 'haDefPose' )
+
+        genButton = self.findChild(QtWidgets.QPushButton, 'genButton'         )
+        ipoButton = self.findChild(QtWidgets.QPushButton, 'iposeButton'       )
+        cpbButton = self.findChild(QtWidgets.QPushButton, 'defPoseButton'     )
+        trwButton = self.findChild(QtWidgets.QPushButton, 'transferSkinButton')
+
+        estIPose.clicked.connect(cmds.rkEstimateIPoseForASGS)
+        estAPose.clicked.connect(cmds.rkEstimateAPoseForASGS)
+        estTPose.clicked.connect(cmds.rkEstimateTPoseForASGS)
+        
+        saveIPose.clicked.connect(cmds.rkSaveIPoseForASGS)
+        saveAPose.clicked.connect(cmds.rkSaveAPoseForASGS)
+        saveTPose.clicked.connect(cmds.rkSaveTPoseForASGS)
+        
+        gtIPose.clicked.connect(cmds.rkLoadIPoseForASGS)
+        gtAPose.clicked.connect(cmds.rkLoadAPoseForASGS)
+        gtTPose.clicked.connect(cmds.rkLoadTPoseForASGS)
+        
+        asPose.clicked.connect(cmds.rkSetASPoseForASGS)
+        haDefPose.clicked.connect(cmds.rkLoadDefPoseForHAnim)
+        
+        genButton.clicked.connect(cmds.rkAdvancedSkeleton)
+        ipoButton.clicked.connect(cmds.rkLoadIPoseForASGS)
+        cpbButton.clicked.connect(cmds.rkDefPoseForASGS  )
+        trwButton.clicked.connect(cmds.rkTransferSkinASGS)
         
 
     def buildHAnimAnimationTree(self):
@@ -240,28 +274,5 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
     def getAnimationOptions(self, node):
         pass
 
-    def generateHAnimFromAdvanced(self):
-        try:
-            cmds.rkAdvancedSkeleton()
-        except:
-            print("HAnim from Adv. Skeleton Failed.")
-            
-    def setHAnimIPoseFromAdvanced(self):
-        try:
-            cmds.rkSetIPoseForASGS()
-        except:
-            print("Set HAnim iPose Failed")
-            
-    def copyBindMeshesFromAdvanced(self):
-        try:
-            cmds.rkCopyBindForASGS()
-        except:
-            print("Copy and Bind Meshes Failed")
-            
-    def transferWeightsFromAdvanced(self):
-        try:
-            cmds.rkTransferWeightsASGS()
-        except:
-            print("Weights Transfer Failed")
             
     

@@ -505,6 +505,59 @@ class RKWeb3D():
         print("Qt Style Sheet Applied", end="")
 
 
+# Backup Existing Advanced Skeleton ClipBoard0.ma file
+class RKASBackupClipBoard(aom.MPxCommand):
+    kPluginCmdName = "rkASBackupClipBoard"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKASBackupClipBoard()
+        
+    def doIt(self, args):
+        cbTempfile = mel.eval('asGetTempDirectory()')
+        cbTempfile += "AdvancedSkeleton/Selector/ClipBoard0"
+        cbFile   = cbTempfile + ".ma"
+        cbFileBk = cbTempfile + ".bk"
+        
+        fExists = mel.eval('filetest -e "' + cbFile + '"')
+        
+        if fExists == True:
+            cmds.sysFile( cbFile, copy=cbFileBk )
+        
+        self.setResult((cbFile, str(fExists)))
+        #print("fExists")
+        #print(fExists)
+        #print("cbFile")
+        #print(cbFile)
+        
+        #return cbFile, fExists
+        #return "C:/Users/aaron.bergstrom/AppData/Local/Temp/AdvancedSkeleton/Selector/ClipBoard0.ma", False
+
+
+# Restore ClipBoard0.ma from backup file
+class RKASRestoreClipBoard(aom.MPxCommand):
+    kPluginCmdName = "rkASRestoreClipBoard"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKASRestoreClipBoard()
+        
+    def doIt(self, args):
+        cbTempfile = mel.eval('asGetTempDirectory()')
+        cbTempfile += "AdvancedSkeleton/Selector/ClipBoard0"
+        cbFile   = cbTempfile + ".ma"
+        cbFileBk = cbTempfile + ".bk"
+        
+        fExists = mel.eval('filetest -e "' + cbFileBk + '"')
+        if fExists == True:
+            cmds.sysFile(cbFileBk, copy=cbFile)
+
 
 # Creating the MEL Command for Adding Advanced Skeleton compatibility to RawKee
 class RKAdvancedSkeleton(aom.MPxCommand):
@@ -516,64 +569,568 @@ class RKAdvancedSkeleton(aom.MPxCommand):
     @staticmethod
     def cmdCreator():
         return RKAdvancedSkeleton()
-        
+
+    #mel.eval('asCreateGameEngineRootMotion()')
+    #cmds.addAttr(haName, longName="loa", attributeType='long', defaultValue=-1, minValue=-1, maxValue=4)        
+    #cmds.addAttr(haName, longName="skeletalConfiguration", dataType="string")
+    #cmds.setAttr(haName + ".skeletalConfiguration", "CUSTOM", type="string")
     def doIt(self, args):
         mel.eval('AdvancedSkeleton')
-        #mel.eval('asCreateGameEngineRootMotion()')
+        mel.eval('asGoToBuildPose bodySetup')
+        mel.eval('asGoToBuildPose faceSetup')
         mel.eval('asCustomOrientJointsCreate()')
         haName = mel.eval('group -n HAnimHumanoid_01 GameSkeletonRoot_M')
         cmds.setAttr( "GameSkeletonRoot_M.visibility", 1 )
-        cmds.addAttr(haName, longName="loa", attributeType='long', defaultValue=-1, minValue=-1, maxValue=4)
-        cmds.addAttr(haName, longName="skeletalConfiguration", dataType="string")
-        cmds.setAttr(haName + ".skeletalConfiguration", "CUSTOM", type="string")
+        cmds.optionVar( iv=('rkHAnimLoa', 0))
+        cmds.optionVar( sv=('rkHAnimSkConfig', "BASIC"))
+        cmds.setAttr("GameSkeletonRoot_M.side", 3)
+        cmds.setAttr("GameSkeletonRoot_M.type", 18)
+        cmds.setAttr("GameSkeletonRoot_M.otherType", "humanoid_root", type="string")
         mel.eval('asCustomOrientJointsConnect()')
+        cmds.addAttr(longName="RKExportType", attributeType='long', defaultValue=0, minValue=0, maxValue=4)
+        cmds.rkSetAsHAnimHumanoid()
 
 
-# Creating the MEL Command for setting the i-pose
-class RKSetIPoseForASGS(aom.MPxCommand):
-    kPluginCmdName = "rkSetIPoseForASGS"
+# Ceating the MEL Command to set a transform node to HAnimHumanoid mode
+class RKSetAsHAnimHumanoid(aom.MPxCommand):
+    kPluginCmdName = "rkSetAsHAnimHumanoid"
+    
+    kTransNameFlag = "-rkTRN"
+    kTransNameLongFlag = "-rkTransformName"
+    
+    kLOAValueFlag  = '-rkLOA'
+    kLOAValueLongFlag  = "-rkLevelOfArticulation"
+    
+    def __int__(self):
+        aom.MPxCommand.__init__(self)
+        self.tName = ""
+        self.loa = -1
+        self.skConfig = "BASIC"
+        
+    @staticmethod
+    def cmdCreator():
+        return RKSetAsHAnimHumanoid()
+        
+    def doIt(self, args):
+        self.tName = cmds.optionVar(q='rkHAnimDEF')
+        
+        if self.tName == "":
+            try:
+                rkSelections = cmds.ls(selection=True)
+                self.tName = rkSelections[0]
+            except:
+                pass
+        else:
+            cmds.optionVar( sv=("rkHAnimDEF", ""))
+            
+        if self.tName != "":
+            selList = aom.MSelectionList()
+            selList.add(self.tName)
+
+            depNode = aom.MFnDependencyNode(selList.getDependNode(0))
+            if depNode.typeName == "transform":
+                newAttrs = False
+                x3dGT = ""
+                try:
+                    nameAndAttr = depNode.name() + ".x3dGroupType"
+                    x3dGT = cmds.getAttr(nameAndAttr)
+                    #if x3dGT == "x3dHAnimHumanoid":
+                    #    hasJoints = True
+                except:
+                    print("x3dGroupType not found")
+                
+                if x3dGT == "":
+                    dagNode = aom.MFnDagNode(selList.getDependNode(0))
+                    for c in range(dagNode.childCount()):
+                        cNode = aom.MFnDependencyNode(dagNode.child(c))
+                        if cNode.typeName == "joint":
+                            newAttrs = True
+
+                if newAttrs == True:
+                    cmds.addAttr(longName='x3dGroupType', dataType='string', keyable=False)
+                    cmds.setAttr(depNode.name() + '.x3dGroupType', "HAnimHumanoid", type='string', lock=True)
+                    cmds.addAttr(longName='levelOfArticulation', shortName='LOA', attributeType='long', keyable=False, defaultValue=-1, minValue=-1, maxValue=4)
+                    cmds.addAttr(longName="skeletalConfiguration", dataType="string")
+                    
+                    self.loa      = cmds.optionVar(q='rkHAnimLoa')
+                    self.skConfig = cmds.optionVar(q='rkHAnimSkConfig')
+                    
+                    if self.loa != -1:
+                        cmds.setAttr(depNode.name() + '.LOA', int(self.loa))
+                        cmds.optionVar( iv=('rkHAnimLoa', -1))
+                    
+                    cmds.setAttr(depNode.name() + ".skeletalConfiguration", self.skConfig, type="string")
+                    cmds.optionVar( sv=('rkHAnimSkConfig', 'BASIC'))
+                        
+                    try:
+                        stk.put(depNode.name(), "x3dHAnimHumanoid.png")
+                    except Exception as e:
+                        print(f"Exception Type: {type(e).__name__}")
+                        print(f"Exception Message: {e}")                            
+                        print("Oops... Node Sticker Didn't work.")
+
+
+# Creating the MEL Command for setting the a-pose
+class RKSetASPoseForASGS(aom.MPxCommand):
+    kPluginCmdName = "rkSetASPoseForASGS"
     
     def __init__(self):
         aom.MPxCommand.__init__(self)
         
     @staticmethod
     def cmdCreator():
-        return RKSetIPoseForASGS()
+        return RKSetASPoseForASGS()
         
     def doIt(self, args):
-        print("rkSetIPoseForASGS")
+        mel.eval('asGoToBuildPose bodySetup')
+        mel.eval('asGoToBuildPose faceSetup')
+        
+
+# Creating the MEL Command for setting the i-pose
+# Check for Existing IPose, if exists, load that, if not, do the following
+class RKEstimateIPoseForASGS(aom.MPxCommand):
+    kPluginCmdName = "rkEstimateIPoseForASGS"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKEstimateIPoseForASGS()
+        
+    def doIt(self, args):
+        mel.eval('source "AdvancedSkeletonFiles/Selector/biped.mel"')
+        mel.eval('asGoToTPose asSelectorbiped')
+        angleValue = 90.0
+        if cmds.currentUnit( query=True, angle=True ) == "radians":
+            angleValue = 1.5708
+        #cmds.setAttr("FKShoulder_R.rotate", 0, angleValue, 0)
+        #cmds.setAttr("FKShoulder_L.rotate", 0, angleValue, 0)
+        cmds.setAttr("FKShoulder_R.rotateY", angleValue)
+        cmds.setAttr("FKShoulder_L.rotateY", angleValue)
+        mel.eval('asGoToBuildPose faceSetup')
+        
+
+# Creating the MEL Command for setting the a-pose
+class RKEstimateAPoseForASGS(aom.MPxCommand):
+    kPluginCmdName = "rkEstimateAPoseForASGS"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKEstimateAPoseForASGS()
+        
+    def doIt(self, args):
+        mel.eval('asGoToBuildPose bodySetup')
+        mel.eval('asGoToBuildPose faceSetup')
+        angleValue = 45.0
+        if cmds.currentUnit( query=True, angle=True ) == "radians":
+            angleValue = 0.785398
+        cmds.setAttr("FKShoulder_R.rotateY", angleValue)
+        cmds.setAttr("FKShoulder_L.rotateY", angleValue)
+        
+
+# Creating the MEL Command for setting the t-pose
+class RKEstimateTPoseForASGS(aom.MPxCommand):
+    kPluginCmdName = "rkEstimateTPoseForASGS"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKEstimateTPoseForASGS()
+        
+    def doIt(self, args):
+        mel.eval('asGoToBuildPose faceSetup')
+        mel.eval('source "AdvancedSkeletonFiles/Selector/biped.mel"')
+        mel.eval('asGoToTPose asSelectorbiped')
+        #cmds.setAttr("FKShoulder_R.rotate", 0, 0, 0)
+        #cmds.setAttr("FKShoulder_L.rotate", 0, 0, 0)
+        cmds.setAttr("FKShoulder_R.rotateY", 0)
+        cmds.setAttr("FKShoulder_L.rotateY", 0)
         
 
 # Creating the MEL Command that copies the skin mesh data and binds
 # it to the HAnim compatible skeleton.
-class RKCopyBindForASGS(aom.MPxCommand):
-    kPluginCmdName = "rkCopyBindForASGS"
+#
+###########################
+# Must have biped.mel open
+######## asGetTempDirectory, asPasteFromClipBoard, asCopyToClipBoard
+# string $animationFile,$animationFilePath;
+# $animationFile="ClipBoard"+$anim;
+# $animationFilePath=`asGetTempDirectory`+"AdvancedSkeleton/Selector/";
+# asCopyToClipBoard asSelectorbiped 0;
+# asPasteFromClipBoard asSelectorbiped 0;
+
+class RKDefPoseForASGS(aom.MPxCommand):
+    kPluginCmdName = "rkDefPoseForASGS"
     
     def __init__(self):
         aom.MPxCommand.__init__(self)
         
     @staticmethod
     def cmdCreator():
-        return RKCopyBindForASGS()
+        return RKDefPoseForASGS()
         
     def doIt(self, args):
-        print("rkCopyBindForASGS")
+        # Backup current clipboard if it exists.
+        cbFile, itExists = cmds.rkASBackupClipBoard()
+
+        # Get file name without current directory.
+        cFileName = mel.eval('file -q -sn -shn')
+        
+        # Chop off file extentions
+        if len(cFileName) > 0:
+            cFileName = cFileName.split('.')[0]
+        
+        # Get Advanced Skeleton Temp Directory and create HAnim Default Post file name.
+        defPoseFile = mel.eval('asGetTempDirectory()')
+        defPoseFile += "AdvancedSkeleton/Selector/" + cFileName + "_HAnimDefaultPose.ma"
+        
+        # Save current pose to clip board
+        mel.eval('asCopyToClipBoard asSelectorbiped 0')
+        
+        # Copy the current clipboard to HAnim Default Pose file for this scene.
+        cmds.sysFile(cbFile, copy=defPoseFile)
+        
+        # This is done incase something weird happens to the values when saved to disk
+        # so that we know the same values will get 'Frozen' when the pose is 
+        # pasted from disk.
+        mel.eval('asPasteFromClipBoard asSelectorbiped 0')
+        
+        # Disconnect HAnim Skeleton from Advanced Skeleton, Freeze Transform and all it's children,
+        # then reconnect HAnim Skeleton to Advanced Skeleton
+        mel.eval('asCustomOrientJointsDisconnect()')
+        humanoid = cmds.listRelatives('GameSkeletonRoot_M', p=True)
+        cmds.select(humanoid, r=True)
+        mel.eval('makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 1 -jointOrient')
+
+        hJoints = cmds.listRelatives(humanoid, ad=True, type='joint')
+        for j in hJoints:
+            myAtt = j + ".rotateOrder"
+            cmds.setAttr(myAtt, 0)
+
+        cmds.select(humanoid, r=True)
+        mel.eval('makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 1 -jointOrient')
+        mel.eval('asCustomOrientJointsConnect()')
+
+        # Restore clipboard from backup if it exists.
+        if itExists == "True":
+            cmds.rkASRestoreClipBoard()
+        else:
+            mel.eval('sysFile -delete "' + cbFile +'"')
+
 
 
 # Creating the MEL Command to transfer weights to HAnim compliant 
 # skelton from advanced skeleton.
-class RKTransferWeightsASGS(aom.MPxCommand):
-    kPluginCmdName = "rkTransferWeightsASGS"
+class RKTransferSkinASGS(aom.MPxCommand):
+    kPluginCmdName = "rkTransferSkinASGS"
     
     def __init__(self):
         aom.MPxCommand.__init__(self)
         
     @staticmethod
     def cmdCreator():
-        return RKTransferWeightsASGS()
+        return RKTransferSkinASGS()
         
     def doIt(self, args):
-        print("rkTransferWeightsASGS")
+        mel.eval('asGoToBuildPose bodySetup')
+        mel.eval('asGoToBuildPose faceSetup')
+        mel.eval('asCustomOrientTransferSkin()')
+        
+        
+class RKLoadDefPoseForHAnim(aom.MPxCommand):
+    kPluginCmdName = "rkLoadDefPoseForHAnim"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+            
+    @staticmethod
+    def cmdCreator():
+        return RKLoadDefPoseForHAnim()
+        
+    def doIt(self, args):
+        # Backup current clipboard if it exists.
+        cbFile, itExists = cmds.rkASBackupClipBoard()
+
+        # Get file name without current directory.
+        cFileName = mel.eval('file -q -sn -shn')
+        
+        # Chop off file extentions
+        if len(cFileName) > 0:
+            cFileName = cFileName.split('.')[0]
+        
+        # Get Advanced Skeleton Temp Directory and create HAnim Default Post file name.
+        defPoseFile = mel.eval('asGetTempDirectory()')
+        defPoseFile += "AdvancedSkeleton/Selector/" + cFileName + "_HAnimDefaultPose.ma"
+        
+        # Copy the current clipboard to HAnim Default Pose file for this scene.
+        cmds.sysFile(defPoseFile, copy=cbFile)
+        
+        # This is done incase something weird happens to the values when saved to disk
+        # so that we know the same values will get 'Frozen' when the pose is 
+        # pasted from disk.
+        mel.eval('asPasteFromClipBoard asSelectorbiped 0')
+        
+        # Restore clipboard from backup if it exists.
+        if itExists == "True":
+            cmds.rkASRestoreClipBoard()
+        else:
+            mel.eval('sysFile -delete "' + cbFile +'"')
+        
+class RKLoadIPoseForASGS(aom.MPxCommand):
+    kPluginCmdName = "rkLoadIPoseForASGS"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKLoadIPoseForASGS()
+        
+    def doIt(self, args):
+        # Backup current clipboard if it exists.
+        cbFile, itExists = cmds.rkASBackupClipBoard()
+
+        # Get file name without current directory.
+        cFileName = mel.eval('file -q -sn -shn')
+        
+        # Chop off file extentions
+        if len(cFileName) > 0:
+            cFileName = cFileName.split('.')[0]
+        
+        # Get Advanced Skeleton Temp Directory and create HAnim Default Post file name.
+        iPoseFile = mel.eval('asGetTempDirectory()')
+        iPoseFile += "AdvancedSkeleton/Selector/" + cFileName + "_HAnimIPose.ma"
+        
+        # Copy the current clipboard to HAnim Default Pose file for this scene.
+        cmds.sysFile(iPoseFile, copy=cbFile)
+        
+        # This is done incase something weird happens to the values when saved to disk
+        # so that we know the same values will get 'Frozen' when the pose is 
+        # pasted from disk.
+        mel.eval('asPasteFromClipBoard asSelectorbiped 0')
+        
+        # Restore clipboard from backup if it exists.
+        if itExists == "True":
+            cmds.rkASRestoreClipBoard()
+        else:
+            mel.eval('sysFile -delete "' + cbFile +'"')
+        
+
+class RKLoadAPoseForASGS(aom.MPxCommand):
+    kPluginCmdName = "rkLoadAPoseForASGS"
+
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKLoadAPoseForASGS()
+        
+    def doIt(self, args):
+        # Backup current clipboard if it exists.
+        cbFile, itExists = cmds.rkASBackupClipBoard()
+
+        # Get file name without current directory.
+        cFileName = mel.eval('file -q -sn -shn')
+        
+        # Chop off file extentions
+        if len(cFileName) > 0:
+            cFileName = cFileName.split('.')[0]
+        
+        # Get Advanced Skeleton Temp Directory and create HAnim Default Post file name.
+        aPoseFile = mel.eval('asGetTempDirectory()')
+        aPoseFile += "AdvancedSkeleton/Selector/" + cFileName + "_HAnimAPose.ma"
+        
+        # Copy the current clipboard to HAnim Default Pose file for this scene.
+        cmds.sysFile(aPoseFile, copy=cbFile)
+        
+        # This is done incase something weird happens to the values when saved to disk
+        # so that we know the same values will get 'Frozen' when the pose is 
+        # pasted from disk.
+        mel.eval('asPasteFromClipBoard asSelectorbiped 0')
+        
+        # Restore clipboard from backup if it exists.
+        if itExists == "True":
+            cmds.rkASRestoreClipBoard()
+        else:
+            mel.eval('sysFile -delete "' + cbFile +'"')
+        
+
+class RKLoadTPoseForASGS(aom.MPxCommand):
+    kPluginCmdName = "rkLoadTPoseForASGS"
+
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKLoadTPoseForASGS()
+        
+    def doIt(self, args):
+        # Backup current clipboard if it exists.
+        cbFile, itExists = cmds.rkASBackupClipBoard()
+
+        # Get file name without current directory.
+        cFileName = mel.eval('file -q -sn -shn')
+        
+        # Chop off file extentions
+        if len(cFileName) > 0:
+            cFileName = cFileName.split('.')[0]
+        
+        # Get Advanced Skeleton Temp Directory and create HAnim Default Post file name.
+        tPoseFile = mel.eval('asGetTempDirectory()')
+        tPoseFile += "AdvancedSkeleton/Selector/" + cFileName + "_HAnimTPose.ma"
+        
+        # Copy the current clipboard to HAnim Default Pose file for this scene.
+        cmds.sysFile(tPoseFile, copy=cbFile)
+        
+        # This is done incase something weird happens to the values when saved to disk
+        # so that we know the same values will get 'Frozen' when the pose is 
+        # pasted from disk.
+        mel.eval('asPasteFromClipBoard asSelectorbiped 0')
+        
+        # Restore clipboard from backup if it exists.
+        if itExists == "True":
+            cmds.rkASRestoreClipBoard()
+        else:
+            mel.eval('sysFile -delete "' + cbFile +'"')
+        
+
+class RKSaveIPoseForASGS(aom.MPxCommand):
+    kPluginCmdName = "rkSaveIPoseForASGS"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKSaveIPoseForASGS()
+        
+    def doIt(self, args):
+        # Backup current clipboard if it exists.
+        cbFile, itExists = cmds.rkASBackupClipBoard()
+
+        # Get file name without current directory.
+        cFileName = mel.eval('file -q -sn -shn')
+        
+        # Chop off file extentions
+        if len(cFileName) > 0:
+            cFileName = cFileName.split('.')[0]
+        
+        # Get Advanced Skeleton Temp Directory and create HAnim Default Post file name.
+        iPoseFile = mel.eval('asGetTempDirectory()')
+        iPoseFile += "AdvancedSkeleton/Selector/" + cFileName + "_HAnimIPose.ma"
+        
+        # Save current pose to clip board
+        mel.eval('asCopyToClipBoard asSelectorbiped 0')
+        
+        # Copy the current clipboard to HAnim Default Pose file for this scene.
+        cmds.sysFile(cbFile, copy=iPoseFile)
+        
+        # This is done incase something weird happens to the values when saved to disk
+        # so that we know the same values will get 'Frozen' when the pose is 
+        # pasted from disk.
+        mel.eval('asPasteFromClipBoard asSelectorbiped 0')
+        
+        # Restore clipboard from backup if it exists.
+        if itExists == "True":
+            cmds.rkASRestoreClipBoard()
+        else:
+            mel.eval('sysFile -delete "' + cbFile +'"')
+
+        
+
+class RKSaveAPoseForASGS(aom.MPxCommand):
+    kPluginCmdName = "rkSaveAPoseForASGS"
+
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKSaveAPoseForASGS()
+        
+    def doIt(self, args):
+        # Backup current clipboard if it exists.
+        cbFile, itExists = cmds.rkASBackupClipBoard()
+
+        # Get file name without current directory.
+        cFileName = mel.eval('file -q -sn -shn')
+        
+        # Chop off file extentions
+        if len(cFileName) > 0:
+            cFileName = cFileName.split('.')[0]
+        
+        # Get Advanced Skeleton Temp Directory and create HAnim Default Post file name.
+        aPoseFile = mel.eval('asGetTempDirectory()')
+        aPoseFile += "AdvancedSkeleton/Selector/" + cFileName + "_HAnimAPose.ma"
+        
+        # Save current pose to clip board
+        mel.eval('asCopyToClipBoard asSelectorbiped 0')
+        
+        # Copy the current clipboard to HAnim Default Pose file for this scene.
+        cmds.sysFile(cbFile, copy=aPoseFile)
+        
+        # This is done incase something weird happens to the values when saved to disk
+        # so that we know the same values will get 'Frozen' when the pose is 
+        # pasted from disk.
+        mel.eval('asPasteFromClipBoard asSelectorbiped 0')
+        
+        # Restore clipboard from backup if it exists.
+        if itExists == "True":
+            cmds.rkASRestoreClipBoard()
+        else:
+            mel.eval('sysFile -delete "' + cbFile +'"')
+
+        
+
+class RKSaveTPoseForASGS(aom.MPxCommand):
+    kPluginCmdName = "rkSaveTPoseForASGS"
+
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKSaveTPoseForASGS()
+        
+    def doIt(self, args):
+        # Backup current clipboard if it exists.
+        cbFile, itExists = cmds.rkASBackupClipBoard()
+
+        # Get file name without current directory.
+        cFileName = mel.eval('file -q -sn -shn')
+        
+        # Chop off file extentions
+        if len(cFileName) > 0:
+            cFileName = cFileName.split('.')[0]
+        
+        # Get Advanced Skeleton Temp Directory and create HAnim Default Post file name.
+        tPoseFile = mel.eval('asGetTempDirectory()')
+        tPoseFile += "AdvancedSkeleton/Selector/" + cFileName + "_HAnimTPose.ma"
+        
+        # Save current pose to clip board
+        mel.eval('asCopyToClipBoard asSelectorbiped 0')
+        
+        # Copy the current clipboard to HAnim Default Pose file for this scene.
+        cmds.sysFile(cbFile, copy=tPoseFile)
+        
+        # This is done incase something weird happens to the values when saved to disk
+        # so that we know the same values will get 'Frozen' when the pose is 
+        # pasted from disk.
+        mel.eval('asPasteFromClipBoard asSelectorbiped 0')
+        
+        # Restore clipboard from backup if it exists.
+        if itExists == "True":
+            cmds.rkASRestoreClipBoard()
+        else:
+            mel.eval('sysFile -delete "' + cbFile +'"')
         
 
 # Creating the MEL Command for the RawKee's Command to add a switch node
@@ -593,7 +1150,7 @@ class RKAddCollision(aom.MPxCommand):
         node = cmds.createNode("transform", name='collision')
         cmds.addAttr(longName='proxy', attributeType='bool', defaultValue=False)
         cmds.addAttr(longName='x3dGroupType', dataType='string', keyable=False)
-        cmds.setAttr(node + '.x3dGroupType', "x3dCollision", type='string', lock=True)
+        cmds.setAttr(node + '.x3dGroupType', "Collision", type='string', lock=True)
         
 class RKAddX3DSound(aom.MPxCommand):
     kPluginCmdName = "rkAddX3DSound"
@@ -641,7 +1198,7 @@ class RKAddGroup(aom.MPxCommand):
         # export time.
         node = cmds.createNode("transform", name='group')
         cmds.addAttr(longName='x3dGroupType', dataType='string', keyable=False)
-        cmds.setAttr(node + '.x3dGroupType', "x3dGroup", type='string', lock=True)
+        cmds.setAttr(node + '.x3dGroupType', "Group", type='string', lock=True)
 
 
 # Creating the MEL Command for the RawKee's Command to add a switch node
@@ -661,80 +1218,7 @@ class RKAddSwitch(aom.MPxCommand):
         node = cmds.createNode("transform", name='switch')
         cmds.addAttr(longName='whichChoice', attributeType='long', defaultValue=-1, min=-1, keyable=False)
         cmds.addAttr(longName='x3dGroupType', dataType='string', keyable=False)
-        cmds.setAttr(node + '.x3dGroupType', "x3dSwitch", type='string', lock=True)
-        
-
-# Ceating the MEL Command to set a transform node to HAnimHumanoid mode
-class RKSetAsHAnimHumanoid(aom.MPxCommand):
-    kPluginCmdName = "rkSetAsHAnimHumanoid"
-    
-    kTransNameFlag = "-rkTRN"
-    kTransNameLongFlag = "-rkTransformName"
-    
-    kLOAValueFlag  = '-rkLOA'
-    kLOAValueLongFlag  = "-rkLevelOfArticulation"
-    
-    def __int__(self):
-        aom.MPxCommand.__init__(self)
-        self.tName = ""
-        self.loa = -1
-        
-    @staticmethod
-    def cmdCreator():
-        return RKSetAsHAnimHumanoid()
-        
-    def doIt(self, args):
-        self.tName = cmds.optionVar(q='rkHAnimDEF')
-        
-        if self.tName == "":
-            try:
-                rkSelections = cmds.ls(selection=True)
-                self.tName = rkSelections[0]
-            except:
-                pass
-        else:
-            cmds.optionVar( sv=("rkHAnimDEF", ""))
-            
-        if self.tName != "":
-            selList = aom.MSelectionList()
-            selList.add(self.tName)
-
-            depNode = aom.MFnDependencyNode(selList.getDependNode(0))
-            if depNode.typeName == "transform":
-                newAttrs = False
-                x3dGT = ""
-                try:
-                    nameAndAttr = depNode.name() + ".x3dGroupType"
-                    x3dGT = cmds.getAttr(nameAndAttr)
-                    #if x3dGT == "x3dHAnimHumanoid":
-                    #    hasJoints = True
-                except:
-                    print("x3dGroupType not found")
-                
-                if x3dGT == "":
-                    dagNode = aom.MFnDagNode(selList.getDependNode(0))
-                    for c in range(dagNode.childCount()):
-                        cNode = aom.MFnDependencyNode(dagNode.child(c))
-                        if cNode.typeName == "joint":
-                            newAttrs = True
-
-                if newAttrs == True:
-                    cmds.addAttr(longName='x3dGroupType', dataType='string', keyable=False)
-                    cmds.setAttr(depNode.name() + '.x3dGroupType', "x3dHAnimHumanoid", type='string', lock=True)
-                    cmds.addAttr(longName='x3dLOA', attributeType='long', keyable=False, defaultValue=-1, minValue=-1, maxValue=4)
-                    self.loa = cmds.optionVar(q='rkHAnimLoa')
-                    if self.loa != -1:
-                        cmds.setAttr(depNode.name() + '.x3dLOA', int(self.loa))
-                        cmds.optionVar( iv=('rkHAnimLoa', -1))
-                    try:
-                        stk.put(depNode.name(), "x3dHAnimHumanoid.png")
-                    except Exception as e:
-                        print(f"Exception Type: {type(e).__name__}")
-                        print(f"Exception Message: {e}")                            
-                        print("Oops... Node Sticker Didn't work.")
-
-
-        
+        cmds.setAttr(node + '.x3dGroupType', "Switch", type='string', lock=True)
 
 
 # Creating the MEL Command for the RawKee's Command to set a transform node to Billboard mode
@@ -801,7 +1285,7 @@ class RKSetAsBillboard(aom.MPxCommand):
                     conNode = cmds.aimConstraint( offset=(0.0,0.0,0.0), weight=1, aimVector=(0.0,0.0,1.0), upVector=(0.0,1.0,0.0), worldUpType='vector', worldUpVector=((0.0,1.0,0.0)))
                     cmds.reorder(conNode, front=True)
                     cmds.addAttr(longName='x3dGroupType', dataType='string', keyable=False)
-                    cmds.setAttr(node + '.x3dGroupType', "x3dBillboard", type='string', lock=True)
+                    cmds.setAttr(node + '.x3dGroupType', "Billboard", type='string', lock=True)
 
 # Creating the MEL Command for the RawKee's Command to add a group node
 class RKTestIt(aom.MPxCommand):

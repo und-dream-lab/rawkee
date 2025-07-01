@@ -1,7 +1,13 @@
 import sys
 import os
 from rawkee import RKWeb3D
-from rawkee.RKWeb3D import RKAddSwitch, RKAddGroup, RKAddCollision, RKSetAsBillboard, RKAddX3DSound, RKAdvancedSkeleton, RKSetIPoseForASGS, RKCopyBindForASGS, RKTransferWeightsASGS, RKSetAsHAnimHumanoid, RKTestIt
+from rawkee.RKWeb3D import RKAddSwitch, RKAddGroup, RKAddCollision, RKSetAsBillboard, RKAddX3DSound, RKTestIt
+from rawkee.RKWeb3D import RKASBackupClipBoard, RKASRestoreClipBoard
+from rawkee.RKWeb3D import RKSetAsHAnimHumanoid
+from rawkee.RKWeb3D import RKTransferSkinASGS,     RKLoadDefPoseForHAnim,  RKAdvancedSkeleton
+from rawkee.RKWeb3D import RKEstimateIPoseForASGS, RKEstimateAPoseForASGS, RKEstimateTPoseForASGS, RKSetASPoseForASGS, RKDefPoseForASGS
+from rawkee.RKWeb3D import RKLoadIPoseForASGS,     RKLoadAPoseForASGS,     RKLoadTPoseForASGS
+from rawkee.RKWeb3D import RKSaveIPoseForASGS,     RKSaveAPoseForASGS,     RKSaveTPoseForASGS
 from rawkee.RKSceneEditor import *
 from rawkee.RKCharacterEditor import *
 
@@ -608,6 +614,9 @@ def initializePlugin(plugin):
         
         #pluginFn.registerCommand(        RKServer.kPluginCmdName,         RKServer.cmdCreator)
         #pluginFn.registerCommand(          RKAddX3DSound.kPluginCmdName,     RKAddX3DSound.cmdCreator)
+        pluginFn.registerCommand(RKASBackupClipBoard.kPluginCmdName,   RKASBackupClipBoard.cmdCreator)
+        pluginFn.registerCommand(RKASRestoreClipBoard.kPluginCmdName, RKASRestoreClipBoard.cmdCreator)
+        
         pluginFn.registerCommand(RKShowNodeSticker.kPluginCmdName,  RKShowNodeSticker.cmdCreator)
         pluginFn.registerCommand(     RKShowRawKee.kPluginCmdName,       RKShowRawKee.cmdCreator)
         pluginFn.registerCommand(   RKShowDreamLab.kPluginCmdName,     RKShowDreamLab.cmdCreator)
@@ -629,10 +638,20 @@ def initializePlugin(plugin):
         pluginFn.registerCommand(      RKX3DImport.kPluginCmdName,       RKX3DImport.cmdCreator)
         pluginFn.registerCommand(         RKTestIt.kPluginCmdName,          RKTestIt.cmdCreator)
         
-        pluginFn.registerCommand(   RKAdvancedSkeleton.kPluginCmdName,    RKAdvancedSkeleton.cmdCreator)
-        pluginFn.registerCommand(    RKSetIPoseForASGS.kPluginCmdName,     RKSetIPoseForASGS.cmdCreator)
-        pluginFn.registerCommand(    RKCopyBindForASGS.kPluginCmdName,     RKCopyBindForASGS.cmdCreator)
-        pluginFn.registerCommand(RKTransferWeightsASGS.kPluginCmdName, RKTransferWeightsASGS.cmdCreator)
+        pluginFn.registerCommand(    RKAdvancedSkeleton.kPluginCmdName,     RKAdvancedSkeleton.cmdCreator)
+        pluginFn.registerCommand(RKEstimateIPoseForASGS.kPluginCmdName, RKEstimateIPoseForASGS.cmdCreator)
+        pluginFn.registerCommand(RKEstimateAPoseForASGS.kPluginCmdName, RKEstimateAPoseForASGS.cmdCreator)
+        pluginFn.registerCommand(RKEstimateTPoseForASGS.kPluginCmdName, RKEstimateTPoseForASGS.cmdCreator)
+        pluginFn.registerCommand(    RKSetASPoseForASGS.kPluginCmdName,     RKSetASPoseForASGS.cmdCreator)
+        pluginFn.registerCommand(      RKDefPoseForASGS.kPluginCmdName,       RKDefPoseForASGS.cmdCreator)
+        pluginFn.registerCommand(    RKTransferSkinASGS.kPluginCmdName,     RKTransferSkinASGS.cmdCreator)
+        pluginFn.registerCommand( RKLoadDefPoseForHAnim.kPluginCmdName,  RKLoadDefPoseForHAnim.cmdCreator)
+        pluginFn.registerCommand(    RKLoadIPoseForASGS.kPluginCmdName,     RKLoadIPoseForASGS.cmdCreator)
+        pluginFn.registerCommand(    RKLoadAPoseForASGS.kPluginCmdName,     RKLoadAPoseForASGS.cmdCreator)
+        pluginFn.registerCommand(    RKLoadTPoseForASGS.kPluginCmdName,     RKLoadTPoseForASGS.cmdCreator)
+        pluginFn.registerCommand(    RKSaveIPoseForASGS.kPluginCmdName,     RKSaveIPoseForASGS.cmdCreator)
+        pluginFn.registerCommand(    RKSaveAPoseForASGS.kPluginCmdName,     RKSaveAPoseForASGS.cmdCreator)
+        pluginFn.registerCommand(    RKSaveTPoseForASGS.kPluginCmdName,     RKSaveTPoseForASGS.cmdCreator)
         
         pluginFn.registerCommand(RKShowCharacterEditor.kPluginCmdName, RKShowCharacterEditor.cmdCreator)
         pluginFn.registerCommand(    RKShowSceneEditor.kPluginCmdName,     RKShowSceneEditor.cmdCreator)
@@ -709,10 +728,21 @@ def uninitializePlugin(plugin):
 
         pluginFn.deregisterCommand(    RKShowSceneEditor.kPluginCmdName)
         pluginFn.deregisterCommand(RKShowCharacterEditor.kPluginCmdName)
-        pluginFn.deregisterCommand(RKTransferWeightsASGS.kPluginCmdName)
-        pluginFn.deregisterCommand(    RKCopyBindForASGS.kPluginCmdName)
-        pluginFn.deregisterCommand(    RKSetIPoseForASGS.kPluginCmdName)
-        pluginFn.deregisterCommand(   RKAdvancedSkeleton.kPluginCmdName)
+        
+        pluginFn.deregisterCommand(    RKSaveTPoseForASGS.kPluginCmdName)
+        pluginFn.deregisterCommand(    RKSaveAPoseForASGS.kPluginCmdName)
+        pluginFn.deregisterCommand(    RKSaveIPoseForASGS.kPluginCmdName)
+        pluginFn.deregisterCommand(    RKLoadTPoseForASGS.kPluginCmdName)
+        pluginFn.deregisterCommand(    RKLoadAPoseForASGS.kPluginCmdName)
+        pluginFn.deregisterCommand(    RKLoadIPoseForASGS.kPluginCmdName)
+        pluginFn.deregisterCommand( RKLoadDefPoseForHAnim.kPluginCmdName)
+        pluginFn.deregisterCommand(    RKTransferSkinASGS.kPluginCmdName)
+        pluginFn.deregisterCommand(      RKDefPoseForASGS.kPluginCmdName)
+        pluginFn.deregisterCommand(    RKSetASPoseForASGS.kPluginCmdName)
+        pluginFn.deregisterCommand(RKEstimateTPoseForASGS.kPluginCmdName)
+        pluginFn.deregisterCommand(RKEstimateAPoseForASGS.kPluginCmdName)
+        pluginFn.deregisterCommand(RKEstimateIPoseForASGS.kPluginCmdName)
+        pluginFn.deregisterCommand(    RKAdvancedSkeleton.kPluginCmdName)
 
         pluginFn.deregisterCommand(         RKTestIt.kPluginCmdName)
         pluginFn.deregisterCommand(      RKX3DImport.kPluginCmdName)
@@ -734,6 +764,9 @@ def uninitializePlugin(plugin):
         pluginFn.deregisterCommand(   RKShowDreamLab.kPluginCmdName)
         pluginFn.deregisterCommand(     RKShowRawKee.kPluginCmdName)
         pluginFn.deregisterCommand(RKShowNodeSticker.kPluginCmdName)
+
+        pluginFn.registerCommand(RKASRestoreClipBoard.kPluginCmdName)
+        pluginFn.registerCommand( RKASBackupClipBoard.kPluginCmdName)
 
         #pluginFn.deregisterCommand(    RKAddX3DSound.kPluginCmdName)
         #pluginFn.deregisterCommand(         RKServer.kPluginCmdName)
