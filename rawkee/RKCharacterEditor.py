@@ -165,20 +165,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             self.animationPanel = loader.load(animGUIFile)
         self.tab_widget.addTab(self.animationPanel, "Character Animation Setup for X3D Export")
         
+        # Create Standard HAnim Skeleton
+        if not self.hanimSkeletonPanel:
+            hanimGUIFile = QtCore.QFile(self.hanimPath)
+            hanimGUIFile.open(QtCore.QFile.ReadOnly)
+            self.hanimSkeletonPanel = loader.load(hanimGUIFile)
+        self.tab_widget.addTab(self.hanimSkeletonPanel, "X3D/HAnim Skeleton Creator")
 
-        # Advanced Skeleton Functions
-        asExists = mel.eval("exists asCreateGameEngineRootMotion")
-        if asExists == True:
-            #Old
-            #self.tab_widget.addTab(self.advPanel,   "Advanced Skeleton Functions")
-            
-            #New
-            if not self.advancedSkeletonPanel:
-                advGUIFile = QtCore.QFile(self.advancedPath)
-                advGUIFile.open(QtCore.QFile.ReadOnly)
-                self.advancedSkeletonPanel = loader.load(advGUIFile)
-            self.tab_widget.addTab(self.advancedSkeletonPanel, "Advanced Skeleton Functions")
-            
         # antCGI Rigging Toolkit
         try:
             from aRT import aRTUI
@@ -196,24 +189,21 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         except:
             print("aRT not found")
             
-        
-        # HAnim Skeleton GUI
-        # Old
-        # self.tab_widget.addTab(self.hanimPanel,     "X3D/HAnim Skeleton Creator")
-        
-        #New
-        if not self.hanimSkeletonPanel:
-            hanimGUIFile = QtCore.QFile(self.hanimPath)
-            hanimGUIFile.open(QtCore.QFile.ReadOnly)
-            self.hanimSkeletonPanel = loader.load(hanimGUIFile)
-        self.tab_widget.addTab(self.hanimSkeletonPanel, "X3D/HAnim Skeleton Creator")
+        # Advanced Skeleton Functions
+        asExists = mel.eval("exists asCreateGameEngineRootMotion")
+        if asExists == True:
+            if not self.advancedSkeletonPanel:
+                advGUIFile = QtCore.QFile(self.advancedPath)
+                advGUIFile.open(QtCore.QFile.ReadOnly)
+                self.advancedSkeletonPanel = loader.load(advGUIFile)
+            self.tab_widget.addTab(self.advancedSkeletonPanel, "Advanced Skeleton Functions")
         
         # QSS Testing Tab
-        if not self.testPanel:
-            testFile = QtCore.QFile(self.testPath)
-            testFile.open(QtCore.QFile.ReadOnly)
-            self.testPanel = loader.load(testFile)
-        self.tab_widget.addTab(self.testPanel, "QSS Test Panel")
+        #if not self.testPanel:
+        #    testFile = QtCore.QFile(self.testPath)
+        #    testFile.open(QtCore.QFile.ReadOnly)
+        #    self.testPanel = loader.load(testFile)
+        #self.tab_widget.addTab(self.testPanel, "QSS Test Panel")
         
         ######################################################
         # Top Level Layout                                   #

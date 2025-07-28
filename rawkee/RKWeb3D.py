@@ -4,6 +4,7 @@ import maya.OpenMayaUI   as omui
 import maya.cmds         as cmds
 import maya.mel          as mel
 import os
+import copy
 
 ###########################################################
 # Used for killing external applications started by RawKee,
@@ -587,7 +588,7 @@ class RKAdvancedSkeleton(aom.MPxCommand):
         cmds.setAttr("GameSkeletonRoot_M.type", 18)
         cmds.setAttr("GameSkeletonRoot_M.otherType", "humanoid_root", type="string")
         mel.eval('asCustomOrientJointsConnect()')
-        cmds.addAttr(longName="RKExportType", attributeType='long', defaultValue=0, minValue=0, maxValue=4)
+        cmds.addAttr(longName="RKExportType", attributeType='long', defaultValue=1, minValue=0, maxValue=4)
         cmds.rkSetAsHAnimHumanoid()
 
 
@@ -805,16 +806,34 @@ class RKDefPoseForASGS(aom.MPxCommand):
         # then reconnect HAnim Skeleton to Advanced Skeleton
         mel.eval('asCustomOrientJointsDisconnect()')
         humanoid = cmds.listRelatives('GameSkeletonRoot_M', p=True)
+
+        self.swapGameSkeletonForHAnim(humanoid[0])
+        
         cmds.select(humanoid, r=True)
         mel.eval('makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 1 -jointOrient')
-
+        
+        ##########################################################
+        # Insert More Here
+        
         hJoints = cmds.listRelatives(humanoid, ad=True, type='joint')
         for j in hJoints:
-            myAtt = j + ".rotateOrder"
-            cmds.setAttr(myAtt, 0)
+            jx = cmds.getAttr(j+".translateX")
+            jy = cmds.getAttr(j+".translateY")
+            jz = cmds.getAttr(j+".translateZ")
+            
+            cmds.setAttr(j+".translateX", 0.0)
+            cmds.setAttr(j+".translateY", 0.0)
+            cmds.setAttr(j+".translateZ", 0.0)
 
-        cmds.select(humanoid, r=True)
-        mel.eval('makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 1 -jointOrient')
+            # Assuming $node is the name of your object and $matrix is your 4x4 matrix
+            cmds.setAttr(j+'.offsetParentMatrix', 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, jx, jy, jz, 1.0, type='matrix')
+            
+            # Change the name to the expected Advanced Skeleton GameSkeleton naming convention.
+            cmds.rename(j, j.removesuffix("HAnim"))
+        
+        #
+        ##########################################################
+        
         mel.eval('asCustomOrientJointsConnect()')
 
         # Restore clipboard from backup if it exists.
@@ -822,7 +841,72 @@ class RKDefPoseForASGS(aom.MPxCommand):
             cmds.rkASRestoreClipBoard()
         else:
             mel.eval('sysFile -delete "' + cbFile +'"')
+            
+    def swapGameSkeletonForHAnim(self, humanoidName):
+        slist = aom.MSelectionList()
+        slist.add(humanoidName)
+        hDag = aom.MFnDagNode(slist.getDependNode(0))
+        
+        ########################################################
+        # Not needed
+        ########################################################
+        # getAttr ancestorName.worldMatrix[0]
+        # cmdtext = "getAttr " + hDag.name() + ".worldMatrix[0]"
+        # hwMatrix = mel.eval(cmdtext)
 
+        #Get Child Numbers
+        cNum = hDag.childCount()
+            
+        # Traverse the Skeleton
+        for i in range(cNum):
+            dagChild = aom.MFnDagNode(hDag.child(i))
+            if   dagChild.typeName == "joint":
+                self.copyJointAndParent(hDag, dagChild)
+                
+        cmds.delete('GameSkeletonRoot_M')
+
+                
+                
+    def copyJointAndParent(self, skParent, origJoint):
+        newJName = origJoint.name() + "HAnim"
+
+        # xform -q -ws -rp myObject;
+        cmdtext = 'xform -q -ws -rp ' + origJoint.name()
+        rotLoc = mel.eval(cmdtext)
+        
+        # Assuming $objectWorldMatrix contains the world matrix of the object itself
+        # float $objectWorldMatrix[] = `getAttr objectName.worldMatrix[0]`;
+        # float $pivotWorldSpace[] = `pointMatrixMult -point $pivot[0] $pivot[1] $pivot[2] -matrix $objectWorldMatrix`;
+
+        
+        #createNode "transform" -name "myNewNode" -parent "existingParentNode"
+        cmds.createNode("joint", name=newJName)
+        jSide  = cmds.getAttr(origJoint.name()+".side")
+        jType  = cmds.getAttr(origJoint.name()+".type")
+        jOType = cmds.getAttr(origJoint.name()+".otherType")
+        cmds.setAttr(newJName+".side", jSide)
+        cmds.setAttr(newJName+".type", jType)
+        cmds.setAttr(newJName+".otherType", jOType, type="string")
+        
+        cmds.setAttr(newJName+".translateX", rotLoc[0])
+        cmds.setAttr(newJName+".translateY", rotLoc[1])
+        cmds.setAttr(newJName+".translateZ", rotLoc[2])
+        
+        cmds.parent(newJName, skParent.name())
+        
+        slist = aom.MSelectionList()
+        slist.add(newJName)
+        jDag = aom.MFnDagNode(slist.getDependNode(0))
+        
+
+        #Get Child Numbers
+        cNum = origJoint.childCount()
+            
+        # Traverse the Skeleton
+        for i in range(cNum):
+            dagChild = aom.MFnDagNode(origJoint.child(i))
+            if   dagChild.typeName == "joint":
+                self.copyJointAndParent(jDag, dagChild)
 
 
 # Creating the MEL Command to transfer weights to HAnim compliant 

@@ -408,7 +408,10 @@ class RKIO():
         while not layIter.isDone():
             mObject = layIter.currentNode()
             layNode = aom.MFnDependencyNode(mObject)
-            if layNode.name() == "RawKeeNoExport":
+            
+            dtValue = cmds.getAttr(layNode.name() + ".displayType")
+            #if layNode.name() == "RawKeeNoExport":
+            if dtValue > 0:
                 return True
             layIter.next()
             
