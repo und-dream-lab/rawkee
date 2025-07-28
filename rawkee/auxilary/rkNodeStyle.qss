@@ -36,9 +36,15 @@ QPushButton#RKOptPanel  {
     font-size: 11px;
 }
 
-QLabel#stepExp, QLabel#stepExp_1, QLabel#stepExp_2, QLabel#stepExp_3{
+QLabel#stepExp, QLabel#stepExp_1, QLabel#stepExp_2, QLabel#stepExp_3 {
     font-weight: bold;
     font-size: 14px;
+    color: white;
+}
+
+QLabel#loaLabel, QLabel#skConfigLabel, QLabel#animPackLabel, QLabel#charGraphLabel {
+    font-weight: bold;
+    font-size: 11px;
     color: white;
 }
 
@@ -48,7 +54,7 @@ QLabel#optLabel{
     color: #f3a103;
 }
 
-QLabel#advStepLabel{
+QLabel#advStepLabel, QLabel#haCompTitle, QLabel#ditLabel {
     font-weight: bold;
     font-size: 16px;
     color: #f3a103;/* #c0c000; */
@@ -60,6 +66,22 @@ QLabel#advStepLabel_1, QLabel#advStepLabel_2, QLabel#advStepLabel_3, QLabel#advS
     color: #03cf20;
     min-width: 50;
     max-width: 50;
+    min-height: 24;
+    max-height: 24;
+}
+
+QLabel#hnDEFLabel, QLabel#haFieldsLabel {
+    font-weight: bold;
+    font-size: 14px;
+    color: #03cf20;
+    min-height: 24;
+    max-height: 24;
+}
+
+QLabel#humanoidLabel {
+    font-weight: bold;
+    font-size: 14px;
+    color: #03cf20;
     min-height: 24;
     max-height: 24;
 }
@@ -91,6 +113,39 @@ QPushButton#genButton, QPushButton#iposeButton, QPushButton#defPoseButton, QPush
     font-size: 11px;
     min-width: 75;
     max-width: 75;
+    min-height: 24;
+    max-height: 24;
+}
+
+QPushButton#createHAnimSkeleton {
+    border: 2px solid grey;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 11px;
+    min-width: 200;
+    max-width: 200;
+    min-height: 24;
+    max-height: 24;
+}
+
+QPushButton#loadHumanoidButton {
+    border: 2px solid grey;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 11px;
+    min-width: 81;
+    max-width: 81;
+    min-height: 24;
+    max-height: 24;
+}
+
+QPushButton#addRKAnimPack, QPushButton#delRKAnimPack {
+    border: 2px solid grey;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 11px;
+    min-width: 50;
+    max-width: 50;
     min-height: 24;
     max-height: 24;
 }
@@ -129,6 +184,68 @@ QPushButton#genButton:hover:!pressed, QPushButton#iposeButton:hover:!pressed, QP
     max-height: 24;
 }
 
+QPushButton#createHAnimSkeleton:hover:!pressed {
+    border: 2px solid lightblue;
+    background-color: grey;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 11px;
+    min-width: 200;
+    max-width: 200;
+    min-height: 24;
+    max-height: 24;
+}
+
+QPushButton#loadHumanoidButton:hover:!pressed {
+    border: 2px solid lightblue;
+    background-color: grey;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 11px;
+    min-width: 81;
+    max-width: 81;
+    min-height: 24;
+    max-height: 24;
+}
+
+QPushButton#addRKAnimPack:hover:!pressed, QPushButton#delRKAnimPack:hover:!pressed {
+    border: 2px solid lightblue;
+    background-color: grey;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 11px;
+    min-width: 50;
+    max-width: 50;
+    min-height: 24;
+    max-height: 24;
+}
+
+QLineEdit#skConfigType {
+    border: 2px solid lightblue;
+    border-radius: 4px;
+    font-weight: bold;
+    min-height: 24;
+    max-height: 24;
+}
+
+QComboBox#loaComboBox {
+    border: 2px solid lightblue;
+    border-radius: 4px;
+    font-weight: bold;
+    min-height: 24;
+    max-height: 24;
+}
+
+QComboBox#newNodeType {
+    border: 2px solid lightblue;
+    border-radius: 4px;
+    font-weight: bold;
+    min-height: 24;
+    max-height: 24;
+    min-width: 124;
+    max-width: 124;
+}
+
 QPushButton#estIPose:hover:!pressed, QPushButton#saveIPose:hover:!pressed, QPushButton#estAPose:hover:!pressed, QPushButton#saveAPose:hover:!pressed, QPushButton#estTPose:hover:!pressed, QPushButton#saveTPose:hover:!pressed, QPushButton#gtIPose:hover:!pressed, QPushButton#gtTPose:hover:!pressed, QPushButton#gtAPose:hover:!pressed, QPushButton#asPose:hover:!pressed, QPushButton#haDefPose:hover:!pressed {
     border: 2px solid lightblue;
     background-color: grey;
@@ -164,7 +281,58 @@ QPushButton#genButton:hover:pressed, QPushButton#iposeButton:hover:pressed, QPus
     max-height: 24;
 }
 
-QPushButton#estIPose:hover:pressed, QPushButton#saveIPose:hover:pressed, QPushButton#estAPose:hover:pressed, QPushButton#saveAPose:hover:pressed, QPushButton#estTPose:hover:pressed, QPushButton#saveTPose:hover:pressed, QPushButton#gtIPose:hover:pressed, QPushButton#gtTPose:hover:pressed, QPushButton#gtAPose:hover:pressed, QPushButton#asPose:hover:pressed, QPushButton@haDefPose:hover:pressed {
+QPushButton#createHAnimSkeleton:hover:pressed {
+    border: 4px solid #04ff00;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 11px;
+    min-width: 200;
+    max-width: 200;
+    min-height: 24;
+    max-height: 24;
+}
+
+QPushButton#loadHumanoidButton:hover:pressed {
+    border: 4px solid #04ff00;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 11px;
+    min-width: 81;
+    max-width: 81;
+    min-height: 24;
+    max-height: 24;
+}
+
+QPushButton#addRKAnimPack:hover:pressed, QPushButton#delRKAnimPack:hover:pressed {
+    border: 4px solid #04ff00;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 11px;
+    min-width: 50;
+    max-width: 50;
+    min-height: 24;
+    max-height: 24;
+}
+
+QLineEdit#haNameEdit {
+    border: 2px solid lightblue;
+    border-radius: 10px;
+    min-width: 200;
+    max-width: 200;
+    min-height: 24;
+    max-height: 24;
+}
+
+QLineEdit#humanoidSelected {
+    border: 2px solid lightblue;
+    border-radius: 10px;
+    min-width: 256;
+    max-width: 256;
+    min-height: 24;
+    max-height: 24;
+}
+
+QPushButton#estIPose:hover:pressed, QPushButton#saveIPose:hover:pressed, QPushButton#estAPose:hover:pressed, QPushButton#saveAPose:hover:pressed, QPushButton#estTPose:hover:pressed, QPushButton#saveTPose:hover:pressed, QPushButton#gtIPose:hover:pressed, QPushButton#gtTPose:hover:pressed, QPushButton#gtAPose:hover:pressed, QPushButton#asPose:hover:pressed, QPushButton#haDefPose:hover:pressed {
     border: 4px solid #04ff00;
     border-radius: 10px;
     font-weight: bold;
