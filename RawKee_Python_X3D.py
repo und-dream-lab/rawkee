@@ -8,6 +8,7 @@ from rawkee.RKWeb3D import RKTransferSkinASGS,     RKLoadDefPoseForHAnim,  RKAdv
 from rawkee.RKWeb3D import RKEstimateIPoseForASGS, RKEstimateAPoseForASGS, RKEstimateTPoseForASGS, RKSetASPoseForASGS, RKDefPoseForASGS
 from rawkee.RKWeb3D import RKLoadIPoseForASGS,     RKLoadAPoseForASGS,     RKLoadTPoseForASGS
 from rawkee.RKWeb3D import RKSaveIPoseForASGS,     RKSaveAPoseForASGS,     RKSaveTPoseForASGS
+from rawkee.RKWeb3D import RKX3DAuxLoader
 from rawkee.RKSceneEditor import *
 from rawkee.RKCharacterEditor import *
 
@@ -662,8 +663,8 @@ def initializePlugin(plugin):
         pluginFn.registerCommand( RKCASSelExportOp.kPluginCmdName,  RKCASSelExportOp.cmdCreator)
         pluginFn.registerCommand(      RKCASExport.kPluginCmdName,       RKCASExport.cmdCreator)
         pluginFn.registerCommand(   RKCASSelExport.kPluginCmdName,    RKCASSelExport.cmdCreator)
-
         
+        pluginFn.registerCommand(   RKX3DAuxLoader.kPluginCmdName,    RKX3DAuxLoader.cmdCreator)
     except:
         sys.stderr.write("Failed to register a plugin command.\n")
 
@@ -719,61 +720,310 @@ def uninitializePlugin(plugin):
     '''
     ##################################
     try:
+        pluginFn.deregisterCommand(   RKX3DAuxLoader.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKX3DAuxLoader failed to deregister")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(   RKCASSelExport.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKCASSelExport - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(      RKCASExport.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKCASExport - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand( RKCASSelExportOp.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKCASSelExportOpt - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(    RKCASExportOp.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKCASExportOp - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(  RKCASSetProject.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKCASSetProject - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(  RKX3DSetProject.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKX3DSetProject - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
 
+    try:
         pluginFn.deregisterCommand(    RKShowSceneEditor.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowSceneEditor - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(RKShowCharacterEditor.kPluginCmdName)
-        
+    except Exception as e:
+        sys.stderr.write("RKShowCharacterEditor - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+       
+    try:
         pluginFn.deregisterCommand(    RKSaveTPoseForASGS.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKSaveTPoseForASGS - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(    RKSaveAPoseForASGS.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKSaveAPoseForASGS - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(    RKSaveIPoseForASGS.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKSaveIPoseForASGS - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(    RKLoadTPoseForASGS.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKLoadTPoseForASGS - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(    RKLoadAPoseForASGS.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKLoadAPoseForASGS - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(    RKLoadIPoseForASGS.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKLoadIPoseForASGS - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand( RKLoadDefPoseForHAnim.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKLoadDefPoseForHAnim - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(    RKTransferSkinASGS.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKTransferSkinASGS - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(      RKDefPoseForASGS.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKDefPoseForaSGS - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(    RKSetASPoseForASGS.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKSetASPoseForaSGS - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(RKEstimateTPoseForASGS.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKEstimatetPoseForaSGS - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(RKEstimateAPoseForASGS.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKEstimateaPoseForaSGS - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(RKEstimateIPoseForASGS.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKEstimateIPoseForaSGS - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(    RKAdvancedSkeleton.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKAdvancedSkeleton - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
 
+    try:
         pluginFn.deregisterCommand(         RKTestIt.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKTestIt - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(      RKX3DImport.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKX3DImport - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(    RKX3DImportOp.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKX3DImportOp - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(   RKX3DSelExport.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKX3DSelExport - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand( RKX3DSelExportOp.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKX3DSelExportOp - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(      RKX3DExport.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKX3DExport - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(    RKX3DExportOp.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKX3DExportOp - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(           RKInfo.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKInfo - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(      RKAddSwitch.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKAddSwitch - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(       RKAddGroup.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKAddGroup - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand(   RKAddCollision.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKAddCollision - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
         pluginFn.deregisterCommand( RKSetAsBillboard.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKSetAsBillboard - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
 
+    try:
         pluginFn.deregisterCommand( RKSetAsHAnimHumanoid.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKSetAsHAnimHumanoid - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
 
+    try:
         pluginFn.deregisterCommand(        RKShowMSF.kPluginCmdName)
-        pluginFn.deregisterCommand(      RKShowWeb3D.kPluginCmdName)
-        pluginFn.deregisterCommand(   RKShowDreamLab.kPluginCmdName)
-        pluginFn.deregisterCommand(     RKShowRawKee.kPluginCmdName)
-        pluginFn.deregisterCommand(RKShowNodeSticker.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowMSF - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
 
-        pluginFn.registerCommand(RKASRestoreClipBoard.kPluginCmdName)
-        pluginFn.registerCommand( RKASBackupClipBoard.kPluginCmdName)
+    try:
+        pluginFn.deregisterCommand(      RKShowWeb3D.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowWeb3D - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
+        pluginFn.deregisterCommand(   RKShowDreamLab.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowDreamLab - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
+        pluginFn.deregisterCommand(     RKShowRawKee.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowRawKee - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
+        pluginFn.deregisterCommand(RKShowNodeSticker.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowNodeSticker - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
+        pluginFn.deregisterCommand(RKASRestoreClipBoard.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKASRestoreClipBoard - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
+        pluginFn.deregisterCommand( RKASBackupClipBoard.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKASBackupClipBoard - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
 
         #pluginFn.deregisterCommand(    RKAddX3DSound.kPluginCmdName)
         #pluginFn.deregisterCommand(         RKServer.kPluginCmdName)
         
-    except:
-        sys.stderr.write("Failed to unregister a plugin command.\n")
-
 
     ##################################
     '''

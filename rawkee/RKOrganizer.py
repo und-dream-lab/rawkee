@@ -879,6 +879,11 @@ class RKOrganizer():
                 bna[1].skeletalConfiguration = cmds.getAttr(bna[1].DEF + ".skeletalConfiguration")
             except:
                 bna[1].skeletalConfiguration = "CUSTOM"
+                
+            try:
+                bna[1].loa = cmds.getAttr(bna[1].DEF + ".LOA")
+            except:
+                bna[1].loa = -1
 
             
             # MFnDagNode version of Humanoid Node
