@@ -1371,6 +1371,68 @@ class RKSetAsBillboard(aom.MPxCommand):
                     cmds.addAttr(longName='x3dGroupType', dataType='string', keyable=False)
                     cmds.setAttr(node + '.x3dGroupType', "Billboard", type='string', lock=True)
 
+
+####################################################################
+# X3D JSON Loader MPxCommand, indented to for used by RawKee 
+# developers to test importing of X3D nodes. Can only be run from
+# the MEL/Python command line.
+####################################################################
+class RKX3DAuxLoader(aom.MPxCommand):
+    kPluginCmdName = "rkX3DAuxLoader"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKX3DAuxLoader()
+        
+    def doIt(self, args):
+        # Grab Main Window
+        mayaWin = self.mayaMainWindow()
+
+        auxFilePath = RKOrganizer.__file__.replace("\\", "/").rsplit("/", 1)[0]
+        auxFilePath += "/auxilary"
+
+        x3dfilters = "X3D JSON (*.x3dj);;X3D JSON (*.json)"
+        
+        fullPath = auxFilePath
+        fullPath, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(mayaWin, QtCore.QObject.tr("RawKee - Import X3D JSON File"), auxFilePath, QtCore.QObject.tr(x3dfilters))
+        
+        rko = RKOrganizer.RKOrganizer()
+        loadedFile = None
+        
+        try:
+            loadedFile = rko.rkio.jsonLoader.loadX3DJSON(fullPath)
+        except:
+            print("JSON Load Failed... " + fullPath)
+        
+        sceneLoaded = True
+        try:
+            scene = loadedFile["X3D"]["Scene"]
+        except:
+            sceneLoaded = False
+            
+        if sceneLoaded == True:
+            rko.rkio.jsonLoader.processBranchForMaya(scene)
+        else:
+            print("X3D Scene not found in file")
+        
+        del rko
+
+
+    # Function to get Maya Main Window Widget
+    def mayaMainWindow(self):
+        '''
+        Using Qt and Shiboken to grab a pointer to the main Maya window and 
+        return it as a QWidget
+        '''
+        mainWindowPtr = omui.MQtUtil.mainWindow()
+        return wrapInstance(int(mainWindowPtr), QtWidgets.QMainWindow)
+        
+
+
+
 # Creating the MEL Command for the RawKee's Command to add a group node
 class RKTestIt(aom.MPxCommand):
     kPluginCmdName = "rkTestIt"

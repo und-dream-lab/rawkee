@@ -15,6 +15,7 @@ from   maya.api.OpenMaya import MFn as rkfn
 # This module installed in mayapy using pip.         ### 
 ########################################################
 from rawkee import RKSceneTraversal
+from rawkee import RKSceneLoaderJSON
 
 import xmltodict
 import json
@@ -73,6 +74,8 @@ class RKIO():
         self.x3d_scene = None
         
         self.trv = RKSceneTraversal.RKSceneTraversal()
+        
+        self.jsonLoader = RKSceneLoaderJSON.RKSceneLoaderJSON()
 
 
     # Function that writes to disk. TODO
