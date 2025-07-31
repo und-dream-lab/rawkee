@@ -45,6 +45,9 @@ import maya.mel  as mel
 import maya.api.OpenMaya as om
 import maya.api.OpenMayaAnim as omAnim
 
+#Sticker App for applying Outliner icons
+import rawkee.nodes.sticker    as stk
+
 #To get local file path for html file
 from rawkee import RKWeb3D
 
@@ -100,7 +103,34 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.animationPath = self.uiPaths + "RKCharacterEditorAnimationPanel.ui"
         self.testPath      = self.uiPaths + "RKQSSTestPanel.ui"
         
-        self.create_actions()
+        self.haNameText = "Eric"
+        self.haLOAValue = 0
+        
+        self.hanimCS  = None
+        self.haNameEd = None
+        self.haLOA    = None
+        
+        self.estIPose  = None
+        self.estAPose  = None
+        self.estTPose  = None
+
+        self.saveIPose = None
+        self.saveAPose = None
+        self.saveTPose = None
+
+        self.gtIPose   = None
+        self.gtTPose   = None
+        self.gtAPose   = None
+        self.asPose    = None
+        self.haDefPose = None
+
+        self.genButton = None
+        self.ipoButton = None
+        self.cpbButton = None
+        self.trwButton = None
+
+        
+        #self.create_actions()
 
         self.create_widgets()
         
@@ -142,8 +172,8 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             omui.MQtUtil.addWidgetToMayaLayout(character_editor_widget_ptr, character_editor_workspace_control_ptr)
 
 
-    def create_actions(self):
-        pass
+    #def create_actions(self):
+    #    pass
 
     def create_widgets(self):
         ##############################################
@@ -210,47 +240,128 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         main_layout = QtWidgets.QHBoxLayout(self)            #
         main_layout.addWidget(self.tab_widget)
 
+        # HAnim Compliant Skeleton - Tab
+        self.hanimCS  = self.findChild(QtWidgets.QPushButton, 'createHAnimSkeleton')
+        self.haNameEd = self.findChild(QtWidgets.QLineEdit,   'haNameEdit'         )
+        self.haLOA    = self.findChild(QtWidgets.QComboBox,   'loaComboBox'        )
+        
+        # Advanced Skeleton - Tab
+        self.estIPose  = self.findChild(QtWidgets.QPushButton, 'estIPose')
+        self.estAPose  = self.findChild(QtWidgets.QPushButton, 'estAPose')
+        self.estTPose  = self.findChild(QtWidgets.QPushButton, 'estTPose')
+
+        self.saveIPose  = self.findChild(QtWidgets.QPushButton, 'saveIPose')
+        self.saveAPose  = self.findChild(QtWidgets.QPushButton, 'saveAPose')
+        self.saveTPose  = self.findChild(QtWidgets.QPushButton, 'saveTPose')
+
+        self.gtIPose   = self.findChild(QtWidgets.QPushButton, 'gtIPose'   )
+        self.gtTPose   = self.findChild(QtWidgets.QPushButton, 'gtTPose'   )
+        self.gtAPose   = self.findChild(QtWidgets.QPushButton, 'gtAPose'   )
+        self.asPose    = self.findChild(QtWidgets.QPushButton, 'asPose'    )
+        self.haDefPose = self.findChild(QtWidgets.QPushButton, 'haDefPose' )
+
+        self.genButton = self.findChild(QtWidgets.QPushButton, 'genButton'         )
+        self.ipoButton = self.findChild(QtWidgets.QPushButton, 'iposeButton'       )
+        self.cpbButton = self.findChild(QtWidgets.QPushButton, 'defPoseButton'     )
+        self.trwButton = self.findChild(QtWidgets.QPushButton, 'transferSkinButton')
+
 
     def create_connections(self):
+        # HAnim Compliant Skeleton - Tab
+        self.hanimCS.clicked.connect(self.createHAnimCompliantSkeleton)
+        self.haLOA.currentIndexChanged.connect(self.setHaLOAValue)
+        self.haNameEd.textEdited.connect(self.setHaNameText)
         
-        estIPose  = self.findChild(QtWidgets.QPushButton, 'estIPose')
-        estAPose  = self.findChild(QtWidgets.QPushButton, 'estAPose')
-        estTPose  = self.findChild(QtWidgets.QPushButton, 'estTPose')
+        # Advanced Skeleton - Tab
+        self.estIPose.clicked.connect(cmds.rkEstimateIPoseForASGS)
+        self.estAPose.clicked.connect(cmds.rkEstimateAPoseForASGS)
+        self.estTPose.clicked.connect(cmds.rkEstimateTPoseForASGS)
+        
+        self.saveIPose.clicked.connect(cmds.rkSaveIPoseForASGS)
+        self.saveAPose.clicked.connect(cmds.rkSaveAPoseForASGS)
+        self.saveTPose.clicked.connect(cmds.rkSaveTPoseForASGS)
+        
+        self.gtIPose.clicked.connect(cmds.rkLoadIPoseForASGS)
+        self.gtAPose.clicked.connect(cmds.rkLoadAPoseForASGS)
+        self.gtTPose.clicked.connect(cmds.rkLoadTPoseForASGS)
+        
+        self.asPose.clicked.connect(cmds.rkSetASPoseForASGS)
+        self.haDefPose.clicked.connect(cmds.rkLoadDefPoseForHAnim)
+        
+        self.genButton.clicked.connect(cmds.rkAdvancedSkeleton)
+        self.ipoButton.clicked.connect(cmds.rkLoadIPoseForASGS)
+        self.cpbButton.clicked.connect(cmds.rkDefPoseForASGS  )
+        self.trwButton.clicked.connect(cmds.rkTransferSkinASGS)
+        
 
-        saveIPose  = self.findChild(QtWidgets.QPushButton, 'saveIPose')
-        saveAPose  = self.findChild(QtWidgets.QPushButton, 'saveAPose')
-        saveTPose  = self.findChild(QtWidgets.QPushButton, 'saveTPose')
+    def setHaNameText(self, text):
+        if text == "":
+            self.haNameEd.setText(self.haNameText)
+        else:
+            self.haNameText = text
+        
+    def setHaLOAValue(self, index):
+        self.haLOAValue = index
 
-        gtIPose   = self.findChild(QtWidgets.QPushButton, 'gtIPose'   )
-        gtTPose   = self.findChild(QtWidgets.QPushButton, 'gtTPose'   )
-        gtAPose   = self.findChild(QtWidgets.QPushButton, 'gtAPose'   )
-        asPose    = self.findChild(QtWidgets.QPushButton, 'asPose'    )
-        haDefPose = self.findChild(QtWidgets.QPushButton, 'haDefPose' )
+    def createHAnimCompliantSkeleton(self):
+        isMore = False
+        
+        haNodeName = self.haNameText
+        loaValue   = self.haLOAValue
+        
+        if loaValue == 0:
+            mayaNodeName = cmds.createNode('transform', n=haNodeName)
+        
+            cmds.select(mayaNodeName)
+            cmds.addAttr(longName='x3dGroupType', dataType='string', keyable=False)
+            cmds.setAttr(mayaNodeName + '.x3dGroupType', "HAnimHumanoid", type='string', lock=True)
 
-        genButton = self.findChild(QtWidgets.QPushButton, 'genButton'         )
-        ipoButton = self.findChild(QtWidgets.QPushButton, 'iposeButton'       )
-        cpbButton = self.findChild(QtWidgets.QPushButton, 'defPoseButton'     )
-        trwButton = self.findChild(QtWidgets.QPushButton, 'transferSkinButton')
+            cmds.addAttr(longName='levelOfArticulation', shortName='LOA', attributeType='long', keyable=False, defaultValue=-1, minValue=-1, maxValue=4)
+            cmds.setAttr(mayaNodeName + '.LOA', 0)
+            
+            cmds.addAttr(longName="skeletalConfiguration", dataType="string")
+            cmds.setAttr(mayaNodeName + ".skeletalConfiguration", "BASIC", type="string")
 
-        estIPose.clicked.connect(cmds.rkEstimateIPoseForASGS)
-        estAPose.clicked.connect(cmds.rkEstimateAPoseForASGS)
-        estTPose.clicked.connect(cmds.rkEstimateTPoseForASGS)
-        
-        saveIPose.clicked.connect(cmds.rkSaveIPoseForASGS)
-        saveAPose.clicked.connect(cmds.rkSaveAPoseForASGS)
-        saveTPose.clicked.connect(cmds.rkSaveTPoseForASGS)
-        
-        gtIPose.clicked.connect(cmds.rkLoadIPoseForASGS)
-        gtAPose.clicked.connect(cmds.rkLoadAPoseForASGS)
-        gtTPose.clicked.connect(cmds.rkLoadTPoseForASGS)
-        
-        asPose.clicked.connect(cmds.rkSetASPoseForASGS)
-        haDefPose.clicked.connect(cmds.rkLoadDefPoseForHAnim)
-        
-        genButton.clicked.connect(cmds.rkAdvancedSkeleton)
-        ipoButton.clicked.connect(cmds.rkLoadIPoseForASGS)
-        cpbButton.clicked.connect(cmds.rkDefPoseForASGS  )
-        trwButton.clicked.connect(cmds.rkTransferSkinASGS)
+            # This uses the 'sticker' script to update the Maya node's image in the Outliner. 
+            # This just gives it a visual queue to the content author that this Maya 'transform'
+            # node is not a typical transform node and will be exported as an HAnimNode.
+            try:
+                stk.put(mayaNodeName, "x3dHAnimHumanoid.png")
+            except Exception as e:
+                print(f"Exception Type: {type(e).__name__}")
+                print(f"Exception Message: {e}")                            
+                print("Oops... Node Sticker Didn't work.")
+            
+            nodeExists = True
+            mainName = "hanim_humanoid_root"
+            suffix   = 0
+            compName = mainName
+            while nodeExists == True:
+                nodeExists = cmds.objExists(compName)
+                if nodeExists == True:
+                    compName = mainName + "_" + str(suffix)
+                    suffix += 1
+                    
+            mayaJointName = cmds.createNode('joint', n=compName, p=mayaNodeName)
+            
+            #centerValue = [0, 30.530001,-0.707600] * 0.0254
+            pivot = [0.0, 0.902462, -0.01797304]
+
+            cmds.setAttr(mayaJointName + '.offsetParentMatrix', 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, pivot[0], pivot[1], pivot[2], 1.0, type='matrix')
+            
+        elif loaValue == 1 or loaValue == 2 or loaValue == 3 or loaValue == 4:
+            isMore = True
+
+        if isMore == True:
+            #self.uiPaths
+            melCmd  = 'file -import -type "mayaBinary" -ignoreVersion -ra true '
+            melCmd += '-mergeNamespacesOnClash false -namespace ' + haNodeName + ' '#"rawkeeImport" '
+            melCmd += '-options "v=0;" -pr -importFrameRate false -importTimeRange "keep" '
+            melCmd += '"' + self.uiPaths + 'hanimLOA' + str(loaValue) + '_HumanoidFullSkeleton.mb";'
+            
+            mel.eval(melCmd)
+            
+            stk.reveal()
         
 
     def buildHAnimAnimationTree(self):

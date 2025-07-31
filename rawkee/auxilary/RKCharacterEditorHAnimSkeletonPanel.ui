@@ -84,18 +84,18 @@
        <widget class="QLabel" name="hnDEFLabel">
         <property name="minimumSize">
          <size>
-          <width>150</width>
+          <width>160</width>
           <height>24</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
-          <width>150</width>
+          <width>160</width>
           <height>24</height>
          </size>
         </property>
         <property name="text">
-         <string>Humanoid Node DEF:</string>
+         <string>Humanoid Node Name:</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -117,7 +117,7 @@
          </size>
         </property>
         <property name="text">
-         <string>HAnimHumanoid_01</string>
+         <string>Eric</string>
         </property>
        </widget>
       </item>
@@ -196,13 +196,13 @@
        <widget class="QLabel" name="skConfigLabel">
         <property name="minimumSize">
          <size>
-          <width>130</width>
+          <width>140</width>
           <height>24</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
-          <width>130</width>
+          <width>140</width>
           <height>24</height>
          </size>
         </property>
@@ -263,13 +263,13 @@
        <widget class="QLabel" name="loaLabel">
         <property name="minimumSize">
          <size>
-          <width>130</width>
+          <width>140</width>
           <height>24</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
-          <width>130</width>
+          <width>140</width>
           <height>24</height>
          </size>
         </property>
