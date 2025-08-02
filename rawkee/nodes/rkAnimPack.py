@@ -18,6 +18,7 @@ class RKAnimPack(aomui.MPxLocatorNode):
     #---------------------------------------------
     # Maya Node and Maya timeline attributes
     x3d_mimickedNode     = None
+    x3d_autoUpdate       = None
     #x3d_oldMimickedValue = None
     
     rk_keyFrameStep = None
@@ -151,6 +152,11 @@ class RKAnimPack(aomui.MPxLocatorNode):
         numFn.setMin(0)
         numFn.setMax(4)
 
+        cls.x3d_autoUpdate  = numFn.create("autoUpdate", "aupdate", aom.MFnNumericData.kInt, 0)
+        numFn.setObject(cls.x3d_autoUpdate)
+        numFn.setMin(0)
+        numFn.setMax(4)
+        numFn.hidden = True
         #cls.x3d_oldMimickedValue  = numFn.create("oldMimickedValue", "oldMimType", aom.MFnNumericData.kInt, 0)
         #numFn.setObject(cls.x3d_oldMimickedValue)
         #numFn.setMin(0)
@@ -240,6 +246,7 @@ class RKAnimPack(aomui.MPxLocatorNode):
         #cls.x3d_stopTime = numFn.create("stopTime", "stoTime", aom.MFnNumericData.kFloat, 0.0)
 
         cls.addAttribute(cls.x3d_mimickedNode)
+        cls.addAttribute(cls.x3d_autoUpdate)
         #cls.addAttribute(cls.x3d_oldMimickedValue)
         cls.addAttribute(cls.x3d_connectedFile)
         cls.addAttribute(cls.rk_keyFrameStep)
