@@ -294,8 +294,11 @@
                  <height>226</height>
                 </size>
                </property>
+               <property name="indentation">
+                <number>0</number>
+               </property>
                <property name="columnCount">
-                <number>3</number>
+                <number>2</number>
                </property>
                <attribute name="headerVisible">
                 <bool>true</bool>
@@ -304,19 +307,14 @@
                 <bool>false</bool>
                </attribute>
                <attribute name="headerMinimumSectionSize">
-                <number>20</number>
+                <number>80</number>
                </attribute>
                <attribute name="headerDefaultSectionSize">
-                <number>60</number>
+                <number>80</number>
                </attribute>
                <attribute name="headerStretchLastSection">
                 <bool>true</bool>
                </attribute>
-               <column>
-                <property name="text">
-                 <string>Use</string>
-                </property>
-               </column>
                <column>
                 <property name="text">
                  <string>X3D Type</string>
@@ -438,20 +436,54 @@
                  <height>260</height>
                 </size>
                </property>
+               <property name="verticalScrollBarPolicy">
+                <enum>Qt::ScrollBarAlwaysOn</enum>
+               </property>
+               <property name="horizontalScrollBarPolicy">
+                <enum>Qt::ScrollBarAlwaysOn</enum>
+               </property>
+               <property name="sizeAdjustPolicy">
+                <enum>QAbstractScrollArea::AdjustIgnored</enum>
+               </property>
+               <property name="autoScrollMargin">
+                <number>8</number>
+               </property>
+               <property name="selectionMode">
+                <enum>QAbstractItemView::MultiSelection</enum>
+               </property>
+               <property name="selectionBehavior">
+                <enum>QAbstractItemView::SelectItems</enum>
+               </property>
+               <property name="indentation">
+                <number>10</number>
+               </property>
+               <property name="uniformRowHeights">
+                <bool>true</bool>
+               </property>
+               <property name="itemsExpandable">
+                <bool>true</bool>
+               </property>
+               <property name="expandsOnDoubleClick">
+                <bool>true</bool>
+               </property>
+               <property name="columnCount">
+                <number>1</number>
+               </property>
+               <attribute name="headerCascadingSectionResizes">
+                <bool>true</bool>
+               </attribute>
                <attribute name="headerMinimumSectionSize">
-                <number>30</number>
+                <number>80</number>
                </attribute>
                <attribute name="headerDefaultSectionSize">
-                <number>70</number>
+                <number>80</number>
+               </attribute>
+               <attribute name="headerStretchLastSection">
+                <bool>true</bool>
                </attribute>
                <column>
                 <property name="text">
-                 <string>Anim Types</string>
-                </property>
-               </column>
-               <column>
-                <property name="text">
-                 <string>Node Name</string>
+                 <string>[AnimType] Node Name</string>
                 </property>
                </column>
               </widget>

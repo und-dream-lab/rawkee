@@ -580,3 +580,48 @@ global proc rkAnimPack_UpdateAssignedMimicType(string $nodeAndAttribute)
     forceAERefresh($parts[0]);
     
 }
+
+global proc rkAnimPack_ProgUpdateAssignedMimicType(string $nodeAndAttribute, int $newIdx)
+{
+    global string $optMenu;
+
+    int $oldValue = `getAttr $nodeAndAttribute`;
+    //print "Old Value:";
+    //print $oldValue;
+    
+    //string $newValue = `optionMenu -q -value $optMenu`;
+    
+    int $mtu = $newIdx;
+    //if ($newValue == "AudioClip"){
+    //    $mtu = 1;
+    //}
+    //if ($newValue == "HAnimMotion"){
+    //    $mtu = 2;
+    //}
+    //if ($newValue == "MovieTexture"){
+    //    $mtu = 3;
+    //}
+    //if ($newValue == "TimeSensor"){
+    //    $mtu = 4;
+    //}
+    
+    setAttr $nodeAndAttribute $mtu;
+    
+ 	string $parts[];
+	tokenize($nodeAndAttribute, ".", $parts);
+    
+    if     ($oldValue == 0)
+    {
+        if      ($mtu == 1) rkAnimPack_AddAudioClipAttrs   ($parts[0]);
+        else if ($mtu == 2) rkAnimPack_AddHAnimMotionAttrs ($parts[0]);
+        else if ($mtu == 3) rkAnimPack_AddMovieTextureAttrs($parts[0]);
+        else if ($mtu == 4) rkAnimPack_AddTimeSensorAttrs  ($parts[0]);
+    }
+    else if($oldValue == 1) rkAnimPack_SubAudioClipAttrs   ($parts[0], $mtu);
+    else if($oldValue == 2) rkAnimPack_SubHAnimMotionAttrs ($parts[0], $mtu);
+    else if($oldValue == 3) rkAnimPack_SubMovieTextureAttrs($parts[0], $mtu);
+    else if($oldValue == 4) rkAnimPack_SubTimeSensorAttrs  ($parts[0], $mtu);
+
+    forceAERefresh($parts[0]);
+    
+}

@@ -105,7 +105,9 @@ class RKSceneLoaderJSON():
         # Creates node and return's the node's name
         
         addJoint = False
-        full   = True
+        full   = False
+        left   = True
+        right  = False
         jSide  = 0
         jType  = 0
         jOType = ""
@@ -122,12 +124,12 @@ class RKSceneLoaderJSON():
             addJoint = True
             jType    = 18
             jOType   = jointLabel
-        elif jlParts[0] == 'l' and full == True:
+        elif jlParts[0] == 'l' and (full == True or left == True):
             addJoint = True
             jSide    = 1
             jType    = 18
             jOType   = jointLabel.removeprefix("l_")
-        elif jlParts[0] == 'r':
+        elif jlParts[0] == 'r' and (full == True or right == True):
             addJoint = True
             jSide    = 2
             jType    = 18
