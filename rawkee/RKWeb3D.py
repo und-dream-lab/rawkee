@@ -81,6 +81,8 @@ class RKWeb3D():
         
         self.x3dDocs = []
         
+        self.RKCallBackIDs = []
+        
         
     def __del__(self):
         self.removeRawKeeMenu()

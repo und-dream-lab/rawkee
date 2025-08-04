@@ -62,7 +62,7 @@ RAWKEE_TITLE   = "RawKee X3D Exporter for Maya - Python Version: " + RAWKEE_VERS
 RAWKEE_BASE    = ""
 RAWKEE_ICONS   = ""
 
-RKCallBackIDs    = []
+RKCallBackIDs  = []
 
 # Maya API 2.0 function required for Plugins
 def maya_useNewAPI():
@@ -500,6 +500,7 @@ class RKShowCharacterEditor(aom.MPxCommand):
                 cmds.deleteUI(characterEditorControlName)
             
             rkCEditor = RKCharacterEditor()
+            rkCEditor.CBIDs = RKCallBackIDs
             #rkCEditor.setRKWeb3D(rkWeb3D)
             rkCEditor.show(dockable=True, uiScript=RKCharacterEditor.workspace_ui_script())
         else:
@@ -706,7 +707,7 @@ def initializePlugin(plugin):
     # Node Stickers to be updated in the outliner.
     RKCallBackIDs.append(aom.MSceneMessage.addCallback(aom.MSceneMessage.kSceneUpdate, rkUpdateStickers))
 
-
+    #addRKAnimPackNodeDeleteCallback()
     
 
 # Uninitialize the plug-in
@@ -1099,6 +1100,7 @@ def uninitializePlugin(plugin):
     ################################################################################
     for cbID in RKCallBackIDs:
         aom.MSceneMessage.removeCallback(cbID)
+
 
 
 #Only for code development

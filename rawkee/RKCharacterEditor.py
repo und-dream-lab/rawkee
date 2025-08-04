@@ -134,6 +134,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.hmnSelect = None
         self.apTree    = None
         self.cgTree    = None
+        self.newTName  = None
         self.addRKAP   = None
         self.delRKAP   = None
         self.newNType  = None
@@ -159,7 +160,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         
         self.sAnimPack   = None
         
-
+        self.CBIDs       = None
         
         self.create_actions()
 
@@ -295,6 +296,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         # Character Animation Setup Panel - Tab
         self.loadHuman = self.findChild(QtWidgets.QPushButton, 'loadHumanoidButton')
         self.hmnSelect = self.findChild(QtWidgets.QLineEdit,   'humanoidSelected'  )
+        self.newTName  = self.findChild(QtWidgets.QLineEdit,   'newTimerName'      )
         self.apTree    = self.findChild(QtWidgets.QTreeWidget, 'x3dNodes')
         self.apTree.setSelectionMode(QAbstractItemView.SingleSelection)
         self.cgTree  = self.findChild(QtWidgets.QTreeWidget, 'characterTree')
@@ -342,6 +344,18 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         cgTree.customContextMenuRequested.connect(self.showContextMenu)
         self.allRotsAct.triggered.connect(self.captureRotateForHAnimMotion)
         self.rmAllRotsAct.triggered.connect(self.releaseRotateForHAnimMotion)
+        
+        self.trAction.triggered.connect(lambda: self.captureTranslateGeneral(True))
+        self.roAction.triggered.connect(lambda: self.captureRotateGeneral(True))
+        self.scAction.triggered.connect(lambda: self.captureScaleGeneral(True))
+        self.troAction.triggered.connect(lambda: self.captureTRGeneral(True))
+        self.allAction.triggered.connect(lambda: self.captureAllGeneral(True))
+        
+        self.rmtrAction.triggered.connect(lambda: self.releaseTranslateGeneral(True))
+        self.rmroAction.triggered.connect(lambda: self.releaseRotateGeneral(True))
+        self.rmscAction.triggered.connect(lambda: self.releaseScaleGeneral(True))
+        self.rmrtoAction.triggered.connect(lambda: self.releaseTRGeneral(True))
+        self.rmAllAction.triggered.connect(lambda: self.releaseAllGeneral(True))
         
         aPackTree = self.findChild(QtWidgets.QTreeWidget, 'x3dNodes')
         aPackTree.itemSelectionChanged.connect(self.populateCharacterGraph)
@@ -453,7 +467,8 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
                     mIter.next()
                     
                 for eName in eNames:
-                    cmds.delete(eName)
+                    if cmds.objExists(eName):
+                        cmds.delete(eName)
                 
                 cmds.delete(tNode)
                 
@@ -464,25 +479,19 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
     # Add a new timing node - aka rkAnimPack (TimeSensor, HAnimMotion, AudioClip, or MovieTexture)
     ##############################################################################################
     def addAnimationTimingPackage(self):
-        human     = self.findChild(QtWidgets.QLineEdit,   'humanoidSelected')
-        newNType  = self.findChild(QtWidgets.QComboBox,   'newNodeType'     )
+        human     = self.findChild(QtWidgets.QLineEdit, 'humanoidSelected')
+        newNType  = self.findChild(QtWidgets.QComboBox, 'newNodeType'     )
+        newTName  = self.findChild(QtWidgets.QLineEdit, 'newTimerName'    )
         
         hName = human.text()
+        tName = newTName.text()
         hBool = cmds.objExists(hName)
-        tName = "AudioClip"
-        if hBool == True:
+        if hBool == True and tName != "":
             atSet = newNType.currentIndex() + 1
-            if  atSet == 2:
-                tName = "HAnimMotion"
-            elif atSet == 3:
-                tName = "MovieTexture"
-            elif atSet == 4:
-                tName = "TimeSensor"
-
             aName = cmds.createNode("rkAnimPack", n=tName, p=hName)
             
             self.updateAnimPackAttributes( aName, "mimickedType", atSet)
-
+            
             self.populateAnimationPackages()
             
     ##########################################################################
@@ -807,9 +816,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
 
         humName = ldhLine.text()
         interps = self.listAnimationType(humName)
-        #TODO call/write the function that gets the right interps
         hItem = QtWidgets.QTreeWidgetItem(["[" + interps + "] " + humName])
-        #hItem.setIcon(0,QtGui.QIcon('x3dHAnimHumanoid.png'))
         cgTree.addTopLevelItem(hItem)
         hItem.setExpanded(True)
         
@@ -824,9 +831,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
                 nodeType = cmds.nodeType(jChild)
                 if nodeType == "joint":
                     interps = self.listAnimationType(jChild)
-                    #TODO call/write the function that gets the right interps
                     jItem = QtWidgets.QTreeWidgetItem(["[" + interps + "] " + jChild])
-#                    jItem = QtWidgets.QTreeWidgetItem([jChild,interps])
                     pItem.addChild(jItem)
                     jItem.setExpanded(True)
             
@@ -973,6 +978,359 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             
             stk.reveal()
 
+
+    def captureTranslateGeneral(self, updateQTree=True):
+        print("capTraGen: " + str(updateQTree))
+        # The 'fromNode' is the RawKee 'rkAnimPack' node
+        # The 'toNode' is the Maya 'joint' node
+        aPackTree = self.findChild(QtWidgets.QTreeWidget, 'x3dNodes'      )
+        cgTree    = self.findChild(QtWidgets.QTreeWidget, 'characterTree')
+        humanoid  = self.findChild(QtWidgets.QLineEdit, 'humanoidSelected')
+        humanBool = cmds.objExists(humanoid.text())
+        
+        if humanBool == True:
+            x3dType = ""
+            try:
+                x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
+            except:
+                pass
+                
+            if x3dType == "HAnimHumanoid":
+                selPacks = aPackTree.selectedItems()
+                
+                if len(selPacks) > 0:
+                    if selPacks[0].text(0) == "AudioClip" or selPacks[0].text(0) == "MovieTexture" or selPacks[0].text(0) == "TimeSensor":
+                        fromNode = selPacks[0].text(1)
+                        
+                        if cmds.objExists(fromNode):
+                            selSGNodes = cgTree.selectedItems()
+                            
+                            for sgNode in selSGNodes:
+                                conFound = False
+                                
+                                nodes = cmds.listConnections(sgNode.text(0).split("] ")[1] + ".translate", d=True, et=True, type="expression")
+                                if nodes != None:
+                                    for node in nodes:
+
+                                        rkAnPks = cmds.listConnections(node, s=True, et=True, sh=True, type="rkAnimPack")
+                                        if rkAnPks != None:
+                                            for pack in rkAnPks:
+                                                if pack == fromNode:
+                                                    conFound = True
+                                    
+                                if conFound == False:
+                                    toNode = sgNode.text(0).split("] ")[1]
+                                    melCmd  = "string $msg;"
+                                    melCmd += "$msg=" + fromNode + ".message;"
+
+                                    interpolator = "PositionInterpolator"
+                                    attribute    = "translate"
+
+                                    expName = cmds.createNode('expression')
+                                    cmds.addAttr(expName, longName='receivedData', at='double3')
+                                    cmds.addAttr(expName, longName='receivedDataX', shortName='rdx',  at='double', k=True, p='receivedData')
+                                    cmds.addAttr(expName, longName='receivedDataY', shortName='rdy',  at='double', k=True, p='receivedData')
+                                    cmds.addAttr(expName, longName='receivedDataZ', shortName='rdz',  at='double', k=True, p='receivedData')
+                                    cmds.addAttr(expName, longName='x3dInterpolatorType', shortName='x3dIT', dataType='string')
+                                    cmds.setAttr(expName + '.x3dInterpolatorType', interpolator, type='string', lock=True)
+                                    cmds.connectAttr(toNode + '.translate', expName + '.receivedData')
+
+                                    cmds.setAttr( expName + '.expression', melCmd, type='string')
+                                    
+                                    self.addWatcher(fromNode, toNode)
+        if updateQTree == True:
+            self.populateCharacterGraph()
+        else:
+            print("Translate: Didn't run populateCharacterGraph()")
+
+
+    def captureRotateGeneral(self, updateQTree=True):
+        print("capRotGen: " + str(updateQTree))
+        # The 'fromNode' is the RawKee 'rkAnimPack' node
+        # The 'toNode' is the Maya 'joint' node
+        aPackTree = self.findChild(QtWidgets.QTreeWidget, 'x3dNodes'      )
+        cgTree    = self.findChild(QtWidgets.QTreeWidget, 'characterTree')
+        humanoid  = self.findChild(QtWidgets.QLineEdit, 'humanoidSelected')
+        humanBool = cmds.objExists(humanoid.text())
+        
+        if humanBool == True:
+            x3dType = ""
+            try:
+                x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
+            except:
+                pass
+                
+            if x3dType == "HAnimHumanoid":
+                selPacks = aPackTree.selectedItems()
+                
+                if len(selPacks) > 0:
+                    if selPacks[0].text(0) == "AudioClip" or selPacks[0].text(0) == "MovieTexture" or selPacks[0].text(0) == "TimeSensor":
+                        fromNode = selPacks[0].text(1)
+                        
+                        if cmds.objExists(fromNode):
+                            selSGNodes = cgTree.selectedItems()
+                            
+                            for sgNode in selSGNodes:
+                                conFound = False
+                                
+                                nodes = cmds.listConnections(sgNode.text(0).split("] ")[1] + ".rotate", d=True, et=True, type="expression")
+                                if nodes != None:
+                                    for node in nodes:
+
+                                        rkAnPks = cmds.listConnections(node, s=True, et=True, sh=True, type="rkAnimPack")
+                                        if rkAnPks != None:
+                                            for pack in rkAnPks:
+                                                if pack == fromNode:
+                                                    conFound = True
+                                    
+                                if conFound == False:
+                                    toNode = sgNode.text(0).split("] ")[1]
+                                    melCmd  = "string $msg;"
+                                    melCmd += "$msg=" + fromNode + ".message;"
+
+                                    interpolator = "OrientationInterpolator"
+                                    attribute    = "rotate"
+
+                                    expName = cmds.createNode('expression')
+                                    cmds.addAttr(expName, longName='receivedData', at='double3')
+                                    cmds.addAttr(expName, longName='receivedDataX', shortName='rdx',  at='doubleAngle', k=True, p='receivedData')
+                                    cmds.addAttr(expName, longName='receivedDataY', shortName='rdy',  at='doubleAngle', k=True, p='receivedData')
+                                    cmds.addAttr(expName, longName='receivedDataZ', shortName='rdz',  at='doubleAngle', k=True, p='receivedData')
+                                    cmds.addAttr(expName, longName='x3dInterpolatorType', shortName='x3dIT', dataType='string')
+                                    cmds.setAttr(expName + '.x3dInterpolatorType', interpolator, type='string', lock=True)
+                                    cmds.connectAttr(toNode + '.rotate', expName + '.receivedData')
+
+                                    cmds.setAttr( expName + '.expression', melCmd, type='string')
+
+                                    self.addWatcher(fromNode, toNode)
+
+        if updateQTree == True:
+            self.populateCharacterGraph()
+        else:
+            print("Rotate: Didn't run populateCharacterGraph()")
+
+
+    def captureScaleGeneral(self, updateQTree=True):
+        print("capScaGen: " + str(updateQTree))
+        # The 'fromNode' is the RawKee 'rkAnimPack' node
+        # The 'toNode' is the Maya 'joint' node
+        aPackTree = self.findChild(QtWidgets.QTreeWidget, 'x3dNodes'      )
+        cgTree    = self.findChild(QtWidgets.QTreeWidget, 'characterTree')
+        humanoid  = self.findChild(QtWidgets.QLineEdit, 'humanoidSelected')
+        humanBool = cmds.objExists(humanoid.text())
+        
+        if humanBool == True:
+            x3dType = ""
+            try:
+                x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
+            except:
+                pass
+                
+            if x3dType == "HAnimHumanoid":
+                selPacks = aPackTree.selectedItems()
+                
+                if len(selPacks) > 0:
+                    if selPacks[0].text(0) == "AudioClip" or selPacks[0].text(0) == "MovieTexture" or selPacks[0].text(0) == "TimeSensor":
+                        fromNode = selPacks[0].text(1)
+                        
+                        if cmds.objExists(fromNode):
+                            selSGNodes = cgTree.selectedItems()
+                            
+                            for sgNode in selSGNodes:
+                                conFound = False
+                                
+                                nodes = cmds.listConnections(sgNode.text(0).split("] ")[1] + ".scale", d=True, et=True, type="expression")
+                                if nodes != None:
+                                    for node in nodes:
+
+                                        rkAnPks = cmds.listConnections(node, s=True, et=True, sh=True, type="rkAnimPack")
+                                        if rkAnPks != None:
+                                            for pack in rkAnPks:
+                                                if pack == fromNode:
+                                                    conFound = True
+                                    
+                                if conFound == False:
+                                    toNode = sgNode.text(0).split("] ")[1]
+                                    melCmd  = "string $msg;"
+                                    melCmd += "$msg=" + fromNode + ".message;"
+
+                                    interpolator = "PositionInterpolator"
+                                    attribute    = "scale"
+
+                                    expName = cmds.createNode('expression')
+                                    cmds.addAttr(expName, longName='receivedData', at='double3')
+                                    cmds.addAttr(expName, longName='receivedDataX', shortName='rdx',  at='double', k=True, p='receivedData')
+                                    cmds.addAttr(expName, longName='receivedDataY', shortName='rdy',  at='double', k=True, p='receivedData')
+                                    cmds.addAttr(expName, longName='receivedDataZ', shortName='rdz',  at='double', k=True, p='receivedData')
+                                    cmds.addAttr(expName, longName='x3dInterpolatorType', shortName='x3dIT', dataType='string')
+                                    cmds.setAttr(expName + '.x3dInterpolatorType', interpolator, type='string', lock=True)
+                                    cmds.connectAttr(toNode + '.scale', expName + '.receivedData')
+
+                                    cmds.setAttr( expName + '.expression', melCmd, type='string')
+                                    
+                                    self.addWatcher(fromNode, toNode)
+                                    
+        if updateQTree == True:
+            self.populateCharacterGraph()
+        else:
+            print("Scale: Didn't run populateCharacterGraph()")
+        
+        
+    def releaseTranslateGeneral(self, updateQTree=True):
+        print("reTraGen: " + str(updateQTree))
+        # The 'fromNode' is the RawKee 'rkAnimPack' node
+        # The 'toNode' is the Maya 'joint' node
+        aPackTree = self.findChild(QtWidgets.QTreeWidget, 'x3dNodes'      )
+        cgTree    = self.findChild(QtWidgets.QTreeWidget, 'characterTree')
+        humanoid  = self.findChild(QtWidgets.QLineEdit, 'humanoidSelected')
+        humanBool = cmds.objExists(humanoid.text())
+        
+        if humanBool == True:
+            x3dType = ""
+            try:
+                x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
+            except:
+                pass
+                
+            if x3dType == "HAnimHumanoid":
+                selPacks = aPackTree.selectedItems()
+                
+                if len(selPacks) > 0:
+                    if selPacks[0].text(0) == "AudioClip" or selPacks[0].text(0) == "MovieTexture" or selPacks[0].text(0) == "TimeSensor":
+                        fromNode = selPacks[0].text(1)
+                        
+                        if cmds.objExists(fromNode):
+                            
+                            selSGNodes = cgTree.selectedItems()
+                            
+                            for sgNode in selSGNodes:
+                                expName = ""
+
+                                expNodes = cmds.listConnections(sgNode.text(0).split("] ")[1] + ".translate", d=True, et=True, type="expression")
+                                if expNodes != None:
+                                    for expNode in expNodes:
+                                        rkAnPks = cmds.listConnections(expNode, s=True, et=True, sh=True, type="rkAnimPack")
+                                        if rkAnPks != None:
+                                            for pack in rkAnPks:
+                                                if pack == fromNode:
+                                                    expName = expNode
+
+                                if expName != "":
+                                    cmds.delete(expName)
+        if updateQTree == True:
+            self.populateCharacterGraph()
+
+
+    def releaseRotateGeneral(self, updateQTree=True):
+        print("reRotGen: " + str(updateQTree))
+        # The 'fromNode' is the RawKee 'rkAnimPack' node
+        # The 'toNode' is the Maya 'joint' node
+        aPackTree = self.findChild(QtWidgets.QTreeWidget, 'x3dNodes'      )
+        cgTree    = self.findChild(QtWidgets.QTreeWidget, 'characterTree')
+        humanoid  = self.findChild(QtWidgets.QLineEdit, 'humanoidSelected')
+        humanBool = cmds.objExists(humanoid.text())
+        
+        if humanBool == True:
+            x3dType = ""
+            try:
+                x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
+            except:
+                pass
+                
+            if x3dType == "HAnimHumanoid":
+                selPacks = aPackTree.selectedItems()
+                
+                if len(selPacks) > 0:
+                    if selPacks[0].text(0) == "AudioClip" or selPacks[0].text(0) == "MovieTexture" or selPacks[0].text(0) == "TimeSensor":
+                        fromNode = selPacks[0].text(1)
+                        
+                        if cmds.objExists(fromNode):
+                            
+                            selSGNodes = cgTree.selectedItems()
+                            
+                            for sgNode in selSGNodes:
+                                expName = ""
+
+                                expNodes = cmds.listConnections(sgNode.text(0).split("] ")[1] + ".rotate", d=True, et=True, type="expression")
+                                if expNodes != None:
+                                    for expNode in expNodes:
+                                        rkAnPks = cmds.listConnections(expNode, s=True, et=True, sh=True, type="rkAnimPack")
+                                        if rkAnPks != None:
+                                            for pack in rkAnPks:
+                                                if pack == fromNode:
+                                                    expName = expNode
+
+                                if expName != "":
+                                    cmds.delete(expName)
+        if updateQTree == True:
+            self.populateCharacterGraph()
+
+
+    def releaseScaleGeneral(self, updateQTree=True):
+        print("reScaGen: " + str(updateQTree))
+        # The 'fromNode' is the RawKee 'rkAnimPack' node
+        # The 'toNode' is the Maya 'joint' node
+        aPackTree = self.findChild(QtWidgets.QTreeWidget, 'x3dNodes'      )
+        cgTree    = self.findChild(QtWidgets.QTreeWidget, 'characterTree')
+        humanoid  = self.findChild(QtWidgets.QLineEdit, 'humanoidSelected')
+        humanBool = cmds.objExists(humanoid.text())
+        
+        if humanBool == True:
+            x3dType = ""
+            try:
+                x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
+            except:
+                pass
+                
+            if x3dType == "HAnimHumanoid":
+                selPacks = aPackTree.selectedItems()
+                
+                if len(selPacks) > 0:
+                    if selPacks[0].text(0) == "AudioClip" or selPacks[0].text(0) == "MovieTexture" or selPacks[0].text(0) == "TimeSensor":
+                        fromNode = selPacks[0].text(1)
+                        
+                        if cmds.objExists(fromNode):
+                            
+                            selSGNodes = cgTree.selectedItems()
+                            
+                            for sgNode in selSGNodes:
+                                expName = ""
+
+                                expNodes = cmds.listConnections(sgNode.text(0).split("] ")[1] + ".scale", d=True, et=True, type="expression")
+                                if expNodes != None:
+                                    for expNode in expNodes:
+                                        rkAnPks = cmds.listConnections(expNode, s=True, et=True, sh=True, type="rkAnimPack")
+                                        if rkAnPks != None:
+                                            for pack in rkAnPks:
+                                                if pack == fromNode:
+                                                    expName = expNode
+
+                                if expName != "":
+                                    cmds.delete(expName)
+        if updateQTree == True:
+            self.populateCharacterGraph()
+        
+    def captureTRGeneral(self, updateQTree=True):
+        print("TRGen: " + str(updateQTree))
+        self.captureTranslateGeneral(False)
+        self.captureRotateGeneral(updateQTree)
+        
+    def captureAllGeneral(self, updateQTree=True):
+        print("AllGen: " + str(updateQTree))
+        self.captureTRGeneral(False)
+        self.captureScaleGeneral(updateQTree)
+        
+    def releaseTRGeneral(self, updateQTree=True):
+        print("reTRGen: " + str(updateQTree))
+        self.releaseTranslateGeneral(False)
+        self.releaseRotateGeneral(updateQTree)
+        
+    def releaseAllGeneral(self, updateQTree=True):
+        print("reAllGen: " + str(updateQTree))
+        self.releaseTRGeneral(False)
+        self.releaseScaleGeneral(updateQTree)
+
+
     def captureRotateForHAnimMotion(self):
         # The 'fromNode' is the RawKee 'rkAnimPack' node
         # The 'toNode' is the Maya 'joint' node
@@ -993,7 +1351,6 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
                 if len(selPacks) > 0:
                     if selPacks[0].text(0) == "HAnimMotion":
                         fromNode = selPacks[0].text(1)
-                        pass
                         
                         if cmds.objExists(fromNode):
                             
@@ -1015,26 +1372,24 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
                                     if conFound == False:
                                         toNode = j
                                         melCmd  = "string $msg;"
-                                        #melCmd += "float $x; float $y; float $z;" #float $w;"
 
                                         interpolator = "HAnimMotion"
                                         attribute    = "rotate"
-                                        # For rotation
-                                        #melCmd += "$x="   + toNode   + "." + attribute + "X;"
-                                        #melCmd += "$y="   + toNode   + "." + attribute + "Y;"
-                                        #melCmd += "$z="   + toNode   + "." + attribute + "Z;"
                                         melCmd += "$msg=" + fromNode + ".message;"
 
                                         expName = cmds.createNode('expression')
-                                        cmds.addAttr(expName, longName='rotate',  shortName='rot', at='double3')
-                                        cmds.addAttr(expName, longName='rotateX', shortName='rX',  at='doubleAngle', k=True, p='rotate')
-                                        cmds.addAttr(expName, longName='rotateY', shortName='rY',  at='doubleAngle', k=True, p='rotate')
-                                        cmds.addAttr(expName, longName='rotateZ', shortName='rZ',  at='doubleAngle', k=True, p='rotate')
+                                        cmds.addAttr(expName, longName='receivedData', at='double3')
+                                        cmds.addAttr(expName, longName='receivedDataX', shortName='rdx',  at='doubleAngle', k=True, p='receivedData')
+                                        cmds.addAttr(expName, longName='receivedDataY', shortName='rdy',  at='doubleAngle', k=True, p='receivedData')
+                                        cmds.addAttr(expName, longName='receivedDataZ', shortName='rdz',  at='doubleAngle', k=True, p='receivedData')
                                         cmds.addAttr(expName, longName='x3dInterpolatorType', shortName='x3dIT', dataType='string')
                                         cmds.setAttr(expName + '.x3dInterpolatorType', interpolator, type='string', lock=True)
-                                        cmds.connectAttr(toNode + '.rotate', expName + '.rotate')
+                                        cmds.connectAttr(toNode + '.rotate', expName + '.receivedData')
 
                                         cmds.setAttr( expName + '.expression', melCmd, type='string')
+
+                                        self.addWatcher(fromNode, toNode)
+
         self.populateCharacterGraph()
 
 
@@ -1115,14 +1470,58 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             interp = cmds.getAttr(expNode + ".x3dInterpolatorType")
             if interp == "HAnimMotion":
                 return "HAnMo"
-            elif interp == "Tra-PositionInterpolator":
-                tStr[0] = "T"
-            elif interp == "Rot-OrientationInterpolator":
+            elif interp == "PositionInterpolator":
+                connections = cmds.listConnections(expNode, p=True, s=True, et=True, sh=True)
+                
+                for i in range(len(connections)):
+                    cons = connections[i].split('.')
+                    if cons[1] != "message":
+                        if cons[1] == "translate":
+                            tStr[0] = "T"
+                        elif cons[1] == "scale":
+                            tStr[4] = "S"
+                    
+            elif interp == "OrientationInterpolator":
                 tStr[2] = "R"
-            elif interp == "Sca-PositionInterpolator":
-                tStr[4] = "S"
         
         if len(relExpNodes) > 0:
             animText = tStr[0] + tStr[1] + tStr[2] + tStr[3] + tStr[4]
         
         return animText
+        
+    def addWatcher(self, fromNode, toNode):
+        selList = om.MSelectionList()
+        selList.add(fromNode)
+        selList.add(toNode)
+        fromObj = selList.getDependNode(0)
+        toObj   = selList.getDependNode(1)
+
+        fromID = om.MNodeMessage.addNodeAboutToDeleteCallback(fromObj, self.deleteRouteExpression)
+        #fDelID = om.MNodeMessage.addNodeDestroyedCallback(    fromObj, self.nodeDeletedUpdateGUI, clientData="stuff" )
+        self.CBIDs.append(fromID)
+        #self.CBIDs.append(fDelID)
+        #cmds.addAttr(fromNode, longName='rkMessageId', at='double', defaultValue=fromID)
+
+        toID   = om.MNodeMessage.addNodeAboutToDeleteCallback(  toObj, self.deleteRouteExpression)
+        #tDelID = om.MNodeMessage.addNodeDestroyedCallback(      toObj, self.nodeDeletedUpdateGUI, clientData="stuff" )
+        self.CBIDs.append(toID)
+        #self.CBIDs.append(tDelID)
+        #cmds.addAttr(toNode, longName='rkMessageId', at='double', defaultValue=toID)
+                
+    def deleteRouteExpression(self, nodeObj, dgMod, clientData):
+        mIter = om.MItDependencyGraph(nodeObj, rkfn.kExpression, om.MItDependencyGraph.kDownstream, om.MItDependencyGraph.kBreadthFirst, om.MItDependencyGraph.kNodeLevel)
+        while not mIter.isDone():
+            dgMod.deleteNode(mIter.currentNode())
+            
+            mIter.next()
+
+        dgMod.doIt()
+    
+    def nodeDeletedUpdateGUI(self, node, clientData):
+        try:
+            self.populateAnimationPackages()
+        except:
+            pass
+            
+        #myID = cmds.getAttr(nodeObj.name() + ".rkMessageId")
+        #om.MMessage.removeCallback(myID)

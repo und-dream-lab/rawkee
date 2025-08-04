@@ -42,7 +42,7 @@ QLabel#stepExp, QLabel#stepExp_1, QLabel#stepExp_2, QLabel#stepExp_3 {
     color: white;
 }
 
-QLabel#loaLabel, QLabel#skConfigLabel, QLabel#animPackLabel, QLabel#charGraphLabel {
+QLabel#loaLabel, QLabel#skConfigLabel, QLabel#animPackLabel, QLabel#charGraphLabel, QLabel#timerNameLabel {
     font-weight: bold;
     font-size: 11px;
     color: white;
@@ -236,7 +236,7 @@ QComboBox#loaComboBox {
     max-height: 24;
 }
 
-QComboBox#newNodeType {
+QComboBox#newNodeType, QLineEdit#newTimerName {
     border: 2px solid lightblue;
     border-radius: 4px;
     font-weight: bold;
