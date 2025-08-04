@@ -901,9 +901,6 @@ class RKOrganizer():
                 dagChild = aom.MFnDagNode(groupDag.child(i))
                 if   dagChild.typeName == "joint":
                     self.processHAnimJoint(dragPath, dagChild, bna[1], bna[1], cField="skeleton", sk=sm)
-#                else:
-#                    print("Skeleton Traverse Miss: " + dagChild.name() + ", Type:"+ dagChild.typeName)
-
                 
             # Get Weight/point Index Offset and Skin Coordinate Node name.
             # wio length might be 0 and cName might equal "" if sm length is 0.
@@ -924,9 +921,188 @@ class RKOrganizer():
                     sno.append(snLen)
                 self.processMayaMesh(dragPath, aom.MFnDagNode(sm[i].object()), "skin", wio[i], sno[i], cName, sName)
             
+            # Section where we add HAnimMotion, or other timing nodes (aka TimeSensor, AudioClip, and MovieTexture)
+            nonMotionRKAPNodes = []
+            for i in range(cNum):
+                dagChild = aom.MFnDagNode(groupDag.child(i))
+                if dagChild.typeName == "rkAnimPack":
+                    
+                    # Determine what time of timing node this is.
+                    apType = cmds.getAttr(dagChild.name() + ".mimickedType")
+                    
+                    # If rkAnimPack node is designated as an HAnimMotion node process now.
+                    if apType == 2:
+                        self.processHAnimMotion(dragPath, dagChild, bna[1])
+                        
+                    # If it's any other type of timing node, append to the non-Motion node list
+                    # for later processing.
+                    elif apType == 1 or apType == 3 or apType == 4:
+                        nonMotionRKAPNodes.append(dagChild)
             
-            ###### self.convertMayaAnimClips_To_HAnimMotion(dragPath, bpNode)
+            if len(nonMotionRKAPNodes) > 0:
+                self.processRKAnimPacks(dragPath, nonMotionRKAPNodes, bna[1])
             
+
+    def processRKAnimPacks(self, dragPath, rkAPNodes, x3dHumanoid):
+        bna = self.processBasicNodeAddition(None, x3dHumanoid, "skeleton", "Group", x3dHumanoid.DEF + "_TimerGroup")
+        if bna[0] == False:
+            for apNode in rkAPNodes:
+                apType = cmds.getAttr(apNode.name() + ".mimickedType")
+                if apType == 1:
+                    self.processAudioClipNode(   apNode, bna[1], "children")
+                elif apType == 3:
+                    self.processMovieTextureNode(apNode, bna[1], "children")
+                elif apType == 4:
+                    self.processTimeSensorNode(  apNode, bna[1], "children")
+
+    def processAudioClipNode   (self, apNode, timerGroup, cField):
+        bna = self.processBasicNodeAddition(apNode, timerGroup, cField, "AudioClip")
+
+        
+    def processMovieTextureNode(self, apNode, timerGroup, cField):
+        bna = self.processBasicNodeAddition(apNode, timerGroup, cField, "MovieTexture")
+
+        
+    def processTimeSensorNode   (self, apNode, timerGroup, cField):
+        bna = self.processBasicNodeAddition(apNode, timerGroup, cField, "TimeSensor")
+        
+        if bna[0] == False:
+            #Maya Timeline Key Frame Step (Timeline steps)
+            kfs  = cmds.getAttr(apNode.name() + ".keyFrameStep")
+            
+            #Maya Timeline Start Frame
+            tsaf = cmds.getAttr(apNode.name() + ".timelineStartFrame")
+            
+            #Maya Timeline Stop Frame
+            tsof = cmds.getAttr(apNode.name() + ".timelineStopFrame")
+            
+            #Number of frames per second
+            fps  = cmds.getAttr(apNode.name() + ".framesPerSecond")
+            
+            #Number of Maya frames covered by this sensor.
+            frameDistance = tsof - tsaf
+            
+            #Calcualte the X3D cycleInterval
+            bna[1].cycleInterval = frameDistance / fps
+            
+            #To Be Removed later
+            cmds.setAttr(apNode.name() + ".cycleInterval", bna[1].cycleInterval)
+            
+            bna[1].description = cmds.getAttr(apNode.name() + ".description")
+            bna[1].resumeTime  = cmds.getAttr(apNode.name() + ".resumeTime")
+            bna[1].pauseTime   = cmds.getAttr(apNode.name() + ".pauseTime")
+            bna[1].startTime   = cmds.getAttr(apNode.name() + ".startTime")
+            bna[1].stopTime    = cmds.getAttr(apNode.name() + ".stopTime")
+
+            bna[1].enabled     = cmds.getAttr(apNode.name() + ".enabled")
+            bna[1].loop        = cmds.getAttr(apNode.name() + ".loop")
+            
+            # Time to actually collect the animation data and store it in X3D objects
+            timerExpressions = []
+            mIter = aom.MItDependencyGraph(apNode.object(), rkfn.kExpression, aom.MItDependencyGraph.kDownstream, aom.MItDependencyGraph.kBreadthFirst, aom.MItDependencyGraph.kNodeLevel)
+            while not mIter.isDone():
+                eNode = aom.MFnDependencyNode(mIter.currentNode())
+                interp = ""
+                try:
+                    interp = cmds.getAttr(eNode.name() + '.x3dInterpolatorType')
+                except:
+                    pass
+                if interp != "":
+                    timerExpressions.append(eNode)
+                    
+                mIter.next()
+            
+            preFrame = cmds.currentTime(query=True)
+            for tExp in timerExpressions:
+                x3dNodeType = cmds.getAttr(tExp.name() + '.x3dInterpolatorType')
+                bni = self.processBasicNodeAddition(None, timerGroup, cField, x3dNodeType, tExp.name())
+                if bni[0] == False:
+                    ############################################################################
+                    cons   = cmds.listConnections(tExp.name(), p=True, s=True, et=True, sh=True)
+                    cParts = cons[0].split('.')
+
+                    mlist = aom.MSelectionList()
+                    mlist.add(cParts[0])
+                    tForm = aom.MFnTransform(mlist.getDependNode(0))
+                    #tForm.translation()
+                    
+                    #self.rkint.getSFRotation(tForm.rotation(aom.MSpace.kTransform, True).asAxisAngle())
+
+                    lStep = 0
+                    fraction = 0.0
+                    while fraction < 1.0:
+                        bni[1].key.append(fraction)
+                        cmds.currentTime(tsaf + (lStep * kfs))
+                        ########### 
+                        # Get data
+                        value = cmds.getAttr(tExp.name() + ".receivedData")
+                        if x3dNodeType == "PositionInterpolator":
+                            bni[1].keyValue.append((value[0][0], value[0][1], value[0][2]))
+                        elif x3dNodeType == "OrientationInterpolator":
+                            #tForm = aom.MFnTransform(mlist.getDependNode(0))
+                            oriValue = self.rkint.getSFRotation(tForm.rotation(aom.MSpace.kTransform, True).asAxisAngle())#self.rkint.getSFRotationFromEuler([value[0][0], value[0][1], value[0][2]])
+                            bni[1].keyValue.append(oriValue)#(oriValue[0], oriValue[1], oriValue[2], oriValue[3]))
+                        lStep += 1
+                        fraction = kfs * lStep / frameDistance
+                    bni[1].key.append(1.0)
+                    cmds.currentTime(tsof)
+                    ###########
+                    # Get data
+                    value = cmds.getAttr(tExp.name() + ".receivedData")
+                    if x3dNodeType == "PositionInterpolator":
+                        bni[1].keyValue.append((value[0][0], value[0][1], value[0][2]))
+                    elif x3dNodeType == "OrientationInterpolator":
+                        oriValue = self.rkint.getSFRotation(tForm.rotation(aom.MSpace.kTransform, True).asAxisAngle())#self.rkint.getSFRotationFromEuler([value[0][0], value[0][1], value[0][2]])
+                        bni[1].keyValue.append(oriValue)#(oriValue[0], oriValue[1], oriValue[2], oriValue[3]))
+                    ##################
+                    # Build Routes
+
+                    setValue = "set_"
+                    if x3dNodeType == "PositionInterpolator":
+                        if cParts[1] == "translate":
+                            setValue += "translation"
+                        elif cParts[1] == "scale":
+                            setValue += "scale"
+                    elif x3dNodeType == "OrientationInterpolator":
+                        if cParts[1] == "rotate":
+                            setValue += "rotation"
+                    self.generateRoutes(bna[1].DEF, 'fraction_changed', bni[1].DEF, 'set_fraction', timerGroup, cField)
+                    self.generateRoutes(bni[1].DEF, 'value_changed',    cParts[0],  setValue,       timerGroup, cField)
+                    
+            cmds.currentTime(preFrame)
+
+
+    def generateRoutes(self, fromNode, outEvent, toNode, inEvent, x3dParentNode, x3dFieldName):
+        newRoute = self.rkio.createRouteObject()
+        newRoute.fromNode  = fromNode
+        newRoute.fromField = outEvent
+        newRoute.toNode    = toNode
+        newRoute.toField   = inEvent
+        
+        nodeField = getattr(x3dParentNode, x3dFieldName)
+        if isinstance(nodeField, list):
+            nodeField.append(newRoute)
+
+        
+        
+    def processHAnimMotion(self, dragPath, moNode, x3dHumanoid, cField="motions"):
+        dragPath = dragPath + "|" + moNode.name()
+
+        bna = self.processBasicNodeAddition(moNode, x3dHumanoid, cField, "HAnimMotion")
+
+        if bna[0] == False:
+            #Maya Timeline Key Frame Step (Timeline steps)
+            kfs  = cmds.getAttr(moNode.name() + ".keyFrameStep")
+            
+            #Maya Timeline Start Frame
+            tsaf = cmds.getAttr(moNode.name() + ".timelineStartFrame")
+            
+            #Maya Timeline Stop Frame
+            tsof = cmds.getAttr(moNode.name() + ".timelineStopFrame")
+            
+            #Number of frames per second
+            fps  = cmds.getAttr(moNode.name() + ".framesPerSecond")
+
 
     def getMeshFromJoint(self, jNode, sm):
         mIter = aom.MItDependencyGraph(jNode.object(), rkfn.kMesh, aom.MItDependencyGraph.kDownstream, aom.MItDependencyGraph.kBreadthFirst, aom.MItDependencyGraph.kNodeLevel)

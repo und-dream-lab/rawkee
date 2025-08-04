@@ -486,4 +486,7 @@ class RKIO():
             
     def createNodeFromString(self, x3dType):
         return self.trv.createNodeFromString(x3dType)
+        
+    def createRouteObject(self):
+        return self.trv.getRouteObject()
 

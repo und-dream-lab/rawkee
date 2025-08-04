@@ -98,6 +98,19 @@ class RKSceneTraversal():
                 elif keyp[1] == "RK":
                     if   keyp[3] == "containerField" and value != "":
                         sFieldsList.append("_RK__containerField")
+                
+                elif keyp[1] == "ROUTE":
+                    if   keyp[3] == "fromField" and value != "":
+                        sFieldsList.append("fromField")
+                        
+                    elif keyp[3] == "toField"   and value != "":
+                        sFieldsList.append("toField")
+                    
+                    elif keyp[3] == "fromNode"  and value != "":
+                        sFieldsList.append("fromNode")
+                    
+                    elif keyp[3] == "toNode"    and value != "":
+                        sFieldsList.append("toNode")
                         
                 elif keyp[1] == nType:
                     if pastMeta == False:
@@ -1057,6 +1070,7 @@ class RKSceneTraversal():
             'Rectangle2D':Rectangle2D,
             'RigidBody':RigidBody,
             'RigidBodyCollection':RigidBodyCollection,
+            'ROUTE':ROUTE,
             ####################################### S
             'ScalarChaser':ScalarChaser,
             'ScalarDamper':ScalarDamper,
@@ -1141,3 +1155,6 @@ class RKSceneTraversal():
 #            print("Inside isNonX3D (IS X3D):" + x3dType)
         
         return False
+
+    def getRouteObject(self):
+        return ROUTE()
