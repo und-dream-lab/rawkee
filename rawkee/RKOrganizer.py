@@ -33,9 +33,10 @@ class RKOrganizer():
     def __init__(self):
         #print("RKOrganizer")
         
-        self.rkint = RKInterfaces()
-        self.rkio  = RKIO()
-        
+        self.rkint    = RKInterfaces()
+        self.rkio      = RKIO()
+        self.animation = []
+
         self.isTreeBuilding = False
         self.hasPassed = False
         self.isDone = False
@@ -52,7 +53,6 @@ class RKOrganizer():
         self.exBCFlag = 1
         self.avatarMeshNames = []
         self.avatarDagPaths = []
-
 
 
         self.optionsString = ""
@@ -303,6 +303,8 @@ class RKOrganizer():
 
         self.checkSubDirs(fullPath)
 
+        self.animation.clear()
+        
         self.rkio.comments.clear()
         self.rkio.comments.append(pVersion)
         self.rkio.commentNames.clear()
@@ -318,6 +320,8 @@ class RKOrganizer():
         dNum = len(dagNodes)
         for i in range(dNum):
             self.traverseDownward(parentDagPaths[i], dagNodes[i])
+            
+        self.collectInterpolatorData()
         
     ############################################################
     ###  getAllTopDagNodes(self - RKOrganizer)               ###
@@ -429,7 +433,116 @@ class RKOrganizer():
 
 #############################   Break   ####################################
 ############################################################################
-        
+    
+    ########################################################################
+    # Function that collects Interpolator Data at the end of the maya2x3d()
+    # function execution.
+    ########################################################################
+    def collectInterpolatorData(self):
+        for animPackage in self.animation:
+            apNode  = animPackage[0]
+            apKeys = []
+            fSteps = []
+            
+            #Maya Timeline Key Frame Step (Timeline steps)
+            kfs  = cmds.getAttr(apNode.name() + ".keyFrameStep")
+            
+            #Maya Timeline Start Frame
+            tsaf = cmds.getAttr(apNode.name() + ".timelineStartFrame")
+            
+            #Maya Timeline Stop Frame
+            tsof = cmds.getAttr(apNode.name() + ".timelineStopFrame")
+            
+            #Number of frames per second
+            fps  = cmds.getAttr(apNode.name() + ".framesPerSecond")
+            
+            #Number of Maya frames covered by this sensor.
+            frameDistance = tsof - tsaf
+            
+            #rkAPType 
+            rkAPType = cmds.getAttr(apNode.name() + ".mimickedType")
+            
+            lStep    = 0
+            fraction = 0.0
+            cFrame   = tsaf
+            while fraction < 1.0:
+                apKeys.append(fraction)
+                fSteps.append(cFrame)
+                lStep += 1
+                fraction = kfs * lStep / frameDistance
+                cFrame   = kfs * lStep
+            apKeys.append(1.0)
+            fSteps.append(tsof)
+
+            intList = animPackage[1:]
+            for l in intList:
+                l[1].key = apKeys
+                
+            # cmds.currentUnit()
+            for step in fSteps:
+                cmds.currentTime(step)
+                # [tExp, bni[1], cParts[0], cParts[1], mod, mlist.getPlug(1)]
+                for l in intList:
+                    expNode  = l[0] # Currently Not Needed
+                    x3dNode  = l[1]
+                    mayaName = l[2] # Currently Not Needed
+                    mayaAttr = l[3]
+                    modifier = l[4]
+                    readPlug = l[5]
+            
+                    #################################
+                    # Joints and Transforms
+                    #################################
+                    if   mayaAttr == "translate":
+                        x3dNode.keyValue.append((readPlug.child(0).asFloat(), readPlug.child(1).asFloat(), readPlug.child(2).asFloat()))
+                        
+                    elif mayaAttr == "rotate":
+                        # If HAnimMotion
+                        if rkAPType == 2:
+                            #TODO
+                            pass
+                            
+                        # Else AudioClip, MovieTexture, TimeSensor
+                        else:
+                            tForm = aom.MFnTransform(readPlug.node())
+                            oriValue = self.rkint.getSFRotation(tForm.rotation(aom.MSpace.kTransform, True).asAxisAngle())
+                            x3dNode.keyValue.append(oriValue)
+                            
+                    elif mayaAttr == "scale":
+                        x3dNode.keyValue.append((readPlug.child(0).asFloat(), readPlug.child(1).asFloat(), readPlug.child(2).asFloat()))
+                    
+                    ############################################
+                    # Maya placeTexture2d / X3D TextureTransform
+                    ############################################
+                    elif mayaAttr == "translateFrame":
+                        x3dNode.keyValue.append((readPlug.child(0).asFloat(), readPlug.child(1).asFloat()))
+                        
+                    elif mayaAttr == "rotateFrame":
+                        x3dNode.keyValue.append(readPlug.asMAngle().asRadians())
+                        
+                    elif mayaAttr == "coverage":
+                        x3dNode.keyValue.append((readPlug.child(0).asFloat(), readPlug.child(1).asFloat()))
+                        
+                    ############################################
+                    # Mesh / Shape - Coordinate/Normal/Tanget
+                    # Geometry Cashing
+                    ############################################
+                    elif mayaAttr == "outMesh" and modifier == "coord":
+                        #TODO
+                        pass
+                        
+                    elif mayaAttr == "outMesh" and modifier == "normal":
+                        #TODO
+                        pass
+                        
+                    # There current isn't an Interpolator that can
+                    # animate MFVec4f fields.
+                    elif mayaAttr == "outMesh" and modifier == "tangent":
+                        pass
+                        
+        self.animation.clear()
+
+    
     def processX3DAnchor(self, dragPath, dagNode, x3dPF):
         pass
         
@@ -962,11 +1075,20 @@ class RKOrganizer():
     def processMovieTextureNode(self, apNode, timerGroup, cField):
         bna = self.processBasicNodeAddition(apNode, timerGroup, cField, "MovieTexture")
 
-        
+    #Processing TimeSensor Node
     def processTimeSensorNode   (self, apNode, timerGroup, cField):
         bna = self.processBasicNodeAddition(apNode, timerGroup, cField, "TimeSensor")
         
         if bna[0] == False:
+            ##########################################
+            # Store for later collection
+            ##########################################
+            aLen = len(self.animation)
+            self.animation.append([])
+            animPackage = self.animation[aLen]
+            animPackage.append(apNode)
+            ##########################################
+            
             #Maya Timeline Key Frame Step (Timeline steps)
             kfs  = cmds.getAttr(apNode.name() + ".keyFrameStep")
             
@@ -1012,64 +1134,81 @@ class RKOrganizer():
                     
                 mIter.next()
             
-            preFrame = cmds.currentTime(query=True)
+            ###### preFrame = cmds.currentTime(query=True)## --- ################
             for tExp in timerExpressions:
                 x3dNodeType = cmds.getAttr(tExp.name() + '.x3dInterpolatorType')
                 bni = self.processBasicNodeAddition(None, timerGroup, cField, x3dNodeType, tExp.name())
                 if bni[0] == False:
                     ############################################################################
-                    cons   = cmds.listConnections(tExp.name(), p=True, s=True, et=True, sh=True)
-                    cParts = cons[0].split('.')
+                    ###### cons   = cmds.listConnections(tExp.name(), p=True, s=True, et=True, sh=True)
+                    ###### cParts = cons[0].split('.')
 
-                    mlist = aom.MSelectionList()
-                    mlist.add(cParts[0])
-                    tForm = aom.MFnTransform(mlist.getDependNode(0))
+                    ###### mlist = aom.MSelectionList()
+                    ###### mlist.add(cParts[0])
+                    ###### tForm = aom.MFnTransform(mlist.getDependNode(0))
+                    ####################################################
+                    ####################################################
+                    
+                    # TODO - write code that sets the value of modifier, for now make it
+                    # equal to ""
+                    modifier      = ""
+                    toConnection  = cmds.listConnections(tExp.name(), p=True, s=True, et=True, sh=True)
+                    attrSList     = aom.MSelectionList()
+                    attrSList.add(toConnection[0])
+                    attrParts     = toConnection[0].split('.')
+                    interpPackage = [tExp, bni[1], attrParts[0], attrParts[1], modifier, attrSList.getPlug(0)]
+                    animPackage.append(interpPackage)
+                    ####################################################
+                    ####################################################
+                    
                     #tForm.translation()
                     
                     #self.rkint.getSFRotation(tForm.rotation(aom.MSpace.kTransform, True).asAxisAngle())
 
-                    lStep = 0
-                    fraction = 0.0
-                    while fraction < 1.0:
-                        bni[1].key.append(fraction)
-                        cmds.currentTime(tsaf + (lStep * kfs))
-                        ########### 
-                        # Get data
-                        value = cmds.getAttr(tExp.name() + ".receivedData")
-                        if x3dNodeType == "PositionInterpolator":
-                            bni[1].keyValue.append((value[0][0], value[0][1], value[0][2]))
-                        elif x3dNodeType == "OrientationInterpolator":
-                            #tForm = aom.MFnTransform(mlist.getDependNode(0))
-                            oriValue = self.rkint.getSFRotation(tForm.rotation(aom.MSpace.kTransform, True).asAxisAngle())#self.rkint.getSFRotationFromEuler([value[0][0], value[0][1], value[0][2]])
-                            bni[1].keyValue.append(oriValue)#(oriValue[0], oriValue[1], oriValue[2], oriValue[3]))
-                        lStep += 1
-                        fraction = kfs * lStep / frameDistance
-                    bni[1].key.append(1.0)
-                    cmds.currentTime(tsof)
-                    ###########
-                    # Get data
-                    value = cmds.getAttr(tExp.name() + ".receivedData")
-                    if x3dNodeType == "PositionInterpolator":
-                        bni[1].keyValue.append((value[0][0], value[0][1], value[0][2]))
-                    elif x3dNodeType == "OrientationInterpolator":
-                        oriValue = self.rkint.getSFRotation(tForm.rotation(aom.MSpace.kTransform, True).asAxisAngle())#self.rkint.getSFRotationFromEuler([value[0][0], value[0][1], value[0][2]])
-                        bni[1].keyValue.append(oriValue)#(oriValue[0], oriValue[1], oriValue[2], oriValue[3]))
+                    ###### lStep = 0
+                    ###### fraction = 0.0
+                    ###### while fraction < 1.0:
+                    ######     bni[1].key.append(fraction)
+                    ######     cmds.currentTime(tsaf + (lStep * kfs))
+                    ######     ########### 
+                    ######     # Get data
+                    ######     value = cmds.getAttr(tExp.name() + ".receivedData")
+                    ######     if x3dNodeType == "PositionInterpolator":
+                    ######         bni[1].keyValue.append((value[0][0], value[0][1], value[0][2]))
+                    ######     elif x3dNodeType == "OrientationInterpolator":
+                    ######         #tForm = aom.MFnTransform(mlist.getDependNode(0))
+                    ######         oriValue = self.rkint.getSFRotation(tForm.rotation(aom.MSpace.kTransform, True).asAxisAngle())#self.rkint.getSFRotationFromEuler([value[0][0], value[0][1], value[0][2]])
+                    ######         bni[1].keyValue.append(oriValue)#(oriValue[0], oriValue[1], oriValue[2], oriValue[3]))
+                    ######     lStep += 1
+                    ######     fraction = kfs * lStep / frameDistance
+                    ###### bni[1].key.append(1.0)
+                    ###### cmds.currentTime(tsof)
+                    ###### ###########
+                    ###### # Get data
+                    ###### value = cmds.getAttr(tExp.name() + ".receivedData")
+                    ###### if x3dNodeType == "PositionInterpolator":
+                    ######     bni[1].keyValue.append((value[0][0], value[0][1], value[0][2]))
+                    ###### elif x3dNodeType == "OrientationInterpolator":
+                    ######     oriValue = self.rkint.getSFRotation(tForm.rotation(aom.MSpace.kTransform, True).asAxisAngle())#self.rkint.getSFRotationFromEuler([value[0][0], value[0][1], value[0][2]])
+                    ######     bni[1].keyValue.append(oriValue)#(oriValue[0], oriValue[1], oriValue[2], oriValue[3]))
+                    
                     ##################
                     # Build Routes
-
-                    setValue = "set_"
-                    if x3dNodeType == "PositionInterpolator":
-                        if cParts[1] == "translate":
-                            setValue += "translation"
-                        elif cParts[1] == "scale":
-                            setValue += "scale"
-                    elif x3dNodeType == "OrientationInterpolator":
-                        if cParts[1] == "rotate":
-                            setValue += "rotation"
-                    self.generateRoutes(bna[1].DEF, 'fraction_changed', bni[1].DEF, 'set_fraction', timerGroup, cField)
-                    self.generateRoutes(bni[1].DEF, 'value_changed',    cParts[0],  setValue,       timerGroup, cField)
+                    ##################
+                    setFieldValue = "set_"
+                    if x3dNodeType        == "PositionInterpolator":
+                        if attrParts[1]   == "translate":
+                            setFieldValue += "translation"
+                        elif attrParts[1] == "scale":
+                            setFieldValue += "scale"
+                    elif x3dNodeType      == "OrientationInterpolator":
+                        if attrParts[1]   == "rotate":
+                            setFieldValue += "rotation"
+                            
+                    self.generateRoutes(bna[1].DEF, 'fraction_changed', bni[1].DEF,   'set_fraction', timerGroup, cField)
+                    self.generateRoutes(bni[1].DEF, 'value_changed',    attrParts[0], setFieldValue,  timerGroup, cField)
                     
-            cmds.currentTime(preFrame)
+            ###### cmds.currentTime(preFrame)
 
 
     def generateRoutes(self, fromNode, outEvent, toNode, inEvent, x3dParentNode, x3dFieldName):
@@ -1300,9 +1439,6 @@ class RKOrganizer():
 #                print("Node Type: " + aom.MFnDependencyNode(dPaths[l].node()).name() + ", Name: " + dPaths[l].partialPathName())
         else:
             print("Couldn't find skinClusters for: " + mNode.name())
-
-                
-                
 
 
     # sc is MFnSkinCluster list, wo is list of ints that are the per-mesh offset from 0 of the weights index for that mesh, sk is MFnMesh node list
