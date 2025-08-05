@@ -228,10 +228,15 @@ class RKSceneTraversal():
     def processNodeAsVRML(self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, isMulti):
         mainline = ""
         
+        if nType == "ROUTE":
+            self.processROUTEAsVRML(node, sFieldList)
+            return
+            
         if isMulti == True:
             self.writeLine(     "DEF " + node.DEF + " " + nType + " {")
         else:
             self.writeRemaining("DEF " + node.DEF + " " + nType + " {")
+
         self.itabs()
         
         sflLen = len(sFieldList)
@@ -352,9 +357,17 @@ class RKSceneTraversal():
         self.writeLine("}")
 
 
+    def processROUTEAsVRML(self, node, sFieldList):
+        self.writeLine("ROUTE " + getattr(node, sFieldList[1]) + "." + getattr(node, sFieldList[0]) + " TO " + getattr(node, sFieldList[3]) + "." + getattr(node, sFieldList[2]))
+
 
     def processNodeAsJSON(self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, isMulti, addComma):
         mainline = ''
+
+        if nType == "ROUTE":
+            self.processROUTEAsJSON(node, sFieldList, isMulti, addComma)
+            return
+
         if isMulti == True:
             self.writeLine(     '{ "' + nType + '":')
         else:
@@ -368,8 +381,6 @@ class RKSceneTraversal():
         snlLen = len(sNodeList)  # snlLen
         mnlLen = len(mNodeList)  # mnlLen
         for fIdx in range(sflLen):
-            
-            
             tField = sFieldList[fIdx]
 
             if tField == "_RK__containerField":
@@ -515,6 +526,33 @@ class RKSceneTraversal():
         else:
             self.writeLine('}')
 
+
+    def processROUTEAsJSON(self, node, sFieldList, isMulti, addComma):# 
+        if isMulti == True:
+            self.writeLine(     '{ "ROUTE":')
+        else:
+            self.writeRemaining('{ "ROUTE":')
+        self.itabs()
+        self.writeLine('{')
+        self.itabs()
+
+        fromNode  = '"@' + sFieldList[1] + '": "' + getattr(node, sFieldList[1]) + '",'
+        fromField = '"@' + sFieldList[0] + '": "' + getattr(node, sFieldList[0]) + '",'
+        toNode    = '"@' + sFieldList[3] + '": "' + getattr(node, sFieldList[3]) + '",'
+        toField   = '"@' + sFieldList[2] + '": "' + getattr(node, sFieldList[2]) + '"'
+        self.writeLine(fromNode)
+        self.writeLine(fromField)
+        self.writeLine(toNode)
+        self.writeLine(toField)
+
+        self.dtabs()
+        self.writeLine('}')
+        self.dtabs()
+        #self.writePrefix('}')
+        if addComma == True:
+            self.writeLine('},')
+        else:
+            self.writeLine('}')
 
 
     def processNodeAsXML( self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList):
