@@ -35,37 +35,38 @@ Some of the packages listed may require a pip install regarless of what the list
 
 
 ## Installing from GitHub
-1. PIP install the Python packages listed above for your version of Maya and OS.
-    a. On Windows use PowerShell to run:          mayapy.exe
-    b. On OSX/Linux use the terminal to run:      mayapy
-    c. Command line for installing using 'pip': ./mayapy -m pip install <module>
 
-2. Clone the RawKee GitHub main branch using PowerShell or Terminal:
-    a. Create a directory somewhere on your computer's hard drive where you
-       want to install RawKee. We will use the Linux/OSX style psuedo path of:
-       /path/to/your/install/directory
-    b. Change directory to:
-       /path/to/your/install/directory
-    c. Then run the following git command:
+1. PIP install the Python packages listed above for your version of Maya and OS.<br>
+    a. On Windows use PowerShell to run:          mayapy.exe<br>
+    b. On OSX/Linux use the terminal to run:      mayapy<br>
+    c. Command line for installing using 'pip': ./mayapy -m pip install some_module
+
+2. Clone the RawKee GitHub main branch using PowerShell or Terminal:<br>
+    a. Create a directory somewhere on your computer's hard drive where you<br>
+       want to install RawKee. We will use the Linux/OSX style psuedo path of:<br>
+       /path/to/your/install/directory<br>
+    b. Change directory to:<br>
+       /path/to/your/install/directory<br>
+    c. Then run the following git command:<br>
        git clone https://github.com/und-dream-lab/rawkee.git
 
-3. Update Maya Environment variables.
-    a. Edit your Maya version's Maya.env file adding the following evironment 
-       variable entries.
-    b. Instructions on where to find and edit your Maya.env file can be found here:
-       [Autodesk Maya 2026 Environment Variables](https://help.autodesk.com/view/MAYAUL/2026/ENU/?guid=GUID-925EB3B5-1839-45ED-AA2E-3184E3A45AC7)
-    c. In the appropriate Maya.env file, make the following entries:
-       MAYA_PLUG_IN_PATH=/path/to/your/install/directory/rawkee
+3. Update Maya Environment variables.<br>
+    a. Edit your Maya version's Maya.env file adding the following evironment<br>
+       variable entries.<br>
+    b. Instructions on where to find and edit your Maya.env file can be found here:<br>
+       [Autodesk Maya 2026 Environment Variables](https://help.autodesk.com/view/MAYAUL/2026/ENU/?guid=GUID-925EB3B5-1839-45ED-AA2E-3184E3A45AC7)<br>
+    c. In the appropriate Maya.env file, make the following entries:<br>
+       MAYA_PLUG_IN_PATH=/path/to/your/install/directory/rawkee<br>
        MAYA_SCRIPT_PATH=/path/to/your/install/directoryrawkee/mel
 
-4. Load RawKee Plugin into Maya.
-    a. After you start Maya, open the Plug-in Manager through the Maya menu system:
-       Windows > Settings/Preferences > Plug-in Manager
-    b. Near the top of the Plug-in Manager option window you will see the something 
-       similar to the following:
-       /path/to/your/install/directory/rawkee
-       RawKee_Python_X3D.py
-    c. Clicke the "Loaded" box to load RawKee, and then close the Plug-in Manager.
+4. Load RawKee Plugin into Maya.<br>
+    a. After you start Maya, open the Plug-in Manager through the Maya menu system:<br>
+       Windows > Settings/Preferences > Plug-in Manager<br>
+    b. Near the top of the Plug-in Manager option window you will see the something<br>
+       similar to the following:<br>
+       /path/to/your/install/directory/rawkee<br>
+       RawKee_Python_X3D.py<br>
+    c. Clicke the "Loaded" box to load RawKee, and then close the Plug-in Manager.<br>
 
 
 ## Contributing
