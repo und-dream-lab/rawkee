@@ -43,29 +43,29 @@ Some of the packages listed may require a pip install regarless of what the list
 
 2. Clone the RawKee GitHub main branch using PowerShell or Terminal:<br>
     a. Create a directory somewhere on your computer's hard drive where you<br>
-       want to install RawKee. We will use the Linux/OSX style psuedo path of:<br>
-       /path/to/your/install/directory<br>
+    &emsp;want to install RawKee. We will use the Linux/OSX style psuedo path of:<br>
+    &emsp;&emsp;/path/to/your/install/directory<br>
     b. Change directory to:<br>
-       /path/to/your/install/directory<br>
+    &emsp;&emsp;/path/to/your/install/directory<br>
     c. Then run the following git command:<br>
-       git clone https://github.com/und-dream-lab/rawkee.git
+    &emsp;&emsp;git clone https://github.com/und-dream-lab/rawkee.git
 
 3. Update Maya Environment variables.<br>
     a. Edit your Maya version's Maya.env file adding the following evironment<br>
-       variable entries.<br>
+    &emsp;variable entries.<br>
     b. Instructions on where to find and edit your Maya.env file can be found here:<br>
-       [Autodesk Maya 2026 Environment Variables](https://help.autodesk.com/view/MAYAUL/2026/ENU/?guid=GUID-925EB3B5-1839-45ED-AA2E-3184E3A45AC7)<br>
+    &emsp;- [Autodesk Maya 2026 Environment Variables](https://help.autodesk.com/view/MAYAUL/2026/ENU/?guid=GUID-925EB3B5-1839-45ED-AA2E-3184E3A45AC7)<br>
     c. In the appropriate Maya.env file, make the following entries:<br>
-       MAYA_PLUG_IN_PATH=/path/to/your/install/directory/rawkee<br>
-       MAYA_SCRIPT_PATH=/path/to/your/install/directoryrawkee/mel
+    &emsp;MAYA_PLUG_IN_PATH=/path/to/your/install/directory/rawkee<br>
+    &emsp;MAYA_SCRIPT_PATH=/path/to/your/install/directoryrawkee/mel
 
 4. Load RawKee Plugin into Maya.<br>
     a. After you start Maya, open the Plug-in Manager through the Maya menu system:<br>
-       Windows > Settings/Preferences > Plug-in Manager<br>
+    &emsp;&emsp;Windows > Settings/Preferences > Plug-in Manager<br>
     b. Near the top of the Plug-in Manager option window you will see the something<br>
-       similar to the following:<br>
-       /path/to/your/install/directory/rawkee<br>
-       RawKee_Python_X3D.py<br>
+    &emsp;similar to the following:<br>
+    &emsp;&emsp;/path/to/your/install/directory/rawkee<br>
+    &emsp;&emsp;RawKee_Python_X3D.py<br>
     c. Clicke the "Loaded" box to load RawKee, and then close the Plug-in Manager.<br>
 
 
