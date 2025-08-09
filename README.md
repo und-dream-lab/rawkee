@@ -10,21 +10,19 @@ Some tutorials for RawKee C++ Edition (v 1.1.0/1.2.0) can be found at the Intern
 
 - [https://web.archive.org/web/20100105142454/http://rawkee.sourceforge.net/tutorials/](https://web.archive.org/web/20100105142454/http://rawkee.sourceforge.net/tutorials/)
 
-## Usage of 'pip' with 'mayapy' requires installation of 'pip'.
-1. Download the 'get-pip.py' installer file. More information about this can be found here:
-   [Python.org page](https://packaging.python.org/en/latest/tutorials/installing-packages/)
-   
-2. Run the installer from the command line using:
-   mayapy ./get-pip.py
+
+## RawKee Python Edition requires the use of 'pip' with 'mayapy'.
+1. Most likely, the version of Python for Maya (aka the mayapy executable) is already installed.
+
+2. If for some reason it is not, you can follow the instruction on how to install 'pip' found here:
+   [Python.org page](https://pip.pypa.io/en/stable/installation/)
    
 
 ## Required Python Packages in addition to standard Maya Python API 1.0/2.0 packages (mayapy).
 Some of the packages listed may require a pip install regarless of what the list below explicitly states.
 - pillow        (pip install required)
 - ffmpeg-python (pip install required)
-- nodejs-bin    (pip install required) -- Required by Sunrize Editor, Will be optional.
-- subprocess - may be removed in the future
-- signal     - may be removed in the future
+- xmltodict     (pip install required)
 - typing
 - numpy
 - math
@@ -33,34 +31,42 @@ Some of the packages listed may require a pip install regarless of what the list
 - base64
 - mimetypes
 - ctypes
-- ntpath
 - json 
 
-<!--
-### Steps:
-1. **Open PowerShell:**
-   Launch PowerShell on your system.
 
-2. **Navigate to your RawKee Git repository:**
-   Use the `cd` command to change your directory to the RawKee Git repository location.
+## Installing from GitHub
+1. PIP install the Python packages listed above for your version of Maya and OS.
+    a. On Windows use PowerShell to run:          mayapy.exe
+    b. On OSX/Linux use the terminal to run:      mayapy
+    c. Command line for installing using 'pip': ./mayapy -m pip install <module>
 
-3. **Run Build Commands:**
-   Execute the following commands in sequence:
-   ```shell
-   clear
-   cmake -Bbuild -G "Visual Studio 17 2022"
-   cmake --build build
-   ```
-   **Note:** Ensure to delete the "build" directory before attempting to re-compile/build.
+2. Clone the RawKee GitHub main branch using PowerShell or Terminal:
+    a. Create a directory somewhere on your computer's hard drive where you
+       want to install RawKee. We will use the Linux/OSX style psuedo path of:
+       /path/to/your/install/directory
+    b. Change directory to:
+       /path/to/your/install/directory
+    c. Then run the following git command:
+       git clone https://github.com/und-dream-lab/rawkee.git
 
-4. **Copy Build Files:**
-   Transfer the compiled plugin and other necessary files to your Maya Plugins folder:
-    - `build\Debug\x3d.mll` to `plug-ins\x3d.mll`
-    - `mel\*.mel` to `scripts\*.mel`
-    - `icons\*.bmp` to `icons\*.bmp`
+3. Update Maya Environment variables.
+    a. Edit your Maya version's Maya.env file adding the following evironment 
+       variable entries.
+    b. Instructions on where to find and edit your Maya.env file can be found here:
+       [Autodesk Maya 2026 Environment Variables](https://help.autodesk.com/view/MAYAUL/2026/ENU/?guid=GUID-925EB3B5-1839-45ED-AA2E-3184E3A45AC7)
+    c. In the appropriate Maya.env file, make the following entries:
+       MAYA_PLUG_IN_PATH=/path/to/your/install/directory/rawkee
+       MAYA_SCRIPT_PATH=/path/to/your/install/directoryrawkee/mel
 
-This will complete the setup of the RawKee X3D Plugin 1.2.0 for Maya 2019+. Happy modeling!
--->
+4. Load RawKee Plugin into Maya.
+    a. After you start Maya, open the Plug-in Manager through the Maya menu system:
+       Windows > Settings/Preferences > Plug-in Manager
+    b. Near the top of the Plug-in Manager option window you will see the something 
+       similar to the following:
+       /path/to/your/install/directory/rawkee
+       RawKee_Python_X3D.py
+    c. Clicke the "Loaded" box to load RawKee, and then close the Plug-in Manager.
+
 
 ## Contributing
 

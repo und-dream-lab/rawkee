@@ -1,5 +1,6 @@
 import sys
 import os
+
 from rawkee import RKWeb3D
 from rawkee.RKWeb3D import RKAddSwitch, RKAddGroup, RKAddCollision, RKSetAsBillboard, RKAddX3DSound, RKTestIt
 from rawkee.RKWeb3D import RKASBackupClipBoard, RKASRestoreClipBoard
@@ -39,8 +40,12 @@ import maya.api.OpenMayaUI as omui
 
 import webbrowser
 
-#http Service
-from nodejs import npx
+
+##########################################
+# For http Service, Not directly supported Any longer
+##########################################
+# from nodejs import npx
+##########################################
 
 # RawKee Information
 global RAWKEE_VENDOR
@@ -75,13 +80,15 @@ def maya_useNewAPI():
 def rkUpdateStickers(client_data):
     stk.reveal()
     
-
-def startX_ITE(args):
-    public_path = RKWeb3D.__file__.replace("\\", "/").rsplit("/", 1)[0]
-    public_path = public_path+"/public"
-
-    npx.call(['http-server', public_path])
-
+##########################################
+# Not directly supported Any longer
+##########################################
+# def startX_ITE(args):
+#    public_path = RKWeb3D.__file__.replace("\\", "/").rsplit("/", 1)[0]
+#    public_path = public_path+"/public"
+#
+#    npx.call(['http-server', public_path])
+############################################
 
 # Global RawKee menu systems Object used to add Menus to Maya Main Window
 # Cosntructing the RawKee menu system using "maya.cmds" is a more pleasant 
@@ -516,10 +523,15 @@ def initializePlugin(plugin):
  
     # RawKee Utility Functions required to be in MEL format such as functions related to AE Templates.
     mel.eval('source "x3d.mel"')
-    try:
+    
+    # Check to see if the Advanced Skelton Scripts are installed, and if they are, 
+    # source the main AS script.
+    adString = "AdvancedSkeleton"
+    envString = mel.eval('getenv MAYA_SCRIPT_PATH')
+    if adString in envString:
         mel.eval('source "AdvancedSkeletonFiles/../AdvancedSkeleton.mel"')
         print("Sourced mel scripts for Advanced Skeleton toolset. Adding Advanced Skeleton functionality to RawKee HAnim Character Export")
-    except:
+    else:
         print("Advanced Skeleton Not Found\nDownload and install Advanced Skeleton to add additional HAnim Character functionality to RawKee.\nhttps://animationstudios.com.au/")
     
     # Source all the X3D Field names for use in Import/Export and the Interaction Editor

@@ -91,6 +91,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         
         self.hanimSkeletonPanel = None
         self.advancedSkeletonPanel = None
+        self.genericSkeletonPanel = None
         self.artPanel = None
         self.animationPanel = None 
         self.testPanel = None
@@ -100,6 +101,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         
         self.hanimPath     = self.uiPaths + "RKCharacterEditorHAnimSkeletonPanel.ui"
         self.advancedPath  = self.uiPaths + "RKCharacterEditorAdvancedSkeletonPanel.ui"
+        self.genericPath   = self.uiPaths + "RKCharacterEditorGenericSkeletonPanel.ui"
         self.artPath       = self.uiPaths + "RKCharacterEditor_aRT_Panel.ui"
         self.animationPath = self.uiPaths + "RKCharacterEditorAnimationPanel.ui"
         self.testPath      = self.uiPaths + "RKQSSTestPanel.ui"
@@ -155,8 +157,12 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.rmAllAction = None
         self.rmrtoAction = None
         
-        self.allRotsAct  = None
+        self.allRotsAct   = None
         self.rmAllRotsAct = None
+        
+        self.cDupButton = None
+        self.sDupIPose  = None
+        self.transToDup = None
         
         self.sAnimPack   = None
         
@@ -255,6 +261,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             self.hanimSkeletonPanel = loader.load(hanimGUIFile)
         self.tab_widget.addTab(self.hanimSkeletonPanel, "X3D/HAnim Skeleton Creator")
 
+        # Generic Skeleton Functions
+        if not self.genericSkeletonPanel:
+            genericGUIFile = QtCore.QFile(self.genericPath)
+            genericGUIFile.open(QtCore.QFile.ReadOnly)
+            self.genericSkeletonPanel = loader.load(genericGUIFile)
+        self.tab_widget.addTab(self.genericSkeletonPanel, "Generic X3D/HAnim Skeleton Functions")
+
         # antCGI Rigging Toolkit
         try:
             from aRT import aRTUI
@@ -273,13 +286,15 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             print("aRT not found")
             
         # Advanced Skeleton Functions
-        asExists = mel.eval("exists asCreateGameEngineRootMotion")
-        if asExists == True:
+        if mel.eval("exists asCreateGameEngineRootMotion") == True:
             if not self.advancedSkeletonPanel:
                 advGUIFile = QtCore.QFile(self.advancedPath)
                 advGUIFile.open(QtCore.QFile.ReadOnly)
                 self.advancedSkeletonPanel = loader.load(advGUIFile)
-            self.tab_widget.addTab(self.advancedSkeletonPanel, "Advanced Skeleton Functions")
+
+                self.tab_widget.addTab(self.advancedSkeletonPanel, "Advanced Skeleton Functions")
+        else:
+            print("asCreateGameEngineRootMotion() function not found")
         
         # QSS Testing Tab
         #if not self.testPanel:
@@ -316,25 +331,33 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.haNameEd = self.findChild(QtWidgets.QLineEdit,   'haNameEdit'         )
         self.haLOA    = self.findChild(QtWidgets.QComboBox,   'loaComboBox'        )
         
+        # Generic Skeleton - Tab
+        self.cDupButton = self.findChild(QtWidgets.QPushButton, 'createDuplicate')
+        self.cDupIPose  = self.findChild(QtWidgets.QPushButton, 'setDuplicateIPose')
+        self.transToDup = self.findChild(QtWidgets.QPushButton, 'transferToDuplicate')
+        
         # Advanced Skeleton - Tab
-        self.estIPose  = self.findChild(QtWidgets.QPushButton, 'estIPose')
-        self.estAPose  = self.findChild(QtWidgets.QPushButton, 'estAPose')
-        self.estTPose  = self.findChild(QtWidgets.QPushButton, 'estTPose')
+        adString = "AdvancedSkeleton"
+        envString = mel.eval('getenv MAYA_SCRIPT_PATH')
+        if adString in envString:
+            self.estIPose  = self.findChild(QtWidgets.QPushButton, 'estIPose')
+            self.estAPose  = self.findChild(QtWidgets.QPushButton, 'estAPose')
+            self.estTPose  = self.findChild(QtWidgets.QPushButton, 'estTPose')
 
-        self.saveIPose  = self.findChild(QtWidgets.QPushButton, 'saveIPose')
-        self.saveAPose  = self.findChild(QtWidgets.QPushButton, 'saveAPose')
-        self.saveTPose  = self.findChild(QtWidgets.QPushButton, 'saveTPose')
+            self.saveIPose  = self.findChild(QtWidgets.QPushButton, 'saveIPose')
+            self.saveAPose  = self.findChild(QtWidgets.QPushButton, 'saveAPose')
+            self.saveTPose  = self.findChild(QtWidgets.QPushButton, 'saveTPose')
 
-        self.gtIPose   = self.findChild(QtWidgets.QPushButton, 'gtIPose'   )
-        self.gtTPose   = self.findChild(QtWidgets.QPushButton, 'gtTPose'   )
-        self.gtAPose   = self.findChild(QtWidgets.QPushButton, 'gtAPose'   )
-        self.asPose    = self.findChild(QtWidgets.QPushButton, 'asPose'    )
-        self.haDefPose = self.findChild(QtWidgets.QPushButton, 'haDefPose' )
+            self.gtIPose   = self.findChild(QtWidgets.QPushButton, 'gtIPose'   )
+            self.gtTPose   = self.findChild(QtWidgets.QPushButton, 'gtTPose'   )
+            self.gtAPose   = self.findChild(QtWidgets.QPushButton, 'gtAPose'   )
+            self.asPose    = self.findChild(QtWidgets.QPushButton, 'asPose'    )
+            self.haDefPose = self.findChild(QtWidgets.QPushButton, 'haDefPose' )
 
-        self.genButton = self.findChild(QtWidgets.QPushButton, 'genButton'         )
-        self.ipoButton = self.findChild(QtWidgets.QPushButton, 'iposeButton'       )
-        self.cpbButton = self.findChild(QtWidgets.QPushButton, 'defPoseButton'     )
-        self.trwButton = self.findChild(QtWidgets.QPushButton, 'transferSkinButton')
+            self.genButton = self.findChild(QtWidgets.QPushButton, 'genButton'         )
+            self.ipoButton = self.findChild(QtWidgets.QPushButton, 'iposeButton'       )
+            self.cpbButton = self.findChild(QtWidgets.QPushButton, 'defPoseButton'     )
+            self.trwButton = self.findChild(QtWidgets.QPushButton, 'transferSkinButton')
 
 
     def create_connections(self):
@@ -372,27 +395,184 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.haLOA.currentIndexChanged.connect(self.setHaLOAValue)
         self.haNameEd.textEdited.connect(self.setHaNameText)
         
+        # Generic Skeleton - Tab
+        self.cDupButton.clicked.connect(self.genericStep2)
+        self.cDupIPose.clicked.connect(self.genericStep4)
+        self.cDupButton.clicked.connect(self.genericStep5)
+        
         # Advanced Skeleton - Tab
-        self.estIPose.clicked.connect(cmds.rkEstimateIPoseForASGS)
-        self.estAPose.clicked.connect(cmds.rkEstimateAPoseForASGS)
-        self.estTPose.clicked.connect(cmds.rkEstimateTPoseForASGS)
+        # estIPose will be == to None if Advanced Skeleton is not found.
+        adString = "AdvancedSkeleton"
+        envString = mel.eval('getenv MAYA_SCRIPT_PATH')
+        if adString in envString:
+            self.estIPose.clicked.connect(cmds.rkEstimateIPoseForASGS)
+            self.estAPose.clicked.connect(cmds.rkEstimateAPoseForASGS)
+            self.estTPose.clicked.connect(cmds.rkEstimateTPoseForASGS)
+            
+            self.saveIPose.clicked.connect(cmds.rkSaveIPoseForASGS)
+            self.saveAPose.clicked.connect(cmds.rkSaveAPoseForASGS)
+            self.saveTPose.clicked.connect(cmds.rkSaveTPoseForASGS)
+            
+            self.gtIPose.clicked.connect(cmds.rkLoadIPoseForASGS)
+            self.gtAPose.clicked.connect(cmds.rkLoadAPoseForASGS)
+            self.gtTPose.clicked.connect(cmds.rkLoadTPoseForASGS)
+            
+            self.asPose.clicked.connect(cmds.rkSetASPoseForASGS)
+            self.haDefPose.clicked.connect(cmds.rkLoadDefPoseForHAnim)
+            
+            self.genButton.clicked.connect(cmds.rkAdvancedSkeleton)
+            self.ipoButton.clicked.connect(cmds.rkLoadIPoseForASGS)
+            self.cpbButton.clicked.connect(cmds.rkDefPoseForASGS  )
+            self.trwButton.clicked.connect(cmds.rkTransferSkinASGS)
+
         
-        self.saveIPose.clicked.connect(cmds.rkSaveIPoseForASGS)
-        self.saveAPose.clicked.connect(cmds.rkSaveAPoseForASGS)
-        self.saveTPose.clicked.connect(cmds.rkSaveTPoseForASGS)
+    #################################################
+    # Generic Create Duplicate Skeleton
+    ##################################################
+    def genericStep2(self):
+        # Create a duplicate skeleton
+        ##################################
+        # Create a HAnimHumanoid transform
+        ##################################
+        selectNames = cmds.ls(sl=True)
+        if selectNames == None:
+            return
+        sourceName = selectNames[0]
+        actualName = cmds.createNode('transform', ss=True, name='HAnimHumanoid')
+        cmds.addAttr(actualName, longName='x3dGroupType', dataType='string', keyable=False)
+        cmds.setAttr(actualName + '.x3dGroupType', "HAnimHumanoid", type='string', lock=True)
+        cmds.addAttr(actualName, longName='levelOfArticulation', shortName='LOA', attributeType='long', keyable=False, defaultValue=0, minValue=-1, maxValue=4)
+        cmds.addAttr(actualName, longName="skeletalConfiguration", dataType="string")
+        cmds.setAttr(actualName+'.skeletalConfiguration', "BASIC", type="string")
+        try:
+            stk.put(actualName,  "x3dHAnimHumanoid.png")
+        except Exception as e:
+            print(f"Exception Type: {type(e).__name__}")
+            print(f"Exception Message: {e}")                            
+            print("Oops... Node Sticker Didn't work.")
+
+        newRootName = cmds.duplicate(sourceName, rr=True, rc=True)
+        cmds.parent(newRootName, actualName)
         
-        self.gtIPose.clicked.connect(cmds.rkLoadIPoseForASGS)
-        self.gtAPose.clicked.connect(cmds.rkLoadAPoseForASGS)
-        self.gtTPose.clicked.connect(cmds.rkLoadTPoseForASGS)
+        # Assign parentConstraints
+        jSel = om.MSelectionList()
+        jSel.add(sourceName)
+        print("NRN: " + newRootName[0])
+        jSel.add(newRootName[0])
+        sRoot = om.MFnDagNode(jSel.getDagPath(0))
+        nRoot = om.MFnDagNode(jSel.getDagPath(1))
         
-        self.asPose.clicked.connect(cmds.rkSetASPoseForASGS)
-        self.haDefPose.clicked.connect(cmds.rkLoadDefPoseForHAnim)
+        self.addHAnimConstraints(sRoot, nRoot)
         
-        self.genButton.clicked.connect(cmds.rkAdvancedSkeleton)
-        self.ipoButton.clicked.connect(cmds.rkLoadIPoseForASGS)
-        self.cpbButton.clicked.connect(cmds.rkDefPoseForASGS  )
-        self.trwButton.clicked.connect(cmds.rkTransferSkinASGS)
+
+    def addHAnimConstraints(self, sLeader, nFollower):
+        #cmds.parentConstraint(sLeader.name(), nFollower.name(), mo=True, st=["x","y","z"], w=1)
+        cmds.parentConstraint(sLeader.name(), nFollower.name(), mo=True, w=1)
+        for i in range(sLeader.childCount()):
+            self.addHAnimConstraints(om.MFnDagNode(sLeader.child(i)), om.MFnDagNode(nFollower.child(i)))
+
+
+    #################################################
+    # Set Duplicate I-Pose
+    ##################################################
+    def genericStep4(self):
+        selectNames = cmds.ls(sl=True)
+        if selectNames == None:
+            return
+        dupName = selectNames[0]
+        souName = ""
+        dSel = om.MSelectionList()
+        dSel.add(dupName)
+        dupDag = om.MFnDagNode(dSel.getDagPath(0))
         
+        # Find the root node of the original skeleton
+        for i in range(dupDag.childCount()):
+            cNode = om.MFnDependencyNode(dupDag.child(i))
+            if cNode.typeName == "parentConstraint" and souName == "":
+                nodeList = cmds.listConnections(cNode.name(), s=True, d=False)
+                if nodeList != None:
+                    for nodeName in nodeList:
+                        if nodeName != dupName and cmds.nodeType(nodeName) == "joint":
+                            souName = nodeName
+        if souName == "":
+            return
+            
+        # Remove Constraints
+        self.constraintRemover(dupDag)
+        
+        # Freeze Joints
+        cmds.makeIdentity(dupName, apply=True, t=True, r=True, s=True, n=False, pn=True, jo=True)
+        
+        # Transfer joint.translate values to joint.opm.translate
+        self.flipTranslateToPMO(dupName)
+        mJoints = cmds.listRelatives(dupName, ad=True, type="joint")
+        if mJoints != None:
+            for mJoint in mJoints:
+                self.flipTranslateToPMO(mJoint)
+        
+        # Set BindPose for Duplicate skeleton
+        if mJoints != None:
+            mJoints.append(dupName)
+            cmds.select(mJoints)
+            poseName = cmds.dagPose(save=True, selection=True, name="iPose")
+            cmds.addAttr(poseName, longName='x3dHAnimPose', dataType="string")
+            cmds.setAttr(poseName + ".x3dHAnimPose", "iPose", type="string")
+
+        
+        # Assign new parentConstraints
+        jSel = om.MSelectionList()
+        jSel.add(souName)
+        jSel.add(dupName)
+        sRoot = om.MFnDagNode(jSel.getDagPath(0))
+        nRoot = om.MFnDagNode(jSel.getDagPath(1))
+        
+        self.addHAnimConstraints(sRoot, nRoot)
+        
+            
+    def flipTranslateToPMO(self, nodeName):
+        x = cmds.getAttr(nodeName + ".translateX")
+        y = cmds.getAttr(nodeName + ".translateY")
+        z = cmds.getAttr(nodeName + ".translateZ")
+        
+        opm = []
+        opm = cmds.getAttr(nodeName + ".offsetParentMatrix")
+        
+        opm[12] = opm[12] + x
+        opm[13] = opm[13] + y
+        opm[14] = opm[14] + z
+        cmds.setAttr(nodeName + ".offsetParentMatrix", opm, type="matrix")
+    
+        cmds.setAttr(nodeName + ".translateX", 0.0)
+        cmds.setAttr(nodeName + ".translateY", 0.0)
+        cmds.setAttr(nodeName + ".translateZ", 0.0)
+
+        
+    def constraintRemover(self, dagNode):
+        for i in range(dagNode.childCount()):
+            cNode = om.MFnDagNode(dagNode.child(i))
+            if cNode.typeName == "joint":
+                self.constraintRemover(cNode)
+            elif cNode.typeName == "parentConstraint":
+                nName = cNode.name()
+                cmds.delete(cNode.name())
+
+
+    #################################################
+    # Transfer Bound Skin to Duplicate Skeleton
+    ##################################################
+    def genericStep5(self):
+        # Invoke Source Skeleton BindPose
+        
+        # Save Weights to Disk
+        
+        # Unbind mesh(es) from Source Skeleton
+        
+        # Bind mesh(es) to Duplicate Skeleton
+        
+        # Load Saved Weights from Disk
+        
+        # Invoke Duplicate Skeleton's IPose
+        pass
 
     # Context Menu Stuff
     #################################################

@@ -6,22 +6,26 @@ import maya.mel          as mel
 import os
 import copy
 
-###########################################################
-# Used for killing external applications started by RawKee,
-# but methods implented don't work as expected. May remove.
-###########################################################
-import signal                                           ###
-###########################################################
+############################################################################
+# Removing this feature.
+############################################################################
+    # Used for killing external applications started by RawKee,
+    # but methods implented don't work as expected. May remove.
+    ###########################################################
+    # import signal                                         ###
+    ###########################################################
 
-##########################################
-# Used for launching external applications
-##########################################
-import subprocess        as sp         ###
-##########################################
+    ##########################################
+    # Used for launching external applications
+    ##########################################
+    # import subprocess        as sp       ###
+    ##########################################
 
 from rawkee import RKOrganizer
 from rawkee import RKSceneEditor
 from rawkee.RKFOptsDialog import RKFOptsDialog
+from maya.api.OpenMaya    import MFn as rkfn
+
 
 #from rawkee.RKUtils import *
 import rawkee.nodes.sticker    as stk
@@ -90,23 +94,24 @@ class RKWeb3D():
         
 #        if self.rko != None:
 #            del self.rko
-    
-    def launchServer(self):
-        public_path = RKOrganizer.__file__.replace("\\", "/").rsplit("/", 1)[0]
-        public_path = public_path+"/public"
-        print("Launching Server")
-#        myCmd = "mayapy -m nodejs.npx http-server" + public_path
-#        self.server = sp.Popen(myCmd)        
-        self.server = sp.Popen(["mayapy", "-m", "nodejs.npx", "http-server", public_path], creationflags=sp.CREATE_NEW_CONSOLE)        
-#        self.server = sp.Popen(["mayapy -m nodejs.npx", "http-server", public_path])
-        
-    def termServer(self):
-        print("OS name: " + os.name)
-#        os.kill(self.server.pid, signal.CTRL_C_EVENT)
-        if os.name  == 'nt':
-            self.server
-        else:
-            self.server.send_signal(signal_SIGTERM)
+
+    ############################################################################
+    # Removing the X_ITE SERVER feature.
+    ############################################################################
+    # def launchServer(self):
+    #    public_path = RKOrganizer.__file__.replace("\\", "/").rsplit("/", 1)[0]
+    #    public_path = public_path+"/public"
+    #    print("Launching Server")
+    #    self.server = sp.Popen(["mayapy", "-m", "nodejs.npx", "http-server", public_path], creationflags=sp.CREATE_NEW_CONSOLE)        
+    #
+    #    
+    # def termServer(self):
+    #    print("OS name: " + os.name)
+    #    if os.name  == 'nt':
+    #        self.server
+    #    else:
+    #        self.server.send_signal(signal_SIGTERM)
+    ############################################################################
     
     # Function to get Maya Main Window Widget
     def mayaMainWindow(self):
@@ -154,33 +159,6 @@ class RKWeb3D():
         cmds.menuItem(label='X3D Interaction Editor',             command='maya.cmds.rkShowSceneEditor()'    )                # -command "showX3DIEditor";
         cmds.menuItem(label='X3D Character and Animation Editor', command='maya.cmds.rkShowCharacterEditor()')                # -command "x3dCharacterEditor";
         cmds.menuItem(label='X3D General Animation Editor')                  # -command "x3dAnimationEditor";
-        #cmds.menuItem(divider=True, dividerLabel=' ')
-        '''
-        cmds.menuItem(label='Create HAnim Skeleton', subMenu=True)                # -command "x3dCharacterEditor";
-        cmds.menuItem(label='HAnimHumanoid with LOA 0 (Zero ) Skeleton')
-        cmds.menuItem(label='HAnimHumanoid with LOA 1 (One  ) Skeleton')
-        cmds.menuItem(label='HAnimHumanoid with LOA 2 (Two  ) Skeleton')
-        cmds.menuItem(label='HAnimHumanoid with LOA 3 (Three) Skeleton')
-        cmds.menuItem(label='HAnimHumanoid with LOA 4 (Four ) Skeleton')
-
-        cmds.setParent(self.rkMenuName, menu=True)
-        
-        #####################################################################
-        # Check to see if the Advanced Skeleton script is installed
-        # and if so, create a menu item for setting up an AS GameSkeletonRoot
-        # joint.
-        #####################################################################
-        asExists = mel.eval("exists asCreateGameEngineRootMotion")
-        if asExists == True:
-            cmds.menuItem('RawKee Functions for Advanced Skeleton', subMenu=True)
-            cmds.menuItem(label='Create GameSkeleton for X3D/HAnim', command='maya.cmds.rkAdvancedSkeleton()')
-            cmds.menuItem(label='Set HAnim I-Pose for GameSkeleton') #command='maya.cmds.rkSetIPoseForASGS()'
-            cmds.menuItem(label='Copy/Bind Selected Meshes to GameSkeleton') #command='maya.cmds.rkCopyBindForASGS()'
-            cmds.menuItem(label='Transfer SkinWeights from to GameSkeleton') #command='maya.cmds.rkTransferWeightsASGS()'
-
-            cmds.setParent(self.rkMenuName, menu=True)
-        '''
-        #cmds.menuItem(divider=True, dividerLabel=' ')
 
         cmds.menuItem(divider=True, dividerLabel='Code Repositories')
         cmds.menuItem(label='RawKee GitHub Python Repo',                command='maya.cmds.rkShowRawKee()')
@@ -818,6 +796,7 @@ class RKDefPoseForASGS(aom.MPxCommand):
         # Insert More Here
         
         hJoints = cmds.listRelatives(humanoid, ad=True, type='joint')
+        nJoints = []
         for j in hJoints:
             jx = cmds.getAttr(j+".translateX")
             jy = cmds.getAttr(j+".translateY")
@@ -831,10 +810,35 @@ class RKDefPoseForASGS(aom.MPxCommand):
             cmds.setAttr(j+'.offsetParentMatrix', 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, jx, jy, jz, 1.0, type='matrix')
             
             # Change the name to the expected Advanced Skeleton GameSkeleton naming convention.
-            cmds.rename(j, j.removesuffix("HAnim"))
+            nJoint = j.removesuffix("HAnim")
+            cmds.rename(j, nJoint)
+            nJoints.append(nJoint)
         
         #
         ##########################################################
+        
+        cmds.select(nJoints)
+        jSel = aom.MSelectionList()
+        jSel.add(nJoints[0])
+        mIter = aom.MItDependencyGraph(jSel.getDependNode(0), rkfn.kDagPose, aom.MItDependencyGraph.kDownstream, aom.MItDependencyGraph.kBreadthFirst, aom.MItDependencyGraph.kNodeLevel)
+        while not mIter.isDone():
+            delThisNode = False
+            bPoseNode = aom.MFnDependencyNode(mIter.currentNode())
+            try:
+                poseValue = cmds.getAttr(bPoseNode + ".x3dHAnimPose")
+                if poseValue == "iPose":
+                    delThisNode = True
+            except:
+                pass
+                
+            if delThisNode == True:
+                cmds.delete(bPoseNode)
+
+            mIter.next()
+
+        iBindPose = cmds.dagPose(bindPose=True, save=True)
+        cmds.addAttr(iBindPose, longName='x3dHAnimPose', dataType="string")
+        cmds.setAttr(iBindPose + ".x3dHAnimPose", "iPose", type="string")
         
         mel.eval('asCustomOrientJointsConnect()')
 
