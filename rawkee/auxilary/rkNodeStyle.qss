@@ -36,7 +36,7 @@ QPushButton#RKOptPanel  {
     font-size: 11px;
 }
 
-QLabel#stepExp, QLabel#stepExp_1, QLabel#stepExp_2, QLabel#stepExp_3 {
+QLabel#stepExp, QLabel#stepExp_1, QLabel#stepExp_2, QLabel#stepExp_3, QLabel#genSelRootLabel, QLabel#genSourceLabel {
     font-weight: bold;
     font-size: 14px;
     color: white;
@@ -60,7 +60,7 @@ QLabel#advStepLabel, QLabel#haCompTitle, QLabel#ditLabel {
     color: #f3a103;/* #c0c000; */
 }
 
-QLabel#advStepLabel_1, QLabel#advStepLabel_2, QLabel#advStepLabel_3, QLabel#advStepLabel_4, QLabel#advStepLabel_5 {
+QLabel#advStepLabel_1, QLabel#advStepLabel_2, QLabel#advStepLabel_3, QLabel#advStepLabel_4, QLabel#advStepLabel_5, QLabel#genStep1, QLabel#genStep2, QLabel#genStep3, QLabel#genStep4, QLabel#genStep5 {
     font-weight: bold;
     font-size: 14px;
     color: #03cf20;
@@ -96,7 +96,7 @@ QLabel#poseLabel {
     max-height: 40;
 }
 
-QLabel#estiLabel {
+QLabel#estiLabel, QLabel#genStepsLabel {
     font-weight: bold;
     font-size: 14px;
     color: #f3a103;
@@ -113,6 +113,15 @@ QPushButton#genButton, QPushButton#iposeButton, QPushButton#defPoseButton, QPush
     font-size: 11px;
     min-width: 75;
     max-width: 75;
+    min-height: 24;
+    max-height: 24;
+}
+
+QPushButton#createDuplicate, QPushButton#setDuplicateIPose, QPushButton#transferToDuplicate {
+    border: 2px solid grey;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 11px;
     min-height: 24;
     max-height: 24;
 }
@@ -168,6 +177,16 @@ QPushButton#haDefPose {
     font-size: 11px;
     min-width: 100;
     max-width: 100;
+    min-height: 24;
+    max-height: 24;
+}
+
+QPushButton#createDuplicate:hover:!pressed, QPushButton#setDuplicateIPose:hover:!pressed, QPushButton#transferToDuplicate:hover:!pressed {
+    border: 2px solid lightblue;
+    background-color: grey;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 11px;
     min-height: 24;
     max-height: 24;
 }
@@ -266,6 +285,15 @@ QPushButton#haDefPose:hover:!pressed {
     font-size: 11px;
     min-width: 100;
     max-width: 100;
+    min-height: 24;
+    max-height: 24;
+}
+
+QPushButton#createDuplicate:hover:pressed, QPushButton#setDuplicateIPose:hover:pressed, QPushButton#transferToDuplicate:hover:pressed {
+    border: 4px solid #04ff00;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 11px;
     min-height: 24;
     max-height: 24;
 }

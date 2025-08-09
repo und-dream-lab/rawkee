@@ -22,7 +22,7 @@ import PIL as pil
 
 import maya.api.OpenMaya as aom
 
-import ntpath
+#import ntpath
 
 #Python implementation of C++ web3dExportMethods
 
@@ -423,7 +423,7 @@ class RKInterfaces():
             print(f"An error occurred: {e}")
         
     def getFileName(self, inPath):
-        head, tail = ntpath.split(inPath)
+        head, tail = os.path.split(inPath)
         return tail
 
 

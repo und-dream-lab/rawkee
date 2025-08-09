@@ -958,18 +958,53 @@ class RKOrganizer():
         # Value 1: Convert Advanced Skeleton rig to HAnim Rig using RawKee
         #          Character Ediotr
         ######################################################################
-        try:
-            etValue = cmds.getAttr(depNode.name() + ".RKExportType")
-            if etValue == 0:
-                #TODO Implement Code that puts skeleton in bind pose
-                pass
-            elif etValue == 1:
-                # RawKee funciton that puts converted skeleton into
-                # user-defined default export pose at time of export.
-                cmds.rkLoadDefPoseForHAnim()
-        except:
-            print("ET Value Doesn't Exist. Results undefined.")
-            
+        #try:
+        #    etValue = cmds.getAttr(depNode.name() + ".RKExportType")
+        #    if etValue == 0:
+        #        #TODO Implement Code that puts skeleton in bind pose
+        #        pass
+        #    elif etValue == 1:
+        #        # RawKee funciton that puts converted skeleton into
+        #        # user-defined default export pose at time of export.
+        #        cmds.rkLoadDefPoseForHAnim()
+        #except:
+        #    print("ET Value Doesn't Exist. Results undefined.")
+        
+        ####################################################################
+        # Set the iPose before data collection from Humanoid and its joints.
+        ####################################################################
+        jNodeNames = cmds.listRelatives(depNode.name(), c=True, type="joint")
+        
+        #######################################################################
+        # Attempt to put the character into an i-pose before data is 
+        # extracted for export. If an i-pose is not found, RawKee will still
+        # attempt to export the character, but the results will be 'Best Guess'
+        # and may not conform to the artist's intent.
+        #######################################################################
+        cons = cmds.listConnections(jNodeNames[0], et=True, d=True)
+        bindNode = ""
+        iPoseFound = False
+        noBindPose = False
+        for con in cons:
+            nodeName = con.split(".")[0]
+            if cmds.nodeType(nodeName) == "dagPose":
+                if iPoseFound == False:
+                    bindNode = nodeName
+                    try:
+                        value = cmds.getAttr(nodeName + ".x3dHAnimPose")
+                        if value == "iPose":
+                            iPoseFound = True
+                    except:
+                        pass
+        if iPoseFound == False:
+            print("WARNING: HAnim i-pose not found for this skeleton.\Attempting a 'Best Guess' pose.")
+        if cmds.objExists(bindNode):
+            cmds.dagPose(restore=True, name=bindNode)
+        else:
+            noBindPose = True
+            print("WARNING: BindNode not found for this skeleton.")
+
+        
         dragPath = dragPath + "|" + depNode.name()
         bna = self.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "HAnimHumanoid")
         
