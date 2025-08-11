@@ -594,7 +594,23 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         #Make skins identity in worldspace.
         for skin in skins:
             rels = cmds.listRelatives(skin.name(), parent=True, fullPath=True)
+            ##########################################################
+            # Insert code to check if parent transform is keyed.
+            # if it is, break connections.
+            connections = []
+            connections = cmds.listConnections(rels[0], c=True, p=True)
             
+            cLen = len(connections)
+            cIter = 0
+            while cIter < cLen:
+                if "translate" in connections[cIter] or "rotate" in connections[cIter] or "scale" in connections[cIter]:
+                    try:
+                        cmds.disconnectAttr(connections[cIter+1], connections[cIter])
+                    except:
+                        print("disconnectAttr failed")
+                cIter += 2
+                
+            # Format the mesh within the transform properly
             pv=[0, 0, 0]
             cmds.parent(rels[0], world=True)
             cmds.xform(rels[0], pivots=pv, worldSpace=True)
@@ -606,7 +622,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             self.bindSkinToSpecificInfluencers(skins[i], infDagPaths[i])
             
         #Set Skin weights of source skeleton to new skeleton
-        #self.overWriteWeights(skins, meshWeights, infDagPaths)
+        self.overWriteWeights(skins, meshWeights, infDagPaths)
 
 
     def overWriteWeights(self, skins, weights, infPaths):
@@ -619,14 +635,26 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             shape_comp = single_fn.create(om.MFn.kMeshVertComponent)
             single_fn.addElements(comp_ids)
             
-            infNum = len(infPaths[i])
             sc = []
             sc = cmds.listConnections(skins[i].name(), type='skinCluster', source=True, destination=False)
             
             scList = om.MSelectionList()
             scList.add(sc[0])
-            skinCluster = om.MFnSkinCluster(scList.getDependNode(0))
-            skinCluster.setWeights(skins[i].fullPathName(), shape_comp, infPaths[i], weights[i], normalize=True, returnOldWeights=False)
+            skinCluster = omAnim.MFnSkinCluster(scList.getDependNode(0))
+
+            infNum = len(infPaths[i])
+            dpList = skinCluster.influenceObjects()
+            dpLen = len(dpList)
+            dpIndices = om.MIntArray()
+            
+            for j in range(infNum):
+                for k in range(dpLen):
+                    if infPaths[i][j].fullPathName() == dpList[k].fullPathName():
+                        dpIndices.append(k)
+            
+            skSel = om.MSelectionList()
+            skSel.add(skins[i].fullPathName())
+            skinCluster.setWeights(skSel.getDagPath(0), shape_comp, dpIndices, weights[i], normalize=False, returnOldWeights=False)
 
 
     def bindSkinToSpecificInfluencers(self, skin, jointPaths):
@@ -664,16 +692,20 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         dupPaths = []
 
         # Find the appropriate Parent Constraint for the Influence Object
+        dupSel = om.MSelectionList()
         for path in dPaths:
             joint = om.MFnDagNode(path)
             mIter = om.MItDependencyGraph(joint.object(), rkfn.kParentConstraint, om.MItDependencyGraph.kDownstream, om.MItDependencyGraph.kBreadthFirst, om.MItDependencyGraph.kNodeLevel)
             while not mIter.isDone():
                 dagNode = om.MFnDagNode(mIter.currentNode())
                 if dupRootPath.fullPathName() in dagNode.fullPathName():
-                    dupPaths.append(dagNode.fullPathName().removesuffix("|" + dagNode.name()))
+                    dupSel.add(dagNode.fullPathName().removesuffix("|" + dagNode.name()))
                     
                 mIter.next()
-                
+        
+        for i in range(dupSel.length()):
+            dupPaths.append(dupSel.getDagPath(i))
+        
         idPaths.append(dupPaths)                        
 
 
