@@ -1,8 +1,8 @@
-# RawKee Python Edition - X3D Plugin 2.x.x for Maya 2025 and Beyond!
+# RawKee Python Edition (PE) - X3D Plugin 2.x.x for Maya 2025 and Beyond!
 
-This GitHub site supports the latest version of the RawKee Python X3D Plugin, visit the [GitHub repository](https://github.com/und-dream-lab/rawkee).
+This GitHub site supports the latest version of the RawKee Python X3D Plugin, visit the [GitHub repository](https://github.com/und-dream-lab/rawkee). RawKee PE is compatible with all versions of Maya newer than Maya 2025 on Windows, Linux, and macOS. RawKee PE may be compatible with versions of Maya on all three operating systems going back to Maya 2023, but this has not been tested.
 
-RawKee Python Edition is currently in a pre-release status, with the official 2.0.0 release scheduled for the 2025 Web3D Conference, which will co-located with Digital Heritage 2025 in Siena Italy.
+RawKee Python Edition is currently in a pre-release status, with the official 2.0.0 release scheduled for the 2025 Web3D Conference, which will be co-located with Digital Heritage 2025 in Siena Italy.
 - [2025 Web3D Conference](https://web3d.siggraph.org/2025/)
 - [Digital Heritage 2025](https://digitalheritage2025.unisi.it/)
 
