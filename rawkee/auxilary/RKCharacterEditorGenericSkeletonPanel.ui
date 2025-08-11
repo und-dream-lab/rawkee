@@ -239,7 +239,7 @@
        <item>
         <widget class="QLabel" name="genSourceLabel">
          <property name="text">
-          <string>Position Source Skeleton in I-Pose, &amp; then select the root of the Duplicate before Step 4.</string>
+          <string>Position Source Skeleton in an HAnim I-Pose (or other desired default pose).</string>
          </property>
         </widget>
        </item>

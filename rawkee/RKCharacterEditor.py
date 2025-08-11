@@ -168,6 +168,9 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         
         self.CBIDs       = None
         
+        self.sourceRoot    = ""
+        self.duplicateRoot = ""
+        
         self.create_actions()
 
         self.create_widgets()
@@ -398,7 +401,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         # Generic Skeleton - Tab
         self.cDupButton.clicked.connect(self.genericStep2)
         self.cDupIPose.clicked.connect(self.genericStep4)
-        self.cDupButton.clicked.connect(self.genericStep5)
+        self.transToDup.clicked.connect(self.genericStep5)
         
         # Advanced Skeleton - Tab
         # estIPose will be == to None if Advanced Skeleton is not found.
@@ -430,14 +433,17 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
     # Generic Create Duplicate Skeleton
     ##################################################
     def genericStep2(self):
+        print("genericStep2")
         # Create a duplicate skeleton
         ##################################
         # Create a HAnimHumanoid transform
         ##################################
+        self.duplicateRoot = ""
+        
         selectNames = cmds.ls(sl=True)
         if selectNames == None:
             return
-        sourceName = selectNames[0]
+        self.sourceRoot = selectNames[0]
         actualName = cmds.createNode('transform', ss=True, name='HAnimHumanoid')
         cmds.addAttr(actualName, longName='x3dGroupType', dataType='string', keyable=False)
         cmds.setAttr(actualName + '.x3dGroupType', "HAnimHumanoid", type='string', lock=True)
@@ -451,14 +457,15 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             print(f"Exception Message: {e}")                            
             print("Oops... Node Sticker Didn't work.")
 
-        newRootName = cmds.duplicate(sourceName, rr=True, rc=True)
+        newRootName = cmds.duplicate(self.sourceRoot, rr=True, rc=True)
         cmds.parent(newRootName, actualName)
         
         # Assign parentConstraints
+        self.duplicateRoot = newRootName[0]
+        
         jSel = om.MSelectionList()
-        jSel.add(sourceName)
-        print("NRN: " + newRootName[0])
-        jSel.add(newRootName[0])
+        jSel.add(self.sourceRoot)
+        jSel.add(self.duplicateRoot)
         sRoot = om.MFnDagNode(jSel.getDagPath(0))
         nRoot = om.MFnDagNode(jSel.getDagPath(1))
         
@@ -476,43 +483,34 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
     # Set Duplicate I-Pose
     ##################################################
     def genericStep4(self):
-        selectNames = cmds.ls(sl=True)
-        if selectNames == None:
-            return
-        dupName = selectNames[0]
-        souName = ""
+        print("genericStep4")
+
         dSel = om.MSelectionList()
-        dSel.add(dupName)
+        dSel.add(self.duplicateRoot)
         dupDag = om.MFnDagNode(dSel.getDagPath(0))
         
-        # Find the root node of the original skeleton
-        for i in range(dupDag.childCount()):
-            cNode = om.MFnDependencyNode(dupDag.child(i))
-            if cNode.typeName == "parentConstraint" and souName == "":
-                nodeList = cmds.listConnections(cNode.name(), s=True, d=False)
-                if nodeList != None:
-                    for nodeName in nodeList:
-                        if nodeName != dupName and cmds.nodeType(nodeName) == "joint":
-                            souName = nodeName
-        if souName == "":
-            return
-            
+        
         # Remove Constraints
-        self.constraintRemover(dupDag)
+        constraints = []
+        self.constraintRemover(dupDag, constraints)
+        for con in constraints:
+            if cmds.objExists(con):
+                cmds.delete(con)
+        constraints.clear()
         
         # Freeze Joints
-        cmds.makeIdentity(dupName, apply=True, t=True, r=True, s=True, n=False, pn=True, jo=True)
+        cmds.makeIdentity(self.duplicateRoot, apply=True, t=True, r=True, s=True, n=False, pn=True, jo=True)
         
         # Transfer joint.translate values to joint.opm.translate
-        self.flipTranslateToPMO(dupName)
-        mJoints = cmds.listRelatives(dupName, ad=True, type="joint")
+        self.flipTranslateToPMO(self.duplicateRoot)
+        mJoints = cmds.listRelatives(self.duplicateRoot, ad=True, type="joint")
         if mJoints != None:
             for mJoint in mJoints:
                 self.flipTranslateToPMO(mJoint)
         
         # Set BindPose for Duplicate skeleton
         if mJoints != None:
-            mJoints.append(dupName)
+            mJoints.append(self.duplicateRoot)
             cmds.select(mJoints)
             poseName = cmds.dagPose(save=True, selection=True, name="iPose")
             cmds.addAttr(poseName, longName='x3dHAnimPose', dataType="string")
@@ -521,8 +519,8 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         
         # Assign new parentConstraints
         jSel = om.MSelectionList()
-        jSel.add(souName)
-        jSel.add(dupName)
+        jSel.add(self.sourceRoot)
+        jSel.add(self.duplicateRoot)
         sRoot = om.MFnDagNode(jSel.getDagPath(0))
         nRoot = om.MFnDagNode(jSel.getDagPath(1))
         
@@ -547,33 +545,176 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         cmds.setAttr(nodeName + ".translateZ", 0.0)
 
         
-    def constraintRemover(self, dagNode):
+    def constraintRemover(self, dagNode, constraints):
         for i in range(dagNode.childCount()):
             cNode = om.MFnDagNode(dagNode.child(i))
             if cNode.typeName == "joint":
-                self.constraintRemover(cNode)
+                self.constraintRemover(cNode, constraints)
             elif cNode.typeName == "parentConstraint":
-                nName = cNode.name()
-                cmds.delete(cNode.name())
+                constraints.append(cNode.name())
 
 
     #################################################
     # Transfer Bound Skin to Duplicate Skeleton
     ##################################################
     def genericStep5(self):
-        # Invoke Source Skeleton BindPose
+        print("genericStep5")
         
-        # Save Weights to Disk
+        # Collect Bound Meshes
+        skelSel = om.MSelectionList()
+        skelSel.add(self.sourceRoot)
+        srDag = om.MFnDagNode(skelSel.getDagPath(0))
+        skins = []
+        self.collectBoundSkins(srDag, skins)
         
-        # Unbind mesh(es) from Source Skeleton
+        #Collect Skin Clusters
+        skinClusters = []
+        for skin in skins:
+            self.collectSkinClusterFromSkin(skin, skinClusters)
         
-        # Bind mesh(es) to Duplicate Skeleton
+        #Collect lists of potential Duplicate influencer dag paths per skin cluster
+        #for future reattachement. 
+        infDagPaths = []
+        for sc in skinClusters:
+            self.getAllInfluencesForSkinCluster(sc, infDagPaths)
         
-        # Load Saved Weights from Disk
+        meshWeights = []
+        for i in range(len(skins)):
+            self.getWeightsFromSkin(skins[i], skinClusters[i], meshWeights)
         
-        # Invoke Duplicate Skeleton's IPose
-        pass
+        #Select All Bound Meshes
+        actList = om.MSelectionList()
+        for skin in skins:
+            actList.add(skin.name())
+        om.MGlobal.setActiveSelectionList(actList)
+        
+        #Unbined Meshes
+        cmds.DetachSkin(unbindAll=True, deleteHistroy=True)
+        
+        #Make skins identity in worldspace.
+        for skin in skins:
+            rels = cmds.listRelatives(skin.name(), parent=True, fullPath=True)
+            
+            pv=[0, 0, 0]
+            cmds.parent(rels[0], world=True)
+            cmds.xform(rels[0], pivots=pv, worldSpace=True)
+            cmds.makeIdentity(rels[0], apply=True, t=True, r=True, s=True, n=False, pn=True, jo=True)
+        
+        #Rebind Meshes to Duplicate Skeleton
+        for i in range(len(skins)):
+            cmds.delete(skins[i].name(), ch=True)
+            self.bindSkinToSpecificInfluencers(skins[i], infDagPaths[i])
+            
+        #Set Skin weights of source skeleton to new skeleton
+        #self.overWriteWeights(skins, meshWeights, infDagPaths)
 
+
+    def overWriteWeights(self, skins, weights, infPaths):
+        for i in range(len(skins)):
+            smlist = om.MSelectionList()
+            smlist.add(skins[i].name())
+            mpath = smlist.getDagPath(0)
+            comp_ids   = [m for m in range(skins[i].numVertices)]
+            single_fn  = om.MFnSingleIndexedComponent()
+            shape_comp = single_fn.create(om.MFn.kMeshVertComponent)
+            single_fn.addElements(comp_ids)
+            
+            infNum = len(infPaths[i])
+            sc = []
+            sc = cmds.listConnections(skins[i].name(), type='skinCluster', source=True, destination=False)
+            
+            scList = om.MSelectionList()
+            scList.add(sc[0])
+            skinCluster = om.MFnSkinCluster(scList.getDependNode(0))
+            skinCluster.setWeights(skins[i].fullPathName(), shape_comp, infPaths[i], weights[i], normalize=True, returnOldWeights=False)
+
+
+    def bindSkinToSpecificInfluencers(self, skin, jointPaths):
+        bindList = om.MSelectionList()
+        for path in jointPaths:
+            bindList.add(path)
+        bindList.add(self.duplicateRoot)
+        bindList.add(skin.name())
+        om.MGlobal.setActiveSelectionList(bindList)
+        
+        cmds.skinCluster(tsb=True)
+        
+
+    def getWeightsFromSkin(self, skin, skinCluster, meshWeights):
+        smlist = om.MSelectionList()
+        smlist.add(skin.name())
+        mpath = smlist.getDagPath(0)
+        comp_ids   = [m for m in range(skin.numVertices)]
+        single_fn  = om.MFnSingleIndexedComponent()
+        shape_comp = single_fn.create(om.MFn.kMeshVertComponent)
+        single_fn.addElements(comp_ids)
+        
+        weights = []
+        numInf      = 0
+        weights, numInf = skinCluster.getWeights(mpath, shape_comp)
+        
+        meshWeights.append(weights)
+        
+
+    def getAllInfluencesForSkinCluster(self, sc, idPaths):
+        ancSel = om.MSelectionList()
+        ancSel.add(self.duplicateRoot)
+        dupRootPath = ancSel.getDagPath(0)
+        dPaths = sc.influenceObjects()
+        dupPaths = []
+
+        # Find the appropriate Parent Constraint for the Influence Object
+        for path in dPaths:
+            joint = om.MFnDagNode(path)
+            mIter = om.MItDependencyGraph(joint.object(), rkfn.kParentConstraint, om.MItDependencyGraph.kDownstream, om.MItDependencyGraph.kBreadthFirst, om.MItDependencyGraph.kNodeLevel)
+            while not mIter.isDone():
+                dagNode = om.MFnDagNode(mIter.currentNode())
+                if dupRootPath.fullPathName() in dagNode.fullPathName():
+                    dupPaths.append(dagNode.fullPathName().removesuffix("|" + dagNode.name()))
+                    
+                mIter.next()
+                
+        idPaths.append(dupPaths)                        
+
+
+    def collectSkinClusterFromSkin(self, mNode, skinClusters):
+        smlist = om.MSelectionList()
+        smlist.add(mNode.name())
+        mpath = smlist.getDagPath(0)
+        comp_ids   = [m for m in range(mNode.numVertices)]
+        single_fn  = om.MFnSingleIndexedComponent()
+        shape_comp = single_fn.create(om.MFn.kMeshVertComponent)
+        single_fn.addElements(comp_ids)
+        
+        skClusters = []
+        scIter = om.MItDependencyGraph(mNode.object(), rkfn.kSkinClusterFilter, om.MItDependencyGraph.kUpstream, om.MItDependencyGraph.kBreadthFirst, om.MItDependencyGraph.kNodeLevel)
+        while not scIter.isDone():
+            skClusters.append(omAnim.MFnSkinCluster(scIter.currentNode()))
+            scIter.next()
+        
+        if len(skClusters) > 0:
+            skinClusters.append(skClusters[0])
+
+        
+    def collectBoundSkins(self, joint, skins):
+        mIter = om.MItDependencyGraph(joint.object(), rkfn.kMesh, om.MItDependencyGraph.kDownstream, om.MItDependencyGraph.kBreadthFirst, om.MItDependencyGraph.kNodeLevel)
+        while not mIter.isDone():
+            mNode = om.MFnMesh(mIter.currentNode())
+            hasFound = False
+            for skin in skins:
+                if skin.name() == mNode.name():
+                    hasFound = True
+            if hasFound == False:
+                skins.append(mNode)
+            
+            mIter.next()
+            
+        for i in range(joint.childCount()):
+            cNode = om.MFnDagNode(joint.child(i))
+            if cNode.typeName == "joint":
+                self.collectBoundSkins(cNode, skins)
+        
+            
     # Context Menu Stuff
     #################################################
     #
