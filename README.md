@@ -1,17 +1,25 @@
-# RawKee Python Edition - X3D Plugin 2.x.x for Maya 2025+
+# RawKee Python Edition - X3D Plugin 2.x.x for Maya 2025 and Beyond!
 
-For the latest version of the RawKee Python X3D Plugin, visit the [GitHub repository](https://github.com/und-dream-lab/rawkee).
+This GitHub site supports the latest version of the RawKee Python X3D Plugin, visit the [GitHub repository](https://github.com/und-dream-lab/rawkee).
 
-For C++ versions of the plugin (1.2.0) supporting Maya 2019 - Maya 2024, please refer to the [GitHub page](https://github.com/und-dream-lab/rawkee/tree/v1.2.0).
+RawKee Python Edition is currently in a pre-release status, with the official 2.0.0 release scheduled for the 2025 Web3D Conference, which will co-located with Digital Heritage 2025 in Siena Italy.
+- [2025 Web3D Conference](https://web3d.siggraph.org/2025/)
+- [Digital Heritage 2025](https://digitalheritage2025.unisi.it/)
 
-For C++ versions of the plugin (1.1.0) supporting Maya 6.0 - Maya 2008, please refer to the [SourceForge page](https://sourceforge.net/projects/rawkee/).
+### Collaborators:
+- [Antony Ward](https://www.antcgi.com/about) - Collaborating to provide RawKee and HAnim compatibility with his [aRT: Modular Rigging Tool](https://www.antcgi.com/store/p/art-modular-rigging-tool).
 
-Some tutorials for RawKee C++ Edition (v 1.1.0/1.2.0) can be found at the Internet Wayback Machine. Unfortunately, the old video tutorials were not archived by IWM.
+### Special Thanks:
+- Michalis Kambruelis - [Developer of Castle Game Engine](https://castle-engine.io/) for developer feedback and X3D consulting.
+- Holger Seelig - [Developer of X_ITE - X3D/Web3D Viewer](https://create3000.github.io/x_ite/) and [Developer of Sunrize: Multi-Platform X3D Editor](https://create3000.github.io/sunrize/). Development of RawKee PE would have been nearly impossible without them.
+- Members of the Web3D HAnim Working Group - John Carlson, Carol McDonlad, Joe Williams, and Myeong Won Lee - For their guidance and feedback surrounding the X3D HAnim Spec.
 
-- [https://web.archive.org/web/20100105142454/http://rawkee.sourceforge.net/tutorials/](https://web.archive.org/web/20100105142454/http://rawkee.sourceforge.net/tutorials/)
+### Early RawKee
+Those interested in the deprecated C++ versions of RawKee should see the relevant section at the bottom of this page.
 
 
 ## RawKee Python Edition requires the use of 'pip' with 'mayapy'.
+
 1. Most likely, the version of Python for Maya (aka the mayapy executable) is already installed.
 
 2. If for some reason it is not, you can follow the instruction on how to install 'pip' found here:
@@ -19,6 +27,7 @@ Some tutorials for RawKee C++ Edition (v 1.1.0/1.2.0) can be found at the Intern
    
 
 ## Required Python Packages in addition to standard Maya Python API 1.0/2.0 packages (mayapy).
+
 Some of the packages listed may require a pip install regarless of what the list below explicitly states.
 - pillow        (pip install required)
 - ffmpeg-python (pip install required)
@@ -34,7 +43,7 @@ Some of the packages listed may require a pip install regarless of what the list
 - json 
 
 
-## Installing from GitHub
+## Installing RawKee 2.x.x from GitHub
 
 1. PIP install the Python packages listed above for your version of Maya and OS.<br>
     a. On Windows use PowerShell to run:          mayapy.exe<br>
@@ -84,3 +93,14 @@ For further assistance, contact Aaron:
 - **Email:** aaron.bergstrom@und.edu
 - **Organization:** UND Computational Research Center - DREAM Lab
 - **Website:** [DREAM Lab](https://dream.crc.und.edu/)
+
+
+## Deprecated C++ Versions of RawKee
+
+C++ versions of the plugin (1.2.0) supporting Maya 2019 - Maya 2024, please refer to the [GitHub page](https://github.com/und-dream-lab/rawkee/tree/v1.2.0).
+
+C++ versions of the plugin (1.1.0) supporting Maya 6.0 - Maya 2008, please refer to the [SourceForge page](https://sourceforge.net/projects/rawkee/).
+
+Some tutorials for RawKee C++ Edition (v 1.1.0/1.2.0) can be found at the Internet Wayback Machine. Unfortunately, the old video tutorials were not archived by IWM.
+
+- [https://web.archive.org/web/20100105142454/http://rawkee.sourceforge.net/tutorials/](https://web.archive.org/web/20100105142454/http://rawkee.sourceforge.net/tutorials/)
