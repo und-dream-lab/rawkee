@@ -11,9 +11,9 @@ RawKee Python Edition is currently in a pre-release status, with the official 2.
 - [Antony Ward](https://www.antcgi.com/about) - Collaborating to provide RawKee and HAnim compatibility with his [aRT: Modular Rigging Tool](https://www.antcgi.com/store/p/art-modular-rigging-tool).
 
 ### Special Thanks:
-- Michalis Kambruelis - [Developer of Castle Game Engine](https://castle-engine.io/) for developer feedback and X3D consulting.
+- Michalis Kamburelis - [Developer of Castle Game Engine](https://castle-engine.io/) for developer feedback and X3D consulting.
 - Holger Seelig - [Developer of X_ITE - X3D/Web3D Viewer](https://create3000.github.io/x_ite/) and [Developer of Sunrize: Multi-Platform X3D Editor](https://create3000.github.io/sunrize/). Development of RawKee PE would have been nearly impossible without them.
-- Members of the Web3D HAnim Working Group - John Carlson, Carol McDonlad, Joe Williams, and Myeong Won Lee - For their guidance and feedback surrounding the X3D HAnim Spec.
+- Members of the Web3D HAnim Working Group - John Carlson, Carol McDonald, Joe Williams, and Myeong Won Lee - For their guidance and feedback surrounding the X3D HAnim Spec.
 
 ### Early RawKee
 Those interested in the deprecated C++ versions of RawKee should see the relevant section at the bottom of this page.
