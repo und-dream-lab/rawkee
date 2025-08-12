@@ -576,16 +576,39 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         #for future reattachement. 
         infDagPaths = []
         for sc in skinClusters:
-            self.getAllInfluencesForSkinCluster(sc, infDagPaths)
+            skDags = om.MDagPathArray()
+            
+            jtSels = om.MSelectionList()
+            jtSels.add(self.duplicateRoot)
+            fullDupRootName = jtSels.getDagPath(0).fullPathName()
+            jtSels.clear()
+            
+            curInf = []
+            curInf = cmds.skinCluster(sc.name(), q=True, inf=True)
+            for tinf in curInf:
+                cons = []
+                cons = cmds.listConnections(tinf, fnn=True, type='parentConstraint')
+                if cons != None:
+                    if fullDupRootName in cons[0]:
+                        #This add the parentConstraint's DAG parent to the MSelectionList, which allows us to get the parent's DagPath later
+                        jtSels.add(cons[0].rsplit("|", 1)[0])
+            
+            for i in range(jtSels.length()):
+                skDags.append(jtSels.getDagPath(i))
+                
+            infDagPaths.append(skDags)
+                
+            #self.getAllInfluencesForSkinCluster(sc, infDagPaths)
         
         meshWeights = []
+        infLengths  = []
         for i in range(len(skins)):
-            self.getWeightsFromSkin(skins[i], skinClusters[i], meshWeights)
+            self.getWeightsFromSkin(skins[i], skinClusters[i], meshWeights, infLengths)
         
         #Select All Bound Meshes
         actList = om.MSelectionList()
         for skin in skins:
-            actList.add(skin.name())
+            actList.add(skin.fullPathName())
         om.MGlobal.setActiveSelectionList(actList)
         
         #Unbined Meshes
@@ -618,8 +641,10 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         
         #Rebind Meshes to Duplicate Skeleton
         for i in range(len(skins)):
-            cmds.delete(skins[i].name(), ch=True)
-            self.bindSkinToSpecificInfluencers(skins[i], infDagPaths[i])
+            cmds.delete(skins[i].fullPathName(), ch=True)
+            cmds.skinCluster(infDagPaths[i], skins[i].fullPathName(), tsb=True)
+            
+            #self.bindSkinToSpecificInfluencers(skins[i], infDagPaths[i])
             
         #Set Skin weights of source skeleton to new skeleton
         self.overWriteWeights(skins, meshWeights, infDagPaths)
@@ -628,28 +653,29 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
     def overWriteWeights(self, skins, weights, infPaths):
         for i in range(len(skins)):
             smlist = om.MSelectionList()
-            smlist.add(skins[i].name())
+            smlist.add(skins[i].fullPathName())
             mpath = smlist.getDagPath(0)
+            
             comp_ids   = [m for m in range(skins[i].numVertices)]
             single_fn  = om.MFnSingleIndexedComponent()
             shape_comp = single_fn.create(om.MFn.kMeshVertComponent)
             single_fn.addElements(comp_ids)
             
             sc = []
-            sc = cmds.listConnections(skins[i].name(), type='skinCluster', source=True, destination=False)
+            sc = cmds.listConnections(skins[i].fullPathName(), type='skinCluster', source=True, destination=False)
             
             scList = om.MSelectionList()
             scList.add(sc[0])
             skinCluster = omAnim.MFnSkinCluster(scList.getDependNode(0))
+            dagPathList = skinCluster.influenceObjects()
+            dpIndices = om.MIntArray()
 
             infNum = len(infPaths[i])
-            dpList = skinCluster.influenceObjects()
-            dpLen = len(dpList)
-            dpIndices = om.MIntArray()
+            dpLen  = len(dagPathList)
             
             for j in range(infNum):
                 for k in range(dpLen):
-                    if infPaths[i][j].fullPathName() == dpList[k].fullPathName():
+                    if infPaths[i][j].fullPathName() == dagPathList[k].fullPathName():
                         dpIndices.append(k)
             
             skSel = om.MSelectionList()
@@ -668,27 +694,32 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         cmds.skinCluster(tsb=True)
         
 
-    def getWeightsFromSkin(self, skin, skinCluster, meshWeights):
+    def getWeightsFromSkin(self, skin, skinCluster, meshWeights, infLengths):
         smlist = om.MSelectionList()
-        smlist.add(skin.name())
+        smlist.add(skin.fullPathName())
         mpath = smlist.getDagPath(0)
+        
         comp_ids   = [m for m in range(skin.numVertices)]
         single_fn  = om.MFnSingleIndexedComponent()
         shape_comp = single_fn.create(om.MFn.kMeshVertComponent)
         single_fn.addElements(comp_ids)
         
         weights = []
-        numInf      = 0
+        numInf  = 0
         weights, numInf = skinCluster.getWeights(mpath, shape_comp)
         
         meshWeights.append(weights)
+        infLengths.append(numInf)
         
 
+    # Deprecated
     def getAllInfluencesForSkinCluster(self, sc, idPaths):
         ancSel = om.MSelectionList()
         ancSel.add(self.duplicateRoot)
         dupRootPath = ancSel.getDagPath(0)
         dPaths = sc.influenceObjects()
+        #for i in range(len(dPaths)):
+        #    print("Joint DPath: " + dPaths[i].fullPathName() + ", Index: " + str(i))
         dupPaths = []
 
         # Find the appropriate Parent Constraint for the Influence Object
@@ -697,13 +728,17 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             joint = om.MFnDagNode(path)
             mIter = om.MItDependencyGraph(joint.object(), rkfn.kParentConstraint, om.MItDependencyGraph.kDownstream, om.MItDependencyGraph.kBreadthFirst, om.MItDependencyGraph.kNodeLevel)
             while not mIter.isDone():
-                dagNode = om.MFnDagNode(mIter.currentNode())
-                if dupRootPath.fullPathName() in dagNode.fullPathName():
-                    dupSel.add(dagNode.fullPathName().removesuffix("|" + dagNode.name()))
+                pcNode = om.MFnDagNode(mIter.currentNode())
+                if dupRootPath.fullPathName() in pcNode.fullPathName():
+                    dupSel.add(pcNode.fullPathName().removesuffix("|" + pcNode.name()))
                     
                 mIter.next()
         
+        print("SC: " + sc.name() + ", Infs: " + str(dupSel.length()))
+        
         for i in range(dupSel.length()):
+            tNode = om.MFnDependencyNode(dupSel.getDependNode(i))
+            print("    Inf Node: " + tNode.name() + ", Type: " + tNode.typeName + ", index: " + str(i+1))
             dupPaths.append(dupSel.getDagPath(i))
         
         idPaths.append(dupPaths)                        
@@ -713,10 +748,6 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         smlist = om.MSelectionList()
         smlist.add(mNode.name())
         mpath = smlist.getDagPath(0)
-        comp_ids   = [m for m in range(mNode.numVertices)]
-        single_fn  = om.MFnSingleIndexedComponent()
-        shape_comp = single_fn.create(om.MFn.kMeshVertComponent)
-        single_fn.addElements(comp_ids)
         
         skClusters = []
         scIter = om.MItDependencyGraph(mNode.object(), rkfn.kSkinClusterFilter, om.MItDependencyGraph.kUpstream, om.MItDependencyGraph.kBreadthFirst, om.MItDependencyGraph.kNodeLevel)
@@ -729,12 +760,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
 
         
     def collectBoundSkins(self, joint, skins):
+        addCount = 0
         mIter = om.MItDependencyGraph(joint.object(), rkfn.kMesh, om.MItDependencyGraph.kDownstream, om.MItDependencyGraph.kBreadthFirst, om.MItDependencyGraph.kNodeLevel)
         while not mIter.isDone():
             mNode = om.MFnMesh(mIter.currentNode())
             hasFound = False
             for skin in skins:
-                if skin.name() == mNode.name():
+                if skin.fullPathName() == mNode.fullPathName():
                     hasFound = True
             if hasFound == False:
                 skins.append(mNode)
