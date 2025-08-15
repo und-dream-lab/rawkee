@@ -7,6 +7,9 @@ RawKee Python Edition is currently in a pre-release status, with the official 2.
 - [2025 Web3D Conference](https://web3d.siggraph.org/2025/)
 - [Digital Heritage 2025](https://digitalheritage2025.unisi.it/)
 
+### RawKee Python Edition - YouTube Tutorials Playlist
+- [RPE - YouTube Tutorials Playlist](https://www.youtube.com/@UND-DREAM-Lab/playlists)
+
 ### Collaborators:
 - [Antony Ward](https://www.antcgi.com/about) - Collaborating to provide RawKee and HAnim compatibility with his [aRT: Modular Rigging Tool](https://www.antcgi.com/store/p/art-modular-rigging-tool).
 
