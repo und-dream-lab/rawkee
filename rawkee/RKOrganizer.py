@@ -1092,7 +1092,7 @@ class RKOrganizer():
             
 
     def processRKAnimPacks(self, dragPath, rkAPNodes, x3dHumanoid):
-        bna = self.processBasicNodeAddition(None, x3dHumanoid, "skeleton", "Group", x3dHumanoid.DEF + "_TimerGroup")
+        bna = self.processBasicNodeAddition(None, x3dHumanoid, "skin", "Group", x3dHumanoid.DEF + "_TimerGroup")
         if bna[0] == False:
             for apNode in rkAPNodes:
                 apType = cmds.getAttr(apNode.name() + ".mimickedType")
