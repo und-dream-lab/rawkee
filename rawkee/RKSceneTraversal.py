@@ -40,12 +40,12 @@ class RKSceneTraversal():
             if encoding == "x3dj" or encoding == "json":
                 tMulti = True
             if idx < (scLen - 1):
-                self.processNode(node, tMulti, True)
+                self.processNode(node, tMulti, True, cField="children")
             else:
-                self.processNode(node, tMulti, False)
+                self.processNode(node, tMulti, False, cField="children")
         self.writeFooter()
 
-    def processNode(self, node, isMulti, addComma):
+    def processNode(self, node, isMulti, addComma, cField=""):
         nType   = type(node).__name__
         
         sFieldsList = []
@@ -95,10 +95,6 @@ class RKSceneTraversal():
                         if compNode.metadata != node.metadata: #value != None:
                             sNodeList.append("metadata")
                         
-                elif keyp[1] == "RK":
-                    if   keyp[3] == "containerField" and value != "":
-                        sFieldsList.append("_RK__containerField")
-                
                 elif keyp[1] == "ROUTE":
                     if   keyp[3] == "fromField" and value != "":
                         sFieldsList.append("fromField")
@@ -166,33 +162,32 @@ class RKSceneTraversal():
             
         compNode = None
                     
-        self.processSortedNode(nType, node, sFieldsList, mFieldsList, sNodeList, mNodeList, isMulti, addComma)
+        self.processSortedNode(nType, node, sFieldsList, mFieldsList, sNodeList, mNodeList, isMulti, addComma, cField)
 
 
         
-    def processSortedNode(self, nType, node, sFieldList, mFieldList, sNodeList, mNodeList, isMulti, addComma):
+    def processSortedNode(self, nType, node, sFieldList, mFieldList, sNodeList, mNodeList, isMulti, addComma, cField):
         
         if sFieldList[0] == "USE":
-            self.processUsed(nType, node, isMulti, addComma)
+            self.processUsed(nType, node, isMulti, addComma, cField)
         else:
             if   self.enc == encx:
-                self.processNodeAsXML( nType, node, True,  sFieldList, mFieldList, sNodeList, mNodeList)
+                self.processNodeAsXML( nType, node, True,  sFieldList, mFieldList, sNodeList, mNodeList, cField)
             elif self.enc == encv:
                 self.processNodeAsVRML(nType, node, False, sFieldList, mFieldList, sNodeList, mNodeList, isMulti)
             elif self.enc == encj:
                 self.processNodeAsJSON(nType, node, False, sFieldList, mFieldList, sNodeList, mNodeList, isMulti, addComma)
             elif self.enc == ench:
-                self.processNodeAsHTML( nType, node, True,  sFieldList, mFieldList, sNodeList, mNodeList)
+                self.processNodeAsHTML( nType, node, True,  sFieldList, mFieldList, sNodeList, mNodeList, cField)
 
 
     
-    def processUsed(self, nType, node, isMulti, addComma):
+    def processUsed(self, nType, node, isMulti, addComma, cField):
         mainline = ""
         if   self.enc == encx:
             mainline = "<" + nType + " USE='" + node.USE + "'"
-            cf = getattr(node, "_RK__containerField")
-            if cf != None:
-                mainline += " containerField='" + cf + "'"
+            if cField != "":
+                mainline += " containerField='" + cField + "'"
             mainline += "/>"
             
         elif self.enc == encv:
@@ -202,11 +197,6 @@ class RKSceneTraversal():
                 return
             
         elif self.enc == encj:
-            #{ "NodeType":
-            #    {
-            #      "@USE": "NodeName"
-            #    }
-            #}
             mainline = '{"' + nType + '":{"@USE":"' + node.USE + '"}}'
             if addComma == True:
                 mainline += ","
@@ -216,9 +206,8 @@ class RKSceneTraversal():
             
         elif self.enc == ench:
             mainline = "<" + nType + " USE='" + node.USE + "'"
-            cf = getattr(node, "_RK__containerField")
-            if cf != None:
-                mainline += " containerField='" + cf + "'"
+            if cField != "":
+                mainline += " containerField='" + cField + "'"
             mainline += "></" + nType + ">"
             
         self.writeLine(mainline)
@@ -246,16 +235,7 @@ class RKSceneTraversal():
         for fIdx in range(sflLen):
             tField = sFieldList[fIdx]
 
-            if tField == "_RK__containerField":
-                tField  =  "containerField"
-                ####################################################
-                # 'containerField' does not get used in VRML export,
-                # so skip this iteration of the loop.
-                ####################################################
-                if showCF == False:
-                    continue
-                
-            elif tField == "DEF":
+            if tField == "DEF":
                 # Don't write out DEF as a node field
                 continue
                 
@@ -383,16 +363,7 @@ class RKSceneTraversal():
         for fIdx in range(sflLen):
             tField = sFieldList[fIdx]
 
-            if tField == "_RK__containerField":
-                tField  =  "containerField"
-                ####################################################
-                # 'containerField' does not get used in JSON export,
-                # so skip this iteration of the loop.
-                ####################################################
-                if showCF == False:
-                    continue
-                    
-            elif tField == "global_":
+            if tField == "global_":
                 tField = "global"
 
                 
@@ -421,10 +392,7 @@ class RKSceneTraversal():
                 
             pVal = '"@' + tField + '": ' + sValue
             
-            # Since _RK__containerField/containerField is not used inside the node brackets, we use the fIdx < (sflLen - n) where 'n' needs to be a 2 instead of a 1 since
-            # we are not printing out containerField here. In VRML export, this check is not needed because the field values do not have a terminator, and the X3D and HTML
-            # 'n' is set to 1 as the exports have the containerField withing the XML tag.
-            if fIdx < (sflLen - 2) or mflLen > 0 or snlLen > 0 or mnlLen > 0:
+            if fIdx < (sflLen - 1) or mflLen > 0 or snlLen > 0 or mnlLen > 0:
                 pVal = pVal + ','
 
             self.writeLine(pVal)
@@ -555,20 +523,13 @@ class RKSceneTraversal():
             self.writeLine('}')
 
 
-    def processNodeAsXML( self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList):
+    def processNodeAsXML( self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, cField):
         cap = "/>"
         mainline = "<" + nType
         for field in sFieldList:
             tField = field
 
-            if field == "_RK__containerField":
-                tField =  "containerField"
-                
-                # It may not be adventageous to always add the containerField
-                if showCF == False:
-                    continue
-
-            elif tField == "global_":
+            if tField == "global_":
                 tField = "global"
                 
             mainline = mainline + " " + tField + "='"
@@ -593,6 +554,10 @@ class RKSceneTraversal():
                 sValue = str(value)
             
             mainline = mainline + sValue + "'"
+        
+        # New Way of doing 'containerField' --- 8/23/2025
+        if cField != "":
+            mainline = mainline + " containerField='" + cField + "'"
         
         if len(sNodeList) > 0 or len(mNodeList) > 0:
             cap = ">"
@@ -650,12 +615,12 @@ class RKSceneTraversal():
             
         for field in sNodeList:
             fNode = getattr(node, field)
-            self.processNode(fNode, False, False)
+            self.processNode(fNode, False, False, cField=field)
             
         for field in mNodeList:
             fList = getattr(node, field)
             for fNode in fList:
-                self.processNode(fNode, True, False)
+                self.processNode(fNode, True, False, cField=field)
                 
         self.dtabs()
         if len(sNodeList) > 0 or len(mNodeList) > 0:
@@ -663,19 +628,12 @@ class RKSceneTraversal():
                 
 
 
-    def processNodeAsHTML( self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList):
+    def processNodeAsHTML( self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, cField):
         cap = ">"
         mainline = "<" + nType
         for field in sFieldList:
             tField = field
-            if field == "_RK__containerField":
-                tField =  "containerField"
-                
-                # It may not be adventageous to always add the containerField
-                if showCF == False:
-                    continue
-                
-            elif tField == "global_":
+            if tField == "global_":
                 tField = "global"
 
             mainline = mainline + " " + tField + "='"
@@ -701,6 +659,10 @@ class RKSceneTraversal():
             
             mainline = mainline + sValue + "'"
         
+        # New Way of doing 'containerField' --- 8/23/2025
+        if cField != "":
+            mainline = mainline + " containerField='" + cField + "'"
+
         if len(mFieldList) == 0:
             mainline += cap
             
@@ -754,12 +716,12 @@ class RKSceneTraversal():
             
         for field in sNodeList:
             fNode = getattr(node, field)
-            self.processNode(fNode, False, False)
+            self.processNode(fNode, False, False, cField=field)
             
         for field in mNodeList:
             fList = getattr(node, field)
             for fNode in fList:
-                self.processNode(fNode, True, False)
+                self.processNode(fNode, True, False, cField=field)
                 
         self.dtabs()
         self.writeLine("</" + nType + ">")
@@ -791,8 +753,8 @@ class RKSceneTraversal():
     
     def writeHeader(self):
         if   self.enc == encx:
-            self.writeLine("<?xml version='1.0' encoding='UTF-8'?>")
-            self.writeLine("<!DOCTYPE X3D PUBLIC 'ISO//Web3D//DTD X3D 4.0//EN' 'https://www.web3d.org/specifications/x3d-4.0.dtd'>")
+            self.writeLine('<?xml version="1.0" encoding="UTF-8"?>')
+            self.writeLine('<!DOCTYPE X3D PUBLIC "ISO//Web3D//DTD X3D 4.0//EN" "https://www.web3d.org/specifications/x3d-4.0.dtd">')
             self.writeLine("<X3D profile='Full' version='4.0' xmlns:xsd='http://www.w3.org/2001/XMLSchema-instance' xsd:noNamespaceSchemaLocation='https://www.web3d.org/specifications/x3d-4.0.xsd'>")
             self.itabs()
             self.writeLine("<Scene>")
@@ -811,7 +773,7 @@ class RKSceneTraversal():
             self.itabs()
             self.writeLine('"X3D": {')
             self.itabs()
-            self.writeLine('"encoding":"UTF-8",')
+            self.writeLine('"encoding": "UTF-8",')
             self.writeLine('"@profile": "Full",')
             self.writeLine('"@version": "4.0",')
             self.writeLine('"@xsd:noNamespaceSchemaLocation": "https://www.web3d.org/specifications/x3d-4.0.xsd",')
@@ -836,6 +798,7 @@ class RKSceneTraversal():
             self.itabs()
             
         elif self.enc == ench:
+            self.writeLine("<!DOCTYPE html>")
             self.writeLine("<html>")
             self.itabs()
             self.writeLine("<head>")
@@ -849,9 +812,6 @@ class RKSceneTraversal():
             self.itabs()
             self.writeLine("<div style='width: 600px; height: 600px;'>")
             self.itabs()
-#            self.writeLine("<?xml version='1.0' encoding='UTF-8'?>")
-#            self.writeLine("<!DOCTYPE X3D PUBLIC 'ISO//Web3D//DTD X3D 4.0//EN' 'https://www.web3d.org/specifications/x3d-4.0.dtd'>")
-#            self.writeLine("<X3D profile='Full' version='4.0' xmlns:xsd='http://www.w3.org/2001/XMLSchema-instance' xsd:noNamespaceSchemaLocation='https://www.web3d.org/specifications/x3d-4.0.xsd'>")
             self.writeLine("<X3D>")
             self.itabs()
             self.writeLine("<Scene>")

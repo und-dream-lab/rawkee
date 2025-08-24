@@ -462,23 +462,30 @@ class RKOrganizer():
             #rkAPType 
             rkAPType = cmds.getAttr(apNode.name() + ".mimickedType")
             
-            lStep    = 0
+            # Calculate what the fractional values will be for the keys
+            # of the itnerpolators assigned to this timing sensor (aka AnimPack node).
             fraction = 0.0
             cFrame   = tsaf
-            while fraction < 1.0:
+            kSteps      = 1
+            kSteps     += (frameDistance // kfs)
+            if (frameDistance % kfs) > 0:
+                kSteps += 1
+                
+            for i in range(kSteps):
                 apKeys.append(fraction)
                 fSteps.append(cFrame)
-                lStep += 1
-                fraction = kfs * lStep / frameDistance
-                cFrame   = kfs * lStep
-            apKeys.append(1.0)
-            fSteps.append(tsof)
+                cFrame += kfs
+                if cFrame > tsof:
+                    cFrame = tsof
+                fraction = (cFrame - tsaf) / frameDistance
 
+            # Here we set the keys for the interpolators based on the AnimPack node's settings.
             intList = animPackage[1:]
             for l in intList:
                 l[1].key = apKeys
                 
-            # cmds.currentUnit()
+            # Here we scrub through the Maya timeline frames to collect the keyValue data for
+            # each key in each Interpolator.
             for step in fSteps:
                 cmds.currentTime(step)
                 # [tExp, bni[1], cParts[0], cParts[1], mod, mlist.getPlug(1)]
@@ -538,6 +545,7 @@ class RKOrganizer():
                     # There current isn't an Interpolator that can
                     # animate MFVec4f fields.
                     elif mayaAttr == "outMesh" and modifier == "tangent":
+                        #TODO
                         pass
                         
         self.animation.clear()
@@ -1546,10 +1554,30 @@ class RKOrganizer():
             ### chVals[1] = abs(chVals[1])
             ### chVals[2] = abs(chVals[2])
             ### bna[1].scale = self.rkint.getSFVec3fFromList(chVals)
+            
+            hAnimJointName = ""
+            
+            sideVal = cmds.getAttr(jNode.name() + ".side")
+            if x3dHumanoid.loa == -1:
+                if sideVal == 0:
+                    hAnimJointName += "Center_"
+                elif sideVal == 1:
+                    hAnimJointName += "Left_"
+                elif sideVal == 2:
+                    hAnimJointName += "Right_"
+            elif x3dHumanoid.loa > 0:
+                if sideVal == 1:
+                    hAnimJointName += "l_"
+                if sideVal == 2:
+                    hAnimJointName += "r_"
 
             nType = cmds.getAttr(jNode.name() + ".type")
             if nType == 18:
-                bna[1].name = cmds.getAttr(jNode.name() + ".otherType")
+                hAnimJointName += cmds.getAttr(jNode.name() + ".otherType")
+            else:
+                hAnimJointName += self.getJointType(nType)
+            
+            bna[1].name = hAnimJointName
 
             #Search for influenced Meshes
             self.getMeshFromJoint(jNode, sk)
@@ -1602,15 +1630,6 @@ class RKOrganizer():
         # Create Node from String where x3dType is a string that identifies 
         # the type of X3D to be created. Must be a node defined by the X3D 4.0 Specification.
         tNode = self.rkio.createNodeFromString(x3dType)
-        
-        # Add the 'containerField' name to this node to export for XML encodings.
-        tNode._RK__containerField = x3dFieldName
-        
-        # Print node object to the console. Mostly included here to let the user
-        # know that the scene is being constucted.
-###        print(tNode)
-#        print("DEF: " + nodeName)
-        #self.rkio.cMessage(tNode)
         
         # Check to see if the node has previously been created with a DEF 
         # attribute.
@@ -4351,3 +4370,41 @@ class RKOrganizer():
             alpha = 0.0
             
         return (red, green, blue, alpha)
+        
+    def getJointType(self, jtVal):
+        jtValMapping = {
+            ####################################### A
+            '0':'',# None
+            '1':'Root',
+            '2':'Hip',
+            '3':'Knee',
+            '4':'Foot',
+            '5':'Toe',
+            '6':'Spine',
+            '7':'Neck',
+            '8':'Head',
+            '9':'Collar',
+            '10':'Shoulder',
+            '11':'Elbow',
+            '12':'Hand',
+            '13':'Finger',
+            '14':'Thumb',
+            '15':'PropA',
+            '16':'PropB',
+            '17':'ProbC',
+            #'18':'Other',
+            '19':'Index_Finger',
+            '20':'Middle_Finger',
+            '21':'Ring_Finger',
+            '22':'Pinky_Finger',
+            '23':'Extra_Finger',
+            '24':'Big_Toe',
+            '25':'Index_Toe',
+            '26':'Middle_Toe',
+            '27':'Ring_Toe',
+            '28':'Pinky_Toe',
+            '29':'Foot_Thumb'
+        }
+        
+        return jtValMapping[str(jtVal)]
+
