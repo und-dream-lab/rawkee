@@ -6,8 +6,6 @@ class CommonSurfaceShader():
         self.DEF                          = ''
         self.USE                          = ''
         
-        self._RK__containerField          = ''
-        
         self.alphaFactor                  = 1.0             # transparency     0.0              # transparency            0.0           # transparency = 1 - alphaFactor;
         self.alphaTexture                 = None            # -----------NA------------         # -----------NA------------
         self.alphaTextureChannelMask      = 'a'
