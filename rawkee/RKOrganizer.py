@@ -1312,26 +1312,43 @@ class RKOrganizer():
 
             for sm in skm:
                 interSM = self.getIntermediateMesh(sm)
-                mIter = aom.MItMeshPolygon(interSM.object())
+                #mList = aom.MSelectionList()
+                #mList.add(interSM.name())
+                #mIter = aom.MItMeshPolygon(mList.getDagPath(0)) #interSM.object())
+                
                 slen = len(sno)
                 offset = 0
-                while not mIter.isDone():
-                    #Normals Per Vertex
-                    if self.rkNormalOpts == 1 or self.rkNormalOpts == 4:
-                        tns = mIter.getNormals()
-                        for tn in tns:
-                            if normalbna[0] == False:
-                                normalbna[1].vector.append((tn.x, tn.y, tn.z))
-                            offset += 1
-                        
-                    #Normals Per Face
-                    elif self.rkNormalOpts == 2 or self.rkNormalOpts == 3:
-                        tn = mIter.getNormal()
+
+                na = interSM.getNormals()
+                if self.rkNormalOpts == 1 or self.rkNormalOpts == 4:
+                    for n in na:
                         if normalbna[0] == False:
-                            normalbna[1].vector.append((tn.x, tn.y, tn.z))
-                        offset += 1
-                        
-                    mIter.next()
+                            normalbna[1].vector.append((n.x, n.y, n.z))
+                            offset += 1
+                elif self.rkNormalOpts == 2 or self.rkNormalOpts == 5:
+                    for i in range(interSM.numPolygons):
+                        pn = interSM.getPolygonNormal(i)
+                        if normalbna[0] == False:
+                            normalbna[1].vector.append((pn.x, pn.y, pn.z))
+                            offset += 1
+
+                #while not mIter.isDone():
+                #    #Normals Per Vertex
+                #    if self.rkNormalOpts == 1 or self.rkNormalOpts == 4:
+                #        tns = mIter.getNormals()
+                #        for tn in tns:
+                #            if normalbna[0] == False:
+                #                normalbna[1].vector.append((tn.x, tn.y, tn.z))
+                #            offset += 1
+                #    
+                #    #Normals Per Face
+                #    elif self.rkNormalOpts == 2 or self.rkNormalOpts == 5:
+                #        tn = mIter.getNormal(aom.MSpace.kObject)
+                #        if normalbna[0] == False:
+                #            normalbna[1].vector.append((tn.x, tn.y, tn.z))
+                #        offset += 1
+                #        
+                #    mIter.next()
                 if slen > 0:
                     offset = offset + sno[slen-1]
                 sno.append(offset)
@@ -3391,25 +3408,22 @@ class RKOrganizer():
                     
                 
                 ##### Set Crease Angle
-                if self.rkNormalOpts > 0 and self.rkNormalOpts < 4:
+                if self.rkNormalOpts == 1 or self.rkNormalOpts == 2 or self.rkNormalOpts == 3:
                     bna[1].creaseAngle = self.rkCreaseAngle
 
                 ##### Set Norml Node, normalIndex, and normalPerVertex
-                if   self.rkNormalOpts == 0:
-                    # Though not technically required, set
-                    # normalPerVertex to True and then do nothing
-                    # more with normals because we are using
-                    # the default values for IndexedFaceSet nodes
-                    # where there is no other info required by the spec.
-                    ##### bna[1].normalPerVertex = True
-                    pass
+                # if self.rkNormalOpts == 0:
+                    # Then do nothing:
+                    #    - Do not collect any normal data
+                    #    - Do not set the crease angle
+                    #    - Use the default normalPerVertex value, which is True
                     
-                elif self.rkNormalOpts == 1 or self.rkNormalOpts == 4:
+                if self.rkNormalOpts == 1 or self.rkNormalOpts == 4:
                     # Normals Per Vertex Values
                     bna[1].normalPerVertex = True
-                    
                     self.processForNormalNode(myMesh, mIter, nodeName, "Normal", bna[1], idx=index, nOffset=gnOffset, sharedNormal=gsharedNormal)
-                else:
+
+                elif self.rkNormalOpts == 2 or self.rkNormalOpts == 5:
                     # Normals Per Face Values
                     bna[1].normalPerVertex = False
                     self.processForNormalNode(myMesh, mIter, nodeName, "Normal", bna[1], npv=False, idx=index, nOffset=gnOffset, sharedNormal=gsharedNormal)
@@ -3578,17 +3592,52 @@ class RKOrganizer():
         if sharedNormal != "":
             bna = self.processBasicNodeAddition(myMesh, x3dParent, cField, "Normal", sharedNormal)
 
+            ################################
+            #msList = aom.MSelectionList()
+            #msList.add(myMesh.name())
+            #tDagPath = msList.getDagPath(0)
+            
+            #mIter = aom.MItMeshPolygon(tDagPath, meshComps[index])
+            ################################
+
+            #### old ######
+            #while not mIter.isDone():
+            #    if npv == True:
+            #        nVerts = mIter.polygonVertexCount()
+            #        for vIdx in range(nVerts):
+            #            nIdx = mIter.normalIndex(vIdx)
+            #            x3dParent.normalIndex.append(nIdx + nOffset)
+            #        x3dParent.normalIndex.append(-1)
+            #    else:
+            #        x3dParent.normalIndex.append(fCount + nOffset)
+            #        fCount += 1
+            #    mIter.next()
+            
             while not mIter.isDone():
                 if npv == True:
-                    tns = mIter.getNormals()
-                    for tn in tns:
-                        x3dParent.normalIndex.append(fCount + nOffset)
-                        fCount += 1
+                    vertIDs = mIter.getVertices()
+                    vLen = len(vertIDs)
+                    for vIdx in range(vLen):
+                        x3dParent.normalIndex.append(mIter.normalIndex(vIdx) + nOffset)
                     x3dParent.normalIndex.append(-1)
                 else:
-                    x3dParent.normalIndex.append(fCount + nOffset)
-                    fCount += 1
+                    x3dParent.normalIndex.append(mIter.index() + nOffset)
+                    #x3dParent.normalIndex.append(fCount + nOffset)
+                    #fCount += 1
                 mIter.next()
+
+            #while not mIter.isDone():
+            #    if npv == True:
+            #        tns = mIter.getNormals()
+            #        for tn in tns:
+            #            x3dParent.normalIndex.append(fCount + nOffset)
+            #            fCount += 1
+            #        x3dParent.normalIndex.append(-1)
+            #    else:
+            #        x3dParent.normalIndex.append(fCount + nOffset)
+            #        fCount += 1
+            #    mIter.next()
+            
         else:
             bna = self.processBasicNodeAddition(myMesh, x3dParent, cField, "Normal", normalNodeName)
             if bna[0] == False:
@@ -3603,10 +3652,16 @@ class RKOrganizer():
                             fCount += 1
                         x3dParent.normalIndex.append(-1)
                     else:
-                        tn = mIter.getNormal()
-                        bna[1].vector.append((tn.x, tn.y, tn.z))
-                        x3dParent.normalIndex.append(fCount)
-                        fCount += 1
+                        pn = myMesh.getPolygonNormal(mIter.index())
+                        bna[1].vector.append((pn.x, pn.y, pn.z))
+                        x3dParent.normalIndex.append(mIter.index())
+                        #x3dParent.normalIndex.append(fCount)
+                        #fCount += 1
+                        
+                        #fNormal = mIter.getNormal(aom.MSpace.kObject)
+                        #bna[1].vector.append((fNormal.x, fNormal.y, fNormal.z))
+                        #x3dParent.normalIndex.append(fCount)
+                        #fCount += 1
                     
                     mIter.next()
 
