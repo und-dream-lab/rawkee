@@ -213,6 +213,9 @@ class RKSceneTraversal():
         self.writeLine(mainline)
 
 
+    def processROUTEAsVRML(self, node, sFieldList):
+        self.writeLine("ROUTE " + getattr(node, sFieldList[1]) + "." + getattr(node, sFieldList[0]) + " TO " + getattr(node, sFieldList[3]) + "." + getattr(node, sFieldList[2]))
+
 
     def processNodeAsVRML(self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, isMulti):
         mainline = ""
@@ -337,8 +340,32 @@ class RKSceneTraversal():
         self.writeLine("}")
 
 
-    def processROUTEAsVRML(self, node, sFieldList):
-        self.writeLine("ROUTE " + getattr(node, sFieldList[1]) + "." + getattr(node, sFieldList[0]) + " TO " + getattr(node, sFieldList[3]) + "." + getattr(node, sFieldList[2]))
+    def processROUTEAsJSON(self, node, sFieldList, isMulti, addComma):# 
+        if isMulti == True:
+            self.writeLine(     '{ "ROUTE":')
+        else:
+            self.writeRemaining('{ "ROUTE":')
+        self.itabs()
+        self.writeLine('{')
+        self.itabs()
+
+        fromNode  = '"@' + sFieldList[1] + '": "' + getattr(node, sFieldList[1]) + '",'
+        fromField = '"@' + sFieldList[0] + '": "' + getattr(node, sFieldList[0]) + '",'
+        toNode    = '"@' + sFieldList[3] + '": "' + getattr(node, sFieldList[3]) + '",'
+        toField   = '"@' + sFieldList[2] + '": "' + getattr(node, sFieldList[2]) + '"'
+        self.writeLine(fromNode)
+        self.writeLine(fromField)
+        self.writeLine(toNode)
+        self.writeLine(toField)
+
+        self.dtabs()
+        self.writeLine('}')
+        self.dtabs()
+        #self.writePrefix('}')
+        if addComma == True:
+            self.writeLine('},')
+        else:
+            self.writeLine('}')
 
 
     def processNodeAsJSON(self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, isMulti, addComma):
@@ -495,35 +522,20 @@ class RKSceneTraversal():
             self.writeLine('}')
 
 
-    def processROUTEAsJSON(self, node, sFieldList, isMulti, addComma):# 
-        if isMulti == True:
-            self.writeLine(     '{ "ROUTE":')
-        else:
-            self.writeRemaining('{ "ROUTE":')
-        self.itabs()
-        self.writeLine('{')
-        self.itabs()
+    def processROUTEAsXML(self, node, sFieldList):
+        fromNode  = sFieldList[1] + "='" + getattr(node, sFieldList[1]) + "'"
+        fromField = sFieldList[0] + "='" + getattr(node, sFieldList[0]) + "'"
+        toNode    = sFieldList[3] + "='" + getattr(node, sFieldList[3]) + "'"
+        toField   = sFieldList[2] + "='" + getattr(node, sFieldList[2]) + "'"
 
-        fromNode  = '"@' + sFieldList[1] + '": "' + getattr(node, sFieldList[1]) + '",'
-        fromField = '"@' + sFieldList[0] + '": "' + getattr(node, sFieldList[0]) + '",'
-        toNode    = '"@' + sFieldList[3] + '": "' + getattr(node, sFieldList[3]) + '",'
-        toField   = '"@' + sFieldList[2] + '": "' + getattr(node, sFieldList[2]) + '"'
-        self.writeLine(fromNode)
-        self.writeLine(fromField)
-        self.writeLine(toNode)
-        self.writeLine(toField)
-
-        self.dtabs()
-        self.writeLine('}')
-        self.dtabs()
-        #self.writePrefix('}')
-        if addComma == True:
-            self.writeLine('},')
-        else:
-            self.writeLine('}')
-
-
+        mainline = "<ROUTE " + fromNode + " " + fromField + " " + toNode + " " + toField + "/>"
+        self.writeLine(mainline)
+        
     def processNodeAsXML( self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, cField):
+        if nType == "ROUTE":
+            self.processROUTEAsXML(node, sFieldList)
+            return
+
         cap = "/>"
         mainline = "<" + nType
         for field in sFieldList:
@@ -627,8 +639,21 @@ class RKSceneTraversal():
             self.writeLine("</" + nType + ">")
                 
 
+    def processROUTEAsHTML(self, node, sFieldList):
+        fromNode  = sFieldList[1] + "='" + getattr(node, sFieldList[1]) + "'"
+        fromField = sFieldList[0] + "='" + getattr(node, sFieldList[0]) + "'"
+        toNode    = sFieldList[3] + "='" + getattr(node, sFieldList[3]) + "'"
+        toField   = sFieldList[2] + "='" + getattr(node, sFieldList[2]) + "'"
 
+        mainline = "<ROUTE " + fromNode + " " + fromField + " " + toNode + " " + toField + "></ROUTE>"
+        self.writeLine(mainline)
+        
+        
     def processNodeAsHTML( self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, cField):
+        if nType == "ROUTE":
+            self.processROUTEAsHTML(node, sFieldList)
+            return
+            
         cap = ">"
         mainline = "<" + nType
         for field in sFieldList:
@@ -804,11 +829,11 @@ class RKSceneTraversal():
             self.writeLine("<head>")
             self.itabs()
             self.writeLine("<meta charset='utf-8'>")
-            self.writeLine("<script src='https://cdn.jsdelivr.net/gh/x3dom/x3dom-dev/dist/x3dom.js'></script>")
-            self.writeLine("<link rel='stylesheet' href='https://cdn.jsdelivr.net/gh/x3dom/x3dom-dev/dist/x3dom.css'></link>")
+            self.writeLine("<script type='text/javascript' src='https://www.x3dom.org/download/dev/x3dom-full.js'></script>")
+            self.writeLine("<link rel='stylesheet' type='text/css' href='https://www.x3dom.org/download/x3dom.css'></link>")
             self.dtabs()
             self.writeLine("</head>")
-            self.writeLine("<body>")
+            self.writeLine("<body style='background-color:gray;'>")
             self.itabs()
             self.writeLine("<div style='width: 600px; height: 600px;'>")
             self.itabs()
@@ -816,6 +841,7 @@ class RKSceneTraversal():
             self.itabs()
             self.writeLine("<Scene>")
             self.itabs()
+            self.writeLine("<Background skyColor='0.2 0.2 0.2'></Background>")
 
     def writeFooter(self):
         if   self.enc == encx:
