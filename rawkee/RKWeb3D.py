@@ -74,8 +74,13 @@ class RKWeb3D():
         self.dirPath  = ""
         self.fullPath = ""
         self.selectedFilter = ""
-        #                       self.x3dfilters = "X3D XML (*.x3d);;X3D Classic (*.x3dv);;X3D Binary (*.x3db);;X3D Enhanced Binary (*.x3de);;X3D JSON (*.x3dj);;X3D JSON (*.json);;VRML97 (*.wrl);;Web3D Files (*.x3d *.x3db *.x3de *.x3dj *.x3dv *.json *.wrl)"
-        self.x3dfilters = "X3D XML (*.x3d);;X3D Classic (*.x3dv);;X3D JSON (*.x3dj);;X3D JSON (*.json);;X3D HTML5 (*.html);;Web3D Files (*.x3d *.x3dv *.x3dj *.json *.html)"
+
+        #####################################################################################################################################
+        # *.html export will remain temporarily unsupported because of the increasing complexity of the code necessary to support 
+        # custom node and field features unique to X3DOM's shader, material, and texture implementation.
+        #####################################################################################################################################
+        # self.x3dfilters = "X3D XML (*.x3d);;X3D Classic (*.x3dv);;X3D JSON (*.x3dj);;X3D JSON (*.json);;X3D HTML5 (*.html);;Web3D Files (*.x3d *.x3dv *.x3dj *.json *.html)"
+        self.x3dfilters = "X3D XML (*.x3d);;X3D Classic (*.x3dv);;X3D JSON (*.x3dj);;X3D JSON (*.json);;Web3D Files (*.x3d *.x3dv *.x3dj *.json)"
         
         # Setup the main 'RawKee X3D' plugin menu
         self.rkMenuName ="rawkee_menu"
@@ -136,13 +141,21 @@ class RKWeb3D():
     
         
         # Set the MainWindow MenuBar Menu for RawKee
-        self.rawKeeMenu = cmds.menu(self.rkMenuName, label = 'RawKee (X3D)', tearOff=True, p='MayaWindow')#QMenu("RawKee (X3D)", self.mayaWin)
+        self.rawKeeMenu = cmds.menu(self.rkMenuName, label = 'RawKee PE (X3D)', tearOff=True, p='MayaWindow')#QMenu("RawKee (X3D)", self.mayaWin)
 
         '''
         cmds.menuItem(label='RawKee Tutorials')#self.rawKeeMenu.addAction("RawKee Tutorials")# -command "showX3DTutorials";
         cmds.menuItem(label='RawKee Documentation')#self.rawKeeMenu.addAction("RawKee Documentation")# -command "showX3DTutorials";
         '''
+        cmds.menuItem(divider=True, dividerLabel='RawKee - Version 2.0.0 - Python Edition')
+        cmds.menuItem(divider=True)
+        cmds.menuItem(divider=True)
+        cmds.menuItem(label='RawKee Help Wiki',                             command='maya.cmds.rkShowHelpWiki()')
+
+        cmds.menuItem(divider=True)
+        cmds.menuItem(divider=True)
         cmds.menuItem(divider=True, dividerLabel='File - Import/Export' )                                                           #self.rawKeeMenu.addSection("File - Import/Export")
+        cmds.menuItem(divider=True)
         self.x3dExport       = cmds.menuItem(label='Export All - X3D',      command='maya.cmds.rkX3DExport()')
         self.x3dExportOpt    = cmds.menuItem(image=':menu_options.png',     command='maya.cmds.rkX3DExportOp()',    optionBox=True) #self.rawKeeMenu.addAction(self.x3dExportOpt)
         self.x3dSelExport    = cmds.menuItem(label='Export Selected - X3D', command='maya.cmds.rkX3DSelExport()')
@@ -155,15 +168,47 @@ class RKWeb3D():
         # Finishing off the  X3D Plug-in menu
         #--------------------------------------------------------------------
         cmds.setParent(self.rkMenuName, menu=True)
-        cmds.menuItem(divider=True, dividerLabel='RawKee Editors and Tools')
-        cmds.menuItem(label='X3D Interaction Editor',             command='maya.cmds.rkShowSceneEditor()'    )                # -command "showX3DIEditor";
-        cmds.menuItem(label='X3D Character and Animation Editor', command='maya.cmds.rkShowCharacterEditor()')                # -command "x3dCharacterEditor";
-        cmds.menuItem(label='X3D General Animation Editor')                  # -command "x3dAnimationEditor";
 
-        cmds.menuItem(divider=True, dividerLabel='Code Repositories')
+        cmds.menuItem(divider=True)
+        cmds.menuItem(divider=True)
+        cmds.menuItem(divider=True, dividerLabel='RawKee Editors and Tools')
+        cmds.menuItem(divider=True)
+        ### --- will be part of future release --- ### cmds.menuItem(label='X3D Interaction Editor',             command='maya.cmds.rkShowSceneEditor()'    )                # -command "showX3DIEditor";
+        cmds.menuItem(label='X3D Character and Animation Editor', command='maya.cmds.rkShowCharacterEditor()')                # -command "x3dCharacterEditor";
+        ### --- will be part of next release --- ### cmds.menuItem(label='X3D General Animation Editor')                  # -command "x3dAnimationEditor";
+
+        cmds.menuItem(divider=True)
+        cmds.menuItem(divider=True)
+        cmds.menuItem(divider=True, dividerLabel='Get Compatible 3rd Party Character Tools')
+        cmds.menuItem(divider=True)
+        cmds.menuItem(label="Antony Ward's Modular Rigging Tool (aRT)", command='maya.cmds.rkShowART()')
+        cmds.menuItem(label='Advanced Skeleton',                        command='maya.cmds.rkShowAdvSkel()')
+
+        cmds.menuItem(divider=True)
+        cmds.menuItem(divider=True)
+        cmds.menuItem(divider=True, dividerLabel='Learn About 3rd Party X3D Editors')
+        cmds.menuItem(divider=True)
+        cmds.menuItem(label='Sunrize - A Multi-Platform X3D Editor',    command='maya.cmds.rkShowSunrize()')
+
+        cmds.menuItem(divider=True)
+        cmds.menuItem(divider=True)
+        cmds.menuItem(divider=True, dividerLabel='Learn About 3rd Party X3D Viewers')
+        cmds.menuItem(divider=True)
+        cmds.menuItem(label='X_ITE X3D Browser',                        command='maya.cmds.rkShowX_ITE()')
+        cmds.menuItem(label='Castle Game Engine',                       command='maya.cmds.rkShowCGE()')
+        cmds.menuItem(label='X3DOM - Instant 3D the HTML way!',         command='maya.cmds.rkShowX3DOM()')
+
+        cmds.menuItem(divider=True)
+        cmds.menuItem(divider=True)
+        cmds.menuItem(divider=True, dividerLabel='Visit Related Code Repositories')
+        cmds.menuItem(divider=True)
         cmds.menuItem(label='RawKee GitHub Python Repo',                command='maya.cmds.rkShowRawKee()')
         cmds.menuItem(label='Node Sticker - GitHub Repo / MIT License', command='maya.cmds.rkShowNodeSticker()')
+
+        cmds.menuItem(divider=True)
+        cmds.menuItem(divider=True)
         cmds.menuItem(divider=True, dividerLabel='Websites')
+        cmds.menuItem(divider=True)
         cmds.menuItem(label='Univ. of North Dakota - DREAM Lab',        command='maya.cmds.rkShowDreamLab()')
         cmds.menuItem(label='Web3D Consortium',                         command='maya.cmds.rkShowWeb3D()')
         cmds.menuItem(label='Metaverse Standards Forum',                command='maya.cmds.rkShowMSF()')
@@ -203,6 +248,10 @@ class RKWeb3D():
         x3dVersion  = "4.0"
         x3dDoc = rkx3d.X3D(profile=profileType, version=x3dVersion)
         x3dDoc.Scene = rkx3d.Scene()
+        background = rkx3d.Background()
+        background.DEF = "DefaultBackground"
+        background.skyColor = (0.2, 0.2, 0.2)
+        x3dDoc.Scene.children.append(background)
 
         #############################################
         # Get File Path From QFileDialog File Chooser
@@ -251,8 +300,12 @@ class RKWeb3D():
                 exEncoding = "x3dj"
             elif fext == ".json":
                 exEncoding = "json"
-            elif fext == ".html":
-                exEncoding = "html"
+            #####################################################################################################################################
+            # *.html export will remain temporarily unsupported because of the increasing complexity of the code necessary to support 
+            # custom node and field features unique to X3DOM's shader, material, and texture implementation.
+            #####################################################################################################################################
+            # elif fext == ".html":
+            #    exEncoding = "html"
 
             # Traverse DAG and map node data to X3D
             rko.maya2x3d(x3dDoc.Scene, parentDagPaths, topDagNodes, self.pVersion, self.fullPath, exEncoding)
@@ -283,6 +336,10 @@ class RKWeb3D():
         x3dVersion  = "4.0"
         x3dDoc = rkx3d.X3D(profile=profileType, version=x3dVersion)
         x3dDoc.Scene = rkx3d.Scene()
+        background = rkx3d.Background()
+        background.DEF = "DefaultBackground"
+        background.skyColor = (0.2, 0.2, 0.2)
+        x3dDoc.Scene.children.append(background)
 
         #############################################
         # Get File Path From QFileDialog File Chooser
@@ -331,8 +388,12 @@ class RKWeb3D():
                 exEncoding = "x3dj"
             elif fext == ".json":
                 exEncoding = "json"
-            elif fext == ".html":
-                exEncoding = "html"
+            #####################################################################################################################################
+            # *.html export will remain temporarily unsupported because of the increasing complexity of the code necessary to support 
+            # custom node and field features unique to X3DOM's shader, material, and texture implementation.
+            #####################################################################################################################################
+            # elif fext == ".html":
+            #    exEncoding = "html"
                 
             # Traverse DAG and map node data to X3D
             rko.maya2x3d(x3dDoc.Scene, parentDagPaths, topDagNodes, self.pVersion, self.fullPath, exEncoding)
