@@ -159,6 +159,26 @@ class RKSceneTraversal():
                     if sIdx > -1 and jIdx > -1 and sIdx > jIdx and hasDEF == True:
                         mNodeList[jIdx] = "skeleton"
                         mNodeList[sIdx] = "joints"
+                        
+            elif nType == "Appearance":
+                bIdx = -1
+                fIdx = -1
+                
+                for idx in range(len(sNodeList)):
+                    if   sNodeList[idx] == "backMaterial":
+                        bIdx = idx
+                    elif sNodeList[idx] == "material":
+                        fIdx = idx
+                    
+                hasUSE = False
+                if bIdx != -1:
+                    bMat = getattr(node, "backMaterial")
+                    if bMat.USE != None and bMat.USE != '':
+                        hasUSE = True
+
+                if fIdx > -1 and bIdx > -1 and fIdx > bIdx and hasUSE == True:
+                    sNodeList[bIdx] = "material"
+                    sNodeList[fIdx] = "backMaterial"
             
         compNode = None
                     
@@ -841,7 +861,6 @@ class RKSceneTraversal():
             self.itabs()
             self.writeLine("<Scene>")
             self.itabs()
-            self.writeLine("<Background skyColor='0.2 0.2 0.2'></Background>")
 
     def writeFooter(self):
         if   self.enc == encx:

@@ -146,6 +146,108 @@ class RKShowNodeSticker(aom.MPxCommand):
         webbrowser.open_new("https://github.com/davidlatwe/NodeSticker")
 
 
+# Creating the MEL Command for showing the Sunrize Editor Website
+class RKShowSunrize(aom.MPxCommand):
+    kPluginCmdName = "rkShowSunrize"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowSunrize()
+        
+    def doIt(self, args):
+        webbrowser.open_new("https://create3000.github.io/sunrize/")
+
+
+# Creating the MEL Command for showing the RawKee Help Wiki
+class RKShowX_ITE(aom.MPxCommand):
+    kPluginCmdName = "rkShowX_ITE"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowX_ITE()
+        
+    def doIt(self, args):
+        webbrowser.open_new("https://create3000.github.io/x_ite/")
+
+
+# Creating the MEL Command for showing the RawKee Help Wiki
+class RKShowCGE(aom.MPxCommand):
+    kPluginCmdName = "rkShowCGE"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowCGE()
+        
+    def doIt(self, args):
+        webbrowser.open_new("https://castle-engine.io/")
+
+
+class RKShowX3DOM(aom.MPxCommand):
+    kPluginCmdName = "rkShowX3DOM"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowX3DOM()
+        
+    def doIt(self, args):
+        webbrowser.open_new("https://www.x3dom.org/")
+
+
+class RKShowART(aom.MPxCommand):
+    kPluginCmdName = "rkShowART"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowART()
+        
+    def doIt(self, args):
+        webbrowser.open_new("https://www.antcgi.com/store/p/art-modular-rigging-tool")
+
+
+class RKShowAdvSkel(aom.MPxCommand):
+    kPluginCmdName = "rkShowAdvSkel"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowAdvSkel()
+        
+    def doIt(self, args):
+        webbrowser.open_new("https://animationstudios.com.au/")
+
+
+# Creating the MEL Command for showing the RawKee Help Wiki
+class RKShowHelpWiki(aom.MPxCommand):
+    kPluginCmdName = "rkShowHelpWiki"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowHelpWiki()
+        
+    def doIt(self, args):
+        webbrowser.open_new("https://github.com/und-dream-lab/rawkee/wiki")
+
+
 # Creating the MEL Command for showing the RawKee GitHub Website
 class RKShowRawKee(aom.MPxCommand):
     kPluginCmdName = "rkShowRawKee"
@@ -631,6 +733,13 @@ def initializePlugin(plugin):
         pluginFn.registerCommand(RKASBackupClipBoard.kPluginCmdName,   RKASBackupClipBoard.cmdCreator)
         pluginFn.registerCommand(RKASRestoreClipBoard.kPluginCmdName, RKASRestoreClipBoard.cmdCreator)
         
+        pluginFn.registerCommand(    RKShowAdvSkel.kPluginCmdName,      RKShowAdvSkel.cmdCreator)
+        pluginFn.registerCommand(        RKShowART.kPluginCmdName,          RKShowART.cmdCreator)
+        pluginFn.registerCommand(      RKShowX3DOM.kPluginCmdName,        RKShowX3DOM.cmdCreator)
+        pluginFn.registerCommand(        RKShowCGE.kPluginCmdName,          RKShowCGE.cmdCreator)
+        pluginFn.registerCommand(      RKShowX_ITE.kPluginCmdName,        RKShowX_ITE.cmdCreator)
+        pluginFn.registerCommand(    RKShowSunrize.kPluginCmdName,      RKShowSunrize.cmdCreator)
+        pluginFn.registerCommand(   RKShowHelpWiki.kPluginCmdName,     RKShowHelpWiki.cmdCreator)
         pluginFn.registerCommand(RKShowNodeSticker.kPluginCmdName,  RKShowNodeSticker.cmdCreator)
         pluginFn.registerCommand(     RKShowRawKee.kPluginCmdName,       RKShowRawKee.cmdCreator)
         pluginFn.registerCommand(   RKShowDreamLab.kPluginCmdName,     RKShowDreamLab.cmdCreator)
@@ -1017,6 +1126,55 @@ def uninitializePlugin(plugin):
         pluginFn.deregisterCommand(RKShowNodeSticker.kPluginCmdName)
     except Exception as e:
         sys.stderr.write("RKShowNodeSticker - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
+        pluginFn.deregisterCommand(   RKShowHelpWiki.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowHelpWiki - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
+        pluginFn.deregisterCommand(    RKShowSunrize.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowSunrize - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
+        pluginFn.deregisterCommand(      RKShowX_ITE.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowX_ITE - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
+        pluginFn.deregisterCommand(        RKShowCGE.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowCGE - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
+        pluginFn.deregisterCommand(      RKShowX3DOM.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowX3DOM - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
+        pluginFn.deregisterCommand(      RKShowART.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowX3DOM - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
+        pluginFn.deregisterCommand(      RKShowAdvSkel.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowX3DOM - Failed to unregister a plugin command.\n")
         print(f"Exception Type: {type(e).__name__}")
         print(f"Exception Message: {e}")
 
