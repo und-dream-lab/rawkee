@@ -479,74 +479,148 @@ class RKOrganizer():
                     cFrame = tsof
                 fraction = (cFrame - tsaf) / frameDistance
 
-            # Here we set the keys for the interpolators based on the AnimPack node's settings.
-            intList = animPackage[1:]
-            for l in intList:
-                l[1].key = apKeys
+            if rkAPType == 2:
+                moNode  = animPackage[1]
+                for step in fSteps:
+                    cmds.currentTime(step)
                 
-            # Here we scrub through the Maya timeline frames to collect the keyValue data for
-            # each key in each Interpolator.
-            for step in fSteps:
-                cmds.currentTime(step)
-                # [tExp, bni[1], cParts[0], cParts[1], mod, mlist.getPlug(1)]
-                for l in intList:
-                    expNode  = l[0] # Currently Not Needed
-                    x3dNode  = l[1]
-                    mayaName = l[2] # Currently Not Needed
-                    mayaAttr = l[3]
-                    modifier = l[4]
-                    readPlug = l[5]
-            
-                    #################################
-                    # Joints and Transforms
-                    #################################
-                    if   mayaAttr == "translate":
-                        x3dNode.keyValue.append((readPlug.child(0).asFloat(), readPlug.child(1).asFloat(), readPlug.child(2).asFloat()))
-                        
-                    elif mayaAttr == "rotate":
-                        # If HAnimMotion
-                        if rkAPType == 2:
-                            #TODO
-                            pass
+                    for j in range(moNode.jLen):
+                        if   moNode.jvOpt[j] == 0:
+                            moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".translateX"))
+                            moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".translateY"))
+                            moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".translateZ"))
                             
-                        # Else AudioClip, MovieTexture, TimeSensor
+                            if   moNode.jvOrd[j] == 0:
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateX"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateY"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateZ"))
+                            elif moNode.jvOrd[j] == 1:
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateY"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateZ"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateX"))
+                            elif moNode.jvOrd[j] == 2:
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotatez"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotatex"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotatey"))
+                            elif moNode.jvOrd[j] == 3:
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateX"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateZ"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateY"))
+                            elif moNode.jvOrd[j] == 4:
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateY"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateX"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateZ"))
+                            else:
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateZ"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateY"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateX"))
+                                
+                        elif moNode.jvOpt[j] == 1:
+                            moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".translateX"))
+                            moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".translateY"))
+                            moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".translateZ"))
+                        elif moNode.jvOpt[j] == 2:
+                            if   moNode.jvOrd[j] == 0:
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateX"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateY"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateZ"))
+                            elif moNode.jvOrd[j] == 1:
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateY"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateZ"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateX"))
+                            elif moNode.jvOrd[j] == 2:
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotatez"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotatex"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotatey"))
+                            elif moNode.jvOrd[j] == 3:
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateX"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateZ"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateY"))
+                            elif moNode.jvOrd[j] == 4:
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateY"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateX"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateZ"))
+                            else:
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateZ"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateY"))
+                                moNode.values.append(cmds.getAttr(moNode.jvName[j] + ".rotateX"))
                         else:
+                            moNode.values.append(0.0)
+                            moNode.values.append(0.0)
+                            moNode.values.append(0.0)
+                
+                #Last thing to do in file
+                del moNode.jvLen
+                del moNode.jvText
+                del moNode.jLen
+                del moNode.jvOpt
+                del moNode.jvOrd
+                del moNode.jvName
+
+            else:
+                # Else AudioClip, MovieTexture, TimeSensor
+                # Here we set the keys for the interpolators based on the AnimPack node's settings.
+                intList = animPackage[2:]
+                for l in intList:
+                    l[1].key = apKeys
+                    
+                # Here we scrub through the Maya timeline frames to collect the keyValue data for
+                # each key in each Interpolator.
+                for step in fSteps:
+                    cmds.currentTime(step)
+
+                    # [tExp, bni[1], cParts[0], cParts[1], mod, mlist.getPlug(1)]
+                    for l in intList:
+                        expNode  = l[0] # Currently Not Needed
+                        x3dNode  = l[1]
+                        mayaName = l[2] # Currently Not Needed
+                        mayaAttr = l[3]
+                        modifier = l[4]
+                        readPlug = l[5]
+                
+                        #################################
+                        # Joints and Transforms
+                        #################################
+                        if   mayaAttr == "translate":
+                            x3dNode.keyValue.append((readPlug.child(0).asFloat(), readPlug.child(1).asFloat(), readPlug.child(2).asFloat()))
+                            
+                        elif mayaAttr == "rotate":
                             tForm = aom.MFnTransform(readPlug.node())
                             oriValue = self.rkint.getSFRotation(tForm.rotation(aom.MSpace.kTransform, True).asAxisAngle())
                             x3dNode.keyValue.append(oriValue)
+                                
+                        elif mayaAttr == "scale":
+                            x3dNode.keyValue.append((readPlug.child(0).asFloat(), readPlug.child(1).asFloat(), readPlug.child(2).asFloat()))
+                        
+                        ############################################
+                        # Maya placeTexture2d / X3D TextureTransform
+                        ############################################
+                        elif mayaAttr == "translateFrame":
+                            x3dNode.keyValue.append((readPlug.child(0).asFloat(), readPlug.child(1).asFloat()))
                             
-                    elif mayaAttr == "scale":
-                        x3dNode.keyValue.append((readPlug.child(0).asFloat(), readPlug.child(1).asFloat(), readPlug.child(2).asFloat()))
-                    
-                    ############################################
-                    # Maya placeTexture2d / X3D TextureTransform
-                    ############################################
-                    elif mayaAttr == "translateFrame":
-                        x3dNode.keyValue.append((readPlug.child(0).asFloat(), readPlug.child(1).asFloat()))
-                        
-                    elif mayaAttr == "rotateFrame":
-                        x3dNode.keyValue.append(readPlug.asMAngle().asRadians())
-                        
-                    elif mayaAttr == "coverage":
-                        x3dNode.keyValue.append((readPlug.child(0).asFloat(), readPlug.child(1).asFloat()))
-                        
-                    ############################################
-                    # Mesh / Shape - Coordinate/Normal/Tanget
-                    # Geometry Cashing
-                    ############################################
-                    elif mayaAttr == "outMesh" and modifier == "coord":
-                        #TODO
-                        pass
-                        
-                    elif mayaAttr == "outMesh" and modifier == "normal":
-                        #TODO
-                        pass
-                        
-                    # There current isn't an Interpolator that can
-                    # animate MFVec4f fields.
-                    elif mayaAttr == "outMesh" and modifier == "tangent":
-                        #TODO
-                        pass
+                        elif mayaAttr == "rotateFrame":
+                            x3dNode.keyValue.append(readPlug.asMAngle().asRadians())
+                            
+                        elif mayaAttr == "coverage":
+                            x3dNode.keyValue.append((readPlug.child(0).asFloat(), readPlug.child(1).asFloat()))
+                            
+                        ############################################
+                        # Mesh / Shape - Coordinate/Normal/Tanget
+                        # Geometry Cashing
+                        ############################################
+                        elif mayaAttr == "outMesh" and modifier == "coord":
+                            #TODO
+                            pass
+                            
+                        elif mayaAttr == "outMesh" and modifier == "normal":
+                            #TODO
+                            pass
+                            
+                        # There current isn't an Interpolator that can
+                        # animate MFVec4f fields.
+                        elif mayaAttr == "outMesh" and modifier == "tangent":
+                            #TODO
+                            pass
                         
         self.animation.clear()
 
@@ -1130,6 +1204,7 @@ class RKOrganizer():
             self.animation.append([])
             animPackage = self.animation[aLen]
             animPackage.append(apNode)
+            animPackage.append(bna[1])
             ##########################################
             
             #Maya Timeline Key Frame Step (Timeline steps)
@@ -1282,8 +1357,171 @@ class RKOrganizer():
             #Maya Timeline Stop Frame
             tsof = cmds.getAttr(moNode.name() + ".timelineStopFrame")
             
+            #Motion Stop Frame
+            bna[1].endFrame = tsof - tsaf
+            
             #Number of frames per second
             fps  = cmds.getAttr(moNode.name() + ".framesPerSecond")
+            
+            #Motion Frame Duration
+            bna[1].frameDuration = 1.0 / fps
+            
+            #####################################
+            # Other motion fields set to default:
+            # startFrame     0 
+            # frameIncrement 1
+            # frameIndex     0
+            
+            bna[1].loa     = cmds.getAttr(moNode.name() + ".loa")
+            bna[1].enabled = cmds.getAttr(moNode.name() + ".enabled")
+            bna[1].loop    = cmds.getAttr(moNode.name() + ".loop")
+            bna[1].description = cmds.getAttr(moNode.name() + ".description")
+            bna[1].name    = moNode.name() 
+            
+            trsJoints = []
+            rotJoints = []
+            moeNodes  = cmds.listConnections(moNode.name() + ".message", et=True, d=True, t='expression')
+            
+            for mexp in moeNodes:
+                retList = cmds.listConnections( mexp + ".receivedData", et=True, p=True, t="joint")
+                retChop = retList[0].split(".")
+                if retChop[1] == "translate":
+                    trsJoints.append(retChop[0])
+                else:
+                    rotJoints.append(retChop[0])
+                
+            bna[1].jvLen  = []
+            bna[1].jvText = []
+            bna[1].jLen   = len(x3dHumanoid.joints)
+            bna[1].jvOpt  = []
+            bna[1].jvOrd  = []
+            bna[1].jvName = []
+            
+            for jnt in x3dHumanoid.joints: ######### Can't use the humainoid joints field in this case, cause it doesn't have any of the info that is in the DEF version of the joint node.
+                trsFound = False
+                rotFound = False
+                
+                for trj in trsJoints:
+                    if trj == jnt.USE:
+                        trsFound = True
+
+                for rtj in rotJoints:
+                    if rtj == jnt.USE:
+                        rotFound = True
+                
+                ######################################################
+                # Maya Joint "rotateOrder" attribute values:
+                # 0 - xyz
+                # 1 - yzx
+                # 2 - zxy
+                # 3 - xzy
+                # 4 - yxz
+                # 5 - zyx
+                ######################################################
+                rOrder = cmds.getAttr(jnt.USE + ".rotateOrder")
+                roText = ""
+                if   rOrder == 0:
+                    roText = "Xrotation Yrotation Zrotation"
+                elif rOrder == 1:
+                    roText = "Yrotation Zrotation Xrotation"
+                elif rOrder == 2:
+                    roText = "Zrotation Xrotation Yrotation"
+                elif rOrder == 3:
+                    roText = "Xrotation Zrotation Yrotation"
+                elif rOrder == 4:
+                    roText = "Yrotation Xrotation Zrotation"
+                else:
+                    roText = "Zrotation Yrotation Xrotation"
+                    
+                bna[1].jvOrd.append(rOrder)
+                bna[1].jvName.append(jnt.USE)
+
+                if trsFound == True and rotFound == True:
+                    tempText = "Xposition Yposition Zposition " + roText
+                    bna[1].jvText.append(tempText)
+                    bna[1].jvLen.append(6)
+                    bna[1].jvOpt.append(0)
+                elif trsFound == True and rotFound == False:
+                    bna[1].jvText.append("Xposition Yposition Zposition")
+                    bna[1].jvLen.append(3)
+                    bna[1].jvOpt.append(1)
+                elif trsFound == False and rotFound == True:
+                    bna[1].jvText.append(roText)
+                    bna[1].jvLen.append(3)
+                    bna[1].jvOpt.append(2)
+                else:
+                    bna[1].jvText.append("")
+                    bna[1].jvLen.append(0)
+                    bna[1].jvOpt.append(3)
+                    
+            self.calulateHAnimJointInfoForHAnimMotion(bna[1])
+            
+            ##########################################
+            # Store for later collection
+            ##########################################
+            aLen = len(self.animation)
+            self.animation.append([])
+            animPackage = self.animation[aLen]
+            animPackage.append(moNode)
+            animPackage.append(bna[1])
+
+                
+
+    def walkHumanoidSkeletonForHAnimMotion(self, joint, jvLen, jvText, jLen, jvOpt, jvOrd):
+        pass
+        
+
+    def calulateHAnimJointInfoForHAnimMotion(self, moNode):
+        for j in range(moNode.jLen):
+            
+            hAnimJointName = ""
+            
+            sideVal = cmds.getAttr(moNode.jvName[j] + ".side")
+            if moNode.loa == -1:
+                if sideVal == 0:
+                    hAnimJointName += "Center_"
+                elif sideVal == 1:
+                    hAnimJointName += "Left_"
+                elif sideVal == 2:
+                    hAnimJointName += "Right_"
+            elif moNode.loa > 0:
+                if sideVal == 1:
+                    hAnimJointName += "l_"
+                if sideVal == 2:
+                    hAnimJointName += "r_"
+
+            nType = cmds.getAttr(moNode.jvName[j] + ".type")
+            if nType == 18:
+                otherType = cmds.getAttr(moNode.jvName[j] + ".otherType")
+                if otherType == "":
+                    hAnimJointName += moNode.jvName[j]
+                else:
+                    hAnimJointName += otherType
+            else:
+                #hAnimJointName += self.getJointType(nType)
+                nameType = self.getJointType(nType)
+                if nameType == "":
+                     hAnimJointName += moNode.jvName[j]
+                else:
+                     hAnimJointName += nameType
+            
+            localName = hAnimJointName
+            if moNode.jvLen[j] == 0:
+                localName = "IGNORED"
+                moNode.jvLen[j] = 3
+                moNode.jvText[j] = roText
+            
+            moNode.channels += (str(moNode.jvLen[j]) + " ")
+            moNode.channels += moNode.jvText[j]
+            
+            if localName == "IGNORED":
+                moNode.channelsEnabled.append(False)
+            else:
+                moNode.channelsEnabled.append(True)
+            moNode.joints += localName
+            if j < moNode.jLen-1:
+                moNode.channels += " "
+                moNode.joints   += " "
 
 
     def getMeshFromJoint(self, jNode, sm):
@@ -1590,9 +1828,19 @@ class RKOrganizer():
 
             nType = cmds.getAttr(jNode.name() + ".type")
             if nType == 18:
-                hAnimJointName += cmds.getAttr(jNode.name() + ".otherType")
+                #### hAnimJointName += cmds.getAttr(jNode.name() + ".otherType")
+                otherType = cmds.getAttr(jNode.name() + ".otherType")
+                if otherType == "":
+                     hAnimJointName += jNode.name()
+                else:
+                     hAnimJointName += otherType
             else:
-                hAnimJointName += self.getJointType(nType)
+                #hAnimJointName += self.getJointType(nType)
+                nameType = self.getJointType(nType)
+                if nameType == "":
+                     hAnimJointName += jNode.name()
+                else:
+                     hAnimJointName += nameType
             
             bna[1].name = hAnimJointName
 
