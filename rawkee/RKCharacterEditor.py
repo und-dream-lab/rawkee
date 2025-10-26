@@ -109,9 +109,14 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.haNameText = "Eric"
         self.haLOAValue = 0
         
+        self.rotOrderValue = 0
+        
         self.hanimCS  = None
         self.haNameEd = None
         self.haLOA    = None
+        self.rotCBGN  = None
+        self.rotCBHA  = None
+        self.rotCBAS  = None
         
         self.estIPose  = None
         self.estAPose  = None
@@ -163,8 +168,10 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.hamRotsAct    = None
         self.rmHamRotsAct  = None
         
-        self.allRotsAct    = None
-        self.rmAllRotsAct  = None
+        self.allTrsRotsAct   = None
+        self.allRotsAct      = None
+        self.rmAllTrsRotsAct = None
+        self.rmAllRotsAct    = None
         
         self.cDupButton = None
         self.sDupIPose  = None
@@ -239,14 +246,16 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         
         self.sAnimPack = QAction("Select an Animation Package", cgTree)
         
-        self.hamTransAct = QAction("Capture Translate Animation - Selected Joints")
-        self.rmHamTransAct = QAction("Release Translate Animation - Selected Joints")
+        self.allRotsAct      = QAction("Capture Root Translate and All Joints Rotate Animations")
+        self.allTrsRotsAct   = QAction("Capture All Translate and All Joints Rotate Animations" )
+        self.hamTransAct     = QAction("Capture Translate Animation - Selected Joints")
+        self.hamRotsAct      = QAction("Capture Rotate Animation - Selected Joints")
         
-        self.allRotsAct = QAction("Capture Root Translate and All Joints Rotate Animations")
-        self.hamRotsAct = QAction("Capture Rotate Animation - Selected Joints")
 
-        self.rmAllRotsAct = QAction("Release Root Translate and All Joints Rotate Animations")
-        self.rmHamRotsAct = QAction("Release Rotate Animation - Selected Joints")
+        self.rmAllTrsRotsAct = QAction("Release All Translate and All Joints Rotate Animations")
+        self.rmAllRotsAct    = QAction("Release Root Translate and All Joints Rotate Animations")
+        self.rmHamTransAct   = QAction("Release Translate Animation - Selected Joints")
+        self.rmHamRotsAct    = QAction("Release Rotate Animation - Selected Joints")
         
     def create_widgets(self):
         ##############################################
@@ -344,6 +353,9 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.hanimCS  = self.findChild(QtWidgets.QPushButton, 'createHAnimSkeleton')
         self.haNameEd = self.findChild(QtWidgets.QLineEdit,   'haNameEdit'         )
         self.haLOA    = self.findChild(QtWidgets.QComboBox,   'loaComboBox'        )
+        self.rotCBAS  = self.findChild(QtWidgets.QComboBox,   'rotOrderComboBoxAS' )
+        self.rotCBGN  = self.findChild(QtWidgets.QComboBox,   'rotOrderComboBoxGN' )
+        self.rotCBHA  = self.findChild(QtWidgets.QComboBox,   'rotOrderComboBoxHA' )
         
         # Generic Skeleton - Tab
         self.cDupButton = self.findChild(QtWidgets.QPushButton, 'createDuplicate')
@@ -386,10 +398,12 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         ##############
         self.rmHamTransAct.triggered.connect(self.releaseTranslateForHAnimMotion)
         
-        self.allRotsAct.triggered.connect(self.captureForHAnimMotion)
+        self.allRotsAct.triggered.connect(self.captureTrsAndAllRotsForHAnimMotion)
+        self.allTrsRotsAct.triggered.connect(self.captureAllTrsRotsForHAnimMotion)
         self.hamRotsAct.triggered.connect(self.captureRotateForHAnimMotion)
         
-        self.rmAllRotsAct.triggered.connect(self.releaseForHAnimMotion)
+        self.rmAllRotsAct.triggered.connect(self.releaseTrsAndAllRotsForHAnimMotion)
+        self.rmAllTrsRotsAct.triggered.connect(self.releaseTrsAndAllRotsForHAnimMotion)
         self.rmHamRotsAct.triggered.connect(self.releaseRotateForHAnimMotion)
         
         self.trAction.triggered.connect(lambda: self.captureTranslateGeneral(True))
@@ -419,6 +433,11 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.haLOA.currentIndexChanged.connect(self.setHaLOAValue)
         self.haNameEd.textEdited.connect(self.setHaNameText)
         
+        # HAnim Joint Rotation Order
+        self.rotCBAS.currentIndexChanged.connect(self.setRotOrderValue)
+        self.rotCBGN.currentIndexChanged.connect(self.setRotOrderValue)
+        self.rotCBHA.currentIndexChanged.connect(self.setRotOrderValue)
+        
         # Generic Skeleton - Tab
         self.cDupButton.clicked.connect(self.genericStep2)
         self.cDupIPose.clicked.connect(self.genericStep4)
@@ -444,15 +463,23 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             self.asPose.clicked.connect(cmds.rkSetASPoseForASGS)
             self.haDefPose.clicked.connect(cmds.rkLoadDefPoseForHAnim)
             
-            self.genButton.clicked.connect(cmds.rkAdvancedSkeleton)
+            self.genButton.clicked.connect(self.asGenerateHAnimCompliantSkeleton)#cmds.rkAdvancedSkeleton)
             self.ipoButton.clicked.connect(cmds.rkLoadIPoseForASGS)
             self.cpbButton.clicked.connect(cmds.rkDefPoseForASGS  )
             self.trwButton.clicked.connect(cmds.rkTransferSkinASGS)
 
+    #################################################
+    # Advnaced Skeleton Set Duplicate Skeleton
+    #################################################
+    def asGenerateHAnimCompliantSkeleton(self):
+        cmds.rkAdvancedSkeleton()
+        rotOrder = self.rotOrderValue
+        self.changeSkeletonRotOrder("GameSkeletonRoot_M", rotOrder)
+        
         
     #################################################
     # Generic Create Duplicate Skeleton
-    ##################################################
+    #################################################
     def genericStep2(self):
         print("genericStep2")
         # Create a duplicate skeleton
@@ -460,6 +487,8 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         # Create a HAnimHumanoid transform
         ##################################
         self.duplicateRoot = ""
+        
+        rotOrder = self.rotOrderValue
         
         selectNames = cmds.ls(sl=True)
         if selectNames == None:
@@ -480,6 +509,8 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
 
         newRootName = cmds.duplicate(self.sourceRoot, rr=True, rc=True)
         cmds.parent(newRootName, actualName)
+        
+        self.changeSkeletonRotOrder(newRootName, rotOrder)
         
         # Assign parentConstraints
         self.duplicateRoot = newRootName[0]
@@ -818,12 +849,14 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             print("Menu Option - " + nType)
             if nType == "HAnimMotion":
                 self.pMenu.addAction(self.allRotsAct)
+                self.pMenu.addAction(self.allTrsRotsAct)
                 self.pMenu.addSeparator()
                 self.pMenu.addAction(self.hamTransAct)
                 self.pMenu.addAction(self.hamRotsAct)
                 self.pMenu.addSeparator()
                 self.pMenu.addSeparator()
                 self.pMenu.addAction(self.rmAllRotsAct)
+                self.pMenu.addAction(self.rmAllTrsRotsAct)
                 self.pMenu.addSeparator()
                 self.pMenu.addAction(self.rmHamTransAct)
                 self.pMenu.addAction(self.rmHamRotsAct)
@@ -1333,7 +1366,9 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
 
     def setHaLOAValue(self, index):
         self.haLOAValue = index
-
+        
+    def setRotOrderValue(self, index):
+        self.rotOrderValue = index
 
     def createHAnimCompliantSkeleton(self):
         isMore = False
@@ -1380,6 +1415,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             pivot = [0.0, 0.902462, -0.01797304]
 
             cmds.setAttr(mayaJointName + '.offsetParentMatrix', 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, pivot[0], pivot[1], pivot[2], 1.0, type='matrix')
+            cmds.setAttr(mayaJointName + '.rotateOrder', rotOrder)
             
         elif loaValue == 1 or loaValue == 2 or loaValue == 3 or loaValue == 4:
             isMore = True
@@ -1391,7 +1427,15 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             melCmd += '-options "v=0;" -pr -importFrameRate false -importTimeRange "keep" '
             melCmd += '"' + self.uiPaths + 'hanimLOA' + str(loaValue) + '_HumanoidFullSkeleton.mb";'
             
-            mel.eval(melCmd)
+            result = mel.eval(melCmd)
+            
+            tSelect = cmds.ls(haNodeName + "*:hanim_LOA" + str(loaValue))
+            #humanoid = haNodeName + ":" + "hanim_LOA" + str(loaValue)
+            
+            print("The tSelect: " + tSelect[len(tSelect)-1])
+            rootJoint = self.findRootJoint(tSelect[len(tSelect)-1])
+            print("Root Joint: " + rootJoint)
+            self.changeSkeletonRotOrder(rootJoint, self.rotOrderValue)
             
             stk.reveal()
 
@@ -1898,8 +1942,119 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
                         return name
         
         return ""
+        
+    def changeSkeletonRotOrder(self, jointName, rotOrder):
+        cmds.setAttr(jointName + ".rotateOrder", rotOrder)
+        children = cmds.listRelatives(jointName, children=True)
+        if children != None:
+            for child in children:
+                slist = om.MSelectionList()
+                slist.add(child)
+                dagNode = om.MFnDagNode(slist.getDependNode(0))
+                if dagNode.typeName == "joint":
+                    self.changeSkeletonRotOrder(child, rotOrder)
 
-    def captureForHAnimMotion(self):
+
+    def captureAllTrsRotsForHAnimMotion(self):
+        # The 'fromNode' is the RawKee 'rkAnimPack' node
+        # The 'toNode' is the Maya 'joint' node
+        aPackTree = self.findChild(QtWidgets.QTreeWidget, 'x3dNodes'      )
+        cgTree    = self.findChild(QtWidgets.QTreeWidget, 'characterTree')
+        humanoid  = self.findChild(QtWidgets.QLineEdit, 'humanoidSelected')
+        humanBool = cmds.objExists(humanoid.text())
+        
+        if humanBool == True:
+            x3dType = ""
+            try:
+                x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
+            except:
+                pass
+                
+            if x3dType == "HAnimHumanoid":
+                selPacks = aPackTree.selectedItems()
+                
+                if len(selPacks) > 0:
+                    if selPacks[0].text(0) == "HAnimMotion":
+                        fromNode = selPacks[0].text(1)
+                        
+                        if cmds.objExists(fromNode):
+                            skChildren = cmds.listRelatives(humanoid.text(), ad=True, type='joint')
+                            if skChildren != None:
+
+                                ### Add Translate for Root Joint Node
+                                for l in skChildren:
+                                    conFound = False
+                                    
+                                    nodes = cmds.listConnections(l + ".translate", d=True, et=True, type="expression")
+                                    if nodes != None:
+                                        for node in nodes:
+                                            
+                                            rkAnPks = cmds.listConnections(node, s=True, et=True, sh=True, type="rkAnimPack")
+                                            if rkAnPks != None:
+                                                for pack in rkAnPks:
+                                                    if pack == fromNode:
+                                                        conFound = True
+                                        
+                                    if conFound == False:
+                                        toNode = l
+                                        melCmd  = "string $msg;"
+
+                                        interpolator = "HAnimMotion"
+                                        attribute    = "translate"
+                                        melCmd += "$msg=" + fromNode + ".message;"
+
+                                        expName = cmds.createNode('expression')
+                                        cmds.addAttr(expName, longName='receivedData', at='double3')
+                                        cmds.addAttr(expName, longName='receivedDataX', shortName='rdx',  at='double', k=True, p='receivedData')
+                                        cmds.addAttr(expName, longName='receivedDataY', shortName='rdy',  at='double', k=True, p='receivedData')
+                                        cmds.addAttr(expName, longName='receivedDataZ', shortName='rdz',  at='double', k=True, p='receivedData')
+                                        cmds.addAttr(expName, longName='x3dInterpolatorType', shortName='x3dIT', dataType='string')
+                                        cmds.setAttr(expName + '.x3dInterpolatorType', interpolator, type='string', lock=True)
+                                        cmds.connectAttr(toNode + '.translate', expName + '.receivedData')
+
+                                        cmds.setAttr( expName + '.expression', melCmd, type='string')
+                                        
+                                        self.addWatcher(fromNode, toNode)
+
+                                ### Add Rotate for all Joint Nodes                               
+                                for k in skChildren:
+                                    conFound = False
+                                    
+                                    nodes = cmds.listConnections(k + ".rotate", d=True, et=True, type="expression")
+                                    if nodes != None:
+                                        for node in nodes:
+
+                                            rkAnPks = cmds.listConnections(node, s=True, et=True, sh=True, type="rkAnimPack")
+                                            if rkAnPks != None:
+                                                for pack in rkAnPks:
+                                                    if pack == fromNode:
+                                                        conFound = True
+                                        
+                                    if conFound == False:
+                                        toNode = k
+                                        melCmd  = "string $msg;"
+
+                                        interpolator = "HAnimMotion"
+                                        attribute    = "rotate"
+                                        melCmd += "$msg=" + fromNode + ".message;"
+
+                                        expName = cmds.createNode('expression')
+                                        cmds.addAttr(expName, longName='receivedData', at='double3')
+                                        cmds.addAttr(expName, longName='receivedDataX', shortName='rdx',  at='doubleAngle', k=True, p='receivedData')
+                                        cmds.addAttr(expName, longName='receivedDataY', shortName='rdy',  at='doubleAngle', k=True, p='receivedData')
+                                        cmds.addAttr(expName, longName='receivedDataZ', shortName='rdz',  at='doubleAngle', k=True, p='receivedData')
+                                        cmds.addAttr(expName, longName='x3dInterpolatorType', shortName='x3dIT', dataType='string')
+                                        cmds.setAttr(expName + '.x3dInterpolatorType', interpolator, type='string', lock=True)
+                                        cmds.connectAttr(toNode + '.rotate', expName + '.receivedData')
+
+                                        cmds.setAttr( expName + '.expression', melCmd, type='string')
+
+                                        self.addWatcher(fromNode, toNode)
+
+        self.populateCharacterGraph()
+        
+        
+    def captureTrsAndAllRotsForHAnimMotion(self):
         # The 'fromNode' is the RawKee 'rkAnimPack' node
         # The 'toNode' is the Maya 'joint' node
         aPackTree = self.findChild(QtWidgets.QTreeWidget, 'x3dNodes'      )
@@ -2108,7 +2263,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.populateCharacterGraph()
         
                                         
-    def releaseForHAnimMotion(self):
+    def releaseTrsAndAllRotsForHAnimMotion(self):
         # The 'fromNode' is the RawKee 'rkAnimPack' node
         # The 'toNode' is the Maya 'joint' node
         aPackTree = self.findChild(QtWidgets.QTreeWidget, 'x3dNodes'      )

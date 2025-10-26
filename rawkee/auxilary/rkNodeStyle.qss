@@ -36,13 +36,13 @@ QPushButton#RKOptPanel  {
     font-size: 11px;
 }
 
-QLabel#stepExp, QLabel#stepExp_1, QLabel#stepExp_2, QLabel#stepExp_3, QLabel#genSelRootLabel, QLabel#genSourceLabel {
+QLabel#stepExp, QLabel#stepExp_1, QLabel#stepExp_2, QLabel#stepExp_3, QLabel#genSelRootLabel, QLabel#genSourceLabel, QLabel#rotOrderLabelAS, QLabel#rotOrderLabelEX {
     font-weight: bold;
     font-size: 14px;
     color: white;
 }
 
-QLabel#loaLabel, QLabel#skConfigLabel, QLabel#animPackLabel, QLabel#charGraphLabel, QLabel#timerNameLabel {
+QLabel#loaLabel, QLabel#skConfigLabel, QLabel#animPackLabel, QLabel#charGraphLabel, QLabel#timerNameLabel, QLabel#rotOrderLabelNew {
     font-weight: bold;
     font-size: 11px;
     color: white;
@@ -60,7 +60,7 @@ QLabel#advStepLabel, QLabel#haCompTitle, QLabel#ditLabel {
     color: #f3a103;/* #c0c000; */
 }
 
-QLabel#advStepLabel_1, QLabel#advStepLabel_2, QLabel#advStepLabel_3, QLabel#advStepLabel_4, QLabel#advStepLabel_5, QLabel#genStep1, QLabel#genStep2, QLabel#genStep3, QLabel#genStep4, QLabel#genStep5 {
+QLabel#advStepLabel_1, QLabel#advStepLabel_2, QLabel#advStepLabel_3, QLabel#advStepLabel_4, QLabel#advStepLabel_5, QLabel#genStep1, QLabel#genStep2, QLabel#genStep3, QLabel#genStep4, QLabel#genStep5, QLabel#genStep6 {
     font-weight: bold;
     font-size: 14px;
     color: #03cf20;
@@ -247,7 +247,7 @@ QLineEdit#skConfigType {
     max-height: 24;
 }
 
-QComboBox#loaComboBox {
+QComboBox#loaComboBox, QComboBox#rotOrderComboBoxAS, QComboBox#rotOrderComboBoxHA, QComboBox#rotOrderComboBoxGN {
     border: 2px solid lightblue;
     border-radius: 4px;
     font-weight: bold;

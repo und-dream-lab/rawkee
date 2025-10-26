@@ -336,6 +336,12 @@ global proc setDefRKOptVars()
     }else{
         optionVar -sv "rkHAnimSkConfig" "BASIC";
     }
+
+	if(`optionVar -exists "rkAnimationEOF"`){
+	}else{
+    //bool
+		optionVar -iv rkAnimationEOF 0;
+	}
 }
 
 print("The 'x3d.mel' has been sourced.\n");

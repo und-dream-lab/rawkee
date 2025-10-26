@@ -500,10 +500,7 @@
         <number>0</number>
        </property>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
-         <property name="spacing">
-          <number>6</number>
-         </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_16">
          <property name="bottomMargin">
           <number>2</number>
          </property>
@@ -528,6 +525,147 @@
            </property>
            <property name="text">
             <string>Step 1:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_11">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_17">
+         <property name="spacing">
+          <number>10</number>
+         </property>
+         <property name="leftMargin">
+          <number>50</number>
+         </property>
+         <property name="bottomMargin">
+          <number>2</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="rotOrderLabelAS">
+           <property name="minimumSize">
+            <size>
+             <width>200</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>200</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>Choose Joint Rotation Order</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="rotOrderComboBoxAS">
+           <property name="minimumSize">
+            <size>
+             <width>60</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>60</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="currentIndex">
+            <number>0</number>
+           </property>
+           <item>
+            <property name="text">
+             <string>XYZ</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>YZX</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>ZXY</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>XZY</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>YXZ</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>ZYX</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_12">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <property name="spacing">
+          <number>6</number>
+         </property>
+         <property name="bottomMargin">
+          <number>2</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="advStepLabel_2">
+           <property name="minimumSize">
+            <size>
+             <width>60</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>60</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Step 2:</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignBottom|Qt::AlignLeading|Qt::AlignLeft</set>
@@ -558,7 +696,7 @@
           <number>50</number>
          </property>
          <property name="bottomMargin">
-          <number>4</number>
+          <number>2</number>
          </property>
          <item>
           <widget class="QPushButton" name="genButton">
@@ -619,10 +757,10 @@
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_5">
          <property name="bottomMargin">
-          <number>4</number>
+          <number>2</number>
          </property>
          <item>
-          <widget class="QLabel" name="advStepLabel_2">
+          <widget class="QLabel" name="advStepLabel_3">
            <property name="minimumSize">
             <size>
              <width>60</width>
@@ -641,7 +779,7 @@
             </font>
            </property>
            <property name="text">
-            <string>Step 2:</string>
+            <string>Step 3:</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignBottom|Qt::AlignLeading|Qt::AlignLeft</set>
@@ -763,7 +901,7 @@
           <number>2</number>
          </property>
          <item>
-          <widget class="QLabel" name="advStepLabel_3">
+          <widget class="QLabel" name="advStepLabel_4">
            <property name="minimumSize">
             <size>
              <width>60</width>
@@ -782,7 +920,7 @@
             </font>
            </property>
            <property name="text">
-            <string>Step 3:</string>
+            <string>Step 4:</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignBottom|Qt::AlignLeading|Qt::AlignLeft</set>
@@ -877,7 +1015,7 @@
           <number>2</number>
          </property>
          <item>
-          <widget class="QLabel" name="advStepLabel_4">
+          <widget class="QLabel" name="advStepLabel_5">
            <property name="minimumSize">
             <size>
              <width>60</width>
@@ -896,7 +1034,7 @@
             </font>
            </property>
            <property name="text">
-            <string>Step 4:</string>
+            <string>Step 5:</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignBottom|Qt::AlignLeading|Qt::AlignLeft</set>
