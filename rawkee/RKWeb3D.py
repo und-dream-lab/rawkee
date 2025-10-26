@@ -248,6 +248,7 @@ class RKWeb3D():
         x3dVersion  = "4.0"
         x3dDoc = rkx3d.X3D(profile=profileType, version=x3dVersion)
         x3dDoc.Scene = rkx3d.Scene()
+        eofScene = rkx3d.Scene()
         background = rkx3d.Background()
         background.DEF = "DefaultBackground"
         background.skyColor = (0.2, 0.2, 0.2)
@@ -308,12 +309,13 @@ class RKWeb3D():
             #    exEncoding = "html"
 
             # Traverse DAG and map node data to X3D
-            rko.maya2x3d(x3dDoc.Scene, parentDagPaths, topDagNodes, self.pVersion, self.fullPath, exEncoding)
+            rko.maya2x3d(x3dDoc.Scene, eofScene, parentDagPaths, topDagNodes, self.pVersion, self.fullPath, exEncoding)
 
             # Write X3D Scenegraph to Disk
             rko.rkio.x3d2disk(x3dDoc, self.fullPath, exEncoding)
             
             # Delete the RKOrganizer object.
+            del eofScene
             del rko
             
         else:

@@ -53,9 +53,13 @@ class RKOrganizer():
         self.exBCFlag = 1
         self.avatarMeshNames = []
         self.avatarDagPaths = []
+        
+        self.rkAnimationEOF = 0
 
 
         self.optionsString = ""
+        
+        self.eofScene = None
         
         '''
         X3D Encodings: 0 - XML     - *.x3d
@@ -258,6 +262,9 @@ class RKOrganizer():
         self.rkExportMode      = cmds.optionVar( q='rkExportMode'     )
         
         self.rkCreaseAngle     = cmds.optionVar( q='rkCreaseAngle'    )
+
+        self.rkAnimationEOF    = cmds.optionVar( q='rkAnimationEOF'   )
+
         
         self.activePrjDir = self.rkPrjDir
         
@@ -296,7 +303,7 @@ class RKOrganizer():
     # the X3D Scenegraph that roughly corresponds to there     #
     # locations in the Maya DAG/DepGraph. Returns nothing.     #
     ############################################################
-    def maya2x3d(self, x3dScene, parentDagPaths, dagNodes, pVersion, fullPath, exEncoding):
+    def maya2x3d(self, x3dScene, eofScene, parentDagPaths, dagNodes, pVersion, fullPath, exEncoding):
         self.exEncoding = exEncoding
         
         self.loadRawKeeOptions()
@@ -316,12 +323,31 @@ class RKOrganizer():
         self.rootName = "|!!!!!_!!!!!|world"
         self.rkio.setAsHasBeen(self.rootName, x3dScene)
         
+        ##########################################################
+        # Needed for writing animation data at the end of the file
+        ##########################################################
+        if self.rkAnimationEOF == True:
+            self.eofScene = eofScene
         #Traverse Maya Scene Downward without using an MFIt object
         dNum = len(dagNodes)
         for i in range(dNum):
             self.traverseDownward(parentDagPaths[i], dagNodes[i])
             
         self.collectInterpolatorData()
+        
+        ##########################################################
+        # Needed for writing animation data at the end of the file
+        # 
+        # End of Export
+        ##########################################################
+        if self.rkAnimationEOF == True:
+            cLen = len(eofScene.children)
+            
+            for i in range(cLen):
+                x3dScene.children.append(eofScene.children.pop(0))
+                
+            self.eofScene = None
+        
         
     ############################################################
     ###  getAllTopDagNodes(self - RKOrganizer)               ###
@@ -1170,11 +1196,22 @@ class RKOrganizer():
                         nonMotionRKAPNodes.append(dagChild)
             
             if len(nonMotionRKAPNodes) > 0:
-                self.processRKAnimPacks(dragPath, nonMotionRKAPNodes, bna[1])
+                self.processRKAnimPacks(dragPath, nonMotionRKAPNodes, bna[1], "skin")
             
 
-    def processRKAnimPacks(self, dragPath, rkAPNodes, x3dHumanoid):
-        bna = self.processBasicNodeAddition(None, x3dHumanoid, "skin", "Group", x3dHumanoid.DEF + "_TimerGroup")
+    def processRKAnimPacks(self, dragPath, rkAPNodes, x3dParent, x3dField):
+        parentNode = x3dParent
+        cField = x3dField
+        
+        ######################################################
+        # Run this code if the option to export Animation data 
+        # at the end of the file is selected.
+        ######################################################
+        if self.rkAnimationEOF == True:
+            parentNode = self.eofScene
+            cField = "children"
+            
+        bna = self.processBasicNodeAddition(None, parentNode, cField, "Group", x3dParent.DEF + "_TimerGroup")
         if bna[0] == False:
             for apNode in rkAPNodes:
                 apType = cmds.getAttr(apNode.name() + ".mimickedType")

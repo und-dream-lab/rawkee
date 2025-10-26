@@ -231,11 +231,30 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.rkExportMode      = cmds.optionVar( q='rkExportMode'     )
         
         self.rkCreaseAngle     = cmds.optionVar( q='rkCreaseAngle'    )
+        self.rkAnimationEOF    = cmds.optionVar( q='rkAnimationEOF'   )
 
 
 
     def buildX3DExportPanel(self, layout):
         #self.widget_label.setObjectName("X3DNodeType") -- QLabel, QComboBox, QCheckBox, QLineEdit
+
+        # Option Animations
+        layoutAnim = QtWidgets.QHBoxLayout()
+        self.animEOFCheckBox = QtWidgets.QCheckBox("Export Interpolator Data at EOF")
+        self.animEOFCheckBox.setObjectName("RKOptPanel")
+        ###############################################################
+        # Put animation files at the end of the X3D file.
+        self.animEOFCheckBox.setChecked(self.rkAnimationEOF)
+        # Add change method here.
+
+        spacerAnimSp0 = QtWidgets.QLabel(" ")
+        spacerAnimSp0.setAlignment(QtCore.Qt.AlignLeft)
+        spacerAnimSp0.setFixedWidth(80)
+        spacerAnimSp0.setObjectName("RKOptPanel")
+
+        layoutAnim.addWidget(spacerAnimSp0)
+        layoutAnim.addWidget(self.animEOFCheckBox)
+        layoutAnim.addStretch()
 
         # Option One
         layoutOne = QtWidgets.QHBoxLayout()
@@ -889,7 +908,10 @@ class RKFOptsDialog(QtWidgets.QDialog):
         ##### Setting up the main layout #####
 
         # Section Header
-        generalSection = QtWidgets.QLabel("Media & Node Options")
+        animationSection = QtWidgets.QLabel("Animation Options")
+        animationSection.setObjectName("RKOptPanel")
+        
+        generalSection   = QtWidgets.QLabel("Media & Node Options")
         generalSection.setObjectName("RKOptPanel")
 
         meshSection    = QtWidgets.QLabel("Mesh/Shape & Shader/Material Options")
@@ -931,6 +953,9 @@ class RKFOptsDialog(QtWidgets.QDialog):
         separator3 = QtWidgets.QFrame()
         separator3.setFrameShape(QtWidgets.QFrame.Shape.HLine)
         separator3.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
+
+        layout.addWidget(animationSection)
+        layout.addLayout(layoutAnim)
 
         layout.addWidget(generalSection)
         layout.addLayout(layoutFour)
@@ -1083,6 +1108,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         cmds.optionVar( iv=('rkFrontLoadExt',    self.frontLoadURICheckBox.isChecked()      ))
         
         cmds.optionVar( fv=('rkCreaseAngle',     float(self.creaseAngle.text())             ))
+        cmds.optionVar( iv=('rkAnimationEOF',    self.animEOFCheckBox.isChecked()           ))
         
     def exportX3D(self):
         #print("X3D Exported!") TODO

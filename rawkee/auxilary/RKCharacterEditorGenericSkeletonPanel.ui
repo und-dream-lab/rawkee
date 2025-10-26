@@ -123,12 +123,119 @@
        <item>
         <widget class="QLabel" name="genSelRootLabel">
          <property name="text">
-          <string> Select Root Joint of Source Skeleton</string>
+          <string>Select Root Joint of Source Skeleton</string>
          </property>
         </widget>
        </item>
        <item>
         <spacer name="horizontalSpacer_14">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <property name="leftMargin">
+        <number>40</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="genStep2">
+         <property name="minimumSize">
+          <size>
+           <width>40</width>
+           <height>24</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>40</width>
+           <height>24</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Step 2:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="rotOrderLabelEX">
+         <property name="minimumSize">
+          <size>
+           <width>200</width>
+           <height>24</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>200</width>
+           <height>24</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Choose Joint Rotation Order</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="rotOrderComboBoxGN">
+         <property name="minimumSize">
+          <size>
+           <width>60</width>
+           <height>24</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>60</width>
+           <height>24</height>
+          </size>
+         </property>
+         <property name="currentIndex">
+          <number>0</number>
+         </property>
+         <item>
+          <property name="text">
+           <string>XYZ</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>YZX</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>ZXY</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>XZY</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>YXZ</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>ZYX</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer">
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
@@ -154,7 +261,7 @@
         <number>2</number>
        </property>
        <item>
-        <widget class="QLabel" name="genStep2">
+        <widget class="QLabel" name="genStep3">
          <property name="minimumSize">
           <size>
            <width>40</width>
@@ -168,7 +275,7 @@
           </size>
          </property>
          <property name="text">
-          <string>Step 2:</string>
+          <string>Step 3:</string>
          </property>
         </widget>
        </item>
@@ -218,7 +325,7 @@
         <number>2</number>
        </property>
        <item>
-        <widget class="QLabel" name="genStep3">
+        <widget class="QLabel" name="genStep4">
          <property name="minimumSize">
           <size>
            <width>40</width>
@@ -232,7 +339,7 @@
           </size>
          </property>
          <property name="text">
-          <string>Step 3:</string>
+          <string>Step 4:</string>
          </property>
         </widget>
        </item>
@@ -270,7 +377,7 @@
         <number>2</number>
        </property>
        <item>
-        <widget class="QLabel" name="genStep4">
+        <widget class="QLabel" name="genStep5">
          <property name="minimumSize">
           <size>
            <width>40</width>
@@ -284,7 +391,7 @@
           </size>
          </property>
          <property name="text">
-          <string>Step 4:</string>
+          <string>Step 5:</string>
          </property>
         </widget>
        </item>
@@ -334,7 +441,7 @@
         <number>2</number>
        </property>
        <item>
-        <widget class="QLabel" name="genStep5">
+        <widget class="QLabel" name="genStep6">
          <property name="minimumSize">
           <size>
            <width>40</width>
@@ -348,7 +455,7 @@
           </size>
          </property>
          <property name="text">
-          <string>Step 5:</string>
+          <string>Step 6:</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>

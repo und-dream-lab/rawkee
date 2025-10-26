@@ -166,11 +166,19 @@ class RKInterfaces():
         
     def getSFVec3fFromList(self, l):
         return (l[0], l[1], l[2])
-        
+    
+    #############################################################################
+    # q - tForm.rotation(maya.api.OpenMaya.MSpace.kTransform, True).asAxisAngle()
+    # 
+    # Because of this, rotation order doesn't matter.
+    #############################################################################
     def getSFRotation(self, q):
         return (q[0][0], q[0][1], q[0][2], q[1])
 
-    def getSFRotationFromEuler(self, euler):
+    #######################################################################
+    # This function is broken and not currently being used.
+    #######################################################################
+    def getSFRotationFromEuler(self, euler, degrees=True, order=0):
         cv = ( np.cos(euler[2]/2), np.cos(euler[1]/2), np.cos(euler[0]/2) )
         sv = ( np.sin(euler[2]/2), np.sin(euler[1]/2), np.sin(euler[0]/2) ) 
 	
