@@ -933,12 +933,25 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         tName = newTName.text()
         hBool = cmds.objExists(hName)
         if hBool == True and tName != "":
+
+            x3dType = ""
+            try:
+                x3dType = cmds.getAttr(nds + ".x3dGroupType")
+            except:
+                pass
+
             atSet = newNType.currentIndex() + 1
-            aName = cmds.createNode("rkAnimPack", n=tName, p=hName)
-            
-            self.updateAnimPackAttributes( aName, "mimickedType", atSet)
-            
-            self.populateAnimationPackages()
+            if x3dType == "HAnimHumanoid":
+                aName = cmds.createNode("rkAnimPack", n=tName, p=hName)
+                self.updateAnimPackAttributes( aName, "mimickedType", atSet)
+                self.populateAnimationPackages()
+
+            elif atSet == 1 or atSet == 3 or atSet == 4:
+                aName = cmds.createNode("rkAnimPack", n=tName)
+                self.updateAnimPackAttributes( aName, "mimickedType", atSet)
+                self.populateAnimationPackages()
+            else:
+                print("No HAnimMotion support for non-HAnimHumanoid characters.")
             
     ##########################################################################
     ## Functions reproducng the functions found in AErkAnimPackTemplate.mel ##
@@ -1211,8 +1224,10 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
     ########################################################################
 
     ########################################
+    # Old pre-CGESkin version
     # Load Animation information about the selected HAnimHumanoid
     ########################################
+    """
     def loadSelectedHumanoid(self):
         selNodes = cmds.ls(sl=True)
         
@@ -1239,6 +1254,41 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             self.hmnSelect.setText(humName)
             
         self.populateAnimationPackages()
+    """
+
+    
+    #############################################################
+    # Version with both HAnimHumanoid and CGESkin Support
+    # Load Animation information about the selected HAnimHumanoid
+    #############################################################
+    def loadSelectedHumanoid(self):
+        selNodes = cmds.ls(sl=True)
+        
+        humName = ""
+        for nds in selNodes:
+            ntype = cmds.nodeType(nds)
+            if ntype == "transform" or ntype == "joint":
+                humName = nds
+                break
+                #x3dType = ""
+                #try:
+                #    x3dType = cmds.getAttr(nds + ".x3dGroupType")
+                #except:
+                #    pass
+                #if x3dType == "HAnimHumanoid":
+                #    humName = nds
+        if humName == "":
+            self.hmnSelect = self.findChild(QtWidgets.QLineEdit,   'humanoidSelected'  )
+            hmnBool = cmds.objExists(self.hmnSelect.text())
+            
+            if hmnBool == False:
+                self.hmnSelect.setText("ERROR: Select HAnimHumanoid")
+        else:
+            self.hmnSelect = self.findChild(QtWidgets.QLineEdit,   'humanoidSelected'  )
+            self.hmnSelect.setText(humName)
+            
+        self.populateAnimationPackages()
+
     
     #############################################
     # Populate the Character Graph QTreeWidget
@@ -1247,6 +1297,21 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         # Grab the the QLineEdit widget that contains the name of the selected
         # humanoid.
         ldhLine = self.findChild(QtWidgets.QLineEdit,   'humanoidSelected')
+        topName = ldhLine.text()
+
+        topType = cmds.nodeType(topName)
+        if topType == "joint":
+            jList = om.MSelectionList()
+            jList.add(topName)
+            jNode = om.MFnDagNode(jList.getDagPath(0))
+            
+            pObj = jNode.parent(0)
+            if pObj is not None:
+                pNode = om.MFnDagNode(pObj)
+                if pNode.typeName == "transform":
+                    ldhLine.setText(pNode.name())
+                    self.populateCharacterGraph()
+                    return
 
         # Grab the QTreeWidget that will list all of the timing nodes
         # aka - rkAnimPack nodes (as TimeSensor, AudioClip, Movie, HAnimMotion)
@@ -1310,8 +1375,12 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
                 if x3dType == "HAnimHumanoid":
                     humName = testName
             except Exception as e:
-                print(f"Exception Type: {type(e).__name__}")
-                print(f"Exception Message: {e}")                            
+                ntype = cmds.nodeType(testName)
+                if ntype == "transform" or ntype == "joint":
+                    humName = testName
+                else:
+                    print(f"Exception Type: {type(e).__name__}")
+                    print(f"Exception Message: {e}")                            
 
         # List all rkAnimPack nodes
         apNodes = cmds.ls(type='rkAnimPack')
@@ -1454,9 +1523,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             try:
                 x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
             except:
-                pass
+                ntype = cmds.nodeType(humanoid.text())
+                if ntype == "transform":
+                    x3dType = "Transform"
+                elif ntype == "joint":
+                    x3dType = "HAnimJoint"# humName = testName
                 
-            if x3dType == "HAnimHumanoid":
+            if x3dType == "HAnimHumanoid" or x3dType == "Transform" or x3dType == "HAnimJoint":
                 selPacks = aPackTree.selectedItems()
                 
                 if len(selPacks) > 0:
@@ -1489,12 +1562,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
 
                                     expName = cmds.createNode('expression')
                                     cmds.addAttr(expName, longName='receivedData', at='double3')
-                                    cmds.addAttr(expName, longName='receivedDataX', shortName='rdx',  at='double', k=True, p='receivedData')
-                                    cmds.addAttr(expName, longName='receivedDataY', shortName='rdy',  at='double', k=True, p='receivedData')
-                                    cmds.addAttr(expName, longName='receivedDataZ', shortName='rdz',  at='double', k=True, p='receivedData')
+                                    cmds.addAttr(expName, longName='receivedDataX', shortName='rdx',  at='doubleLinear', k=True, p='receivedData')
+                                    cmds.addAttr(expName, longName='receivedDataY', shortName='rdy',  at='doubleLinear', k=True, p='receivedData')
+                                    cmds.addAttr(expName, longName='receivedDataZ', shortName='rdz',  at='doubleLinear', k=True, p='receivedData')
                                     cmds.addAttr(expName, longName='x3dInterpolatorType', shortName='x3dIT', dataType='string')
                                     cmds.setAttr(expName + '.x3dInterpolatorType', interpolator, type='string', lock=True)
-                                    cmds.connectAttr(toNode + '.translate', expName + '.receivedData')
+                                    print("To Node:" + toNode)
+                                    cmds.connectAttr(toNode + '.' + attribute, expName + '.receivedData')
 
                                     cmds.setAttr( expName + '.expression', melCmd, type='string')
                                     
@@ -1519,9 +1593,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             try:
                 x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
             except:
-                pass
+                ntype = cmds.nodeType(humanoid.text())
+                if ntype == "transform":
+                    x3dType = "Transform"
+                elif ntype == "joint":
+                    x3dType = "HAnimJoint"# humName = testName
                 
-            if x3dType == "HAnimHumanoid":
+            if x3dType == "HAnimHumanoid" or x3dType == "Transform" or x3dType == "HAnimJoint":
                 selPacks = aPackTree.selectedItems()
                 
                 if len(selPacks) > 0:
@@ -1585,9 +1663,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             try:
                 x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
             except:
-                pass
+                ntype = cmds.nodeType(humanoid.text())
+                if ntype == "transform":
+                    x3dType = "Transform"
+                elif ntype == "joint":
+                    x3dType = "HAnimJoint"# humName = testName
                 
-            if x3dType == "HAnimHumanoid":
+            if x3dType == "HAnimHumanoid" or x3dType == "Transform" or x3dType == "HAnimJoint":
                 selPacks = aPackTree.selectedItems()
                 
                 if len(selPacks) > 0:
@@ -1651,9 +1733,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             try:
                 x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
             except:
-                pass
+                ntype = cmds.nodeType(humanoid.text())
+                if ntype == "transform":
+                    x3dType = "Transform"
+                elif ntype == "joint":
+                    x3dType = "HAnimJoint"# humName = testName
                 
-            if x3dType == "HAnimHumanoid":
+            if x3dType == "HAnimHumanoid" or x3dType == "Transform" or x3dType == "HAnimJoint":
                 selPacks = aPackTree.selectedItems()
                 
                 if len(selPacks) > 0:
@@ -1696,9 +1782,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             try:
                 x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
             except:
-                pass
+                ntype = cmds.nodeType(humanoid.text())
+                if ntype == "transform":
+                    x3dType = "Transform"
+                elif ntype == "joint":
+                    x3dType = "HAnimJoint"# humName = testName
                 
-            if x3dType == "HAnimHumanoid":
+            if x3dType == "HAnimHumanoid" or x3dType == "Transform" or x3dType == "HAnimJoint":
                 selPacks = aPackTree.selectedItems()
                 
                 if len(selPacks) > 0:
@@ -1741,9 +1831,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             try:
                 x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
             except:
-                pass
+                ntype = cmds.nodeType(humanoid.text())
+                if ntype == "transform":
+                    x3dType = "Transform"
+                elif ntype == "joint":
+                    x3dType = "HAnimJoint"# humName = testName
                 
-            if x3dType == "HAnimHumanoid":
+            if x3dType == "HAnimHumanoid" or x3dType == "Transform" or x3dType == "HAnimJoint":
                 selPacks = aPackTree.selectedItems()
                 
                 if len(selPacks) > 0:
@@ -1805,9 +1899,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             try:
                 x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
             except:
-                pass
+                ntype = cmds.nodeType(humanoid.text())
+                if ntype == "transform":
+                    x3dType = "Transform"
+                elif ntype == "joint":
+                    x3dType = "HAnimJoint"# humName = testName
                 
-            if x3dType == "HAnimHumanoid":
+            if x3dType == "HAnimHumanoid" or x3dType == "Transform" or x3dType == "HAnimJoint":
                 selPacks = aPackTree.selectedItems()
                 
                 if len(selPacks) > 0:
@@ -1847,12 +1945,12 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
 
                                     expName = cmds.createNode('expression')
                                     cmds.addAttr(expName, longName='receivedData', at='double3')
-                                    cmds.addAttr(expName, longName='receivedDataX', shortName='rdx',  at='double', k=True, p='receivedData')
-                                    cmds.addAttr(expName, longName='receivedDataY', shortName='rdy',  at='double', k=True, p='receivedData')
-                                    cmds.addAttr(expName, longName='receivedDataZ', shortName='rdz',  at='double', k=True, p='receivedData')
+                                    cmds.addAttr(expName, longName='receivedDataX', shortName='rdx',  at='doubleLinear', k=True, p='receivedData')
+                                    cmds.addAttr(expName, longName='receivedDataY', shortName='rdy',  at='doubleLinear', k=True, p='receivedData')
+                                    cmds.addAttr(expName, longName='receivedDataZ', shortName='rdz',  at='doubleLinear', k=True, p='receivedData')
                                     cmds.addAttr(expName, longName='x3dInterpolatorType', shortName='x3dIT', dataType='string')
                                     cmds.setAttr(expName + '.x3dInterpolatorType', interpolator, type='string', lock=True)
-                                    cmds.connectAttr(toNode + '.translate', expName + '.receivedData')
+                                    cmds.connectAttr(toNode + '.' + attribute, expName + '.receivedData')
 
                                     cmds.setAttr( expName + '.expression', melCmd, type='string')
                                     
@@ -1874,9 +1972,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             try:
                 x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
             except:
-                pass
+                ntype = cmds.nodeType(humanoid.text())
+                if ntype == "transform":
+                    x3dType = "Transform"
+                elif ntype == "joint":
+                    x3dType = "HAnimJoint"# humName = testName
                 
-            if x3dType == "HAnimHumanoid":
+            if x3dType == "HAnimHumanoid" or x3dType == "Transform" or x3dType == "HAnimJoint":
                 selPacks = aPackTree.selectedItems()
                 
                 if len(selPacks) > 0:
@@ -1968,9 +2070,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             try:
                 x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
             except:
-                pass
+                ntype = cmds.nodeType(humanoid.text())
+                if ntype == "transform":
+                    x3dType = "Transform"
+                elif ntype == "joint":
+                    x3dType = "HAnimJoint"# humName = testName
                 
-            if x3dType == "HAnimHumanoid":
+            if x3dType == "HAnimHumanoid" or x3dType == "Transform" or x3dType == "HAnimJoint":
                 selPacks = aPackTree.selectedItems()
                 
                 if len(selPacks) > 0:
@@ -2067,9 +2173,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             try:
                 x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
             except:
-                pass
+                ntype = cmds.nodeType(humanoid.text())
+                if ntype == "transform":
+                    x3dType = "Transform"
+                elif ntype == "joint":
+                    x3dType = "HAnimJoint"# humName = testName
                 
-            if x3dType == "HAnimHumanoid":
+            if x3dType == "HAnimHumanoid" or x3dType == "Transform" or x3dType == "HAnimJoint":
                 selPacks = aPackTree.selectedItems()
                 
                 if len(selPacks) > 0:
@@ -2166,9 +2276,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             try:
                 x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
             except:
-                pass
+                ntype = cmds.nodeType(humanoid.text())
+                if ntype == "transform":
+                    x3dType = "Transform"
+                elif ntype == "joint":
+                    x3dType = "HAnimJoint"# humName = testName
                 
-            if x3dType == "HAnimHumanoid":
+            if x3dType == "HAnimHumanoid" or x3dType == "Transform" or x3dType == "HAnimJoint":
                 selPacks = aPackTree.selectedItems()
                 
                 if len(selPacks) > 0:
@@ -2221,9 +2335,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             try:
                 x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
             except:
-                pass
+                ntype = cmds.nodeType(humanoid.text())
+                if ntype == "transform":
+                    x3dType = "Transform"
+                elif ntype == "joint":
+                    x3dType = "HAnimJoint"# humName = testName
                 
-            if x3dType == "HAnimHumanoid":
+            if x3dType == "HAnimHumanoid" or x3dType == "Transform" or x3dType == "HAnimJoint":
                 selPacks = aPackTree.selectedItems()
                 
                 if len(selPacks) > 0:
@@ -2276,9 +2394,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             try:
                 x3dType = cmds.getAttr(humanoid.text() + ".x3dGroupType")
             except:
-                pass
+                ntype = cmds.nodeType(humanoid.text())
+                if ntype == "transform":
+                    x3dType = "Transform"
+                elif ntype == "joint":
+                    x3dType = "HAnimJoint"# humName = testName
                 
-            if x3dType == "HAnimHumanoid":
+            if x3dType == "HAnimHumanoid" or x3dType == "Transform" or x3dType == "HAnimJoint":
                 selPacks = aPackTree.selectedItems()
                 
                 if len(selPacks) > 0:

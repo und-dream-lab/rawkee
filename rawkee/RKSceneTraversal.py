@@ -2,7 +2,7 @@ import sys
 import os
 import rawkee.x3d
 from rawkee.x3d import *
-from rawkee.RKPseudoNode import *
+from rawkee.RKPseudoNode import CGESkin, CGEIndexedFaceSet
 from typing import Final
 
 
@@ -45,9 +45,15 @@ class RKSceneTraversal():
                 self.processNode(node, tMulti, False, cField="children")
         self.writeFooter()
 
+
     def processNode(self, node, isMulti, addComma, cField=""):
         nType   = type(node).__name__
         
+        #try:
+        #    nType = self.reTypePseudoNode(nType)
+        #except:
+        #    pass
+
         sFieldsList = []
         mFieldsList  = []
         
@@ -57,83 +63,80 @@ class RKSceneTraversal():
         compNode = self.createNodeFromString(nType)
         pastMeta = False
         nDict = vars(node)
-        chkVal = self.isNonX3D(nType)
+        #chkVal = self.isNonX3D(nType)
         
-        if chkVal == True:
-            for key, value in nDict.items():
-                if key == "DEF" and value != '':
+        #if chkVal == True:
+        #    for key, value in nDict.items():
+        #        if key == "DEF" and value != '':
+        #            sFieldsList.append("DEF")
+        #        elif key == "USE" and value != '':
+        #            sFieldsList.append("USE")
+        #        elif isinstance(value, list):
+        #            if getattr(compNode,key) != value:#len(value) > 0:
+        #                if isinstance(value[0], (str, float, int, tuple, bool, type(None) ) ):
+        #                    if value[0] != None:
+        #                        mFieldsList.append(key)
+        #                else:
+        #                    mNodeList.append(key)
+        #        elif getattr(compNode,key) != value:
+        #            if isinstance(value, (str, float, int, tuple, bool, type(None) ) ):
+        #                #if value != None:
+        #                sFieldsList.append(key)
+        #            else:
+                        #if getattr(compNode,keyp[3]) != value:
+        #                sNodeList.append(key)
+        #                
+        #else:
+        for key, value in nDict.items():
+            keyp = key.split('_')
+            if   keyp[1] == "X3DNode":
+                if   keyp[3] == "DEF" and node.DEF != None:
                     sFieldsList.append("DEF")
-                elif key == "USE" and value != '':
+                    
+                elif keyp[3] == "USE" and node.USE != None:
                     sFieldsList.append("USE")
-                elif isinstance(value, list):
-                    if getattr(compNode,key) != value:#len(value) > 0:
-                        if isinstance(value[0], (str, float, int, tuple, bool, type(None) ) ):
-                            if value[0] != None:
-                                mFieldsList.append(key)
-                        else:
-                            mNodeList.append(key)
-                elif getattr(compNode,key) != value:
+                    
+                elif keyp[3] == "metadata": #and pastMeta == False:
+                    pastMeta = True
+                    
+            elif keyp[1] == "ROUTE":
+                if   keyp[3] == "fromField" and value != "":
+                    sFieldsList.append("fromField")
+                    
+                elif keyp[3] == "toField"   and value != "":
+                    sFieldsList.append("toField")
+                
+                elif keyp[3] == "fromNode"  and value != "":
+                    sFieldsList.append("fromNode")
+                
+                elif keyp[3] == "toNode"    and value != "":
+                    sFieldsList.append("toNode")
+                    
+            if pastMeta == False:# and keyp[3] == nType:
+                continue
+                
+            # For some reason the '_Normal__vector' attribute doesn't show up as an instance of a list, eventhough it should.
+            # So I added a one-off check for the vector attribute.
+            if  isinstance(value, list) or (keyp[1] == "Normal" and keyp[3] == "vector"):
+                if getattr(compNode,keyp[3]) != value:#len(value) > 0:
+                    if isinstance(value[0], (str, float, int, tuple, bool, type(None) ) ):
+                        if value[0] != None:
+                            mFieldsList.append(keyp[3])
+                            #print('M Field: ' + keyp[3])
+                    else:
+                        mNodeList.append(keyp[3])
+
+            else:
+                if keyp[3] == "global": # This is a temp fix for lighting nodes that have the 'global_' field.
+                    keyp[3] = "global_"
+                if getattr(compNode,keyp[3]) != value:
                     if isinstance(value, (str, float, int, tuple, bool, type(None) ) ):
                         #if value != None:
-                        sFieldsList.append(key)
+                        sFieldsList.append(keyp[3])
+                        #print('S Field: ' + keyp[3])
                     else:
                         #if getattr(compNode,keyp[3]) != value:
-                        sNodeList.append(key)
-                        
-        else:
-            for key, value in nDict.items():
-                keyp = key.split('_')
-                if   keyp[1] == "X3DNode":
-                    if   keyp[3] == "DEF" and node.DEF != None:
-                        sFieldsList.append("DEF")
-                        
-                    elif keyp[3] == "USE" and node.USE != None:
-                        sFieldsList.append("USE")
-                        
-                    elif keyp[3] == "metadata":
-                        pastMeta = True
-                        if compNode.metadata != node.metadata: #value != None:
-                            sNodeList.append("metadata")
-                        
-                elif keyp[1] == "ROUTE":
-                    if   keyp[3] == "fromField" and value != "":
-                        sFieldsList.append("fromField")
-                        
-                    elif keyp[3] == "toField"   and value != "":
-                        sFieldsList.append("toField")
-                    
-                    elif keyp[3] == "fromNode"  and value != "":
-                        sFieldsList.append("fromNode")
-                    
-                    elif keyp[3] == "toNode"    and value != "":
-                        sFieldsList.append("toNode")
-                        
-                elif keyp[1] == nType:
-                    if pastMeta == False:
-                        continue
-                    
-                    # For some reason the '_Normal__vector' attribute doesn't show up as an instance of a list, eventhough it should.
-                    # So I added a one-off check for the vector attribute.
-                    if  isinstance(value, list) or (keyp[1] == "Normal" and keyp[3] == "vector"):
-                        if getattr(compNode,keyp[3]) != value:#len(value) > 0:
-                            if isinstance(value[0], (str, float, int, tuple, bool, type(None) ) ):
-                                if value[0] != None:
-                                    mFieldsList.append(keyp[3])
-                                    #print('M Field: ' + keyp[3])
-                            else:
-                                mNodeList.append(keyp[3])
-
-                    else:
-                        if keyp[3] == "global": # This is a temp fix for lighting nodes that have the 'global_' field.
-                            keyp[3] = "global_"
-                        if getattr(compNode,keyp[3]) != value:
-                            if isinstance(value, (str, float, int, tuple, bool, type(None) ) ):
-                                #if value != None:
-                                sFieldsList.append(keyp[3])
-                                #print('S Field: ' + keyp[3])
-                            else:
-                                #if getattr(compNode,keyp[3]) != value:
-                                sNodeList.append(keyp[3])
+                        sNodeList.append(keyp[3])
 
             
             ########################################################
@@ -181,8 +184,9 @@ class RKSceneTraversal():
                     sNodeList[fIdx] = "backMaterial"
             
         compNode = None
-                    
-        self.processSortedNode(nType, node, sFieldsList, mFieldsList, sNodeList, mNodeList, isMulti, addComma, cField)
+        
+        #self.processSortedNode(nType, node, sFieldsList, mFieldsList, sNodeList, mNodeList, isMulti, addComma, cField)
+        self.processSortedNode(node.NAME(), node, sFieldsList, mFieldsList, sNodeList, mNodeList, isMulti, addComma, cField)
 
 
         
@@ -806,8 +810,9 @@ class RKSceneTraversal():
             self.itabs()
                     
         elif self.enc == encv:
-            self.writeLine('#VRML V4.0 utf8')
-            self.writeLine('')
+            self.writeLine('#X3D V4.0 utf8')
+            #self.writeLine('#VRML V4.0 utf8')
+            #self.writeLine('')
             self.writeLine('PROFILE Full')
             self.writeLine('')
             self.writeLine('META "generator" "RawKee X3D Exporter for Maya 2025+ [Python Edition], https://github.com/und-dream-lab/rawkee/"')
@@ -897,10 +902,36 @@ class RKSceneTraversal():
 
     def itabs(self):
         self.tabs += 1
-        
+
+
     def dtabs(self):
         if self.tabs > 0:
             self.tabs -= 1
+
+            
+    def reTypePseudoNode(self, nType):
+        pseudoNodeType = {
+            #'CGESkin':'Skin',
+            #'CGEIndexedFaceSet':'IndexedFaceSet', #This node is extended from X3D - IndexedFaceSet
+            #'X3DomCommonSurfaceShader':'CommonSurfaceShader'
+        }
+        
+        return pseudoNodeType[nType]()
+
+    ###########################################################################
+    # TODO - Replace the createNodeFromString() function below with this 
+    # dynamic means of creating new objects:
+    #
+    # Doing so will allow the use of all X3D objects in the latest version of
+    # x3d.py and RKPseudoNode without having to worry if this dictionary
+    # gets updated.
+    ###########################################################################
+    ### class_name_str = "MyClass"
+    ### # Retrieve the class object from globals()
+    ### ClassObj = globals()[class_name_str] 
+    ### # Instantiate the class
+    ### obj = ClassObj("dynamic_value")
+    ###########################################################################
             
     def createNodeFromString(self, x3dType):
         x3dNodeMapping = {
@@ -933,6 +964,8 @@ class RKSceneTraversal():
             'CADLayer':CADLayer,
             'CADPart':CADPart,
             'CartoonVolumeStyle':CartoonVolumeStyle,
+            'CGEIndexedFaceSet':CGEIndexedFaceSet,#             From rawkee.RKPseudoNode, but is extended from x3d.py - _X3DComposedGeometryNode
+            'CGESkin':CGESkin,                    #             From rawkee.RKPseudoNode, but is extended from x3d.py - _X3DChildNode
             'ChannelMerger':ChannelMerger,
             'ChannelSelector':ChannelSelector,
             'ChannelSplitter':ChannelSplitter,
@@ -949,7 +982,6 @@ class RKSceneTraversal():
             'ColorDamper':ColorDamper,
             'ColorInterpolator':ColorInterpolator,
             'ColorRGBA':ColorRGBA,
-            'CommonSurfaceShader':CommonSurfaceShader,#             From rawkee.RKPseudoNode, not x3d.py
             'ComposedCubeMapTexture':ComposedCubeMapTexture,
             'ComposedShader':ComposedShader,
             'ComposedTexture3D':ComposedTexture3D,
@@ -1187,15 +1219,19 @@ class RKSceneTraversal():
             'WindPhysicsModel':WindPhysicsModel,
             'WorldInfo':WorldInfo
         }
+#            'WorldInfo':WorldInfo,
+#            'X3DOMCommonSurfaceShader':X3DomCommonSurfaceShader # From rawkee.RKPseudoNode, but is extended from x3d.py - _X3DChildNode
+#        }
         
         return x3dNodeMapping[x3dType]()
 
     def isNonX3D(self, x3dType):
-        if x3dType == "CommonSurfaceShader": #             From rawkee.RKPseudoNode, not x3d.py
-#            print("Inside isNonX3D (NOT X3D):" + x3dType)
-            return True
-#        else:
-#            print("Inside isNonX3D (IS X3D):" + x3dType)
+        #if   x3dType == "X3DOMCommonSurfaceShader": # From rawkee.RKPseudoNode, not x3d.py
+        #    return True
+        #elif x3dType == "CastleSkin":
+        #    return True
+        #elif x3dType == "CastleIndexedFaceSet": # Only Pseudo nodes that are not extended from x3d.py are listed here.
+        #    return True
         
         return False
 

@@ -232,7 +232,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         
         self.rkCreaseAngle     = cmds.optionVar( q='rkCreaseAngle'    )
         self.rkAnimationEOF    = cmds.optionVar( q='rkAnimationEOF'   )
-
+        self.rkCharAsHAnim     = cmds.optionVar( q='rkCharAsHAnim'    )
 
 
     def buildX3DExportPanel(self, layout):
@@ -246,12 +246,38 @@ class RKFOptsDialog(QtWidgets.QDialog):
         # Put animation files at the end of the X3D file.
         self.animEOFCheckBox.setChecked(self.rkAnimationEOF)
         # Add change method here.
+        
+        layoutCharacter = QtWidgets.QHBoxLayout()
+        self.characterLabel = QtWidgets.QLabel("      Export Characters as:")
+        self.characterLabel.setAlignment(QtCore.Qt.AlignLeft)
+        self.characterLabel.setFixedWidth(150)
+        self.characterLabel.setObjectName("RKOptPanel")
+        
+        self.casComboBox = QtWidgets.QComboBox()
+        self.casComboBox.addItems(["Standard X3D HAnimHumanoid Node", "CGE Skin Node with 4 x Influence Joints", "CGE Skin Node with 8 x Influence Joints"])
+        #self.casComboBox.setAlignment(QtCore.Qt.AlignLeft)
+        self.casComboBox.setFixedWidth(250)
+        self.casComboBox.setObjectName("RKOptPanel")
+
+        ###############################################################
+        # Set the Type of X3D Character Export Type
+        self.casComboBox.setCurrentIndex(self.rkCharAsHAnim)
+        
+        spacerAnimSp1 = QtWidgets.QLabel(" ")
+        spacerAnimSp1.setAlignment(QtCore.Qt.AlignLeft)
+        spacerAnimSp1.setFixedWidth(80)
+        spacerAnimSp1.setObjectName("RKOptPanel")
+
+        layoutCharacter.addWidget(spacerAnimSp1)
+        layoutCharacter.addWidget(self.characterLabel)
+        layoutCharacter.addWidget(self.casComboBox)
+        layoutCharacter.addStretch()
 
         spacerAnimSp0 = QtWidgets.QLabel(" ")
         spacerAnimSp0.setAlignment(QtCore.Qt.AlignLeft)
         spacerAnimSp0.setFixedWidth(80)
         spacerAnimSp0.setObjectName("RKOptPanel")
-
+        
         layoutAnim.addWidget(spacerAnimSp0)
         layoutAnim.addWidget(self.animEOFCheckBox)
         layoutAnim.addStretch()
@@ -956,6 +982,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
 
         layout.addWidget(animationSection)
         layout.addLayout(layoutAnim)
+        layout.addLayout(layoutCharacter)
 
         layout.addWidget(generalSection)
         layout.addLayout(layoutFour)
@@ -1109,6 +1136,8 @@ class RKFOptsDialog(QtWidgets.QDialog):
         
         cmds.optionVar( fv=('rkCreaseAngle',     float(self.creaseAngle.text())             ))
         cmds.optionVar( iv=('rkAnimationEOF',    self.animEOFCheckBox.isChecked()           ))
+        cmds.optionVar( iv=('rkCharAsHAnim',     self.casComboBox.currentIndex()            ))
+        
         
     def exportX3D(self):
         #print("X3D Exported!") TODO

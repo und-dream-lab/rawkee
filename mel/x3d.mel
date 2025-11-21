@@ -57,43 +57,82 @@ global proc checkForFileMenuItems()
     }
 }
 
-
-global proc addRawKeeMenuItemsToFileMenu()
+global proc forceFileMenuBuild()
 {
     global string $gMainFileMenu;
     buildFileMenu();
+}
 
-    menuItem -divider true -dividerLabel "RawKee X3D Export" -insertAfter "exportActiveFileOptions" -parent $gMainFileMenu rawkeeIODivider;
-    menuItem -label "X3D - Export All"                       -insertAfter "rawkeeIODivider"         -parent $gMainFileMenu -command "rkX3DExport"                      rawkeeIOExport;
-    menuItem -image ":menu_options.png"                      -insertAfter "rawkeeIOExport"          -parent $gMainFileMenu -command "rkX3DExportOp"    -optionBox true rawkeeIOExportOp;
-    menuItem -label "X3D - Export Selected"                  -insertAfter "rawkeeIOExportOp"        -parent $gMainFileMenu -command "rkX3DSelExport"                   rawkeeIOSelExport;
-    menuItem -image ":menu_options.png"                      -insertAfter "rawkeeIOSelExport"       -parent $gMainFileMenu -command "rkX3DSelExportOp" -optionBox true rawkeeIOSelExportOp;
-    menuItem -label "Set RawKee Project"                     -insertAfter "rawkeeIOSelExportOp"     -parent $gMainFileMenu -command "rkX3DSetProject"                  rawkeeIOSetProject;
+global proc addRKMenuItemsFM()
+{
+// Our variables needed for the addSafe call
+    global string $gMainFileMenu;
+    global int $gRawKeeFileMenuSafe;
+    global string $gRKFMVariable;
+    $gRawKeeFileMenuSafe = 0;
+    $gRKFMVariable = "";
+
+    // The menu creation
+    //addMenuItemSafe($gMainFileMenu, "AddMyMenuItems", "gMyMenuVariable");
     
-    menuItem -label "Send To Castle Game Engine"             -insertAfter "sendToDivider"           -parent $gMainFileMenu                               -sm true        rawkeeCastleMenu;
-    menuItem -label "Send All"                                                                      -parent rawkeeCastleMenu -command "rkCASExport"                      rawkeeCASExport;
-    menuItem -image ":menu_options.png"                      -insertAfter "rawkeeCASExport"         -parent rawkeeCastleMenu -command "rkCASExportOp"    -optionBox true rawkeeCASExportOp;
-    menuItem -label "Send Selected"                          -insertAfter "rawkeeCASExportOp"       -parent rawkeeCastleMenu -command "rkCASSelExport"                   rawkeeCASSelExport;
-    menuItem -image ":menu_options.png"                      -insertAfter "rawkeeCASSelExport"      -parent rawkeeCastleMenu -command "rkCASSelExportOp" -optionBox true rawkeeCASSelExportOp;
-    menuItem -label "Set Castle Project Data Folder"         -insertAfter "rawkeeCASSelExportOp"    -parent rawkeeCastleMenu -command "rkCASSetProject"                  rawkeeCASSetProject;
+    addMenuItemSafe($gMainFileMenu, "addRawKeeMenuItemsToFileMenu", "gRKFMVariable");    
+}
 
+global proc remRKMenuItemsFM()
+{
+    global string $gMainFileMenu;
+    global string $gRKFMVariable;
+    removeMenuItemSafe($gMainFileMenu, "$gRKFMVariable;");
+}
+
+global proc string addRawKeeMenuItemsToFileMenu()
+{
+    global int $gRawKeeFileMenuSafe;
+    
+    global string $gMainFileMenu;
+
+    if ($gRawKeeFileMenuSafe == 0)
+    {
+        menuItem -divider true -dividerLabel "RawKee X3D Export" -insertAfter "exportActiveFileOptions" -parent $gMainFileMenu rawkeeIODivider;
+        menuItem -label "X3D - Export All"                       -insertAfter "rawkeeIODivider"         -parent $gMainFileMenu -command "rkX3DExport"                      rawkeeIOExport;
+        menuItem -image ":menu_options.png"                      -insertAfter "rawkeeIOExport"          -parent $gMainFileMenu -command "rkX3DExportOp"    -optionBox true rawkeeIOExportOp;
+        menuItem -label "X3D - Export Selected"                  -insertAfter "rawkeeIOExportOp"        -parent $gMainFileMenu -command "rkX3DSelExport"                   rawkeeIOSelExport;
+        menuItem -image ":menu_options.png"                      -insertAfter "rawkeeIOSelExport"       -parent $gMainFileMenu -command "rkX3DSelExportOp" -optionBox true rawkeeIOSelExportOp;
+        menuItem -label "Set RawKee Project"                     -insertAfter "rawkeeIOSelExportOp"     -parent $gMainFileMenu -command "rkX3DSetProject"                  rawkeeIOSetProject;
+        
+        menuItem -label "Send To Castle Game Engine"             -insertAfter "sendToDivider"           -parent $gMainFileMenu                               -sm true        rawkeeCastleMenu;
+        menuItem -label "Send All"                                                                      -parent rawkeeCastleMenu -command "rkCASExport"                      rawkeeCASExport;
+        menuItem -image ":menu_options.png"                      -insertAfter "rawkeeCASExport"         -parent rawkeeCastleMenu -command "rkCASExportOp"    -optionBox true rawkeeCASExportOp;
+        menuItem -label "Send Selected"                          -insertAfter "rawkeeCASExportOp"       -parent rawkeeCastleMenu -command "rkCASSelExport"                   rawkeeCASSelExport;
+        menuItem -image ":menu_options.png"                      -insertAfter "rawkeeCASSelExport"      -parent rawkeeCastleMenu -command "rkCASSelExportOp" -optionBox true rawkeeCASSelExportOp;
+        menuItem -label "Set Castle Project Data Folder"         -insertAfter "rawkeeCASSelExportOp"    -parent rawkeeCastleMenu -command "rkCASSetProject"                  rawkeeCASSetProject;
+        
+        $gRawKeeFileMenuSafe = 1;
+    }
+    
+    return "removeRawKeeMenuItemsFromFileMenu()";
 }
 
 global proc removeRawKeeMenuItemsFromFileMenu()
 {
-    deleteUI -mi rawkeeIOSetProject;
-    deleteUI -mi rawkeeIOSelExportOp;
-    deleteUI -mi rawkeeIOSelExport;
-    deleteUI -mi rawkeeIOExportOp;
-    deleteUI -mi rawkeeIOExport;
-    deleteUI -mi rawkeeIODivider;
+    global int $gRawKeeFileMenuSafe;
     
-    deleteUI -mi rawkeeCASSetProject;
-    deleteUI -mi rawkeeCASSelExportOp;
-    deleteUI -mi rawkeeCASSelExport;
-    deleteUI -mi rawkeeCASExportOp;
-    deleteUI -mi rawkeeCASExport;
-    deleteUI -mi rawkeeCastleMenu;
+    if ($gRawKeeFileMenuSafe == 1)
+    {
+        deleteUI -mi rawkeeIOSetProject;
+        deleteUI -mi rawkeeIOSelExportOp;
+        deleteUI -mi rawkeeIOSelExport;
+        deleteUI -mi rawkeeIOExportOp;
+        deleteUI -mi rawkeeIOExport;
+        deleteUI -mi rawkeeIODivider;
+        
+        deleteUI -mi rawkeeCASSetProject;
+        deleteUI -mi rawkeeCASSelExportOp;
+        deleteUI -mi rawkeeCASSelExport;
+        deleteUI -mi rawkeeCASExportOp;
+        deleteUI -mi rawkeeCASExport;
+        deleteUI -mi rawkeeCastleMenu;
+    }
 }
 
 global proc forceAERefresh(string $nodeName)
@@ -342,6 +381,19 @@ global proc setDefRKOptVars()
     //bool
 		optionVar -iv rkAnimationEOF 0;
 	}
+    
+	if(`optionVar -exists "rkCharAsHAnim"`){
+	}else{
+    //bool
+		optionVar -iv rkCharAsHAnim 0;
+	}
+    
+    if(`optionVar -exists "rkCGESkinWeight"`){
+    }else{
+    //int choice
+		optionVar -iv rkCGESkinWeight 0;
+    }
+    
 }
 
 print("The 'x3d.mel' has been sourced.\n");

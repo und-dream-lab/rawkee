@@ -214,7 +214,7 @@ class RKWeb3D():
         cmds.menuItem(label='Metaverse Standards Forum',                command='maya.cmds.rkShowMSF()')
         ###################################################
     
-        mel.eval('addRawKeeMenuItemsToFileMenu()')
+        mel.eval('addRKMenuItemsFM()')
     
     
     # Destroy "RawKee (X3D)" - main plugin menu
@@ -226,7 +226,8 @@ class RKWeb3D():
         try:
             cmds.deleteUI(self.rkMenuName)     
             cmds.refresh()
-            mel.eval('removeRawKeeMenuItemsFromFileMenu()')
+            
+            mel.eval('remRKMenuItemsFM()')
         except:
             print("An error occured when attempting to remove the RawKee menubar menu, and rawkee items from the 'File' menu.")
 
