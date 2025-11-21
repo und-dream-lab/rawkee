@@ -435,15 +435,41 @@ class RKInterfaces():
         return tail
 
 
+    ################################################################################
+    # Get Skin Space Joint Inverse Bind Matrix
+    ################################################################################
+    def getJointInverseInSkinSpaceAsSFMatrix4f(self, jName, wssm=aom.MMatrix()):
+        # Get the Dag paths for the joint and the Skin Space
+        iList = aom.MSelectionList()
+        iList.add(jName)
+        
+        sjsm = iList.getDagPath(0).inclusiveMatrix() * wssm
+        
+        # Get the MFloatMatrix for the joint. I feel that this will give us
+        # the correct decimal rounding.
+        imx = aom.MFloatMatrix(sjsm.inverse())
+        
+        return ( imx[0],  imx[1],  imx[2],  imx[3],
+                 imx[4],  imx[5],  imx[6],  imx[7],
+                 imx[8],  imx[9], imx[10], imx[11],
+                imx[12], imx[13], imx[14], imx[15])
 
 
-
-
-
-
-
-
-
-
-
-
+    ################################################################################
+    # Get Skin Space Joint Inverse Bind Matrix - TODO
+    ################################################################################
+    def getJointInverseForHAnim(self, jName, wssm=aom.MMatrix()):
+        # Get the Dag paths for the joint and the Skin Space
+        iList = aom.MSelectionList()
+        iList.add(jName)
+        
+        sjsm = iList.getDagPath(0).inclusiveMatrix() * wssm
+        
+        # Get the MFloatMatrix for the joint. I feel that this will give us
+        # the correct decimal rounding.
+        imx = aom.MFloatMatrix(sjsm.inverse())
+        
+        return ( imx[0],  imx[1],  imx[2],  imx[3],
+                 imx[4],  imx[5],  imx[6],  imx[7],
+                 imx[8],  imx[9], imx[10], imx[11],
+                imx[12], imx[13], imx[14], imx[15])

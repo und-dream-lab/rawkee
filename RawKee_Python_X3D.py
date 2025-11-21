@@ -552,6 +552,102 @@ class RKCASSelExportOp(aom.MPxCommand):
         else:
             print("rkWeb3D was None")
 
+class RKSetBindPose(aom.MPxCommand):
+    kPluginCmdName = "rkSetBindPose"
+    
+    def __int__(self):
+        aom.MPxCommand.__init__(self)
+
+    @staticmethod
+    def cmdCreator():
+        return RKSetBindPose()
+
+    def doIt(self, args):
+        self.nodeName = ""
+        
+        if len(args) > 0:
+            tArg = args.asString(0)
+            if cmds.objExists(tArg):
+                self.nodeName = tArg
+        
+        if cmds.objExists(self.nodeName + "_defpose"):
+            cmds.delete(  self.nodeName + "_defpose")
+        cmds.select(      self.nodeName)
+        cmds.dagPose( save=True, selection=False, name=self.nodeName + "_defpose" )
+        
+        
+        
+class RKAssignLabelAsName(aom.MPxCommand):
+    kPluginCmdName = "rkAssignLabelAsName"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+    
+    @staticmethod
+    def cmdCreator():
+        return RKAssignLabelAsName()
+        
+    def doIt(self, args):
+        objs  = cmds.ls(selection=True)
+        mList = aom.MSelectionList()
+        for obj in objs:
+            mList.add(obj)
+        
+        oLen = mList.length()
+        for i in range(oLen):
+            dagNode = aom.MFnDagNode(mList.getDependNode(i))
+            if dagNode.typeName == "joint":
+                cls.setJointNameToJointName(dagNode)
+                break
+
+    @classmethod
+    def setJointNameToJointName(cls, jNode):
+        jLabel = cls.getCGEJointLabel(jNode)
+        jNode.setName(jLabel)
+        
+        dnCount = jNode.childcount()
+        
+        # First Pass - Interate children with a priority of Joint nodes
+        for i in range(dnCount):
+            dagChild = aom.MFnDagNode(jNode.child(i))
+            if   dagChild.typeName == "joint":
+                cls.setJointNameToJointName(dagChild)
+
+
+    @classmethod    
+    def getCGEJointLabel(cls, jNode):
+        jointName = ""
+        hasMeat = True
+
+        sideVal = cmds.getAttr(jNode.name() + ".side")
+        if sideVal == 0:
+            jointName = "Center_"
+        elif sideVal == 1:
+            jointName = "Left_"
+        elif sideVal == 2:
+            jointName = "Right_"
+
+        nType = cmds.getAttr(jNode.name() + ".type")
+        
+        typeText = self.getJointType(str(nType))
+        
+        if typeText == "Other":
+            typeText = cmds.getAttr(jNode.name() + ".otherType")
+            
+        if typeText == "":
+            hasMeat = False
+
+        if hasMeat == True:
+            jointName += typeText
+        else:
+            jointName = jNode.name()
+        
+            #if jointName == "":
+            #    jointName = "Random_" + str(random.randint(1000001, 2000000))
+            #   print("CGE WARNING: Printed random joint name because it was not defined in the Maya joint's (Side), (Type), and (OtherType) attributes - CGE Joint Name: " + jointName)
+        
+        return jointName
+
 
 class RKShowSceneEditor(aom.MPxCommand):
     kPluginCmdName = "rkShowSceneEditor"
@@ -787,6 +883,10 @@ def initializePlugin(plugin):
         pluginFn.registerCommand(   RKCASSelExport.kPluginCmdName,    RKCASSelExport.cmdCreator)
         
         pluginFn.registerCommand(   RKX3DAuxLoader.kPluginCmdName,    RKX3DAuxLoader.cmdCreator)
+        
+        pluginFn.registerCommand( RKAssignLabelAsName.kPluginCmdName, RKAssignLabelAsName.cmdCreator)
+        
+        pluginFn.registerCommand( RKSetBindPose.kPluginCmdName, RKSetBindPose.cmdCreator)
     except:
         sys.stderr.write("Failed to register a plugin command.\n")
 
@@ -841,6 +941,20 @@ def uninitializePlugin(plugin):
     DEREGISTERING Custom RawKee Commands
     '''
     ##################################
+    try:
+        pluginFn.deregisterCommand(RKSetBindPose.kPluginCmdName)
+    except:
+        sys.stderr.write("RKSetBindPose failed to deregister")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+        
+    try:
+        pluginFn.deregisterCommand(RKAssignLabelAsName.kPluginCmdName)
+    except:
+        sys.stderr.write("RKAssignLabelAsName failed to deregister")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+    
     try:
         pluginFn.deregisterCommand(   RKX3DAuxLoader.kPluginCmdName)
     except Exception as e:
