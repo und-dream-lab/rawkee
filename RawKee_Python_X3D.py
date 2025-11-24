@@ -12,6 +12,7 @@ from rawkee.RKWeb3D import RKSaveIPoseForASGS,     RKSaveAPoseForASGS,     RKSav
 from rawkee.RKWeb3D import RKX3DAuxLoader
 from rawkee.RKSceneEditor import *
 from rawkee.RKCharacterEditor import *
+from rawkee.RKBindPoseEditor import *
 
 # From Early 2000s C++ Registered Node IDs
 from rawkee.nodes.x3dTimeSensor import X3DTimeSensor
@@ -713,6 +714,38 @@ class RKShowCharacterEditor(aom.MPxCommand):
         
 
 
+class RKShowBindPoseEditor(aom.MPxCommand):
+    kPluginCmdName = "rkShowBindPoseEditor"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowBindPoseEditor()
+        
+    def doIt(self, args):
+        print("RawKee X3D - Bind Pose Editor")
+        #cmds.rkPrimeX3DScene()
+        
+        global rkWeb3D
+        if rkWeb3D is not None:
+            bindposeEditorControlName = RKBindPoseEditor.bindpose_editor_control_name()
+        
+            if cmds.workspaceControl(bindposeEditorControlName, exists=True):
+                #Must Close before Delete
+                cmds.workspaceControl(bindposeEditorControlName, e=True, close=True, closeCommand=RKBindPoseEditor.workplace_close_command())
+                cmds.deleteUI(bindposeEditorControlName)
+            
+            rkBPEditor = RKBindPoseEditor()
+            rkBPEditor.CBIDs = RKCallBackIDs
+            #rkCEditor.setRKWeb3D(rkWeb3D)
+            rkBPEditor.show(dockable=True, uiScript=RKBindPoseEditor.workspace_ui_script())
+        else:
+            print("RKWeb3D is not set!")
+        
+
+
 # Initialize the plug-in
 def initializePlugin(plugin):
 
@@ -872,6 +905,7 @@ def initializePlugin(plugin):
         pluginFn.registerCommand(    RKSaveAPoseForASGS.kPluginCmdName,     RKSaveAPoseForASGS.cmdCreator)
         pluginFn.registerCommand(    RKSaveTPoseForASGS.kPluginCmdName,     RKSaveTPoseForASGS.cmdCreator)
         
+        pluginFn.registerCommand( RKShowBindPoseEditor.kPluginCmdName,  RKShowBindPoseEditor.cmdCreator)
         pluginFn.registerCommand(RKShowCharacterEditor.kPluginCmdName, RKShowCharacterEditor.cmdCreator)
         pluginFn.registerCommand(    RKShowSceneEditor.kPluginCmdName,     RKShowSceneEditor.cmdCreator)
         
@@ -1019,6 +1053,14 @@ def uninitializePlugin(plugin):
         print(f"Exception Message: {e}")
 
        
+    try:
+        pluginFn.deregisterCommand(RKShowBindPoseEditor.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowBindPoseEditor - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+
     try:
         pluginFn.deregisterCommand(    RKSaveTPoseForASGS.kPluginCmdName)
     except Exception as e:
@@ -1356,6 +1398,13 @@ def uninitializePlugin(plugin):
         #Must Close before Delete
         cmds.workspaceControl(characterEditorControlName, e=True, close=True, closeCommand=RKCharacterEditor.workplace_close_command())
         cmds.deleteUI(characterEditorControlName)
+    
+    bindposeEditorControlName = RKBindPoseEditor.bindpose_editor_control_name()
+
+    if cmds.workspaceControl(bindposeEditorControlName, exists=True):
+        #Must Close before Delete
+        cmds.workspaceControl(bindposeEditorControlName, e=True, close=True, closeCommand=RKBindPoseEditor.workplace_close_command())
+        cmds.deleteUI(bindposeEditorControlName)
     
     # Delete the RKWeb3D object that is the menu system and 
     # export function system for the MayaMainWindow

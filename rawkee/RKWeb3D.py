@@ -174,7 +174,8 @@ class RKWeb3D():
         cmds.menuItem(divider=True, dividerLabel='RawKee Editors and Tools')
         cmds.menuItem(divider=True)
         ### --- will be part of future release --- ### cmds.menuItem(label='X3D Interaction Editor',             command='maya.cmds.rkShowSceneEditor()'    )                # -command "showX3DIEditor";
-        cmds.menuItem(label='X3D Character and Animation Editor', command='maya.cmds.rkShowCharacterEditor()')                # -command "x3dCharacterEditor";
+        cmds.menuItem(label='RawKee Character Animation Editor', command='maya.cmds.rkShowCharacterEditor()')
+        cmds.menuItem(label='RawKee Bind Pose Editor',           command='maya.cmds.rkShowBindPoseEditor()' )
         ### --- will be part of next release --- ### cmds.menuItem(label='X3D General Animation Editor')                  # -command "x3dAnimationEditor";
 
         cmds.menuItem(divider=True)
