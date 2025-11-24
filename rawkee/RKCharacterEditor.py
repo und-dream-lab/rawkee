@@ -936,7 +936,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
 
             x3dType = ""
             try:
-                x3dType = cmds.getAttr(nds + ".x3dGroupType")
+                x3dType = cmds.getAttr(hName + ".x3dGroupType")
             except:
                 pass
 
@@ -951,7 +951,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
                 self.updateAnimPackAttributes( aName, "mimickedType", atSet)
                 self.populateAnimationPackages()
             else:
-                print("No HAnimMotion support for non-HAnimHumanoid characters.")
+                print("No HAnimMotion support for non-HAnimHumanoid characters. X3D Type: " + x3dType + "HName: " + hName)
             
     ##########################################################################
     ## Functions reproducng the functions found in AErkAnimPackTemplate.mel ##

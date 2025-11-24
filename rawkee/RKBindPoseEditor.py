@@ -112,7 +112,7 @@ class RKBindPoseEditor(MayaQWidgetDockableMixin, QWidget):
         super().__init__()
         
         self.setObjectName(self.OBJECT_NAME)
-        self.setWindowTitle("RK BindPose Editor")
+        self.setWindowTitle("RawKee BindPose Editor")
         self.setMinimumSize(300,300)
 
         self.add_to_bindpose_editor_workspace_control()
@@ -158,16 +158,32 @@ class RKBindPoseEditor(MayaQWidgetDockableMixin, QWidget):
         
         #######################################################
         # Set RawKee Bind Pose Status CheckBoxes              #
+        iVal = False
+        if cmds.objExists("rkIPose") == True:
+            iVal = True
         self.iPoseCheckBox = self.findChild(QtWidgets.QCheckBox, 'iPoseCheckBox')
+        self.iPoseCheckBox.setChecked(iVal)
         self.iPoseCheckBox.stateChanged.connect(self.rawKeeIPoseStatusChange)
         
+        aVal = False
+        if cmds.objExists("rkAPose") == True:
+            aVal = True
         self.aPoseCheckBox = self.findChild(QtWidgets.QCheckBox, 'aPoseCheckBox')
+        self.aPoseCheckBox.setChecked(aVal)
         self.aPoseCheckBox.stateChanged.connect(self.rawKeeAPoseStatusChange)
         
+        tVal = False
+        if cmds.objExists("rkTPose") == True:
+            tVal = True
         self.tPoseCheckBox = self.findChild(QtWidgets.QCheckBox, 'tPoseCheckBox')
+        self.tPoseCheckBox.setChecked(tVal)
         self.tPoseCheckBox.stateChanged.connect(self.rawKeeTPoseStatusChange)
         
+        eVal = False
+        if cmds.objExists("rkEPose") == True:
+            eVal = True
         self.ePoseCheckBox = self.findChild(QtWidgets.QCheckBox, 'ePoseCheckBox')
+        self.ePoseCheckBox.setChecked(eVal)
         self.ePoseCheckBox.stateChanged.connect(self.rawKeeEPoseStatusChange)
         
 

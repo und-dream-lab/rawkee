@@ -450,15 +450,7 @@ class RKIO():
         for aName in self.haveBeenNodes:
             if nodeName == aName:
                 return True
-        '''        
-        hbLength = len(self.haveBeenNodes)
-        i = 0
 
-        while i < hbLength and hasBeen == False:
-            if nodeName == self.haveBeenNodes[i]:
-                return True
-            i = i + 1
-        ''' 
         return False
     
     # Thought this was needed, but the 'processForGeometry' method already has access to the 
@@ -482,10 +474,9 @@ class RKIO():
             nodeField.append(x3dNode)
         else:
             setattr(x3dParentNode, x3dFieldName, x3dNode)
-#            nodeField = x3dNode
             
     def createNodeFromString(self, x3dType):
-        return self.trv.createNodeFromString(x3dType)
+        return self.trv.instantiateNodeFromString(x3dType)
         
     def createRouteObject(self):
         return self.trv.getRouteObject()
