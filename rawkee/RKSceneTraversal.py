@@ -59,8 +59,8 @@ class RKSceneTraversal():
         
         sNodeList  = []
         mNodeList   = []
-            
-        compNode = self.createNodeFromString(nType)
+        #compNode = self.createNodeFromString(nType)
+        compNode = self.instantiateNodeFromString(nType)
         pastMeta = False
         nDict = vars(node)
         #chkVal = self.isNonX3D(nType)
@@ -919,20 +919,21 @@ class RKSceneTraversal():
         return pseudoNodeType[nType]()
 
     ###########################################################################
-    # TODO - Replace the createNodeFromString() function below with this 
-    # dynamic means of creating new objects:
+    # Replaces the RKSceneTraversal.createNodeFromString() function with this 
+    # dynamic means of creating new objects.
     #
     # Doing so will allow the use of all X3D objects in the latest version of
     # x3d.py and RKPseudoNode without having to worry if this dictionary
     # gets updated.
     ###########################################################################
-    ### class_name_str = "MyClass"
-    ### # Retrieve the class object from globals()
-    ### ClassObj = globals()[class_name_str] 
-    ### # Instantiate the class
-    ### obj = ClassObj("dynamic_value")
-    ###########################################################################
-            
+    def instantiateNodeFromString(self, x3dType):
+        try:
+            ClassObj = globals()[x3dType]
+            return ClassObj()
+        except:
+            return None
+    
+    '''
     def createNodeFromString(self, x3dType):
         x3dNodeMapping = {
             ####################################### A
@@ -1224,7 +1225,9 @@ class RKSceneTraversal():
 #        }
         
         return x3dNodeMapping[x3dType]()
-
+    '''
+    
+    
     def isNonX3D(self, x3dType):
         #if   x3dType == "X3DOMCommonSurfaceShader": # From rawkee.RKPseudoNode, not x3d.py
         #    return True
