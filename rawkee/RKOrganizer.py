@@ -362,7 +362,10 @@ class RKOrganizer():
         cmds.currentTime(0)
         for bPose in self.bPoseStore:
             cmds.dagPose( bPose, restore=True )
+        # RawKee Export Bind Pose - Don't know why there would be more than one.
         self.bPoseStore.clear()
+        
+        # Dictionary containing the Matrix Animation offsets for HAnim Joints.
         self.rkBindPose.clear()
 
         
@@ -1974,7 +1977,8 @@ class RKOrganizer():
         for i in range(len(allJoints)):
             path = jList.getDagPath(i)
             jMat = path.inclusiveMatrix() * ssm.inverse()
-            jsm  = jMat.inverse().transpose()
+            #jsm  = jMat.inverse().transpose()
+            jsm  = jMat.inverse()
             imx  = (jsm.getElement(0,0), jsm.getElement(0,1), jsm.getElement(0,2), jsm.getElement(0,3),
                     jsm.getElement(1,0), jsm.getElement(1,1), jsm.getElement(1,2), jsm.getElement(1,3),
                     jsm.getElement(2,0), jsm.getElement(2,1), jsm.getElement(2,2), jsm.getElement(2,3),
@@ -2541,12 +2545,14 @@ class RKOrganizer():
                 if x3dType == "HAnimHumanoid":
                     if self.rkCharAsHAnim == 0:
                         cmds.currentTime(0)
-                        if cmds.objExists(dagNode.name() + "_defpose"):
-                            cmds.dagPose( dagNode.name() + "_defpose", restore=True )
-                            self.bPoseStore.append(dagNode.name() + "_defpose")
-                            print("Bind Pose '" + dagNode.name() + "_defPose' WAS FOUND!")
+                        if cmds.objExists("rkEPose"):
+                            cmds.currentTime(0)
+                            cmds.dagPose( "rkEPose", restore=True )
+                            self.bPoseStore.append("rkEPose")
+                            print("RawKee Export Bind Pose WAS FOUND!")
                         else:
-                            print("Bind Pose '" + dagNode.name() + "_defPose' not found!")
+                            print("RawKee Export Bind Pose HAS NOT been set!")
+                            
                         hhList = aom.MSelectionList()
                         hhList.add(dagNode.name())
                         dnPath = hhList.getDagPath(0)
@@ -2619,25 +2625,14 @@ class RKOrganizer():
                     self.processSingleRKAnimPack(x3dParentDEF, dagNode, cField)
                     
                 elif dagNode.typeName == "joint":
-                    plist = cmds.listRelatives(dagNode.name(), parent=True)
-                    if plist is not None:
-                        poseName = plist[0] + "_defpose"
-                        if cmds.objExists(poseName):
-                            cmds.currentTime(0)
-                            cmds.dagPose( poseName, restore=True )
-                            self.bPoseStore.append(poseName)
-                            print("Bind Pose '" + poseName + "' WAS FOUND!")
-                        else:
-                            print("Bind Pose '" + poseName + "' NOT found!")
+                    if cmds.objExists("rkEPose"):
+                        cmds.currentTime(0)
+                        cmds.dagPose( "rkEPose", restore=True )
+                        self.bPoseStore.append("rkEPose")
+                        print("RawKee Export Bind Pose WAS FOUND!")
                     else:
-                        jPoseName = dagNode.name() + "_defpose"
-                        if cmds.objExists(jPoseName):
-                            cmds.currentTime(0)
-                            cmds.dagPose( jPoseName, restore=True )
-                            self.bPoseStore.append(jPoseName)
-                            print("Bind Pose '" + jPoseName + "' WAS FOUND!")
-                        else:
-                            print("Bind Pose '" + jPoseName + "' NOT found!")
+                        print("RawKee Export Bind Pose HAS NOT been set!")
+
                     if self.rkCharAsHAnim == 0:
                         x3dPF = [x3dParentDEF, cField]
                         hhList = aom.MSelectionList()
