@@ -162,6 +162,12 @@ class RKInterfaces():
         return (p.x, p.y, p.z)
 
     def getSFVec3f(self, v):
+        if v[0] > -0.0000000001 and v[0] < 0.0000000001:
+            v[0] = 0.0
+        if v[1] > -0.0000000001 and v[1] < 0.0000000001:
+            v[1] = 0.0
+        if v[2] > -0.0000000001 and v[2] < 0.0000000001:
+            v[2] = 0.0
         return (v[0], v[1], v[2])
         
     def getSFVec3fFromList(self, l):
@@ -171,9 +177,23 @@ class RKInterfaces():
     # q - tForm.rotation(maya.api.OpenMaya.MSpace.kTransform, True).asAxisAngle()
     # 
     # Because of this, rotation order doesn't matter.
+    # .asAxisAngle() returns a tuple (MVector, float) getSFRotation returns a tuple (x, y, z, w)
     #############################################################################
     def getSFRotation(self, q):
-        return (q[0][0], q[0][1], q[0][2], q[1])
+        x = q[0][0]
+        if x > -0.0000000001 and x < 0.0000000001:
+            x = 0.0
+        y = q[0][1]
+        if y > -0.0000000001 and y < 0.0000000001:
+            y = 0.0
+        z = q[0][2]
+        if z > -0.0000000001 and z < 0.0000000001:
+            z = 0.0
+        w = q[1]
+        if w > -0.0000000001 and w < 0.0000000001:
+            w = 0.0
+
+        return (x, y, z, w)
 
     #######################################################################
     # This function is broken and not currently being used.

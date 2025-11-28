@@ -2,6 +2,7 @@ import sys
 import random
 import maya.cmds as cmds
 import maya.mel  as mel
+import maya.OpenMaya as om
 
 import maya.api.OpenMaya as aom
 import maya.api.OpenMayaAnim as aoma
@@ -13,6 +14,8 @@ from rawkee.RKXNodes     import *
 from rawkee.RKPseudoNode import *
 
 import numpy as np
+
+import math as math
 
 import json
 
@@ -61,6 +64,9 @@ class RKOrganizer():
         self.rkCharAsHAnim  = 0
         self.rkCGESkinWeight = 0
         self.rkBindPose = {}
+        self.rkMotions  = {}
+        self.rkSkelConf = {}
+        
 
 
         self.optionsString = ""
@@ -367,6 +373,12 @@ class RKOrganizer():
         
         # Dictionary containing the Matrix Animation offsets for HAnim Joints.
         self.rkBindPose.clear()
+        
+        # Dictionary containing any HAnimMotion Settings.
+        self.rkMotions.clear()
+        
+        # Dictionary holding HAnim Skeleton Configurations while organizing the export
+        self.rkSkelConf.clear()
 
         
         
@@ -529,65 +541,71 @@ class RKOrganizer():
 
             if rkAPType == 2:
                 moNode  = animPackage[1]
+                mop     = animPackage[2]
+
+                moNode.channels = ""
+                for j in range(len(mop.joints)):
+                    mList = aom.MSelectionList()
+                    mList.add(mop.joints[j].USE)
+                    trsKey = apNode.name() + "." + mop.joints[j].USE + ".translate"
+                    rotKey = apNode.name() + "." + mop.joints[j].USE + ".rotate"
+                    jPath = mList.getDagPath(0)
+                    
+                    fValues = 0
+                    trs = self.rkMotions.get(trsKey, False)
+                    rot = self.rkMotions.get(rotKey, False)
+                    
+                    if trs == True:
+                        fValues += 3
+                        
+                    if rot == True:
+                        fValues += 3
+                    
+                    if fValues > 0:
+                        moNode.channels += str(fValues)
+                        if trs == True:
+                            moNode.channels = moNode.channels + " " + "Xposition Yposition Zposition"
+                        if rot == True:
+                            moNode.channels = moNode.channels + " " + "Zrotation Yrotation Xrotation"
+                        moNode.channels += " "
+                        moNode.channelsEnabled.append(True)
+                        defNode = self.rkio.findExisting(mop.joints[j].USE)
+                        if defNode is not None:
+                            moNode.joints = moNode.joints + defNode.name + " "
+                        
+                moNode.channels = moNode.channels.strip()
+                moNode.joints   = moNode.joints.strip()
+                
                 for step in fSteps:
                     cmds.currentTime(step)
                 
-                    for j in range(moNode.jLen):
+                    for j in range(len(mop.joints)):
                         mList = aom.MSelectionList()
-                        mList.add(moNode.jvName[j])
+                        mList.add(mop.joints[j].USE)
+                        jPath = mList.getDagPath(0)
+                        trsKey = apNode.name() + "." + mop.joints[j].USE + ".translate"
+                        rotKey = apNode.name() + "." + mop.joints[j].USE + ".rotate"
+
+                        # Current Local Matrix
+                        clm   = jPath.inclusiveMatrix() * jPath.exclusiveMatrix().inverse()
                         
-                        tForm = aom.MFnTransform(mList.getDependNode(0))
-                        tv = self.rkint.getSFVec3f(tForm.translation(aom.MSpace.kTransform))
+                        # Bound Local Matrix
+                        blm   = self.rkBindPose[mop.joints[j].USE]
+                        
+                        # Animation Data
+                        deltaMatrix = clm * blm.inverse()
+                        
+                        #Transformation Matrix
+                        transMatrix  = aom.MTransformationMatrix(deltaMatrix)
 
-                        rv = tForm.rotation(aom.MSpace.kTransform, False).asVector()
-                        rv[0] = np.rad2deg(rv[0])
-                        rv[1] = np.rad2deg(rv[1])
-                        rv[2] = np.rad2deg(rv[2])
-                        rotOrder  = tForm.rotationOrder()
-                        if   moNode.jvOpt[j] == 0:
-                            moNode.values.append( (tv[0], tv[1], tv[2]) )
+                        if self.rkMotions.get(trsKey, False) == True:
+                            tv  = self.rkint.getSFVec3f(transMatrix.translation(aom.MSpace.kTransform))
+                            moNode.values.append((tv[0], tv[1], tv[2]))
+                        
+                        if self.rkMotions.get(rotKey, False) == True:
+                            rv  = transMatrix.rotation(aom.MSpace.kTransform).asEulerRotation()#.reorder(aom.MEulerRotation.kZYX)
+                            moNode.values.append( (math.degrees(rv.z),math.degrees(rv.y),math.degrees(rv.x)) )
                             
-                            if   rotOrder == aom.MTransformationMatrix.kXYZ:
-                                moNode.values.append((rv[0], rv[1], rv[2]))
-                            elif moNode.rotOrder == aom.MTransformationMatrix.kYZX:
-                                moNode.values.append((rv[1], rv[2], rv[0]))
-                            elif moNode.rotOrder == aom.MTransformationMatrix.kZXY:
-                                moNode.values.append((rv[2], rv[0], rv[1]))
-                            elif moNode.rotOrder == aom.MTransformationMatrix.kXZY:
-                                moNode.values.append((rv[0], rv[2], rv[1]))
-                            elif moNode.rotOrder == aom.MTransformationMatrix.kYXZ:
-                                moNode.values.append((rv[1], rv[0], rv[2]))
-                            else:                                                       #moNode.rotOrder == aom.MTransformationMatrix.kZYX:
-                                moNode.values.append((rv[2], rv[1], rv[0]))
-                                
-                        elif moNode.jvOpt[j] == 1:
-                            moNode.values.append( (tv[0], tv[1], tv[2]) )
-                            
-                        elif moNode.jvOpt[j] == 2:
-                            if   rotOrder == aom.MTransformationMatrix.kXYZ:
-                                moNode.values.append((rv[0], rv[1], rv[2]))
-                            elif moNode.rotOrder == aom.MTransformationMatrix.kYZX:
-                                moNode.values.append((rv[1], rv[2], rv[0]))
-                            elif moNode.rotOrder == aom.MTransformationMatrix.kZXY:
-                                moNode.values.append((rv[2], rv[0], rv[1]))
-                            elif moNode.rotOrder == aom.MTransformationMatrix.kXZY:
-                                moNode.values.append((rv[0], rv[2], rv[1]))
-                            elif moNode.rotOrder == aom.MTransformationMatrix.kYXZ:
-                                moNode.values.append((rv[1], rv[0], rv[2]))
-                            else:                                                       #moNode.rotOrder == aom.MTransformationMatrix.kZYX:
-                                moNode.values.append((rv[2], rv[1], rv[0]))
-                        else:
-                            moNode.values.append( (0.0, 0.0, 0.0) )
-                            
-                
-                #Last thing to do in file
-                del moNode.jvLen
-                del moNode.jvText
-                del moNode.jLen
-                del moNode.jvOpt
-                del moNode.jvOrd
-                del moNode.jvName
-
             else:
                 # Else AudioClip, MovieTexture, TimeSensor
                 # Here we set the keys for the interpolators based on the AnimPack node's settings.
@@ -617,15 +635,23 @@ class RKOrganizer():
                         if animNode.typeName == "joint":
                             isJNode = True
                         deltaMatrix = aom.MMatrix()
+                        path = animList.getDagPath(0)
                         
                         if isJNode == True:
                             if self.rkCharAsHAnim == 0:
-                                boundLocalMatrix    = self.rkBindPose[animNode.name()]
+                                boundMatrix    = self.rkBindPose[animNode.name()]
                                 currentLocalMatrix  = self.getJointLocalMatrix(animList.getDagPath(0))
-                                deltaMatrix = currentLocalMatrix * boundLocalMatrix.inverse()
+                                deltaMatrix = currentLocalMatrix * boundMatrix.inverse()
                             else:
-                                deltaMatrix = self.getJointLocalMatrix(animList.getDagPath(0))
-
+                                #matGrp    = self.rkBindPose[animNode.name()]
+                                #bjMat = matGrp[0]
+                                #bpMat = matGrp[1]
+                                #blMat = bjMat * bpMat.inverse()
+                                cjMat = path.inclusiveMatrix()
+                                cpMat = path.exclusiveMatrix()
+                                deltaMatrix = cjMat * cpMat.inverse()
+                                #deltaMatrix = clMat# * blMat.inverse()
+                            
                         #################################
                         # Joints and Transforms
                         #################################999999
@@ -695,6 +721,33 @@ class RKOrganizer():
                             pass
                         
         self.animation.clear()
+
+
+    def getWorldPoseMatrixForJoint(self, jNode, poseName="rkEPose"):
+        cPlugs = cmds.listConnections(poseName + '.members', plugs=True, c=True, s=False, d=True)
+
+        # Joint Index in the pose
+        jIdx = -1
+        for i in range(0, len(cPlugs), 2):
+            sPlug = cPlugs[i]
+            dPlug = cPlugs[i+1] # Get the destination plug
+
+            cNode = dPlug.split('.')[0]
+
+            if cNode == jNode.name():
+                idxStr = sPlug.split('[')[-1].replace(']', '')
+                jIdx = int(idxStr)
+                break
+
+        mList = [1.0, 0.0, 0.0, 0.0,
+			0.0, 1.0, 0.0, 0.0,
+			0.0, 0.0, 1.0, 0.0,
+			0.0, 0.0, 0.0, 1.0]
+        
+        if jIdx >= 0:
+            mList = cmds.getAttr(poseName + '.matrix[' + str(jIdx) + ']')
+
+        return aom.MMatrix(mList)
 
     
     def processX3DAnchor(self, dragPath, dagNode, x3dPF):
@@ -1148,6 +1201,7 @@ class RKOrganizer():
                 if hNameExists == True:
                     hNameInt += 1
                     hhDEF = hName + "_" + str(hNameInt)
+            hName = hhDEF
         else:
             hName = depNode.name()
             
@@ -1155,7 +1209,7 @@ class RKOrganizer():
         bna = self.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "HAnimHumanoid", nodeName=hName)
         
         if bna[0] == False:
-            if depNode != "joint":
+            if depNode.typeName != "joint":
                 self.processBasicTransformFields(depNode, bna[1])
             
             #############################################################################################
@@ -1170,22 +1224,29 @@ class RKOrganizer():
             #############################################################################################
             #############################################################################################
             
-            try:
-                bna[1].skeletalConfiguration = cmds.getAttr(bna[1].DEF + ".skeletalConfiguration")
-            except:
-                bna[1].skeletalConfiguration = "CUSTOM"
-                
-            try:
-                bna[1].loa = cmds.getAttr(bna[1].DEF + ".LOA")
-            except:
+            if hName == depNode.name():
+                try:
+                    bna[1].skeletalConfiguration = cmds.getAttr(bna[1].DEF + ".skeletalConfiguration")
+                except:
+                    bna[1].skeletalConfiguration = "RAWKEE"
+                    
+                try:
+                    bna[1].loa = cmds.getAttr(bna[1].DEF + ".LOA")
+                except:
+                    bna[1].loa = -1
+            else:
+                bna[1].skeletalConfiguration = "RAWKEE"
                 bna[1].loa = -1
-
+                
             
             # 'sm' is a list of mesh nodes used for the skin of this HAnimHumanoid
             sm = []
             
             # 'sc' is a list of skinClsuters
             sc = []
+
+            # MFnDagNode version of Humanoid Node
+            cNum = dagNode.childCount()
 
             # Traverse the Skeleton
             # Process as the rooe node if the depNode/dagNode is a Maya "joint" node
@@ -1198,8 +1259,6 @@ class RKOrganizer():
             # enforced. If the transform's immediate children contain more than
             # one Maya joint node, results are undefined.
             else:
-                # MFnDagNode version of Humanoid Node
-                cNum = dagNode.childCount()
                 for i in range(cNum):
                     dagChild = aom.MFnDagNode(dagNode.child(i))
                     if   dagChild.typeName == "joint":
@@ -1207,12 +1266,12 @@ class RKOrganizer():
                 
             # Get Weight/point Index Offset and Skin Coordinate Node name.
             # wio length might be 0 and cName might equal "" if sm length is 0.
-            wio, cName = self.getSkinCoordinateNode(depNode, bna[1], sm, wssm=skinSpaceMatrix)
+            wio, cName = self.getSkinCoordinateNode(bna[1], sm, coordName=hName, wssm=skinSpaceMatrix)
             
             # Get Normal Vertex Index Offset and Skin Normal Node name
             # Depnding on export options 'sno' length might = 0, and 
             # sName might be equial to "".
-            sno, sName = self.getSkinNormalNode(depNode, bna[1], sm)
+            sno, sName = self.getSkinNormalNode(bna[1], sm, normalName=hName)
             
             # Adds X3D Shape nodes to 'skin' field of the humanoid. Assumes 
             # that mesh is point values are in world coordinates.
@@ -1449,8 +1508,6 @@ class RKOrganizer():
 
         
     def processHAnimMotion(self, x3dParentDEF, moNode, x3dHumanoid, cField="motions"):
-        #dragPath = dragPath + "|" + moNode.name()
-
         bna = self.processBasicNodeAddition(moNode, x3dHumanoid, cField, "HAnimMotion")
 
         if bna[0] == False:
@@ -1486,90 +1543,14 @@ class RKOrganizer():
             
             trsJoints = []
             rotJoints = []
-            moeNodes  = cmds.listConnections(moNode.name() + ".message", et=True, d=True, t='expression')
+            moeNodes  = cmds.listConnections(moNode.name() + ".message", et=True, d=True,         t='expression')
             
             for mexp in moeNodes:
-                retList = cmds.listConnections( mexp + ".receivedData", et=True, p=True, t="joint")
-                retChop = retList[0].split(".")
-                if retChop[1] == "translate":
-                    trsJoints.append(retChop[0])
-                else:
-                    rotJoints.append(retChop[0])
-                
-            bna[1].jvLen  = []
-            bna[1].jvText = []
-            bna[1].jLen   = len(x3dHumanoid.joints)
-            bna[1].jvOpt  = []
-            bna[1].jvOrd  = []
-            bna[1].jvName = []
-            
-            for jnt in x3dHumanoid.joints: ######### Can't use the humainoid joints field in this case, cause it doesn't have any of the info that is in the DEF version of the joint node.
-                trsFound = False
-                rotFound = False
-                
-                for trj in trsJoints:
-                    if trj == jnt.USE:
-                        trsFound = True
+                retList = cmds.listConnections( mexp +  ".receivedData", et=True, s=True, p=True, t="joint"     )
+                if ".translate" in retList[0] or ".rotate" in retList[0]:
+                    aniKey = moNode.name() + "." + retList[0]
+                    self.rkMotions[aniKey] = True
 
-                for rtj in rotJoints:
-                    if rtj == jnt.USE:
-                        rotFound = True
-                
-                ######################################################
-                # Maya Joint "rotateOrder" attribute values:
-                # 0 - xyz
-                # 1 - yzx
-                # 2 - zxy
-                # 3 - xzy
-                # 4 - yxz
-                # 5 - zyx
-                ######################################################
-                #rotOrder == aom.MTransformationMatrix.kXYZ:
-
-                mList = aom.MSelectionList()
-                mList.add(jnt.USE)
-                tForm = aom.MFnTransform(mList.getDependNode(0))
-                
-                rOrder  = tForm.rotationOrder()
-                
-                #rOrder = cmds.getAttr(jnt.USE + ".rotateOrder")
-                roText = ""
-                if   rOrder == aom.MTransformationMatrix.kXYZ:
-                    roText = "Xrotation Yrotation Zrotation"
-                elif rOrder == aom.MTransformationMatrix.kYZX:
-                    roText = "Yrotation Zrotation Xrotation"
-                elif rOrder == aom.MTransformationMatrix.kZXY:
-                    roText = "Zrotation Xrotation Yrotation"
-                elif rOrder == aom.MTransformationMatrix.kXZY:
-                    roText = "Xrotation Zrotation Yrotation"
-                elif rOrder == aom.MTransformationMatrix.kYXZ:
-                    roText = "Yrotation Xrotation Zrotation"
-                else:
-                    roText = "Zrotation Yrotation Xrotation"
-                    
-                bna[1].jvOrd.append(rOrder)
-                bna[1].jvName.append(jnt.USE)
-
-                if trsFound == True and rotFound == True:
-                    tempText = "Xposition Yposition Zposition " + roText
-                    bna[1].jvText.append(tempText)
-                    bna[1].jvLen.append(6)
-                    bna[1].jvOpt.append(0)
-                elif trsFound == True and rotFound == False:
-                    bna[1].jvText.append("Xposition Yposition Zposition")
-                    bna[1].jvLen.append(3)
-                    bna[1].jvOpt.append(1)
-                elif trsFound == False and rotFound == True:
-                    bna[1].jvText.append(roText)
-                    bna[1].jvLen.append(3)
-                    bna[1].jvOpt.append(2)
-                else:
-                    bna[1].jvText.append("")
-                    bna[1].jvLen.append(0)
-                    bna[1].jvOpt.append(3)
-                    
-            self.calulateHAnimJointInfoForHAnimMotion(bna[1])
-            
             ##########################################
             # Store for later collection
             ##########################################
@@ -1578,14 +1559,10 @@ class RKOrganizer():
             animPackage = self.animation[aLen]
             animPackage.append(moNode)
             animPackage.append(bna[1])
+            animPackage.append(self.getX3DParent(moNode, x3dParentDEF))
 
                 
-
-    def walkHumanoidSkeletonForHAnimMotion(self, joint, jvLen, jvText, jLen, jvOpt, jvOrd):
-        pass
-        
-
-    def calulateHAnimJointInfoForHAnimMotion(self, moNode):
+    def calculateHAnimJointInfoForHAnimMotion(self, moNode):
         for j in range(moNode.jLen):
             
             hAnimJointName = ""
@@ -1616,7 +1593,7 @@ class RKOrganizer():
                     hAnimJointName += otherType
             else:
                 #hAnimJointName += self.getJointType(nType)
-                nameType = self.getJointType(nType)
+                nameType = self.getJointType(str(nType))
                 if nameType == "":
                      hAnimJointName += moNode.jvName[j]
                 else:
@@ -1655,13 +1632,13 @@ class RKOrganizer():
             mIter.next()
 
 
-    def getSkinNormalNode(self, depNode, x3dParent, skm):
+    def getSkinNormalNode(self, x3dParent, skm, normalName="humanoid"):
         sno = []
-        nName = ""
+        nName = normalName
         
         if self.rkNormalOpts > 0 and len(skm) > 0:
-            nName = depNode.name() + "_Normal"
-            normalbna = self.processBasicNodeAddition(depNode, x3dParent, "skinNormal", "Normal", nName)
+            nName = nName + "_Normal"
+            normalbna = self.processBasicNodeAddition(None, x3dParent, "skinNormal", "Normal", nName)
             #normalbna = self.processBasicNodeAddition(depNode, x3dParent, "skinBindingNormals", "Normal", nName)
             #sknbna    = self.processBasicNodeAddition(depNode, x3dParent, "skinNormal", "Normal", nName)
 
@@ -1720,15 +1697,15 @@ class RKOrganizer():
         return sno, nName
 
 
-    def getSkinCoordinateNode(self, depNode, x3dParent, skm, wssm=aom.MMatrix()):
+    def getSkinCoordinateNode(self, x3dParent, skm, coordName="humanoid", wssm=aom.MMatrix()):
         ##### Add an X3D Coordiante Node
         wio = []
-        cName = ""
+        cName = coordName
         skmLen = len(skm)
         
         if skmLen > 0:
-            cName = depNode.name() + "_Coord"
-            coordbna = self.processBasicNodeAddition(depNode, x3dParent, "skinCoord", "Coordinate", cName)
+            cName = cName + "_Coord"
+            coordbna = self.processBasicNodeAddition(None, x3dParent, "skinCoord", "Coordinate", cName)
             #coordbna = self.processBasicNodeAddition(depNode, x3dParent, "skinBindingCoords", "Coordinate", cName)
             #skcbna   = self.processBasicNodeAddition(depNode, x3dParent, "skinCoord", "Coordinate", cName)
             for sm in skm:
@@ -1914,19 +1891,16 @@ class RKOrganizer():
             print("Couldn't find skinClusters for: " + mNode.name())
 
     
-    def processCGESkin(self, x3dParentDEF, rNode, cField="children"):
-        x3dParent = self.getX3DParent(rNode, x3dParentDEF)
-        anList = aom.MSelectionList()
-        anList.add(rNode.name())
-        rootLocal = anList.getDagPath(0).inclusiveMatrix() * anList.getDagPath(0).exclusiveMatrix().inverse()
-        skeletonSpaceMatrix = rootLocal.inverse()
+    def processCGESkin(self, rNode, x3dPF, isBasic=False, skinSpaceMatrix=aom.MMatrix()):
+        #skinSpaceMatrix = ssm
+        #x3dParent = self.getX3DParent(rNode, x3dPF[0])
+        #cField = x3dPF[1]
+        
+        #anList = aom.MSelectionList()
+        #anList.add(rNode.name())
+        evalBasic = isBasic
 
-        skinSpaceMatrix = aom.MMatrix()
-        plist = cmds.listRelatives(rNode.name(), parent=True)
-        if plist is not None:
-            anList.add(plist[0])
-            skinSpaceMatrix = anList.getDagPath(1).inclusiveMatrix()
-
+        
         #Setup Skin Node DEF value.
         skinName = "CGESkin"
         skNameInt = 0
@@ -1939,7 +1913,8 @@ class RKOrganizer():
                 skinDEF = skinName + "_" + str(skNameInt)
             
         #No dragPath change 777777
-        bna = self.processBasicNodeAddition(None, x3dParent, cField, "CGESkin", skinDEF)
+        #bna = self.processBasicNodeAddition(None, x3dParent, cField, "CGESkin", skinDEF)
+        bna = self.processBasicNodeAddition(None, x3dPF[0], x3dPF[1], "CGESkin", skinDEF)
         if bna[0] == False:
             #################################################
             # List holding all Mesh node objects influenced
@@ -1953,7 +1928,7 @@ class RKOrganizer():
             
             #################################################
             # Process CGESkin "skeleton" and "joints" fields
-            self.processMayaJointAsCGETransform(bna[1].DEF, rNode, bna[1], bna[1], cField="skeleton", allShapes=allShapes, allJoints=allJoints, wssm=skeletonSpaceMatrix)
+            self.processMayaJointAsCGETransform(bna[1].DEF, rNode, bna[1], bna[1], cField="skeleton", allShapes=allShapes, allJoints=allJoints, isBasic=evalBasic)
 
             #################################################t
             # Process CGESkin "shapes" field
@@ -1976,8 +1951,13 @@ class RKOrganizer():
         
         for i in range(len(allJoints)):
             path = jList.getDagPath(i)
-            jMat = path.inclusiveMatrix() * ssm.inverse()
-            #jsm  = jMat.inverse().transpose()
+            
+            # Store Bind Pose for Later
+            jMat = path.inclusiveMatrix()
+            pMat = path.exclusiveMatrix()
+            self.rkBindPose[allJoints[i]] = (jMat, pMat)
+
+            jMat = jMat * ssm.inverse()
             jsm  = jMat.inverse()
             imx  = (jsm.getElement(0,0), jsm.getElement(0,1), jsm.getElement(0,2), jsm.getElement(0,3),
                     jsm.getElement(1,0), jsm.getElement(1,1), jsm.getElement(1,2), jsm.getElement(1,3),
@@ -2125,9 +2105,10 @@ class RKOrganizer():
         return local
 
 
-    def processMayaJointAsCGETransform(self, x3dParentDEF, jNode, x3dSkin, x3dParent, cField="children", allShapes=[], allJoints=[], wssm=aom.MMatrix()):
+    def processMayaJointAsCGETransform(self, x3dParentDEF, jNode, x3dSkin, x3dParent, cField="children", allShapes=[], allJoints=[], isBasic=False, wssm=aom.MMatrix()):
         # World Matrix for the Skin node111111
-        skeletonSpaceMatrix = wssm
+        #skeletonSpaceMatrix = wssm
+        evalBasic = isBasic
         
         bna   = self.processBasicNodeAddition(jNode, x3dParent, cField, "Transform")
         if bna[0] == False:
@@ -2143,12 +2124,26 @@ class RKOrganizer():
             jList = aom.MSelectionList()
             jList.add(jointName)
             jPath = jList.getDagPath(0)
+            
+            # Process joints for characters that were initially setup as HAnimHumanoid with a 'BASIC' skeletal configuration.
+            #if evalBasic == True:
+            #    basicLocalSpace = jPath.inclusiveMatrix() * jPath.exclusiveMatrix().inverse()
+            #
+            #    ###########################################################
+            #    # Get Local Space Transform Information
+            #    basicMatrix = aom.MTransformationMatrix(basicLocalSpace)
+                
+            #    # Get x3d translation value
+            #    bna[1].translation = self.rkint.getSFVec3f(transMatrix.translation(aom.MSpace.kTransform))
+                
+            #else:
             localSpace = jPath.inclusiveMatrix() * jPath.exclusiveMatrix().inverse()
 
             ###########################################################
             # Get Local Space Transform Information
             transMatrix = aom.MTransformationMatrix(localSpace)
 
+            #if evalBasic == False:
             # Get x3d translation value
             bna[1].translation = self.rkint.getSFVec3f(transMatrix.translation(aom.MSpace.kTransform))
 
@@ -2165,7 +2160,13 @@ class RKOrganizer():
                 bna[1].scale = self.rkint.getSFVec3fFromList(chVals)
             except:
                 print("Scale failed in Process Basic Transform")
-            
+                
+            # Process joints for characters that were initially setup as HAnimHumanoid with a 'BASIC' skeletal configuration.
+            #if evalBasic == True:
+            #    self.rkBindPose[jNode.name()] = localSpace
+            #else:
+            #    self.rkBindPose[jNode.name()] = aom.MMatrix()
+                
             ###############################################
             # Store joint label in a metadata node in case 
             # author does not rename this joint with the 
@@ -2187,7 +2188,7 @@ class RKOrganizer():
                 dagChild = aom.MFnDagNode(groupDag.child(i))
                 if   dagChild.typeName == "joint":
                     try:
-                        self.processMayaJointAsCGETransform(bna[1].DEF, dagChild, x3dSkin, bna[1], cField="children", allShapes=allShapes, allJoints=allJoints, wssm=skeletonSpaceMatrix)
+                        self.processMayaJointAsCGETransform(bna[1].DEF, dagChild, x3dSkin, bna[1], cField="children", allShapes=allShapes, allJoints=allJoints, isBasic=evalBasic)
                     except:
                         print("CGE Joint Export Fail!")
         else:
@@ -2262,24 +2263,40 @@ class RKOrganizer():
 
             # Set the HAnimJoint "center" field based on the Maya joint's position  
             # in Skin Space using the world space inclusiveMatrix and the Skin Space Matrix inverse.
+            #blm = self.getWorldPoseMatrixForJoint(jNode)
+
+            localPivot = (0.0, 0.0, 0.0)
             tMatrix = mlist.getDagPath(0).inclusiveMatrix() * skinSpaceMatrix.inverse()
-            transMatrix   = aom.MTransformationMatrix(tMatrix)
-            tPivot = self.rkint.getSFVec3f(transMatrix.translation(aom.MSpace.kTransform))
-            localPivot = (tPivot[0], tPivot[1], tPivot[2])
-            bna[1].center = localPivot
+            blm = self.getJointLocalMatrix(mlist.getDagPath(0))
             
-            ###############################################################################################
-            # It is assumed that the skeleton is in its bind pose at export time. You can set the bind pose
-            # using the RawKee python command: cmds.rkSetBindPose("Your_HAnimHumanoid_maya_node_name")
-            #
-            # Otherwise, whatever position your character is in when the export process starts, is what
-            # becomes the HAnim bind pose.
-            ###############################################################################################
-            # New way - bind pose matrix stored in dynamic dict at export time
-            # Old way - set a custom matrix attribute called rkBoundLocalMatrix
-            ###############################################################################################
-            blm = mlist.getDagPath(0).inclusiveMatrix() * mlist.getDagPath(0).exclusiveMatrix().inverse()
-            self.rkBindPose[jNode.name()] = blm
+            if x3dHumanoid.skeletalConfiguration == "BASIC":
+                transMatrix   = aom.MTransformationMatrix(tMatrix)
+                tPivot = self.rkint.getSFVec3f(transMatrix.translation(aom.MSpace.kTransform))
+                localPivot = (tPivot[0], tPivot[1], tPivot[2])
+                bna[1].center = localPivot
+                self.rkBindPose[jNode.name()] = blm
+            else:
+                bTrx = aom.MTransformationMatrix(blm)
+                bna[1].translation = self.rkint.getSFVec3f(bTrx.translation(aom.MSpace.kTransform))
+                bna[1].rotation    = self.rkint.getSFRotation(bTrx.rotation(aom.MSpace.kTransform).asAxisAngle())
+                sv    = bTrx.scale(aom.MSpace.kTransform)
+                sv[0] = abs(sv[0])
+                sv[1] = abs(sv[1])
+                sv[2] = abs(sv[2])
+                bna[1].scale = (sv[0], sv[1], sv[2])
+                
+                # Set Joint Bindings
+                bjTrx = aom.MTransformationMatrix(tMatrix.inverse())
+                x3dHumanoid.jointBindingPositions.append(self.rkint.getSFVec3f(   bjTrx.translation(aom.MSpace.kTransform)              ))
+                x3dHumanoid.jointBindingRotations.append(self.rkint.getSFRotation(bjTrx.rotation(   aom.MSpace.kTransform).asAxisAngle()))
+                svj    = bjTrx.scale(aom.MSpace.kTransform)
+                svj[0] = abs(svj[0])
+                svj[1] = abs(svj[1])
+                svj[2] = abs(svj[2])
+                x3dHumanoid.jointBindingScales.append( (svj[0], svj[1], svj[2]) )
+
+                self.rkBindPose[jNode.name()] = aom.MMatrix()
+            
             
             # Get HAnimJoint "name" field
             hAnimJointName = ""
@@ -2300,15 +2317,13 @@ class RKOrganizer():
 
             nType = cmds.getAttr(jNode.name() + ".type")
             if nType == 18:
-                #### hAnimJointName += cmds.getAttr(jNode.name() + ".otherType")
                 otherType = cmds.getAttr(jNode.name() + ".otherType")
                 if otherType == "":
                      hAnimJointName += jNode.name()
                 else:
                      hAnimJointName += otherType
             else:
-                #hAnimJointName += self.getJointType(nType)
-                nameType = self.getJointType(nType)
+                nameType = self.getJointType(str(nType))
                 if nameType == "":
                      hAnimJointName += jNode.name()
                 else:
@@ -2349,14 +2364,7 @@ class RKOrganizer():
 #                else:
 #                    print("Skeleton Traverse Miss: " + dagChild.name() + ", Type: "+ dagChild.typeName)
 
-                
 
-
-    def convertMayaAnimClips_To_HAnimMotion(self, dragPath, bpNode, cField="motions"):
-        pass
-        
-
-    
     ######################################################################################################################
     #   Basic Node Functions
     def processBasicNodeAddition(self, depNode, x3dParentNode, x3dFieldName, x3dType, nodeName=""):
@@ -2556,8 +2564,11 @@ class RKOrganizer():
                         hhList = aom.MSelectionList()
                         hhList.add(dagNode.name())
                         dnPath = hhList.getDagPath(0)
-                        self.processHAnimHumanoid(dagNode, x3dPF, skinSpaceMatrix=dnPath.inclusiveMatrix())
+                        self.processHAnimHumanoid(dagNode, x3dPF, skinSpaceMatrix=dnPath.exclusiveMatrix())
                     else:
+                        scValue = cmds.getAttr(dagNode.name() + ".skeletalConfiguration")
+                        if scValue == "BASIC":
+                            self.rkSkelConf[dagNode.name()] = True
                         self.processTransformSorting( x3dParentDEF, dagNode, x3dPF)
                 else:
                     self.processTransformSorting( x3dParentDEF, dagNode, x3dPF)
@@ -2633,14 +2644,27 @@ class RKOrganizer():
                     else:
                         print("RawKee Export Bind Pose HAS NOT been set!")
 
+                    x3dPF = [self.getX3DParent(dagNode, x3dParentDEF), cField]
+                    hhList = aom.MSelectionList()
+                    hhList.add(dagNode.name())
+                    dnPath = hhList.getDagPath(0)
+                    #dnPath.pop()
+                    #ssn = aom.MMatrix()
+                    #if dnPath.length() > 0:
+                    #    ssn=dnPath.exclusiveMatrix()
+                        
                     if self.rkCharAsHAnim == 0:
-                        x3dPF = [x3dParentDEF, cField]
-                        hhList = aom.MSelectionList()
-                        hhList.add(dagNode.name())
-                        dnPath = hhList.getDagPath(0)
-                        self.processHAnimHumanoid(dagNode, x3dPF, skinSpaceMatrix=dnPath.exclusiveMatrix())
+                        self.processHAnimHumanoid(dagNode, x3dPF)
                     else:
-                        self.processCGESkin(x3dParentDEF, dagNode, cField)
+                        pName = ""
+                        parent = cmds.listRelatives( dagNode.name(), p=True )
+                        if parent is not None:
+                            pName = parent[0]
+                        
+                        # Will return True if key is found, otherwise false
+                        skType = self.rkSkelConf.get(pName, False)
+                        self.processCGESkin(dagNode, x3dPF, isBasic=skType)#, skinSpaceMatrix=ssn)
+                        
             else:
                 self.rkio.cMessage("Node: " + nodeName + " will not be exported as it is connected to the 'RawKeeNoExport' Maya layer")
         else:
