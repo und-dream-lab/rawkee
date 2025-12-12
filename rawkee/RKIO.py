@@ -14,14 +14,15 @@ from   maya.api.OpenMaya import MFn as rkfn
 ########################################################
 # This module installed in mayapy using pip.         ### 
 ########################################################
-from rawkee import RKSceneTraversal
+#from rawkee import RKSceneTraversal
+from rawkee import RKSceneTraversal as rkST
 from rawkee import RKSceneLoaderJSON
 
 import xmltodict
 import json
 import io
-from rawkee.x3d import *                                    ###
-#from rawkee.RKPseudoNode import *                    ###
+#from rawkee.rkx3d import *                          ###
+#from rawkee.RKPseudoNode import *                   ###
 ########################################################
 
 
@@ -53,8 +54,8 @@ class RKIO():
         self.additionalComps = []
         self.additionalCompsLevels = []
         self.ignoredNodes  = []
-        self.haveBeenNodes = []
-        self.generatedX3D  = []
+        self.haveBeenNodes = {}
+        self.generatedX3D  = {}
         
         # Thought this was needed, but the 'processForGeometry' method already has access to the 
         # associated shader engine, regardless of whether the shaderEngine has already been processed
@@ -73,7 +74,7 @@ class RKIO():
         
         self.x3d_scene = None
         
-        self.trv = RKSceneTraversal.RKSceneTraversal()
+        self.trv = rkST.RKSceneTraversal()
         
         self.jsonLoader = RKSceneLoaderJSON.RKSceneLoaderJSON()
 
@@ -361,13 +362,7 @@ class RKIO():
             print(msg)
         
     def findExisting(self, nodeDEF):
-        rNode = None
-        nLen = len(self.haveBeenNodes)
-        
-        for index in range(nLen):
-            if self.haveBeenNodes[index] == nodeDEF:
-                rNode = self.generatedX3D[index]
-                return rNode
+        rNode = self.generatedX3D.get(nodeDEF, None)
         return rNode        
 
 
@@ -421,8 +416,8 @@ class RKIO():
         return False
 
     def setAsHasBeen(self, nodeName, x3dNode):
-        self.haveBeenNodes.append(nodeName)
-        self.generatedX3D.append(x3dNode)
+        self.haveBeenNodes[nodeName] = True
+        self.generatedX3D[ nodeName] = x3dNode
         
     '''
         This method checks the List that holds the names
@@ -432,26 +427,13 @@ class RKIO():
     '''
     
     def getGeneratedX3D(self, namedDEF):
-        foundNode = None
-        
-        for xNode in self.generatedX3D:
-            try:
-                if xNode.DEF == namedDEF:
-                    foundNode = xNode
-                    break
-            except Exception as e:
-                #print(f"An error occurred: {e}. Skipping node...")
-                pass
-                
+        foundNode = self.generatedX3D.get(namedDEF, None)
         return foundNode
     
     def checkIfHasBeen(self, nodeName):
-        
-        for aName in self.haveBeenNodes:
-            if nodeName == aName:
-                return True
-
-        return False
+        hasBeenExported = self.haveBeenNodes.get(nodeName, False)
+            
+        return hasBeenExported
     
     # Thought this was needed, but the 'processForGeometry' method already has access to the 
     # associated shader engine, regardless of whether the shaderEngine has already been processed
@@ -476,7 +458,8 @@ class RKIO():
             setattr(x3dParentNode, x3dFieldName, x3dNode)
             
     def createNodeFromString(self, x3dType):
-        return self.trv.instantiateNodeFromString(x3dType)
+        #return self.trv.instantiateNodeFromString(x3dType)
+        return rkST.instantiateNodeFromString(x3dType)
         
     def createRouteObject(self):
         return self.trv.getRouteObject()

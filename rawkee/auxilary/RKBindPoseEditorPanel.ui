@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>280</width>
-    <height>300</height>
+    <width>386</width>
+    <height>296</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -22,7 +22,7 @@
      <height>244</height>
     </rect>
    </property>
-   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,0,0,0">
+   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,0,0,0,0">
     <property name="spacing">
      <number>6</number>
     </property>
@@ -34,6 +34,9 @@
     </property>
     <item>
      <layout class="QHBoxLayout" name="selectBindPoseLayout">
+      <property name="spacing">
+       <number>0</number>
+      </property>
       <item>
        <widget class="RKDagPoseComboBox" name="poseComboBox">
         <property name="sizePolicy">
@@ -44,23 +47,75 @@
         </property>
         <property name="minimumSize">
          <size>
-          <width>200</width>
+          <width>270</width>
           <height>24</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
-          <width>200</width>
+          <width>270</width>
           <height>24</height>
          </size>
         </property>
         <property name="placeholderText">
-         <string>List of Bind Poses</string>
+         <string>List of RawKee Bind Poses</string>
         </property>
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="loadPoseButton">
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="hanimPoses">
+      <property name="spacing">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="QPushButton" name="deletePoseButton">
+        <property name="minimumSize">
+         <size>
+          <width>80</width>
+          <height>24</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>80</width>
+          <height>24</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Delete Pose</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_8">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>110</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QPushButton" name="restorePoseButton">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
           <horstretch>0</horstretch>
@@ -69,23 +124,23 @@
         </property>
         <property name="minimumSize">
          <size>
-          <width>60</width>
+          <width>80</width>
           <height>24</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
-          <width>60</width>
+          <width>80</width>
           <height>24</height>
          </size>
         </property>
         <property name="text">
-         <string>Load Pose</string>
+         <string>Restore Pose</string>
         </property>
        </widget>
       </item>
       <item>
-       <spacer name="horizontalSpacer">
+       <spacer name="horizontalSpacer_7">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
         </property>
@@ -323,20 +378,46 @@
      </layout>
     </item>
     <item>
-     <widget class="QLineEdit" name="bpEditorMessage">
-      <property name="minimumSize">
-       <size>
-        <width>268</width>
-        <height>24</height>
-       </size>
+     <layout class="QHBoxLayout" name="newPoseLayout">
+      <property name="spacing">
+       <number>0</number>
       </property>
-      <property name="maximumSize">
-       <size>
-        <width>268</width>
-        <height>24</height>
-       </size>
-      </property>
-     </widget>
+      <item>
+       <widget class="QLineEdit" name="newPoseName">
+        <property name="minimumSize">
+         <size>
+          <width>270</width>
+          <height>24</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>270</width>
+          <height>24</height>
+         </size>
+        </property>
+        <property name="placeholderText">
+         <string>Type a new Pose Name and Press Enter</string>
+        </property>
+        <property name="clearButtonEnabled">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_6">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
     </item>
     <item>
      <spacer name="verticalSpacer">

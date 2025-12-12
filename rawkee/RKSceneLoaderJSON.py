@@ -1,6 +1,6 @@
 import sys
 import os
-import rawkee.x3d
+import rawkee.rkx3d
 import json
 import io
 
@@ -13,8 +13,8 @@ import rawkee.nodes.sticker    as stk
 
 from   maya.api.OpenMaya import MFn as rkfn
 
-from   rawkee.x3d import *
-from   rawkee.RKPseudoNode import *
+from   rawkee.rkx3d import *
+#from   rawkee.RKPseudoNode import *
 
 from   typing import Final
 
