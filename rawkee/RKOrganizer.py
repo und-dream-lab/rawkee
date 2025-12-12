@@ -365,7 +365,7 @@ class RKOrganizer():
             
         # Reset Animations as best as possible.
         
-        cmds.currentTime(0)
+        #cmds.currentTime(0)
         for bPose in self.bPoseStore:
             cmds.dagPose( bPose, restore=True )
         # RawKee Export Bind Pose - Don't know why there would be more than one.
@@ -408,9 +408,11 @@ class RKOrganizer():
         # properly check for node instances.
         cNum = worldDag.childCount()
         for i in range(cNum):
-            #parentDagPaths.append(dragPath)
-            parentDagPaths.append("")
-            topDagNodes.append(aom.MFnDagNode(worldDag.child(i)))
+            tdNode = aom.MFnDagNode(worldDag.child(i))
+            if tdNode.typeName != "objectSet":
+                #parentDagPaths.append(dragPath)
+                parentDagPaths.append("")
+                topDagNodes.append(tdNode)
 
         return parentDagPaths, topDagNodes
         
@@ -427,8 +429,10 @@ class RKOrganizer():
         
         while not iterGP.isDone():
             dagPath   = iterGP.getDagPath()
-            selectedDagNodes.append(aom.MFnDagNode(dagPath))
-            parentDagPaths.append("|!!!!!_!!!!!|world")
+            tdNode = aom.MFnDagNode(dagPath)
+            if tdNode.typeName != "objectSet":
+                selectedDagNodes.append(tdNode)
+                parentDagPaths.append("|!!!!!_!!!!!|world")
             iterGP.next()
             
         return parentDagPaths, selectedDagNodes
@@ -1191,19 +1195,7 @@ class RKOrganizer():
     def processHAnimHumanoid(self, dagNode, x3dPF, skinSpaceMatrix=aom.MMatrix()):
         depNode = aom.MFnDependencyNode(dagNode.object())
         
-        hName = "HAnimHumanoid"
-        if depNode.typeName == "joint":
-            hNameInt = 0
-            hhDEF = hName + "_" + str(hNameInt)
-            hNameExists = True
-            while hNameExists == True:
-                hNameExists = self.rkio.checkIfHasBeen(hhDEF) #cmds.objExists(skinDEF)
-                if hNameExists == True:
-                    hNameInt += 1
-                    hhDEF = hName + "_" + str(hNameInt)
-            hName = hhDEF
-        else:
-            hName = depNode.name()
+        hName = depNode.name()
             
         # Create X3D HAnimHumanoid node
         bna = self.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "HAnimHumanoid", nodeName=hName)
@@ -1224,18 +1216,14 @@ class RKOrganizer():
             #############################################################################################
             #############################################################################################
             
-            if hName == depNode.name():
-                try:
-                    bna[1].skeletalConfiguration = cmds.getAttr(bna[1].DEF + ".skeletalConfiguration")
-                except:
-                    bna[1].skeletalConfiguration = "RAWKEE"
-                    
-                try:
-                    bna[1].loa = cmds.getAttr(bna[1].DEF + ".LOA")
-                except:
-                    bna[1].loa = -1
-            else:
-                bna[1].skeletalConfiguration = "RAWKEE"
+            try:
+                bna[1].skeletalConfiguration = cmds.getAttr(hName + ".skeletalConfiguration")
+            except:
+                bna[1].skeletalConfiguration = "BASIC"
+                
+            try:
+                bna[1].loa = cmds.getAttr(hName + ".LOA")
+            except:
                 bna[1].loa = -1
                 
             
@@ -1774,7 +1762,11 @@ class RKOrganizer():
         #return None
 
 
-    def collectCGESkinWeightsForMesh(self, mNode, viList, x3dShape):
+    ################################################################
+    #   mNode is an MFnMesh object
+    #   x3dShape is the X3D Shape node holding the influenced 
+    #            X3D geometry node.
+    def collectCGESkinWeightsForMesh(self, mNode, x3dShape):
         weightData = []
         smlist = aom.MSelectionList()
         smlist.add(mNode.name())
@@ -1782,19 +1774,21 @@ class RKOrganizer():
         compIDs   = [m for m in range(mNode.numVertices)]
         singleFn  = aom.MFnSingleIndexedComponent()
         shapeComp = singleFn.create(aom.MFn.kMeshVertComponent)
-        #singleFn.addElements(viList)
         singleFn.addElements(compIDs)
         
+        ######################################################
+        # Get a list of skin clusters that affect this MFnMesh
         skClusters = []
         skIter     = aom.MItDependencyGraph(mNode.object(), rkfn.kSkinClusterFilter, aom.MItDependencyGraph.kUpstream, aom.MItDependencyGraph.kBreadthFirst, aom.MItDependencyGraph.kNodeLevel)
         while not skIter.isDone():
             skClusters.append(aoma.MFnSkinCluster(skIter.currentNode()))
             skIter.next()
         
+        ######################################################
+        # Collect the weighting and joint influences for each
+        # Vertex in the Mesh ndoe.
         rkWeightSort = [[] for _ in range(mNode.numVertices)]
         rkJointSort  = [[] for _ in range(mNode.numVertices)]
-        x3dShape.rkWeightsData = None #555555
-        x3dShape.rkJointsData  = None
         
         for skc in skClusters:
             #wMethod     = skc.findPlug("skinningMethod", False).asInt()
@@ -1891,15 +1885,7 @@ class RKOrganizer():
             print("Couldn't find skinClusters for: " + mNode.name())
 
     
-    def processCGESkin(self, rNode, x3dPF, isBasic=False, skinSpaceMatrix=aom.MMatrix()):
-        #skinSpaceMatrix = ssm
-        #x3dParent = self.getX3DParent(rNode, x3dPF[0])
-        #cField = x3dPF[1]
-        
-        #anList = aom.MSelectionList()
-        #anList.add(rNode.name())
-        evalBasic = isBasic
-
+    def processCGESkin(self, rNode, x3dPF, skinSpaceMatrix=aom.MMatrix()):
         
         #Setup Skin Node DEF value.
         skinName = "CGESkin"
@@ -1928,19 +1914,38 @@ class RKOrganizer():
             
             #################################################
             # Process CGESkin "skeleton" and "joints" fields
-            self.processMayaJointAsCGETransform(bna[1].DEF, rNode, bna[1], bna[1], cField="skeleton", allShapes=allShapes, allJoints=allJoints, isBasic=evalBasic)
+            self.processMayaJointAsCGETransform(bna[1].DEF, rNode, bna[1], bna[1], cField="skeleton", allShapes=allShapes, allJoints=allJoints)
 
+            # The dict {} that associates the appropriate Maya mesh with this skins X3D Shape nodes.
+            mCollector = {}
+            
             #################################################t
             # Process CGESkin "shapes" field
             for mesh in allShapes:
-                cgeShape = self.processMayaMesh(bna[1].DEF, mesh, cField="shapes", isAvatar=True, adjustment=skinSpaceMatrix)
-                if cgeShape is not None:
-                    if   cgeShape.NAME() == "Group":
-                        for child in cgeShape.children:
-                            self.populateCGEWeightInformation(mesh,    child, allJoints)
-                    elif cgeShape.NAME() == "Shape":
-                        self.populateCGEWeightInformation(    mesh, cgeShape, allJoints)
+                #cgeShape = self.processMayaMesh(bna[1].DEF, mesh, cField="shapes", isAvatar=True, adjustment=skinSpaceMatrix)
+                #bLen = len(bna[1].shapes)
+                tmc = self.processMayaMesh(bna[1].DEF, mesh, cField="shapes", isAvatar=True, adjustment=skinSpaceMatrix)
+                for key in tmc:
+                    mCollector[key] = tmc[key]
+                #aLen = len(bna[1].shapes)
+                
+            ######################################################################
+            # Grab the new shape nodes from the CG Skin node, and populate it with 
+            # weighting and joint info
+            cRange = len(mCollector)
             
+            print("Mesh Collector Length: " + str(cRange))
+            for i in range(cRange):
+                try:
+                    mcMesh = mCollector.get(bna[1].shapes[i].DEF, None)
+                    if mcMesh:
+                        self.populateCGEWeightInformation(mcMesh, bna[1].shapes[i], allJoints)
+                    else:
+                        print("####\n\n\n--" + bna[1].shapes[i].DEF + "--\n\n\n####")
+                except Exception as e:
+                    print(f"Exception Type: {type(e).__name__}")
+                    print(f"Exception Message: {e}")                            
+
             self.populateCGEInverseBindMatrices(bna[1], allJoints, ssm=skinSpaceMatrix)
 
 
@@ -1971,7 +1976,7 @@ class RKOrganizer():
     def populateCGEWeightInformation(self, mesh, shape, allJoints):
         # (meshWeights, numInf, jNames)
         points = mesh.getFloatPoints()
-        pLen   = len(points)
+        pLen   = mesh.numVertices
 
         #####################################################
         # Making a list of lists of the length that equals 
@@ -1981,10 +1986,7 @@ class RKOrganizer():
         
         lwd = len(shape.rkJointsData)
         for p in range(lwd):
-            #print("Joint Data")
-            #print(shape.rkJointsData[p])
-            #print("All Joints")
-            #print(allJoints)
+            
             ajLen = len(allJoints)
             for r in range(len(shape.rkJointsData[p])):
                 for j in range(ajLen):
@@ -2044,7 +2046,8 @@ class RKOrganizer():
                     #print("Less than 8 - j: " + str(tJt[m]))
                     shape.geometry.skinWeights1.append(tWg[m])
                     shape.geometry.skinJoints1.append( tJt[m])
-            
+        
+        print("Deleting rkWeightsData for " + shape.DEF)
         del shape.rkWeightsData
         del shape.rkJointsData
 
@@ -2106,10 +2109,7 @@ class RKOrganizer():
 
 
     def processMayaJointAsCGETransform(self, x3dParentDEF, jNode, x3dSkin, x3dParent, cField="children", allShapes=[], allJoints=[], isBasic=False, wssm=aom.MMatrix()):
-        # World Matrix for the Skin node111111
-        #skeletonSpaceMatrix = wssm
-        evalBasic = isBasic
-        
+
         bna   = self.processBasicNodeAddition(jNode, x3dParent, cField, "Transform")
         if bna[0] == False:
             # Gather shapes related to this joint.
@@ -2125,25 +2125,12 @@ class RKOrganizer():
             jList.add(jointName)
             jPath = jList.getDagPath(0)
             
-            # Process joints for characters that were initially setup as HAnimHumanoid with a 'BASIC' skeletal configuration.
-            #if evalBasic == True:
-            #    basicLocalSpace = jPath.inclusiveMatrix() * jPath.exclusiveMatrix().inverse()
-            #
-            #    ###########################################################
-            #    # Get Local Space Transform Information
-            #    basicMatrix = aom.MTransformationMatrix(basicLocalSpace)
-                
-            #    # Get x3d translation value
-            #    bna[1].translation = self.rkint.getSFVec3f(transMatrix.translation(aom.MSpace.kTransform))
-                
-            #else:
             localSpace = jPath.inclusiveMatrix() * jPath.exclusiveMatrix().inverse()
 
             ###########################################################
             # Get Local Space Transform Information
             transMatrix = aom.MTransformationMatrix(localSpace)
 
-            #if evalBasic == False:
             # Get x3d translation value
             bna[1].translation = self.rkint.getSFVec3f(transMatrix.translation(aom.MSpace.kTransform))
 
@@ -2160,12 +2147,6 @@ class RKOrganizer():
                 bna[1].scale = self.rkint.getSFVec3fFromList(chVals)
             except:
                 print("Scale failed in Process Basic Transform")
-                
-            # Process joints for characters that were initially setup as HAnimHumanoid with a 'BASIC' skeletal configuration.
-            #if evalBasic == True:
-            #    self.rkBindPose[jNode.name()] = localSpace
-            #else:
-            #    self.rkBindPose[jNode.name()] = aom.MMatrix()
                 
             ###############################################
             # Store joint label in a metadata node in case 
@@ -2188,11 +2169,11 @@ class RKOrganizer():
                 dagChild = aom.MFnDagNode(groupDag.child(i))
                 if   dagChild.typeName == "joint":
                     try:
-                        self.processMayaJointAsCGETransform(bna[1].DEF, dagChild, x3dSkin, bna[1], cField="children", allShapes=allShapes, allJoints=allJoints, isBasic=evalBasic)
+                        self.processMayaJointAsCGETransform(bna[1].DEF, dagChild, x3dSkin, bna[1], cField="children", allShapes=allShapes, allJoints=allJoints)
                     except:
                         print("CGE Joint Export Fail!")
         else:
-            print("CGE is not new.")
+            print("CGE Skin is not a new node.")
 
 
     def getCGEJointMatrixList(self, jNode):
@@ -2267,15 +2248,16 @@ class RKOrganizer():
 
             localPivot = (0.0, 0.0, 0.0)
             tMatrix = mlist.getDagPath(0).inclusiveMatrix() * skinSpaceMatrix.inverse()
-            blm = self.getJointLocalMatrix(mlist.getDagPath(0))
+            jPath = mlist.getDagPath(0)
+            blm = jPath.inclusiveMatrix() * jPath.exclusiveMatrix().inverse()#self.getJointLocalMatrix(mlist.getDagPath(0))
             
-            if x3dHumanoid.skeletalConfiguration == "BASIC":
+            if   x3dHumanoid.skeletalConfiguration == "BASIC":
                 transMatrix   = aom.MTransformationMatrix(tMatrix)
                 tPivot = self.rkint.getSFVec3f(transMatrix.translation(aom.MSpace.kTransform))
                 localPivot = (tPivot[0], tPivot[1], tPivot[2])
                 bna[1].center = localPivot
                 self.rkBindPose[jNode.name()] = blm
-            else:
+            elif x3dHumanoid.skeletalConfiguration == "RAWKEE":
                 bTrx = aom.MTransformationMatrix(blm)
                 bna[1].translation = self.rkint.getSFVec3f(bTrx.translation(aom.MSpace.kTransform))
                 bna[1].rotation    = self.rkint.getSFRotation(bTrx.rotation(aom.MSpace.kTransform).asAxisAngle())
@@ -2368,9 +2350,10 @@ class RKOrganizer():
     ######################################################################################################################
     #   Basic Node Functions
     def processBasicNodeAddition(self, depNode, x3dParentNode, x3dFieldName, x3dType, nodeName=""):
+        defuse = nodeName
         # Determine the DEF/USE value of the node to be created
-        if nodeName == "":
-            nodeName = depNode.name()
+        if defuse == "":
+            defuse = depNode.name()
             
         # Create Node from String where x3dType is a string that identifies 
         # the type of X3D to be created. Must be a node defined by the X3D 4.0 Specification.
@@ -2378,20 +2361,20 @@ class RKOrganizer():
         
         # Check to see if the node has previously been created with a DEF 
         # attribute.
-        hasBeen = self.rkio.checkIfHasBeen(nodeName)
+        hasBeen = self.rkio.checkIfHasBeen(defuse)
         
         # If has been created already, assign the "nodeName" value to the 
         # X3D node's USE attribute and leave the DEF attribute as None.
         if hasBeen == True:
-            tNode.USE = nodeName
+            tNode.USE = defuse
         
         # However, if the node has not been previously created, set the 
         # X3D node's DEF attribute to the value of "nodeName", and then
         # record the node has having been created by calling the 
         # "setHasBeen()" method.
         else:
-            tNode.DEF = nodeName
-            self.rkio.setAsHasBeen(nodeName, tNode)
+            tNode.DEF = defuse
+            self.rkio.setAsHasBeen(defuse, tNode)
             
         # Now it is time to add the new node to the X3D Scene. First 
         # we must obtain the value of the X3D Field of the parent by 
@@ -2551,25 +2534,18 @@ class RKOrganizer():
                     print("Process as Transform")
                     
                 if x3dType == "HAnimHumanoid":
-                    if self.rkCharAsHAnim == 0:
-                        cmds.currentTime(0)
-                        if cmds.objExists("rkEPose"):
-                            cmds.currentTime(0)
-                            cmds.dagPose( "rkEPose", restore=True )
-                            self.bPoseStore.append("rkEPose")
-                            print("RawKee Export Bind Pose WAS FOUND!")
-                        else:
-                            print("RawKee Export Bind Pose HAS NOT been set!")
-                            
-                        hhList = aom.MSelectionList()
-                        hhList.add(dagNode.name())
-                        dnPath = hhList.getDagPath(0)
-                        self.processHAnimHumanoid(dagNode, x3dPF, skinSpaceMatrix=dnPath.exclusiveMatrix())
+                    if cmds.objExists("rkEPose"):
+                        #cmds.currentTime(0)
+                        cmds.dagPose( "rkEPose", restore=True )
+                        self.bPoseStore.append("rkEPose")
+                        print("RawKee Export Bind Pose WAS FOUND!")
                     else:
-                        scValue = cmds.getAttr(dagNode.name() + ".skeletalConfiguration")
-                        if scValue == "BASIC":
-                            self.rkSkelConf[dagNode.name()] = True
-                        self.processTransformSorting( x3dParentDEF, dagNode, x3dPF)
+                        print("RawKee Export Bind Pose HAS NOT been set!")
+                            
+                    hhList = aom.MSelectionList()
+                    hhList.add(dagNode.name())
+                    dnPath = hhList.getDagPath(0)
+                    self.processHAnimHumanoid(dagNode, x3dPF, skinSpaceMatrix=dnPath.exclusiveMatrix())
                 else:
                     self.processTransformSorting( x3dParentDEF, dagNode, x3dPF)
 
@@ -2637,7 +2613,7 @@ class RKOrganizer():
                     
                 elif dagNode.typeName == "joint":
                     if cmds.objExists("rkEPose"):
-                        cmds.currentTime(0)
+                        #cmds.currentTime(0)
                         cmds.dagPose( "rkEPose", restore=True )
                         self.bPoseStore.append("rkEPose")
                         print("RawKee Export Bind Pose WAS FOUND!")
@@ -2645,25 +2621,7 @@ class RKOrganizer():
                         print("RawKee Export Bind Pose HAS NOT been set!")
 
                     x3dPF = [self.getX3DParent(dagNode, x3dParentDEF), cField]
-                    hhList = aom.MSelectionList()
-                    hhList.add(dagNode.name())
-                    dnPath = hhList.getDagPath(0)
-                    #dnPath.pop()
-                    #ssn = aom.MMatrix()
-                    #if dnPath.length() > 0:
-                    #    ssn=dnPath.exclusiveMatrix()
-                        
-                    if self.rkCharAsHAnim == 0:
-                        self.processHAnimHumanoid(dagNode, x3dPF)
-                    else:
-                        pName = ""
-                        parent = cmds.listRelatives( dagNode.name(), p=True )
-                        if parent is not None:
-                            pName = parent[0]
-                        
-                        # Will return True if key is found, otherwise false
-                        skType = self.rkSkelConf.get(pName, False)
-                        self.processCGESkin(dagNode, x3dPF, isBasic=skType)#, skinSpaceMatrix=ssn)
+                    self.processCGESkin(dagNode, x3dPF)#, skinSpaceMatrix=ssn)
                         
             else:
                 self.rkio.cMessage("Node: " + nodeName + " will not be exported as it is connected to the 'RawKeeNoExport' Maya layer")
@@ -2696,14 +2654,8 @@ class RKOrganizer():
     def processMayaMesh(self, x3dParentDEF, dagNode, cField="children", cOffset=0, nOffset=0, sharedCoord="", sharedNormal="", isAvatar=False, adjustment=aom.MMatrix()):
         
         supMeshName = dagNode.name()
-
-#        if self.rkio.checkIfHasBeen(supMeshName) == True:
-#            self.rkio.useDecl(tNode, supMeshName, x3dParentNode, cField)
-#            return
-            
-        #newDragPath = dragPath + "|" + supMeshName
-        
         myMesh = aom.MFnMesh(dagNode.object())
+        meshCollector = {}
         
         shList1 = []
         shList2 = []
@@ -2723,12 +2675,11 @@ class RKOrganizer():
         x3dPF.append(self.getX3DParent(dagNode, x3dParentDEF))
         x3dPF.append(cField)
         
-        cgeShape = None
-        
         shLen = len(shaders)
+        ##### print("Mesh Name: " + myMesh.name() + ", shLen: " + str(shLen) + ", isAvatar: " + str(isAvatar) )
         if shLen > 1 and isAvatar == False:
             bna = self.processBasicNodeAddition(dagNode, x3dPF[0], x3dPF[1], "Group", supMeshName)
-            if bna[0] == True:
+            if bna[0] == False:
                 return
             else:
                 bbSize = []
@@ -2748,21 +2699,22 @@ class RKOrganizer():
                 x3dPF[0] = bna[1]
                 x3dPF[1] = "children" # Because the cField might not already be "children" depending on how this function is called.
                 
-                cgeShape = bna[1]
         
         for idx in range(shLen):
             shapeName = supMeshName
             if shLen > 1:
                 shapeName = shapeName + "_SubShape_" + str(idx)
                 
-            #boundingBoxSizeX boundingBoxSizeY boundingBoxSizeZ center boundingBoxCenterX
-            
             sbna = self.processBasicNodeAddition(dagNode, x3dPF[0], x3dPF[1], "Shape", shapeName)
             if sbna[0] == False:
                 
-                if shLen == 1:
-                    cgeShape = sbna[1]
+                #if shLen == 1:
+                #    cgeShape = sbna[1]
                 
+                # meshCollector is a dict {}, it associates the CGE Skin shape with the appropriate Maya mesh
+                # The only time it is not None is if is evoked during the execution of processCGESkin
+                meshCollector[shapeName] = myMesh
+                    
                 # Yeah, this is sloppy, I'm using the bounding Box info for the while DAG Node over and over again. 
                 # The Group node holding all this geometry together and all of the children nodes each have the same
                 # bounding box info.
@@ -2794,8 +2746,10 @@ class RKOrganizer():
                     self.processForGeometry(  myMesh, shaders, meshComps, sbna[1], nodeName=shapeName, cField="geometry", nodeType="CGEIndexedFaceSet", index=idx, gcOffset=cOffset, gnOffset=nOffset, gsharedCoord=sharedCoord, gsharedNormal=sharedNormal, isAvatar=isAvatar, adjMatrix=adjustment)
                 else:
                     self.processForGeometry(  myMesh, shaders, meshComps, sbna[1], nodeName=shapeName, cField="geometry", nodeType="IndexedFaceSet", index=idx, gcOffset=cOffset, gnOffset=nOffset, gsharedCoord=sharedCoord, gsharedNormal=sharedNormal, isAvatar=isAvatar, adjMatrix=adjustment)
+            else:
+                print("Returned a None for: " + myMesh.name() + ", DEF-USE: " + shapeName + ", was USE - 1")
 
-        return cgeShape
+        return meshCollector
 
 
     def processX3DOMAppearance(self):
@@ -3381,7 +3335,7 @@ class RKOrganizer():
                     ####################################################################################
                     # Compile node weighting information here for CGESkin node use.
                     if nodeType == "CGEIndexedFaceSet":
-                        self.collectCGESkinWeightsForMesh(newMesh, vertIdxList, x3dParentNode)
+                        self.collectCGESkinWeightsForMesh(newMesh, x3dParentNode)
                     
                 #
                 #
@@ -3906,59 +3860,59 @@ class RKOrganizer():
                         fileExt  = os.path.splitext(fileName)[1]
                         fileName = os.path.splitext(fileName)[0]
                     
-                    if   self.rk2dFileFormat == 1:
-                        fileName = fileName + ".png"
-                        relativeTexPath = relativeTexPath + fileName
-                        fullWebTexPath  = fullWebTexPath  + fileName
-                        localTexWrite   = localTexWrite   + fileName
-                        
-                        self.rkint.fileFormatConvert(filePath, localTexWrite, 'png')
-                        
-                    elif self.rk2dFileFormat == 2:
-                        fileName = fileName + ".jpg"
-                        relativeTexPath = relativeTexPath + fileName
-                        fullWebTexPath  = fullWebTexPath  + fileName
-                        localTexWrite   = localTexWrite   + fileName
-                        
-                        self.rkint.fileFormatConvert(filePath, localTexWrite, 'jpg')
-                        
-                    elif self.rk2dFileFormat == 3:
-                        fileName = fileName + ".gif"
-                        relativeTexPath = relativeTexPath + fileName
-                        fullWebTexPath  = fullWebTexPath  + fileName
-                        localTexWrite   = localTexWrite   + fileName
-                        
-                        self.rkint.fileFormatConvert(filePath, localTexWrite, 'gif')
-                        
-                    elif self.rk2dFileFormat == 4:
-                        fileName = fileName + ".webp"
-                        relativeTexPath = relativeTexPath + fileName
-                        fullWebTexPath  = fullWebTexPath  + fileName
-                        localTexWrite   = localTexWrite   + fileName
-                        
-                        self.rkint.fileConvertToWebP(filePath, localTexWrite)
-                    else:
-                        fileName = fileName + fileExt
-                        relativeTexPath = relativeTexPath + fileName
-                        fullWebTexPath  = fullWebTexPath  + fileName
-
-                        if self.rk2dTexWrite == True:
+                        if   self.rk2dFileFormat == 1:
+                            fileName = fileName + ".png"
+                            relativeTexPath = relativeTexPath + fileName
+                            fullWebTexPath  = fullWebTexPath  + fileName
                             localTexWrite   = localTexWrite   + fileName
-                            movePath = self.imageMoveDir + "/" + fileName
-                            self.rkint.copyFile(filePath, movePath)
+                            
+                            self.rkint.fileFormatConvert(filePath, localTexWrite, 'png')
+                            
+                        elif self.rk2dFileFormat == 2:
+                            fileName = fileName + ".jpg"
+                            relativeTexPath = relativeTexPath + fileName
+                            fullWebTexPath  = fullWebTexPath  + fileName
+                            localTexWrite   = localTexWrite   + fileName
+                            
+                            self.rkint.fileFormatConvert(filePath, localTexWrite, 'jpg')
+                            
+                        elif self.rk2dFileFormat == 3:
+                            fileName = fileName + ".gif"
+                            relativeTexPath = relativeTexPath + fileName
+                            fullWebTexPath  = fullWebTexPath  + fileName
+                            localTexWrite   = localTexWrite   + fileName
+                            
+                            self.rkint.fileFormatConvert(filePath, localTexWrite, 'gif')
+                            
+                        elif self.rk2dFileFormat == 4:
+                            fileName = fileName + ".webp"
+                            relativeTexPath = relativeTexPath + fileName
+                            fullWebTexPath  = fullWebTexPath  + fileName
+                            localTexWrite   = localTexWrite   + fileName
+                            
+                            self.rkint.fileConvertToWebP(filePath, localTexWrite)
                         else:
-                            localTexWrite = filePath
+                            fileName = fileName + fileExt
+                            relativeTexPath = relativeTexPath + fileName
+                            fullWebTexPath  = fullWebTexPath  + fileName
 
-                    # If the with DataURI option is selected, convert contents of movie file to a DataURI string.
-                    if self.rkFileTexNode == 1:
-                        print("Printing LocalTexWrite:\n" + localTexWrite )
-                        x3dURIData = self.rkint.media2uri(localTexWrite)
-                        x3dTexture[1].url.append(x3dURIData)
-                    else:
-                        x3dTexture[1].url.append(fileName       )
-                        x3dTexture[1].url.append(relativeTexPath)
-                        x3dTexture[1].url.append(fullWebTexPath )
-                        
+                            if self.rk2dTexWrite == True:
+                                localTexWrite   = localTexWrite   + fileName
+                                movePath = self.imageMoveDir + "/" + fileName
+                                self.rkint.copyFile(filePath, movePath)
+                            else:
+                                localTexWrite = filePath
+
+                        # If the with DataURI option is selected, convert contents of movie file to a DataURI string.
+                        if self.rkFileTexNode == 1:
+                            print("Printing LocalTexWrite:\n" + localTexWrite )
+                            x3dURIData = self.rkint.media2uri(localTexWrite)
+                            x3dTexture[1].url.append(x3dURIData)
+                        else:
+                            x3dTexture[1].url.append(fileName       )
+                            x3dTexture[1].url.append(relativeTexPath)
+                            x3dTexture[1].url.append(fullWebTexPath )
+                            
                     if mPlace2d != None and mPlace2d.typeName == "place2dTexture":
                         x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU", False).asBool()
                         x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV", False).asBool()
@@ -4162,7 +4116,7 @@ class RKOrganizer():
                             x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV", False).asBool()
                     
 
-        elif mApiTypeType == rkfn.kLayeredTexture:#TODO: MultiTexture
+        elif mApiType == rkfn.kLayeredTexture:#TODO: MultiTexture
             x3dNodeType = "MultiTexture"
             
             if   self.rkLayerTexNode == 0:
@@ -4374,6 +4328,8 @@ class RKOrganizer():
         self.rkio.setIgnored("Manipulator1")
         self.rkio.setIgnored("UniversalManip")
         self.rkio.setIgnored("CubeCompass")
+        
+        
         
         
 

@@ -27,9 +27,8 @@ from rawkee.RKFOptsDialog import RKFOptsDialog
 from maya.api.OpenMaya    import MFn as rkfn
 
 
-#from rawkee.RKUtils import *
 import rawkee.nodes.sticker    as stk
-import rawkee.x3d              as rkx3d
+import rawkee.rkx3d            as rkx3d
 
 try:
     from PySide2           import QtCore
@@ -182,7 +181,7 @@ class RKWeb3D():
         cmds.menuItem(divider=True)
         cmds.menuItem(divider=True, dividerLabel='Get Compatible 3rd Party Character Tools')
         cmds.menuItem(divider=True)
-        cmds.menuItem(label="Antony Ward's Modular Rigging Tool (aRT)", command='maya.cmds.rkShowART()')
+        #cmds.menuItem(label="Antony Ward's Modular Rigging Tool (aRT)", command='maya.cmds.rkShowART()')
         cmds.menuItem(label='Advanced Skeleton',                        command='maya.cmds.rkShowAdvSkel()')
 
         cmds.menuItem(divider=True)
@@ -216,7 +215,58 @@ class RKWeb3D():
         ###################################################
     
         mel.eval('addRKMenuItemsFM()')
+        
+        self.addRawKeeShelf()
     
+    
+    def addRawKeeShelf(self):
+        if cmds.shelfLayout("RawKee", exists=True):
+            cmds.deleteUI("RawKee") # Delete existing shelf if it exists
+
+        rkShelf = cmds.shelfLayout("RawKee", parent="ShelfLayout")
+        
+        cmds.shelfButton( parent=rkShelf,
+            command='rkShowCharacterAnimationClipEditor()',
+            label='RK_CACE',
+            annotation='RawKee Character Animation Clip Editor',
+            flexibleWidthType=1,
+            image1='rkclipeditor_100.png',
+            image2='rkclipeditor_150.png',
+            image3='rkclipeditor_200.png',
+            sourceType='mel')
+
+        cmds.shelfButton( parent=rkShelf,
+            command='rkShowBindPoseEditor()',
+            label='RK_BPE',
+            annotation='RawKee Bind Pose Editor',
+            flexibleWidthType=1,
+            image1='rkbindpose_100.png',
+            image2='rkbindpose_150.png',
+            image3='rkbindpose_200.png',
+            sourceType='mel')
+
+        cmds.shelfButton( parent=rkShelf,
+            command='rkShowHAnimHumanoidSetupEditor()',
+            label='RK_HHSE',
+            annotation='RawKee HAnimHumanoid Setup Editor',
+            flexibleWidthType=1,
+            image1='rkhhse_100.png',
+            image2='rkhhse_150.png',
+            image3='rkhhse_200.png',
+            sourceType='mel')
+
+        cmds.shelfButton( parent=rkShelf,
+            command='rkShowMGearSetupEditor()',
+            label='RK_MGSE',
+            annotation='RawKee mGear Setup Editor',
+            flexibleWidthType=1,
+            image1='rkmgse_100.png',
+            image2='rkmgse_150.png',
+            image3='rkmgse_200.png',
+            sourceType='mel')
+
+        cmds.refresh()
+        
     
     # Destroy "RawKee (X3D)" - main plugin menu
     def removeRawKeeMenu(self):
@@ -224,6 +274,9 @@ class RKWeb3D():
         Remove and destroy the RawKee Primary Menu
         '''
         
+        if cmds.shelfLayout("RawKee", exists=True):
+            cmds.deleteUI("RawKee") # Delete existing shelf if it exists
+
         try:
             cmds.deleteUI(self.rkMenuName)     
             cmds.refresh()

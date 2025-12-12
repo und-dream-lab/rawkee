@@ -73,7 +73,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         
     @classmethod
     def workspace_ui_script(cls):
-        return "from rawkee.RKCharacterEditor import RKCharacterEditor\nrkSEWidget = RKCharacterEditor()"
+        return "from rawkee.RKCharacterEditor import RKCharacterEditor\nrkCEWidget = RKCharacterEditor()"
         
     @classmethod
     def workplace_close_command(cls):
@@ -334,6 +334,10 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         # Character Animation Setup Panel - Tab
         self.loadHuman = self.findChild(QtWidgets.QPushButton, 'loadHumanoidButton')
         self.hmnSelect = self.findChild(QtWidgets.QLineEdit,   'humanoidSelected'  )
+        
+        # Attempt to load Selected Root joint
+        self.loadSelectedHumanoid()
+        
         self.newTName  = self.findChild(QtWidgets.QLineEdit,   'newTimerName'      )
         self.apTree    = self.findChild(QtWidgets.QTreeWidget, 'x3dNodes')
         self.apTree.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -916,6 +920,21 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
                     if cmds.objExists(eName):
                         cmds.delete(eName)
                 
+                apType = cmds.getAttr(tNode + ".mimickedType")
+                if apType != 0 or apType != 2:
+                    rels = cmds.listRelatives(tNode, p=True)
+                    if rels is not None:
+                        isHumanoid = False
+                        x3dType = ""
+                        try:
+                            x3dType = cmds.getAttr(rels[0] + ".x3dGroupType")
+                            isHumanoid = True
+                        except:
+                            isHumanoid = False
+                        
+                        if isHumanoid == False:
+                            tNode = rels[0]
+
                 cmds.delete(tNode)
                 
         self.populateAnimationPackages()
@@ -1219,6 +1238,9 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             
         elif oVal == 4:
             self.rkAnimPack_SubTimeSensorAttrs(node, mtu)
+            
+        cmds.setAttr(node + ".timelineStopFrame", 10)
+        
     ########################################################################
     ########################################################################
     ########################################################################
@@ -1262,21 +1284,56 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
     # Load Animation information about the selected HAnimHumanoid
     #############################################################
     def loadSelectedHumanoid(self):
-        selNodes = cmds.ls(sl=True)
-        
         humName = ""
-        for nds in selNodes:
-            ntype = cmds.nodeType(nds)
-            if ntype == "transform" or ntype == "joint":
-                humName = nds
-                break
-                #x3dType = ""
-                #try:
-                #    x3dType = cmds.getAttr(nds + ".x3dGroupType")
-                #except:
-                #    pass
-                #if x3dType == "HAnimHumanoid":
-                #    humName = nds
+        isSearchingForRoot = True
+        selNodes = cmds.ls(sl=True)
+
+        if len(selNodes) > 0:
+            nType = cmds.nodeType(selNodes[0])
+            if nType == "transform":
+                x3dType = ""
+                try:
+                    x3dType = cmds.getAttr(selNodes[0] + ".x3dGroupType")
+                except:
+                    print("x3dGroupType not found")
+
+                if x3dType == "HAnimHumanoid":
+                    humName = selNodes[0]
+
+            elif nType == "joint":
+                currentCharNode = selNodes[0]
+                
+                while isSearchingForRoot == True:
+                    rels = cmds.listRelatives(currentCharNode, p=True)
+                    
+                    if rels is not None:
+                        rType = cmds.nodeType(rels[0])
+                        if rType == "joint":
+                            currentCharNode = rels[0]
+                            
+                        elif rType == "transform":
+                            isSearchingForRoot = False
+                            x3dType = ""
+                            try:
+                                x3dType = cmds.getAttr(rels[0] + ".x3dGroupType")
+                            except:
+                                print("x3dGroupType not found")
+
+                            if x3dType == "HAnimHumanoid":
+                                currentCharNode = rels[0]
+
+                            humName = currentCharNode
+                            cmds.select(currentCharNode)
+                            
+                        else:
+                            isSearchingForRoot = False
+                            humName = currentCharNode
+                            cmds.select(currentCharNode)
+                    else:
+                        isSearchingForRoot = False
+                        humName = currentCharNode
+                        cmds.select(currentCharNode)
+                
         if humName == "":
             self.hmnSelect = self.findChild(QtWidgets.QLineEdit,   'humanoidSelected'  )
             hmnBool = cmds.objExists(self.hmnSelect.text())

@@ -1,6 +1,6 @@
 import sys
 
-import rawkee.x3d as rkx3d
+import rawkee.rkx3d as rkx3d
 
 class RKTestShader(rkx3d._X3DShaderNode):
     """

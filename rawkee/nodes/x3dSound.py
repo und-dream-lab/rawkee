@@ -1,5 +1,3 @@
-import rawkee.x3d
-
 import maya.api.OpenMaya as aom
 import maya.api.OpenMayaUI as aomui
 import maya.api.OpenMayaRender as aomr

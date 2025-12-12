@@ -13,6 +13,9 @@ from rawkee.RKWeb3D import RKX3DAuxLoader
 from rawkee.RKSceneEditor import *
 from rawkee.RKCharacterEditor import *
 from rawkee.RKBindPoseEditor import *
+from rawkee.RKCharacterAnimationClipEditor import *
+from rawkee.RKHAnimHumanoidSetupEditor import *
+from rawkee.RKmGearSetupEditor import *
 
 # From Early 2000s C++ Registered Node IDs
 from rawkee.nodes.x3dTimeSensor import X3DTimeSensor
@@ -38,6 +41,8 @@ from maya import mel  as mel
 import maya.api.OpenMaya as aom
 import maya.api.OpenMayaRender as omr
 import maya.api.OpenMayaUI as omui
+
+from maya.app.general import nodeEditorMenus
 
 import webbrowser
 
@@ -69,6 +74,7 @@ RAWKEE_BASE    = ""
 RAWKEE_ICONS   = ""
 
 RKCallBackIDs  = []
+global RKMarkingMenus
 
 # Maya API 2.0 function required for Plugins
 def maya_useNewAPI():
@@ -743,7 +749,97 @@ class RKShowBindPoseEditor(aom.MPxCommand):
             rkBPEditor.show(dockable=True, uiScript=RKBindPoseEditor.workspace_ui_script())
         else:
             print("RKWeb3D is not set!")
+
+
+class RKShowCharacterAnimationClipEditor(aom.MPxCommand):
+    kPluginCmdName = "rkShowCharacterAnimationClipEditor"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
         
+    @staticmethod
+    def cmdCreator():
+        return RKShowCharacterAnimationClipEditor()
+        
+    def doIt(self, args):
+        print("RawKee X3D - Character Animation Clip Editor")
+        
+        global rkWeb3D
+        if rkWeb3D is not None:
+            characterAnimationClipEditorControlName = RKCharacterAnimationClipEditor.character_animation_clip_editor_control_name()
+        
+            if cmds.workspaceControl(characterAnimationClipEditorControlName, exists=True):
+                #Must Close before Delete
+                cmds.workspaceControl(characterAnimationClipEditorControlName, e=True, close=True, closeCommand=RKCharacterAnimationClipEditor.workplace_close_command())
+                cmds.deleteUI(characterAnimationClipEditorControlName)
+            
+            rkCACEditor = RKCharacterAnimationClipEditor()
+            rkCACEditor.CBIDs = RKCallBackIDs
+            rkCACEditor.show(dockable=True, uiScript=RKCharacterAnimationClipEditor.workspace_ui_script())
+        else:
+            print("RKWeb3D is not set!")
+
+
+class RKShowHAnimHumanoidSetupEditor(aom.MPxCommand):
+    kPluginCmdName = "rkShowHAnimHumanoidSetupEditor"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowHAnimHumanoidSetupEditor()
+        
+    def doIt(self, args):
+        print("RawKee X3D - HAnimHumanoid Setup Editor")
+        #cmds.rkPrimeX3DScene()
+        
+        global rkWeb3D
+        if rkWeb3D is not None:
+            hanimHumanoidSetupEditorControlName = RKHAnimHumanoidSetupEditor.hanim_humanoid_setup_editor_control_name()
+        
+            if cmds.workspaceControl(hanimHumanoidSetupEditorControlName, exists=True):
+                #Must Close before Delete
+                cmds.workspaceControl(hanimHumanoidSetupEditorControlName, e=True, close=True, closeCommand=RKHAnimHumanoidSetupEditor.workplace_close_command())
+                cmds.deleteUI(hanimHumanoidSetupEditorControlName)
+            
+            rkHHSEditor = RKHAnimHumanoidSetupEditor()
+            rkHHSEditor.CBIDs = RKCallBackIDs
+            #rkCEditor.setRKWeb3D(rkWeb3D)
+            rkHHSEditor.show(dockable=True, uiScript=RKHAnimHumanoidSetupEditor.workspace_ui_script())
+        else:
+            print("RKWeb3D is not set!")
+
+
+class RKShowMGearSetupEditor(aom.MPxCommand):
+    kPluginCmdName = "rkShowMGearSetupEditor"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowMGearSetupEditor()
+        
+    def doIt(self, args):
+        print("RawKee X3D - mGear Setup Editor")
+        #cmds.rkPrimeX3DScene()
+        
+        global rkWeb3D
+        if rkWeb3D is not None:
+            mgearSetupEditorControlName = RKmGearSetupEditor.mgear_setup_editor_control_name()
+        
+            if cmds.workspaceControl(mgearSetupEditorControlName, exists=True):
+                #Must Close before Delete
+                cmds.workspaceControl(mgearSetupEditorControlName, e=True, close=True, closeCommand=RKmGearSetupEditor.workplace_close_command())
+                cmds.deleteUI(mgearSetupEditorControlName)
+            
+            rkMGSEditor = RKmGearSetupEditor()
+            rkMGSEditor.CBIDs = RKCallBackIDs
+            #rkCEditor.setRKWeb3D(rkWeb3D)
+            rkMGSEditor.show(dockable=True, uiScript=RKmGearSetupEditor.workspace_ui_script())
+        else:
+            print("RKWeb3D is not set!")
 
 
 # Initialize the plug-in
@@ -904,7 +1000,28 @@ def initializePlugin(plugin):
         pluginFn.registerCommand(    RKSaveIPoseForASGS.kPluginCmdName,     RKSaveIPoseForASGS.cmdCreator)
         pluginFn.registerCommand(    RKSaveAPoseForASGS.kPluginCmdName,     RKSaveAPoseForASGS.cmdCreator)
         pluginFn.registerCommand(    RKSaveTPoseForASGS.kPluginCmdName,     RKSaveTPoseForASGS.cmdCreator)
-        
+
+        try:
+            pluginFn.registerCommand(RKShowMGearSetupEditor.kPluginCmdName, RKShowMGearSetupEditor.cmdCreator)
+        except Exception as e:
+            sys.stderr.write("RKShowMGearSetupEditor - Failed to unregister a plugin command.\n")
+            print(f"Exception Type: {type(e).__name__}")
+            print(f"Exception Message: {e}")
+
+        try:
+            pluginFn.registerCommand(RKShowHAnimHumanoidSetupEditor.kPluginCmdName, RKShowHAnimHumanoidSetupEditor.cmdCreator)
+        except Exception as e:
+            sys.stderr.write("RKShowHAnimHumanoidSetupEditor - Failed to unregister a plugin command.\n")
+            print(f"Exception Type: {type(e).__name__}")
+            print(f"Exception Message: {e}")
+
+        try:
+            pluginFn.registerCommand(RKShowCharacterAnimationClipEditor.kPluginCmdName, RKShowCharacterAnimationClipEditor.cmdCreator)
+        except Exception as e:
+            sys.stderr.write("RKShowCharacterAnimationClipEditor - Failed to unregister a plugin command.\n")
+            print(f"Exception Type: {type(e).__name__}")
+            print(f"Exception Message: {e}")
+
         pluginFn.registerCommand( RKShowBindPoseEditor.kPluginCmdName,  RKShowBindPoseEditor.cmdCreator)
         pluginFn.registerCommand(RKShowCharacterEditor.kPluginCmdName, RKShowCharacterEditor.cmdCreator)
         pluginFn.registerCommand(    RKShowSceneEditor.kPluginCmdName,     RKShowSceneEditor.cmdCreator)
@@ -963,6 +1080,7 @@ def initializePlugin(plugin):
     RKCallBackIDs.append(aom.MSceneMessage.addCallback(aom.MSceneMessage.kSceneUpdate, rkUpdateStickers))
 
     #addRKAnimPackNodeDeleteCallback()
+    
     
 
 # Uninitialize the plug-in
@@ -1060,6 +1178,27 @@ def uninitializePlugin(plugin):
         print(f"Exception Type: {type(e).__name__}")
         print(f"Exception Message: {e}")
 
+
+    try:
+        pluginFn.deregisterCommand(RKShowCharacterAnimationClipEditor.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowCharacterAnimationClipEditor - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
+        pluginFn.deregisterCommand(RKShowHAnimHumanoidSetupEditor.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowHAnimHumanoidSetupEditor - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
+        pluginFn.deregisterCommand(RKShowMGearSetupEditor.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowMGearSetupEditor - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
 
     try:
         pluginFn.deregisterCommand(    RKSaveTPoseForASGS.kPluginCmdName)
@@ -1382,9 +1521,11 @@ def uninitializePlugin(plugin):
     # Removal of Remote Menu Sysem for RawKee from Maya Main Window
     ##################################################################
     
-    # First we must remove the refernce to RKWeb3D object in the RKSceneEditor panel
+    # First we must remove the refernce to RKWeb3D object in the editor panels
     # otherwise the object's __del__ function won't by code below of...
     # 'del rkWeb3D'
+    
+    ########### Scene Editor ##################
     sceneEditorControlName = RKSceneEditor.scene_editor_control_name()
 
     if cmds.workspaceControl(sceneEditorControlName, exists=True):
@@ -1392,6 +1533,7 @@ def uninitializePlugin(plugin):
         cmds.workspaceControl(sceneEditorControlName, e=True, close=True, closeCommand=RKSceneEditor.workplace_close_command())
         cmds.deleteUI(sceneEditorControlName)
     
+    ########### Deprecated Character Editor ####################
     characterEditorControlName = RKCharacterEditor.character_editor_control_name()
 
     if cmds.workspaceControl(characterEditorControlName, exists=True):
@@ -1399,6 +1541,34 @@ def uninitializePlugin(plugin):
         cmds.workspaceControl(characterEditorControlName, e=True, close=True, closeCommand=RKCharacterEditor.workplace_close_command())
         cmds.deleteUI(characterEditorControlName)
     
+    ########## mGear Setup Editor ##################
+    mgearSetupEditorControlName = RKmGearSetupEditor.mgear_setup_editor_control_name()
+
+    if cmds.workspaceControl(mgearSetupEditorControlName, exists=True):
+        #Must Close before Delete
+        cmds.workspaceControl(mgearSetupEditorControlName, e=True, close=True, closeCommand=RKmGearSetupEditor.workplace_close_command())
+        cmds.deleteUI(mgearSetupEditorControlName)
+    
+    
+    ########## Character Animation Clip Editor ##################
+    characterAnimationClipEditorControlName = RKCharacterAnimationClipEditor.character_animation_clip_editor_control_name()
+
+    if cmds.workspaceControl(characterAnimationClipEditorControlName, exists=True):
+        #Must Close before Delete
+        cmds.workspaceControl(characterAnimationClipEditorControlName, e=True, close=True, closeCommand=RKCharacterAnimationClipEditor.workplace_close_command())
+        cmds.deleteUI(characterAnimationClipEditorControlName)
+    
+    
+    ########## HAnimHumanoid Setup Editor ##################
+    hanimHumanoidSetupEditorControlName = RKHAnimHumanoidSetupEditor.hanim_humanoid_setup_editor_control_name()
+
+    if cmds.workspaceControl(hanimHumanoidSetupEditorControlName, exists=True):
+        #Must Close before Delete
+        cmds.workspaceControl(hanimHumanoidSetupEditorControlName, e=True, close=True, closeCommand=RKHAnimHumanoidSetupEditor.workplace_close_command())
+        cmds.deleteUI(hanimHumanoidSetupEditorControlName)
+    
+    
+    ########### Bind Pose / HAnimPose node Editor #############
     bindposeEditorControlName = RKBindPoseEditor.bindpose_editor_control_name()
 
     if cmds.workspaceControl(bindposeEditorControlName, exists=True):
@@ -1433,6 +1603,7 @@ def uninitializePlugin(plugin):
     ################################################################################
     for cbID in RKCallBackIDs:
         aom.MSceneMessage.removeCallback(cbID)
+        
 
 
 
