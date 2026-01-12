@@ -3,6 +3,9 @@ import maya.cmds as cmds
 import maya.mel  as mel
 
 import numpy as np
+import imageio.v3 as iio
+#import py360convert
+
 import array
 from typing import Final
 
@@ -18,9 +21,13 @@ import ctypes
 import ffmpeg
 
 # Needed for WebP Images
-import PIL as pil
+try:
+    import PIL as pil
+except:
+    pass
 
 import maya.api.OpenMaya as aom
+
 
 #import ntpath
 
@@ -231,8 +238,8 @@ class RKInterfaces():
         rkAdjTexSize       = cmds.optionVar( q='rkAdjTexSize'  )
         
         if rkAdjTexSize == True:
-            width  = cmds.optionVar( q='rkDefTexWidth' )
-            height = cmds.optionVar( q='rkDefTexHeight')
+            width  = cmds.optionVar( q='rkTextureWidth' )
+            height = cmds.optionVar( q='rkTextureHeight')
             
         fileName = imagePath
         if fileName == "":
@@ -242,6 +249,15 @@ class RKInterfaces():
             
         return cmds.convertSolidTx( name=fileNodeName, samplePlane=True, antiAlias=True, force=True, fillTextureSeams=True, shadows=False, fileImageName=fileName, alpha=True, resolutionX=width, resolutionY=height, fileFormat=imgFormat)
 
+
+    def getUserDefinedMaxImageDimension(self):
+        width  = cmds.optionVar( q='rkTextureWidth' )
+        height = cmds.optionVar( q='rkTextureHeight')
+
+        if width >= height:
+            return width
+        
+        return height
     
     # Method converts Maya textureNode colorRGB(a) to an image file.
     def proc2file(self, textureObj, outPath, imgFormat):
@@ -252,8 +268,8 @@ class RKInterfaces():
             rkAdjTexSize   = cmds.optionVar( q='rkAdjTexSize'  )
 
             if rkAdjTexSize == True:
-                w = cmds.optionVar( q='rkDefTexWidth' )
-                h = cmds.optionVar( q='rkDefTexHeight')
+                w = cmds.optionVar( q='rkTextureWidth' )
+                h = cmds.optionVar( q='rkTextureHeight')
 
                 fImage.resize(w, h, False)
                 
@@ -274,8 +290,8 @@ class RKInterfaces():
             rkAdjTexSize   = cmds.optionVar( q='rkAdjTexSize'  )
 
             if rkAdjTexSize == True:
-                w = cmds.optionVar( q='rkDefTexWidth' )
-                h = cmds.optionVar( q='rkDefTexHeight')
+                w = cmds.optionVar( q='rkTextureWidth' )
+                h = cmds.optionVar( q='rkTextureHeight')
 
                 fImage.resize(w, h, False)
                 
@@ -294,8 +310,8 @@ class RKInterfaces():
             rkAdjTexSize   = cmds.optionVar( q='rkAdjTexSize'  )
 
             if rkAdjTexSize == True:
-                w = cmds.optionVar( q='rkDefTexWidth' )
-                h = cmds.optionVar( q='rkDefTexHeight')
+                w = cmds.optionVar( q='rkTextureWidth' )
+                h = cmds.optionVar( q='rkTextureHeight')
 
                 image.resize((w, h))
 
@@ -338,8 +354,8 @@ class RKInterfaces():
             rkAdjTexSize   = cmds.optionVar( q='rkAdjTexSize'  )
 
             if rkAdjTexSize == True:
-                nW = cmds.optionVar( q='rkDefTexWidth' )
-                nH = cmds.optionVar( q='rkDefTexHeight')
+                nW = cmds.optionVar( q='rkTextureWidth' )
+                nH = cmds.optionVar( q='rkTextureHeight')
 
             media = ffmpeg.input(inPath)
 
@@ -372,8 +388,8 @@ class RKInterfaces():
         rkAdjTexSize   = cmds.optionVar( q='rkAdjTexSize'  )
 
         if rkAdjTexSize == True:
-            w = cmds.optionVar( q='rkDefTexWidth' )
-            h = cmds.optionVar( q='rkDefTexHeight')
+            w = cmds.optionVar( q='rkTextureWidth' )
+            h = cmds.optionVar( q='rkTextureHeight')
 
             fImage.resize(w, h, False)
             
@@ -415,7 +431,39 @@ class RKInterfaces():
         
         return pixelData
 
-        
+
+#    def create_x3d_single_hdr(self, input_path, output_path, face_size=1024):
+#       # 1. Load the 32-bit HDR
+#        print(f"Loading {input_path}...")
+#        sphere_hdr = imageio.imread(input_path)
+#
+#        # 2. Convert to a Horizontal Cross layout
+#        # This creates a single image with a 4:3 aspect ratio
+#        print("Converting to horizontal cross...")
+#        cross_hdr = py360convert.e2c(sphere_hdr, face_w=face_size, cube_format='horizon')
+
+#        # 3. Save as a single HDR file
+#        # Ensure it's float32 to maintain the tree reflections' brightness
+#        imageio.imwrite(output_path, cross_hdr.astype(np.float32))
+#        print(f"Successfully saved single cubemap: {output_path}")
+
+    def hdri2png(self, inputPath, outputPath):
+        # 1. Load the HDRI image
+        # This returns a float32 array where values typically range from 0.0 to +inf
+        hdriImage = iio.imread(inputPath)
+
+        # 2. Prepare the data for 16-bit PNG
+        # PNG does not support float32 directly; it uses uint16 (0 to 65535)
+        # We must scale the float values to the 16-bit integer range.
+        # Note: If your HDR has values > 1.0, you may need to 'tone map' or normalize first.
+        hdriNormalized = np.clip(hdriImage, 0, 1)  # Optional: Clamping to 0-1 range
+        hdri16bit = (hdriNormalized * 65535).astype(np.uint16)
+
+        # 3. Save as a 16-bit PNG
+        # Use the 'PNG-FI' (FreeImage) or 'PIL' plugin to ensure 16-bit support
+        iio.imwrite(outputPath, hdri16bit, extension='.png')
+
+
     # Creating a Data URI from any file type.
     def media2uri(self, filePath):
         dataURI = ""

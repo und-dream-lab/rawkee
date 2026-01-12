@@ -153,9 +153,20 @@ global proc setDefRKOptVars()
 {
 	putenv "AW_JPEG_Q_FACTOR" "100";
 	
+    //----------------------------------------------------------
+    ////////////////////////////////////////////////////////////
+    // Exporter Wide Option Variables
+	if(`optionVar -exists "rkExportMode"`){
+	}else{
+    //bool
+		optionVar -iv rkExportMode 0;
+	}
+
     //-------------------------------------------
     // New RawKee Python optionVars
     //-------------------------------------------
+    //////////////////////////////////////////////
+    // Project Directory Option Variables
     if(`optionVar -exists "rkCastlePrjDir"`)
     {
     }else{
@@ -177,20 +188,9 @@ global proc setDefRKOptVars()
 		optionVar -sv "rkPrjDir" "";
     }
 
-    if(`optionVar -exists "rkBaseDomain"`)
-    {
-    }else{
-        print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
-		optionVar -sv "rkBaseDomain" "";
-    }
-
-    if(`optionVar -exists "rkSubDir"`)
-    {
-    }else{
-        print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
-		optionVar -sv "rkSubDir" "";
-    }
-    
+    //---------------------------------------------
+    ///////////////////////////////////////////////
+    // Media Paths
     if(`optionVar -exists "rkImagePath"`)
     {
     }else{
@@ -204,196 +204,333 @@ global proc setDefRKOptVars()
         print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
 		optionVar -sv "rkAudioPath" "audio/";
     }
-    
-    if(`optionVar -exists "rkInlinePath"`)
-    {
-    }else{
-        print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
-		optionVar -sv "rkInlinePath" "inline/";
+
+    //---------------------------------------------
+    ///////////////////////////////////////////////
+    // Consolidating and Format Conversion Option Variables
+    if(`optionVar -exists "rkConsolidate"`){
+    }
+    else{
+        optionVar -iv rkConsolidate 0;
     }
     
-	if(`optionVar -exists "rk2dTexWrite"`){
+    // Determines the format of Maya Proceedural Textures
+    // when saved as a PNG/JPG
+    // QComboBox in GUI - 0/1 Values
+	if(`optionVar -exists "rkProcTexFormat"`){
 	}else{
-    //bool
-		optionVar -iv rk2dTexWrite 1;
+    //int
+		optionVar -iv rkProcTexFormat 0;
 	}
 	
-	if(`optionVar -exists "rkMovTexWrite"`){
+    // Determines the format of Maya File Textures during
+    // export, options are to use "current" or covert to
+    // PNG/JPG
+    // QComboBox in GUI - 0/1/2 Values
+	if(`optionVar -exists "rkFileTexFormat"`){
 	}else{
-    //bool
-		optionVar -iv rkMovTexWrite 1;
+    //int
+		optionVar -iv rkFileTexFormat 0;
 	}
 	
-	if(`optionVar -exists "rkAudioWrite"`){
+    // Determines the type of X3D Texture node exported 
+    // for Maya Procedural Textures. Options are:
+    // - ImageTexture
+    // - ImageTexture with DataURI
+    // - PixelTexture (not recommended)
+    //
+    // QComboBox in GUI - 0/1/2 Values
+	if(`optionVar -exists "rkProcTexType"`){
 	}else{
-    //bool
-		optionVar -iv rkAudioWrite 1;
+    //int
+		optionVar -iv rkProcTexType 0;
 	}
 	
-	if(`optionVar -exists "rk2dFileFormat"`){
+    // Determines the type of X3D Texture node exported 
+    // for Maya File Textures. Options are:
+    // - ImageTexture
+    // - ImageTexture with DataURI
+    // - PixelTexture (not recommended)
+    //
+    // QComboBox in GUI - 0/1/2 Values
+	if(`optionVar -exists "rkFileTexType"`){
 	}else{
-    //bool
-		optionVar -iv rk2dFileFormat 0;
+    //int
+		optionVar -iv rkFileTexType 0;
 	}
 	
-	if(`optionVar -exists "rkMovFileFormat"`){
+    // Determines the type of X3D Texture node exported 
+    // for Maya Movie Textures. Options are:
+    // - MovieTexture
+    // - MovieTexture with DataURI
+    //
+    // QComboBox in GUI - 0/1 Values
+	if(`optionVar -exists "rkMovieTexType"`){
 	}else{
-    //bool
-		optionVar -iv rkMovFileFormat 0;
+    //int
+		optionVar -iv rkMovieTexType 0;
 	}
 	
-	if(`optionVar -exists "rkAudioFileFormat"`){
+    // Determines the type of X3D AudioClip node exported 
+    // for Maya Audio file. Options are:
+    // - AudioClip
+    // - AudioClip with DataURI
+    //
+    // QComboBox in GUI - 0/1 Values
+	if(`optionVar -exists "rkAudioClipType"`){
 	}else{
-    //bool
-		optionVar -iv rkAudioFileFormat 0;
+    //int
+		optionVar -iv rkAudioClipType 0;
 	}
 	
-	if(`optionVar -exists "rkExportCameras"`){
-	}else{
-    //bool
-		optionVar -iv rkExportCameras 1;
-	}
-	
-	if(`optionVar -exists "rkExportLights"`){
-	}else{
-    //bool
-		optionVar -iv rkExportLights 1;
-	}
-	
-	if(`optionVar -exists "rkExportSounds"`){
-	}else{
-    //bool
-		optionVar -iv rkExportSounds 1;
-	}
-	
-	if(`optionVar -exists "rkExportMetadata"`){
-	}else{
-    //bool
-		optionVar -iv rkExportMetadata 0;
-	}
-	
-	if(`optionVar -exists "rkProcTexNode"`){
-	}else{
-    //bool
-		optionVar -iv rkProcTexNode 0;
-	}
-	
-	if(`optionVar -exists "rkFileTexNode"`){
-	}else{
-    //bool
-		optionVar -iv rkFileTexNode 0;
-	}
-	
-	if(`optionVar -exists "rkLayerTexNode"`){
-	}else{
-    //bool
-		optionVar -iv rkLayerTexNode 0;
-	}
-	
-	if(`optionVar -exists "rkMovieAsURI"`){
-	}else{
-    //bool
-		optionVar -iv rkMovieAsURI 0;
-	}
-	
-	if(`optionVar -exists "rkAudioAsURI"`){
-	}else{
-    //bool
-		optionVar -iv rkAudioAsURI 0;
-	}
-	
-	if(`optionVar -exists "rkInlineAsURI"`){
-	}else{
-    //bool
-		optionVar -iv rkAudioAsURI 0;
-	}
-	
+    // Size and Resizing Texture Option Variables
+    // Adjust Texture Sizes if checked
+    // QCheckBox in GUI - bool
 	if(`optionVar -exists "rkAdjTexSize"`){
 	}else{
     //bool
 		optionVar -iv rkAdjTexSize 0;
 	}
 	
-	if(`optionVar -exists "rkDefTexWidth"`){
+    // Was: rkDefTexWidth
+    // Texture Width for any texture files
+    // generated
+    // QLineEdit in GUI - int
+	if(`optionVar -exists "rkTextureWidth"`){
 	}else{
-    //bool
-		optionVar -iv rkDefTexWidth 256;
+    //int
+		optionVar -iv rkTextureWidth 256;
 	}
 	
-	if(`optionVar -exists "rkDefTexHeight"`){
+    // Was: rkDefTexHeight
+    // Texture Height for any texture files
+    // generated
+    // QLineEdit in GUI - int
+	if(`optionVar -exists "rkTextureHeight"`){
 	}else{
-    //bool
-		optionVar -iv rkDefTexHeight 256;
+    //int
+		optionVar -iv rkTextureHeight 256;
 	}
 	
+    //----------------------------------------------------------
+    ////////////////////////////////////////////////////////////
+    // Mesh based Option Variables
+    //----------------------------------------------------------
+    // CreaseAngle value for normal smoothing
+    // QLineEdit in GUI - float
 	if(`optionVar -exists "rkCreaseAngle"`){
 	}else{
-    //bool
+    //float
 		optionVar -fv rkCreaseAngle 1.57;
 	}
 	
-	if(`optionVar -exists "rkColorOpts"`){
-	}else{
-		optionVar -iv rkColorOpts 0;
-	}
-
+    // Normal Export Options
+    // QComboBox - 0/1/2/3/4/5
 	if(`optionVar -exists "rkNormalOpts"`){
 	}else{
 		optionVar -iv rkNormalOpts 0;
 	}
     
+    // Mesh per Vertex/Face color options
+    // Not used often
+    // QComboBox - 0/1/2/3/4
+	if(`optionVar -exists "rkColorOpts"`){
+	}else{
+		optionVar -iv rkColorOpts 0;
+	}
+
+    //---------------------------------------------------------------
+    /////////////////////////////////////////////////////////////////
+    // Character Option Variables.
+    if(`optionVar -exists "rkUseHAnimSites"`){
+    }
+    else{
+        optionVar -iv rkUseHAnimSites 0;
+    }
+    
+    if(`optionVar -exists "rkSkinInfluence"`){
+    }else{
+    //int choice
+		optionVar -iv rkSkinInfluence 0;
+    }
+    
+    //////////////////////////////////////
+    //////////////////////////////////////
+    // Old Option Variables to Remove   //
+    //////////////////////////////////////
+    //////////////////////////////////////
+    if(`optionVar -exists "rkBaseDomain"`)
+    {
+    }else{
+		optionVar -rm "rkBaseDomain";
+    }
+
+    if(`optionVar -exists "rkSubDir"`)
+    {
+    }else{
+		optionVar -rm "rkSubDir";
+    }
+
+    if(`optionVar -exists "rkInlinePath"`)
+    {
+    }else{
+		optionVar -rm "rkInlinePath";
+    }
+    
+	if(`optionVar -exists "rk2dTexWrite"`){
+	}else{
+    //bool
+		optionVar -rm rk2dTexWrite;
+	}
+	
+	if(`optionVar -exists "rkMovTexWrite"`){
+	}else{
+    //bool
+		optionVar -rm rkMovTexWrite;
+	}
+	
+	if(`optionVar -exists "rkAudioWrite"`){
+	}else{
+    //bool
+		optionVar -rm rkAudioWrite;
+	}
+	
+	if(`optionVar -exists "rk2dFileFormat"`){
+	}else{
+    //bool
+		optionVar -rm rk2dFileFormat;
+	}
+	
+	if(`optionVar -exists "rkMovFileFormat"`){
+	}else{
+    //bool
+		optionVar -rm rkMovFileFormat;
+	}
+	
+	if(`optionVar -exists "rkAudioFileFormat"`){
+	}else{
+    //bool
+		optionVar -rm rkAudioFileFormat;
+	}
+	
+	if(`optionVar -exists "rkExportCameras"`){
+	}else{
+    //bool
+		optionVar -rm rkExportCameras;
+	}
+	
+	if(`optionVar -exists "rkExportLights"`){
+	}else{
+    //bool
+		optionVar -rm rkExportLights;
+	}
+	
+	if(`optionVar -exists "rkExportSounds"`){
+	}else{
+    //bool
+		optionVar -rm rkExportSounds;
+	}
+	
+	if(`optionVar -exists "rkExportMetadata"`){
+	}else{
+    //bool
+		optionVar -rm rkExportMetadata;
+	}
+	
+	if(`optionVar -exists "rkProcTexNode"`){
+	}else{
+    //bool
+		optionVar -rm rkProcTexNode;
+	}
+	
+	if(`optionVar -exists "rkFileTexNode"`){
+	}else{
+    //bool
+		optionVar -rm rkFileTexNode;
+	}
+	
+	if(`optionVar -exists "rkLayerTexNode"`){
+	}else{
+    //bool
+		optionVar -rm rkLayerTexNode;
+	}
+	
+	if(`optionVar -exists "rkMovieAsURI"`){
+	}else{
+    //bool
+		optionVar -rm rkMovieAsURI;
+	}
+	
+	if(`optionVar -exists "rkAudioAsURI"`){
+	}else{
+    //bool
+		optionVar -rm rkAudioAsURI;
+	}
+	
+	if(`optionVar -exists "rkInlineAsURI"`){
+	}else{
+    //bool
+		optionVar -rm rkAudioAsURI;
+	}
+	
+	if(`optionVar -exists "rkDefTexWidth"`){
+	}else{
+    //bool
+		optionVar -rm rkDefTexWidth;
+	}
+	
+	if(`optionVar -exists "rkDefTexHeight"`){
+	}else{
+    //bool
+		optionVar -rm rkDefTexHeight;
+	}
+	
 	if(`optionVar -exists "rkHtmlShaderOpts"`){
 	}else{
-		optionVar -iv rkHtmlShaderOpts 0;
+		optionVar -rm rkHtmlShaderOpts;
 	}
     
 	if(`optionVar -exists "rkFrontLoadExt"`){
 	}else{
     //bool
-		optionVar -iv rkFrontLoadExt 0;
+		optionVar -rm rkFrontLoadExt;
 	}
 
-	if(`optionVar -exists "rkExportMode"`){
-	}else{
-    //bool
-		optionVar -iv rkExportMode 0;
-	}
     //Used becasue MPxCommand's with arguments are causing errors
     //If this can be resolved, then I'd likely not use this anymore.
     if(`optionVar -exists "rkHAnimDEF"`){
     }else{
-        optionVar -sv "rkHAnimDEF" "";
+        optionVar -rm "rkHAnimDEF";
     }
 
     if(`optionVar -exists "rkHAnimLoa"`){
     }else{
-        optionVar -iv rkHAnimLoa -1;
+        optionVar -rm rkHAnimLoa;
     }
     
     if(`optionVar -exists "rkHAnimSkConfig"`)
     {
     }else{
-        optionVar -sv "rkHAnimSkConfig" "BASIC";
+        optionVar -rm "rkHAnimSkConfig";
     }
 
 	if(`optionVar -exists "rkAnimationEOF"`){
 	}else{
     //bool
-		optionVar -iv rkAnimationEOF 0;
+		optionVar -rm rkAnimationEOF;
 	}
     
 	if(`optionVar -exists "rkCharAsHAnim"`){
 	}else{
     //bool
-		optionVar -iv rkCharAsHAnim 0;
+		optionVar -rm rkCharAsHAnim;
 	}
     
     if(`optionVar -exists "rkCGESkinWeight"`){
     }else{
     //int choice
-		optionVar -iv rkCGESkinWeight 0;
-    }
-    
+		optionVar -rm rkCGESkinWeight;
+    }    
 }
 
 print("The 'x3d.mel' has been sourced.\n");

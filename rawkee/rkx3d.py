@@ -57827,6 +57827,342 @@ class CGEIndexedFaceSet(_X3DComposedGeometryNode):
         """ Whether or not this node has any child node or statement """
         return self.color or self.coord or self.fogCoord or self.IS or self.metadata or self.normal or self.texCoord or (len(self.attrib) > 0)
 
+class EnvironmentLight(_X3DLightNode):
+    """
+    EnvironmentLight
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'EnvironmentLight'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://www.web3d.org/specifications/X3Dv4Draft/ISO-IEC19775-1v4.1-CD/Part01/components/lighting.html#EnvironmentLight'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'NA'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('ambientIntensity', 0, FieldType.SFFloat, AccessType.inputOutput, 'X3DLightNode'),
+        ('color', (1, 1, 1), FieldType.SFColor, AccessType.inputOutput, 'X3DLightNode'),
+        ('diffuse', None, FieldType.SFNode, AccessType.inputOutput, 'EnvironmentLight')
+        ('diffuseTexture', None, FieldType.SFNode, AccessType.inputOutput, 'EnvironmentLight')
+        ('diffuseCoefficients', [], FieldType.MFFloat, AccessType.inputOutput, 'EnvironmentLight')
+        ('global_', False, FieldType.SFBool, AccessType.inputOutput, 'EnvironmentLight'),
+        ('intensity', 1, FieldType.SFFloat, AccessType.inputOutput, 'X3DLightNode'),
+        ('on', True, FieldType.SFBool, AccessType.inputOutput, 'X3DLightNode'),
+        ('rotation', (0, 0, 1, 0), FieldType.SFRotation, AccessType.inputOutput, 'EnvironmentLight')
+        ('shadowIntensity', 1, FieldType.SFFloat, AccessType.inputOutput, 'X3DLightNode'),
+        ('shadows', False, FieldType.SFBool, AccessType.inputOutput, 'X3DLightNode'),
+        ('specularTexture', None, FieldType.SFNode, AccessType.inputOutput, 'EnvironmentLight')
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        ambientIntensity=0,
+        color=(1, 1, 1),
+        diffuse=None,
+        diffuseTexture=None,
+        diffuseCoefficients=None,
+        global_=False,
+        intensity=1,
+        on=True,
+        rotation=(0, 0, 1, 0),
+        shadowIntensity=1,
+        shadows=False,
+        specularTexture=None,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode DirectionalLight __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.ambientIntensity = ambientIntensity
+        self.color = color
+        self.diffuse = diffuse
+        self.diffuseTexture = diffuseTexture
+        self.diffuseCoefficients = diffuseCoefficients
+        self.global_ = global_
+        self.intensity = intensity
+        self.on = on
+        self.rotation = rotation
+        self.shadowIntensity = shadowIntensity
+        self.shadows = shadows
+        self.specularTexture = specularTexture
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def ambientIntensity(self):
+        """[0,1] Brightness of ambient (nondirectional background) emission from the light."""
+        return self.__ambientIntensity
+    @ambientIntensity.setter
+    def ambientIntensity(self, ambientIntensity):
+        if  ambientIntensity is None:
+            ambientIntensity = 0  # default
+        assertValidSFFloat(ambientIntensity)
+        assertZeroToOne('ambientIntensity', ambientIntensity)
+        self.__ambientIntensity = ambientIntensity
+    @property # getter - - - - - - - - - -
+    def color(self):
+        """[0,1] color of light, applied to colors of objects."""
+        return self.__color
+    @color.setter
+    def color(self, color):
+        if  color is None:
+            color = (1, 1, 1)  # default
+        assertValidSFColor(color)
+        assertZeroToOne('color', color)
+        self.__color = color
+    @property # getter - - - - - - - - - -
+    def diffuse(self):
+        """[X3DSingleTextureNode] NA - Aaron doesn't ahve info for this."""
+        return self.__diffuse
+    @diffuse.setter
+    def diffuse(self, diffuse):
+        if  diffuse is None:
+            diffuse = None  # default
+        assertValidSFNode(diffuse)
+        if not diffuse is None and not isinstance(diffuse,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(diffuse) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__diffuse = diffuse
+    @property # getter - - - - - - - - - -
+    def diffuseTexture(self):
+        """[X3DEnvironmentTextureNode] NA - Aaron doesn't ahve info for this."""
+        return self.__diffuseTexture
+    @diffuseTexture.setter
+    def diffuseTexture(self, diffuseTexture):
+        if  diffuseTexture is None:
+            diffuseTexture = None  # default
+        assertValidSFNode(diffuseTexture)
+        if not diffuseTexture is None and not isinstance(diffuseTexture,(_X3DEnvironmentTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(diffuseTexture) + ' does not match required node type (_X3DEnvironmentTextureNode,ProtoInstance) and is invalid')
+        self.__diffuseTexture = diffuseTexture
+    @property # getter - - - - - - - - - -
+    def diffuseCoefficients(self):
+        """NA - Aaron doesn't knwo what this is for."""
+        return self.__diffuseCoefficients
+    @diffuseCoefficients.setter
+    def diffuseCoefficients(self, diffuseCoefficients):
+        if  diffuseCoefficients is None:
+            diffuseCoefficients = MFFloat.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(MFFloat.DEFAULT_VALUE()))
+        assertValidMFFloat(diffuseCoefficients)
+        self.__diffuseCoefficients = diffuseCoefficients
+    @property # getter - - - - - - - - - -
+    def global_(self):
+        """Global lights illuminate all objects within their volume of lighting influence."""
+        return self.__global_
+    @global_.setter
+    def global_(self, global_):
+        if  global_ is None:
+            global_ = False  # default
+        assertValidSFBool(global_)
+        self.__global_ = global_
+    @property # getter - - - - - - - - - -
+    def intensity(self):
+        """[0,+infinity] Brightness of direct emission from the light."""
+        return self.__intensity
+    @intensity.setter
+    def intensity(self, intensity):
+        if  intensity is None:
+            intensity = 1  # default
+        assertValidSFFloat(intensity)
+        assertNonNegative('intensity', intensity)
+        self.__intensity = intensity
+    @property # getter - - - - - - - - - -
+    def on(self):
+        """Enables/disables this light source."""
+        return self.__on
+    @on.setter
+    def on(self, on):
+        if  on is None:
+            on = True  # default
+        assertValidSFBool(on)
+        self.__on = on
+    @property # getter - - - - - - - - - -
+    def rotation(self):
+        """Orientation (axis, angle in radians) of children relative to local coordinate system."""
+        return self.__rotation
+    @rotation.setter
+    def rotation(self, rotation):
+        if  rotation is None:
+            rotation = (0, 0, 1, 0)  # default
+        assertValidSFRotation(rotation)
+        self.__rotation = rotation
+    @property # getter - - - - - - - - - -
+    def shadowIntensity(self):
+        """[0,1] shadowIntensity field defines how much light is obscured by shapes that cast shadows, ranging from 0 (light not obscured, no visible shadows) to 1 (light completely obscured, full-intensity shadows)."""
+        return self.__shadowIntensity
+    @shadowIntensity.setter
+    def shadowIntensity(self, shadowIntensity):
+        if  shadowIntensity is None:
+            shadowIntensity = 1  # default
+        assertValidSFFloat(shadowIntensity)
+        assertZeroToOne('shadowIntensity', shadowIntensity)
+        self.__shadowIntensity = shadowIntensity
+    @property # getter - - - - - - - - - -
+    def shadows(self):
+        """shadows field indicates whether or not this light casts a shadow behind illuminated X3DShapeNode geometry."""
+        return self.__shadows
+    @shadows.setter
+    def shadows(self, shadows):
+        if  shadows is None:
+            shadows = False  # default
+        assertValidSFBool(shadows)
+        self.__shadows = shadows
+    @property # getter - - - - - - - - - -
+    def specularTexture(self):
+        """[X3DEnvironmentTextureNode] NA - Aaron doesn't ahve info for this."""
+        return self.__specularTexture
+    @specularTexture.setter
+    def specularTexture(self, specularTexture):
+        if  specularTexture is None:
+            specularTexture = None  # default
+        assertValidSFNode(specularTexture)
+        if not specularTexture is None and not isinstance(specularTexture,(_X3DEnvironmentTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(specularTexture) + ' does not match required node type (_X3DEnvironmentTextureNode,ProtoInstance) and is invalid')
+        self.__specularTexture = specularTexture
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.IS or self.metadata
+    # output function - - - - - - - - - -
+
+
+class _X3DMaterialExtensionNode(_X3DNode):
+    """
+    Add extensions to material nodes.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Abstract Type class. """
+        return '_X3DMaterialExtensionNode'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'NA - Aaron does not have this infomration'
+
+
+class IORMaterialExtension(_X3DMaterialExtensionNode):
+    """
+    IORMaterialExtension only works with X_ITE, hopefully other viewers ignore it.
+    Adds IOR to PhysicalMaterial nodes.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'IORMaterialExtension'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/iormaterialextension'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/iormaterialextension'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('indexOfRefraction', 1.5, FieldType.SFFloat, AccessType.initializeOnly, 'IORMaterialExtension'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        indexOfRefraction=1.5,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode Group __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.indexOfRefraction = indexOfRefraction
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def indexOfRefraction(self):
+        """The indexOfRefraction defines ior for PhysicalMaterial nodes."""
+        return self.__indexOfRefraction
+    @indexOfRefraction.setter
+    def indexOfRefraction(self, indexOfRefraction):
+        if  indexOfRefraction is None:
+            indexOfRefraction = 1.5 # default
+        assertValidSFFloat(indexOfRefraction)
+        self.__indexOfRefraction = indexOfRefraction
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.IS or self.metadata
+
+
 class X3DError(Exception):
     """ Base class for all exceptions raised by this module.
         Reference: X3D Scene Access Interface (SAI), 5.3 Error types
@@ -57930,6 +58266,7 @@ def instantiateNodeFromString(x3dType):
         'EaseInEaseOut':EaseInEaseOut,
         'EdgeEnhancementVolumeStyle':EdgeEnhancementVolumeStyle,
         'ElevationGrid':ElevationGrid,
+        'EnvironmentLight':EnvironmentLight,
         'EspduTransform':EspduTransform,
         'ExplosionEmitter':ExplosionEmitter,
         'Extrusion':Extrusion,
@@ -57975,6 +58312,7 @@ def instantiateNodeFromString(x3dType):
         'Inline':Inline,
         'IntegerSequencer':IntegerSequencer,
         'IntegerTrigger':IntegerTrigger,
+        'IORMaterialExtension':IORMaterialExtension,
         'IsoSurfaceVolumeData':IsoSurfaceVolumeData,
         ####################################### K
         'KeySensor':KeySensor,
