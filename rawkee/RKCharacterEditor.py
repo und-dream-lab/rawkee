@@ -30,6 +30,7 @@ except:
     from shiboken6         import getCppPointer
     
 import sys
+import os
 
 ########################################
 # Not sure why I imported this
@@ -49,9 +50,6 @@ import maya.api.OpenMayaAnim as omAnim
 #Sticker App for applying Outliner icons
 import rawkee.nodes.sticker    as stk
 
-#To get local file path for html file
-from rawkee import RKWeb3D
-
 #To geth other items from 'rawkee'
 ### from rawkee.RKXScene   import RKXScene
 ### from rawkee.RKXNodes   import RKXNode #notice the missing 's' - RKXNode is a test class
@@ -60,8 +58,6 @@ from rawkee import RKWeb3D
 
 
 from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
-
-global rkWeb3D
 
 class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
     
@@ -96,9 +92,10 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.animationPanel = None 
         self.testPanel = None
         
-        self.uiPaths = RKWeb3D.__file__.replace("\\", "/").rsplit("/", 1)[0]
+        self.uiPaths = os.path.abspath(__file__)
+        self.uiPaths = os.path.dirname(self.uiPaths)
         self.uiPaths += "/auxilary/"
-        
+
         self.hanimPath     = self.uiPaths + "RKCharacterEditorHAnimSkeletonPanel.ui"
         self.advancedPath  = self.uiPaths + "RKCharacterEditorAdvancedSkeletonPanel.ui"
         self.genericPath   = self.uiPaths + "RKCharacterEditorGenericSkeletonPanel.ui"
@@ -193,29 +190,9 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.create_connections()
         
 
-##################################
-#        Probably not needed
-##################################        
-#        self.rkWeb3D = None
-
-#    def setRKWeb3D(self, rkWeb3D):
-        # Maybe this should be moved to the constructor.
-        # This is here so that the RKCharacterEditor panel
-        # can send and receive x3d.X3D objects with the 
-        # MainMayaWindow RawKee GUI/Menu system.
-#        self.rkWeb3D = rkWeb3D
-
     def cleanUpOnEditorClose(self):
         print("cleanup")
-        #pass
-        # Release the RKWeb3D object, otherwise it will not
-        # later be deleteable when the plugin unloads. If
-        # the object is not deletable, then the __del__ 
-        # method for that object will never be called during
-        # the plugin unload, and thus the 'RawKee (X3D)' 
-        # menu won't be removed from the MayaMainWindow
-        # menubar.
-#        self.rkWeb3D = None
+
 
     def add_to_character_editor_workspace_control(self):
         character_editor_workspace_control = omui.MQtUtil.findControl(self.character_editor_control_name())

@@ -30,6 +30,7 @@ except:
     from shiboken6         import getCppPointer
     
 import sys
+import os
 
 ########################################
 # Not sure why I imported this
@@ -48,9 +49,6 @@ import maya.api.OpenMayaAnim as omAnim
 
 #Sticker App for applying Outliner icons
 import rawkee.nodes.sticker    as stk
-
-#To get local file path for html file
-from rawkee import RKWeb3D
 
 from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
 
@@ -81,14 +79,14 @@ class RKHAnimHumanoidSetupEditor(MayaQWidgetDockableMixin, QWidget):
 
         self.add_to_hanim_humanoid_setup_editor_workspace_control()
 
-        self.uiPaths = RKWeb3D.__file__.replace("\\", "/").rsplit("/", 1)[0]
-        self.uiPaths += "/auxilary/"
-        self.hhsePath = self.uiPaths + "RKHAnimHumanoidSetupPanel.ui"
+        self.uiPaths = os.path.abspath(__file__)
+        self.uiPaths = os.path.dirname(self.uiPaths)
+        self.uiPaths += "/auxilary/RKHAnimHumanoidSetupPanel.ui"
 
         loader = QtUiTools.QUiLoader()
         #loader.registerCustomWidget(RKDagPoseComboBox)
         
-        hhseGUIFile = QtCore.QFile(self.hhsePath)
+        hhseGUIFile = QtCore.QFile(self.uiPaths)
         hhseGUIFile.open(QtCore.QFile.ReadOnly)
         self.hhsePanel = loader.load(hhseGUIFile)
 

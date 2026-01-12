@@ -73,6 +73,11 @@ class RKWeb3D():
         self.dirPath  = ""
         self.fullPath = ""
         self.selectedFilter = ""
+        
+        self.uiPaths = os.path.abspath(__file__)
+        self.uiPaths = os.path.dirname(self.uiPaths)
+        self.uiIcons = self.uiPaths + "/nodes/icons/"
+
 
         #####################################################################################################################################
         # *.html export will remain temporarily unsupported because of the increasing complexity of the code necessary to support 
@@ -230,9 +235,9 @@ class RKWeb3D():
             label='RK_CACE',
             annotation='RawKee Character Animation Clip Editor',
             flexibleWidthType=1,
-            image1='rkclipeditor_100.png',
-            image2='rkclipeditor_150.png',
-            image3='rkclipeditor_200.png',
+            image1=self.uiIcons + 'rkclipeditor_100.png',
+            image2=self.uiIcons + 'rkclipeditor_150.png',
+            image3=self.uiIcons + 'rkclipeditor_200.png',
             sourceType='mel')
 
         cmds.shelfButton( parent=rkShelf,
@@ -240,9 +245,9 @@ class RKWeb3D():
             label='RK_BPE',
             annotation='RawKee Bind Pose Editor',
             flexibleWidthType=1,
-            image1='rkbindpose_100.png',
-            image2='rkbindpose_150.png',
-            image3='rkbindpose_200.png',
+            image1=self.uiIcons + 'rkbindpose_100.png',
+            image2=self.uiIcons + 'rkbindpose_150.png',
+            image3=self.uiIcons + 'rkbindpose_200.png',
             sourceType='mel')
 
         cmds.shelfButton( parent=rkShelf,
@@ -250,19 +255,20 @@ class RKWeb3D():
             label='RK_HHSE',
             annotation='RawKee HAnimHumanoid Setup Editor',
             flexibleWidthType=1,
-            image1='rkhhse_100.png',
-            image2='rkhhse_150.png',
-            image3='rkhhse_200.png',
+            image1=self.uiIcons + 'rkhhse_100.png',
+            image2=self.uiIcons + 'rkhhse_150.png',
+            image3=self.uiIcons + 'rkhhse_200.png',
             sourceType='mel')
 
+        #<a href="https://www.flaticon.com/free-icons/cog-wheel" title="cog wheel icons">Cog wheel icons created by muh zakaria - Flaticon</a>
         cmds.shelfButton( parent=rkShelf,
             command='rkShowMGearSetupEditor()',
             label='RK_MGSE',
             annotation='RawKee mGear Setup Editor',
             flexibleWidthType=1,
-            image1='rkmgse_100.png',
-            image2='rkmgse_150.png',
-            image3='rkmgse_200.png',
+            image1=self.uiIcons + 'rkmgse_100.png',
+            image2=self.uiIcons + 'rkmgse_150.png',
+            image3=self.uiIcons + 'rkmgse_200.png',
             sourceType='mel')
 
         cmds.refresh()
@@ -680,8 +686,6 @@ class RKAdvancedSkeleton(aom.MPxCommand):
         mel.eval('asCustomOrientJointsCreate()')
         haName = mel.eval('group -n HAnimHumanoid_01 GameSkeletonRoot_M')
         cmds.setAttr( "GameSkeletonRoot_M.visibility", 1 )
-        cmds.optionVar( iv=('rkHAnimLoa', 0))
-        cmds.optionVar( sv=('rkHAnimSkConfig', "BASIC"))
         cmds.setAttr("GameSkeletonRoot_M.side", 3)
         cmds.setAttr("GameSkeletonRoot_M.type", 18)
         cmds.setAttr("GameSkeletonRoot_M.otherType", "humanoid_root", type="string")
@@ -711,16 +715,13 @@ class RKSetAsHAnimHumanoid(aom.MPxCommand):
         return RKSetAsHAnimHumanoid()
         
     def doIt(self, args):
-        self.tName = cmds.optionVar(q='rkHAnimDEF')
+        self.tName = ""
         
-        if self.tName == "":
-            try:
-                rkSelections = cmds.ls(selection=True)
-                self.tName = rkSelections[0]
-            except:
-                pass
-        else:
-            cmds.optionVar( sv=("rkHAnimDEF", ""))
+        try:
+            rkSelections = cmds.ls(selection=True)
+            self.tName = rkSelections[0]
+        except:
+            pass
             
         if self.tName != "":
             selList = aom.MSelectionList()
@@ -751,15 +752,8 @@ class RKSetAsHAnimHumanoid(aom.MPxCommand):
                     cmds.addAttr(longName='levelOfArticulation', shortName='LOA', attributeType='long', keyable=False, defaultValue=-1, minValue=-1, maxValue=4)
                     cmds.addAttr(longName="skeletalConfiguration", dataType="string")
                     
-                    self.loa      = cmds.optionVar(q='rkHAnimLoa')
-                    self.skConfig = cmds.optionVar(q='rkHAnimSkConfig')
-                    
-                    if self.loa != -1:
-                        cmds.setAttr(depNode.name() + '.LOA', int(self.loa))
-                        cmds.optionVar( iv=('rkHAnimLoa', -1))
-                    
+                    self.skConfig = "BASIC"
                     cmds.setAttr(depNode.name() + ".skeletalConfiguration", self.skConfig, type="string")
-                    cmds.optionVar( sv=('rkHAnimSkConfig', 'BASIC'))
                         
                     try:
                         stk.put(depNode.name(), "x3dHAnimHumanoid.png")
