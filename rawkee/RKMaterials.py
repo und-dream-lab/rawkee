@@ -5,6 +5,42 @@ import maya.mel          as mmel
 import ctypes            as ctp
 import numpy             as np
 
+#advMat = 0
+#    material.typeName == aiStandardSurface
+#if   material.typeName == "standardSurface":
+#    advMat = 1
+#elif material.typeName == "openPBRSurface":
+#    advMat = 2
+#elif material.typeName == "usdPreviewSurface":
+#    advMat = 3
+#elif material.typeName == "StringrayPBS":
+#    advMat = 4
+#            |   aiStandardSurface  |    standardSurface    |    openPBRSurface     | usdPreviewSurface |    StingrayPBS     |
+#tColorList = [           "baseColor",            "baseColor",            "baseColor",     "diffuseColor",     "TEX_color_map"]
+#colorList  = [           "baseColor",            "baseColor",            "baseColor",     "diffuseColor",         "baseColor"]
+#dRoughList = ["baseDiffuseRoughness", "baseDiffuseRoughness", "baseDiffuseRoughness",                 "",                  ""]
+
+# This can also be done through a multiply node - see https://www.youtube.com/watch?v=Zy0dYnHMRPY
+# for aiStandardSurface, standardSurface, and openPBRSurface, but not for usdPreviewSurface, and StringrayPBS
+
+#tOcclList  = [          "baseWeight",           "baseWeight",           "baseWeight",        "occlusion",        "TEX_oa_map"]
+#occlList   = [          "baseWeight",           "baseWeight",           "baseWeight",        "occlusion",                  ""]
+#tEmisList  = [       "emissionColor",        "emissionColor",        "emissionColor",    "emissiveColor",  "TEX_emissive_map"]
+#sEmisList  = [      "emissionWeight",       "emissionWeight",    "emissionLuminance",                 "", "emissiveIntensity"]
+#emisList   = [       "emissionColor",        "emissionColor",        "emissionColor",    "emissiveColor",          "emissive"]
+#tNormList  = [        "normalCamera",         "normalCamera",         "normalCamera",           "normal",    "TEX_normal_map"]
+#tMetalList = [       "baseMetalness",        "baseMetalness",        "baseMetalness",         "metallic",  "TEX_metallic_map"]
+#metalList  = [       "baseMetalness",        "baseMetalness",        "baseMetalness",         "metallic",          "metallic"]
+#roughList  = [   "specularRoughness",    "specularRoughness",    "specularRoughness",        "roughness",         "roughness"]
+#tRoughList = [   "specularRoughness",    "specularRoughness",    "specularRoughness",        "roughness", "TEX_roughness_map"]
+#iorList    = [         "specularIOR",          "specularIOR",          "specularIOR",              "ior",                  ""]
+#dispList   = ["transmissionDispersion", "transmissionDispersion", "transmissionDispersionAbbeNumber", "",                  ""]
+#coatNoList = [          "coatNormal",           "coatNormal",   "geometryCoatNormal",                 "",                  ""]
+#fuzzList   = [         "sheenWeight",          "sheenWeight",           "fuzzWeight",                 "",                  ""]
+#fColList   = [          "sheenColor",           "sheenColor",            "fuzzColor",                 "",                  ""]
+#fRouList   = [      "sheenRoughness",       "sheenRoughness",        "fuzzRoughness",                 "",                  ""]
+#tWallList  = [          "thinWalled",           "thinWalled",   "geometryThinWalled",                 "",                  ""]
+
 def searchForNodeByNameType(plug, nodeTypes):
     for nType in nodeTypes:
         dgIter = maom.MItDependencyGraph(plug, filter=maom.MFn.kInvalid, direction=maom.MItDependencyGraph.kUpstream, level=maom.MItDependencyGraph.kNodeLevel, traversal=maom.MItDependencyGraph.kDepthFirst)
@@ -154,51 +190,6 @@ def getUnknownBaseColorAndOcclusionTextures(material, colorStore, colorAttr):
     multiply = searchForNodeByNameType(colorConn, ["multiplyDivide", "aiMultiply"])
     if multiply:
         inputConn1   = multiply.findPlug("input1", True)
-        colorTexture = searchForNodeByApiType(inputConn1.asMObject(), maom.MFn.kTexture2d)
-        if colorTexture:
-            colorStore["baseTexture"] = colorTexture
-        
-        inputConn2   = multiply.findPlug("input2", True)
-        occlTexture  = searchForNodeByApiType(inputConn2.asMObject(), maom.MFn.kTexture2d)
-        if occlTexture:
-            colorStore["occlusionTexture"] = occlTexture
-        else:
-            inputConn2 = multiply.findPlug("input2R", True)
-            occlTexture2R = searchForNodeByApiType(inputConn2.asMObject(), maom.MFn.kTexture2d)
-            if occlTexture2R:
-                colorStore["occlusionTexture"] = occlTexture2R
-    else:
-        aiImage = searchForNodeByNameType(colorConn, ["aiImage"])
-        if aiImage:
-            colorStore["baseTexture"] = aiImage
-            multiConn = aiImage.findPlug("multiply", True)
-            occlTexture  = searchForNodeByApiType(multiConn.asMObject(), maom.MFn.kTexture2d)
-            if occlTexture:
-                colorStore["occlusionTexture"] = occlTexture
-            else:
-                multiConn = aiImage.findPlug("multiplyR", True)
-                occlTexture2R = searchForNodeByApiType(multiConn.asMObject(), maom.MFn.kTexture2d)
-                if occlTexture2R:
-                    colorStore["occlusionTexture"] = occlTexture2R
-        else:
-            colorTexture = searchForNodeByApiType(colorConn.asMObject(), maom.MFn.kTexture2d)
-            if colorTexture:
-                colorStore["baseTexture"] = colorTexture
-            
-            occlTexture  = searchForNodeByApiType(baseConn.asMObject(), maom.MFn.kTexture2d)
-            if occlTexture:
-                colorTex["occlusionTexture"] = occlTexture
-
-
-def getLegacyBaseColorAndOcclusionTextures(material, colorStore, physMat):
-    hasOcclTexture = False
-    
-    # Color Plug
-    colorConn = material.findPlug("color", True)
-    
-    multiply = searchForNodeByNameType(colorConn, ["multiplyDivide", "aiMultiply"])
-    if multiply:
-        inputConn1   = multiply.findPlug("input1", True)
         colorTexture = searchForNodeByApiType(inputConn1, maom.MFn.kTexture2d)
         if colorTexture:
             colorStore["baseTexture"] = colorTexture
@@ -206,17 +197,11 @@ def getLegacyBaseColorAndOcclusionTextures(material, colorStore, physMat):
         inputConn2   = multiply.findPlug("input2", True)
         occlTexture  = searchForNodeByApiType(inputConn2, maom.MFn.kTexture2d)
         if occlTexture:
-            hasOcclTexture = True
             colorStore["occlusionTexture"] = occlTexture
         else:
-            plugName = "input2R"
-            if multiply.typeName == "multiplyDivide":
-                plugName = "input2X"
-                
-            inputConn2 = multiply.findPlug(plugName, True)
+            inputConn2 = multiply.findPlug("input2R", True)
             occlTexture2R = searchForNodeByApiType(inputConn2, maom.MFn.kTexture2d)
             if occlTexture2R:
-                hasOcclTexture = True
                 colorStore["occlusionTexture"] = occlTexture2R
     else:
         aiImage = searchForNodeByNameType(colorConn, ["aiImage"])
@@ -225,30 +210,74 @@ def getLegacyBaseColorAndOcclusionTextures(material, colorStore, physMat):
             multiConn = aiImage.findPlug("multiply", True)
             occlTexture  = searchForNodeByApiType(multiConn, maom.MFn.kTexture2d)
             if occlTexture:
-                hasOcclTexture = True
                 colorStore["occlusionTexture"] = occlTexture
             else:
                 multiConn = aiImage.findPlug("multiplyR", True)
-                occlTexture2R = searchForNodeByApiType(multiConn.asMObject(), maom.MFn.kTexture2d)
+                occlTexture2R = searchForNodeByApiType(multiConn, maom.MFn.kTexture2d)
                 if occlTexture2R:
-                    hasOcclTexture = True
                     colorStore["occlusionTexture"] = occlTexture2R
         else:
             colorTexture = searchForNodeByApiType(colorConn, maom.MFn.kTexture2d)
             if colorTexture:
                 colorStore["baseTexture"] = colorTexture
             
-    # Ambient Color Plug
-    if hasOcclTexture == False:
-        ambConn   = material.findPlug("ambientColor", True)
-        acTexture = searchForNodeByApiType(ambConn, maom.MFn.kTexture2d)
-        if acTexture:
-            hasOcclTexture = True
-            colorStore["occlusionTexture"] = acTexture
+            occlTexture  = searchForNodeByApiType(baseConn, maom.MFn.kTexture2d)
+            if occlTexture:
+                colorTex["occlusionTexture"] = occlTexture
+
+
+def getLegacyBaseColorAndOcclusionTextures(material, colorStore):
+    hasOcclTexture = False
     
-    if hasOcclTexture == False:
-        acColor = mcmds.getAttr(material.name() + ".ambientColor")[0]
-        physMat.occlusionStrength = (acColor[0] + acColor[1] + acColor[2]) / 3
+    # Color Plug
+    colorConn = None
+    try:
+        colorConn = material.findPlug("KdColor", True)
+    except:
+        colorConn = material.findPlug("color", True)
+
+    if colorConn:
+        multiply = searchForNodeByNameType(colorConn, ["multiplyDivide", "aiMultiply"])
+        if multiply:
+            inputConn1   = multiply.findPlug("input1", True)
+            colorTexture = searchForNodeByApiType(inputConn1, maom.MFn.kTexture2d)
+            if colorTexture:
+                colorStore["baseTexture"] = colorTexture
+            
+            inputConn2   = multiply.findPlug("input2", True)
+            occlTexture  = searchForNodeByApiType(inputConn2, maom.MFn.kTexture2d)
+            if occlTexture:
+                hasOcclTexture = True
+                colorStore["occlusionTexture"] = occlTexture
+            else:
+                plugName = "input2R"
+                if multiply.typeName == "multiplyDivide":
+                    plugName = "input2X"
+                    
+                inputConn2 = multiply.findPlug(plugName, True)
+                occlTexture2R = searchForNodeByApiType(inputConn2, maom.MFn.kTexture2d)
+                if occlTexture2R:
+                    hasOcclTexture = True
+                    colorStore["occlusionTexture"] = occlTexture2R
+        else:
+            aiImage = searchForNodeByNameType(colorConn, ["aiImage"])
+            if aiImage:
+                colorStore["baseTexture"] = aiImage
+                multiConn = aiImage.findPlug("multiply", True)
+                occlTexture  = searchForNodeByApiType(multiConn, maom.MFn.kTexture2d)
+                if occlTexture:
+                    hasOcclTexture = True
+                    colorStore["occlusionTexture"] = occlTexture
+                else:
+                    multiConn = aiImage.findPlug("multiplyR", True)
+                    occlTexture2R = searchForNodeByApiType(multiConn.asMObject(), maom.MFn.kTexture2d)
+                    if occlTexture2R:
+                        hasOcclTexture = True
+                        colorStore["occlusionTexture"] = occlTexture2R
+            else:
+                colorTexture = searchForNodeByApiType(colorConn, maom.MFn.kTexture2d)
+                if colorTexture:
+                    colorStore["baseTexture"] = colorTexture
 
 
 def getAdvBaseColorAndOcclusionTextures(material, colorStore, advMat):
@@ -294,9 +323,9 @@ def getAdvBaseColorAndOcclusionTextures(material, colorStore, advMat):
                 if colorTexture:
                     colorStore["baseTexture"] = colorTexture
                 
-                occlTexture  = searchForNodeByApiType(baseConn, maom.MFn.kTexture2d)
-                if occlTexture:
-                    colorTex["occlusionTexture"] = occlTexture
+                #occlTexture  = searchForNodeByApiType(baseConn, maom.MFn.kTexture2d)
+                #if occlTexture:
+                #    colorTex["occlusionTexture"] = occlTexture
     elif advMat == 3:
         dColorConn = material.findPlug("diffuseColor", True)
         colorTexture = searchForNodeByApiType(dColorConn, maom.MFn.kTexture2d)
@@ -319,3 +348,4 @@ def getAdvBaseColorAndOcclusionTextures(material, colorStore, advMat):
         occlTexture = searchForNodeByApiType(tOcclConn, maom.MFn.kTexture2d)
         if occlTexture:
             colorStore  ["occlussionTexture"] = occlTexture
+

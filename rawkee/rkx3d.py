@@ -57827,6 +57827,353 @@ class CGEIndexedFaceSet(_X3DComposedGeometryNode):
         """ Whether or not this node has any child node or statement """
         return self.color or self.coord or self.fogCoord or self.IS or self.metadata or self.normal or self.texCoord or (len(self.attrib) > 0)
 
+
+class _X3DMaterialExtensionNode(_X3DNode):
+    """
+    Add extensions to material nodes.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Abstract Type class. """
+        return '_X3DMaterialExtensionNode'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'NA - Aaron does not have this infomration'
+
+
+class PhysicalMaterialExt(_X3DOneSidedMaterialNode):
+    """
+    PhysicalMaterialExt specifies surface rendering properties for associated geometry nodes with an additional 'extensions' field.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'PhysicalMaterial'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://www.web3d.org/specifications/X3Dv4/ISO-IEC19775-1v4-IS/Part01/components/shape.html#PhysicalMaterial'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://www.web3d.org/x3d/tooltips/X3dTooltips.html#PhysicalMaterial'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('baseColor', (1, 1, 1), FieldType.SFColor, AccessType.inputOutput, 'PhysicalMaterialExt'),
+        ('baseTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'PhysicalMaterialExt'),
+        ('emissiveColor', (0, 0, 0), FieldType.SFColor, AccessType.inputOutput, 'PhysicalMaterialExt'),
+        ('emissiveTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'X3DOneSidedMaterialNode'),
+        ('metallic', 1, FieldType.SFFloat, AccessType.inputOutput, 'PhysicalMaterialExt'),
+        ('metallicRoughnessTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'PhysicalMaterialExt'),
+        ('normalScale', 1, FieldType.SFFloat, AccessType.inputOutput, 'X3DOneSidedMaterialNode'),
+        ('normalTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'X3DOneSidedMaterialNode'),
+        ('occlusionStrength', 1, FieldType.SFFloat, AccessType.inputOutput, 'PhysicalMaterialExt'),
+        ('occlusionTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'PhysicalMaterialExt'),
+        ('roughness', 1, FieldType.SFFloat, AccessType.inputOutput, 'PhysicalMaterialExt'),
+        ('transparency', 0, FieldType.SFFloat, AccessType.inputOutput, 'PhysicalMaterialExt'),
+        ('baseTexture', None, FieldType.SFNode, AccessType.inputOutput, 'PhysicalMaterialExt'),
+        ('emissiveTexture', None, FieldType.SFNode, AccessType.inputOutput, 'PhysicalMaterialExt'),
+        ('extensions', [], FieldType.MFNode, AccessType.inputOutput, 'PhysicalMaterialExt'),
+        ('metallicRoughnessTexture', None, FieldType.SFNode, AccessType.inputOutput, 'PhysicalMaterialExt'),
+        ('normalTexture', None, FieldType.SFNode, AccessType.inputOutput, 'PhysicalMaterialExt'),
+        ('occlusionTexture', None, FieldType.SFNode, AccessType.inputOutput, 'PhysicalMaterialExt'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        baseColor=(1, 1, 1),
+        baseTextureMapping='',
+        emissiveColor=(0, 0, 0),
+        emissiveTextureMapping='',
+        metallic=1,
+        metallicRoughnessTextureMapping='',
+        normalScale=1,
+        normalTextureMapping='',
+        occlusionStrength=1,
+        occlusionTextureMapping='',
+        roughness=1,
+        transparency=0,
+        baseTexture=None,
+        emissiveTexture=None,
+        extensions=None,
+        metallicRoughnessTexture=None,
+        normalTexture=None,
+        occlusionTexture=None,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode PhysicalMaterial __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.baseColor = baseColor
+        self.baseTextureMapping = baseTextureMapping
+        self.emissiveColor = emissiveColor
+        self.emissiveTextureMapping = emissiveTextureMapping
+        self.metallic = metallic
+        self.metallicRoughnessTextureMapping = metallicRoughnessTextureMapping
+        self.normalScale = normalScale
+        self.normalTextureMapping = normalTextureMapping
+        self.occlusionStrength = occlusionStrength
+        self.occlusionTextureMapping = occlusionTextureMapping
+        self.roughness = roughness
+        self.transparency = transparency
+        self.baseTexture = baseTexture
+        self.emissiveTexture = emissiveTexture
+        self.extensions = extensions
+        self.metallicRoughnessTexture = metallicRoughnessTexture
+        self.normalTexture = normalTexture
+        self.occlusionTexture = occlusionTexture
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def baseColor(self):
+        """[0,1] similar to diffuseColor, TODO define more precisely."""
+        return self.__baseColor
+    @baseColor.setter
+    def baseColor(self, baseColor):
+        if  baseColor is None:
+            baseColor = (1, 1, 1)  # default
+        assertValidSFColor(baseColor)
+        assertZeroToOne('baseColor', baseColor)
+        self.__baseColor = baseColor
+    @property # getter - - - - - - - - - -
+    def baseTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__baseTextureMapping
+    @baseTextureMapping.setter
+    def baseTextureMapping(self, baseTextureMapping):
+        if  baseTextureMapping is None:
+            baseTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(baseTextureMapping)
+        self.__baseTextureMapping = baseTextureMapping
+    @property # getter - - - - - - - - - -
+    def emissiveColor(self):
+        """[0,1] how much glowing light is emitted from this object."""
+        return self.__emissiveColor
+    @emissiveColor.setter
+    def emissiveColor(self, emissiveColor):
+        if  emissiveColor is None:
+            emissiveColor = (0, 0, 0)  # default
+        assertValidSFColor(emissiveColor)
+        assertZeroToOne('emissiveColor', emissiveColor)
+        self.__emissiveColor = emissiveColor
+    @property # getter - - - - - - - - - -
+    def emissiveTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__emissiveTextureMapping
+    @emissiveTextureMapping.setter
+    def emissiveTextureMapping(self, emissiveTextureMapping):
+        if  emissiveTextureMapping is None:
+            emissiveTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(emissiveTextureMapping)
+        self.__emissiveTextureMapping = emissiveTextureMapping
+    @property # getter - - - - - - - - - -
+    def metallic(self):
+        """[0,1] metallic is a PBR parameter (TODO elaborate)."""
+        return self.__metallic
+    @metallic.setter
+    def metallic(self, metallic):
+        if  metallic is None:
+            metallic = 1  # default
+        assertValidSFFloat(metallic)
+        assertZeroToOne('metallic', metallic)
+        self.__metallic = metallic
+    @property # getter - - - - - - - - - -
+    def metallicRoughnessTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__metallicRoughnessTextureMapping
+    @metallicRoughnessTextureMapping.setter
+    def metallicRoughnessTextureMapping(self, metallicRoughnessTextureMapping):
+        if  metallicRoughnessTextureMapping is None:
+            metallicRoughnessTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(metallicRoughnessTextureMapping)
+        self.__metallicRoughnessTextureMapping = metallicRoughnessTextureMapping
+    @property # getter - - - - - - - - - -
+    def normalScale(self):
+        """[0,infinity] normalScale controls the degree to which normalTexture RGB values apply XYZ-normal bump mapping to pixels in the parent material."""
+        return self.__normalScale
+    @normalScale.setter
+    def normalScale(self, normalScale):
+        if  normalScale is None:
+            normalScale = 1  # default
+        assertValidSFFloat(normalScale)
+        assertNonNegative('normalScale', normalScale)
+        self.__normalScale = normalScale
+    @property # getter - - - - - - - - - -
+    def normalTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__normalTextureMapping
+    @normalTextureMapping.setter
+    def normalTextureMapping(self, normalTextureMapping):
+        if  normalTextureMapping is None:
+            normalTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(normalTextureMapping)
+        self.__normalTextureMapping = normalTextureMapping
+    @property # getter - - - - - - - - - -
+    def occlusionStrength(self):
+        """[0,1] occlusionStrength indicates areas of indirect lighting, typically called ambient occlusion."""
+        return self.__occlusionStrength
+    @occlusionStrength.setter
+    def occlusionStrength(self, occlusionStrength):
+        if  occlusionStrength is None:
+            occlusionStrength = 1  # default
+        assertValidSFFloat(occlusionStrength)
+        assertZeroToOne('occlusionStrength', occlusionStrength)
+        self.__occlusionStrength = occlusionStrength
+    @property # getter - - - - - - - - - -
+    def occlusionTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__occlusionTextureMapping
+    @occlusionTextureMapping.setter
+    def occlusionTextureMapping(self, occlusionTextureMapping):
+        if  occlusionTextureMapping is None:
+            occlusionTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(occlusionTextureMapping)
+        self.__occlusionTextureMapping = occlusionTextureMapping
+    @property # getter - - - - - - - - - -
+    def roughness(self):
+        """[0,1] roughness is a PBR parameter (TODO elaborate)."""
+        return self.__roughness
+    @roughness.setter
+    def roughness(self, roughness):
+        if  roughness is None:
+            roughness = 1  # default
+        assertValidSFFloat(roughness)
+        assertZeroToOne('roughness', roughness)
+        self.__roughness = roughness
+    @property # getter - - - - - - - - - -
+    def transparency(self):
+        """[0,1] how "clear" an object is: 1."""
+        return self.__transparency
+    @transparency.setter
+    def transparency(self, transparency):
+        if  transparency is None:
+            transparency = 0  # default
+        assertValidSFFloat(transparency)
+        assertZeroToOne('transparency', transparency)
+        self.__transparency = transparency
+    @property # getter - - - - - - - - - -
+    def baseTexture(self):
+        """[X3DSingleTextureNode] When applying baseColor for this material node, the contained texture provides Physically Based Rendering (PBR) modulation for each pixel."""
+        return self.__baseTexture
+    @baseTexture.setter
+    def baseTexture(self, baseTexture):
+        if  baseTexture is None:
+            baseTexture = None  # default
+        assertValidSFNode(baseTexture)
+        if not baseTexture is None and not isinstance(baseTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(baseTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__baseTexture = baseTexture
+    @property # getter - - - - - - - - - -
+    def emissiveTexture(self):
+        """[X3DSingleTextureNode] When applying emissiveColor for this material node, the contained texture provides Physically Based Rendering (PBR) modulation for each pixel."""
+        return self.__emissiveTexture
+    @emissiveTexture.setter
+    def emissiveTexture(self, emissiveTexture):
+        if  emissiveTexture is None:
+            emissiveTexture = None  # default
+        assertValidSFNode(emissiveTexture)
+        if not emissiveTexture is None and not isinstance(emissiveTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(emissiveTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__emissiveTexture = emissiveTexture
+    @property # getter - - - - - - - - - -
+    def extensions(self):
+        """[X3DMaterialExtensionNode] - stuff."""
+        return self.__extensions
+    @extensions.setter
+    def extensions(self, extensions):
+        if  extensions is None:
+            extensions = MFNode.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(MFNode.DEFAULT_VALUE()))
+        assertValidMFNode(extensions)
+        self.__extensions = extensions
+    @property # getter - - - - - - - - - -
+    def metallicRoughnessTexture(self):
+        """[X3DSingleTextureNode] When applying metallic for this material node, the contained texture provides Physically Based Rendering (PBR) modulation for each pixel."""
+        return self.__metallicRoughnessTexture
+    @metallicRoughnessTexture.setter
+    def metallicRoughnessTexture(self, metallicRoughnessTexture):
+        if  metallicRoughnessTexture is None:
+            metallicRoughnessTexture = None  # default
+        assertValidSFNode(metallicRoughnessTexture)
+        if not metallicRoughnessTexture is None and not isinstance(metallicRoughnessTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(metallicRoughnessTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__metallicRoughnessTexture = metallicRoughnessTexture
+    @property # getter - - - - - - - - - -
+    def normalTexture(self):
+        """[X3DSingleTextureNode] When applying normalScale for this material node, the contained texture modulates the texture across the surface."""
+        return self.__normalTexture
+    @normalTexture.setter
+    def normalTexture(self, normalTexture):
+        if  normalTexture is None:
+            normalTexture = None  # default
+        assertValidSFNode(normalTexture)
+        if not normalTexture is None and not isinstance(normalTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(normalTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__normalTexture = normalTexture
+    @property # getter - - - - - - - - - -
+    def occlusionTexture(self):
+        """[X3DSingleTextureNode] When applying occlusionStrength for this material node, the contained texture provides Physically Based Rendering (PBR) modulation for each pixel."""
+        return self.__occlusionTexture
+    @occlusionTexture.setter
+    def occlusionTexture(self, occlusionTexture):
+        if  occlusionTexture is None:
+            occlusionTexture = None  # default
+        assertValidSFNode(occlusionTexture)
+        if not occlusionTexture is None and not isinstance(occlusionTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(occlusionTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__occlusionTexture = occlusionTexture
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.baseTexture or self.emissiveTexture or self.IS or self.metadata or self.metallicRoughnessTexture or self.normalTexture or self.occlusionTexture
+    # output function - - - - - - - - - -
+
+
 class EnvironmentLight(_X3DLightNode):
     """
     EnvironmentLight
@@ -58066,19 +58413,641 @@ class EnvironmentLight(_X3DLightNode):
     # output function - - - - - - - - - -
 
 
-class _X3DMaterialExtensionNode(_X3DNode):
+class AnisotropyMaterialExtension(_X3DMaterialExtensionNode):
     """
-    Add extensions to material nodes.
+    AnisotropyMaterialExtension only works with X_ITE, hopefully other viewers ignore it.
+    Adds Anisotropy to PhysicalMaterial nodes.
     """
     # immutable constant functions have getter but no setter - - - - - - - - - -
     @classmethod
     def NAME(cls):
-        """ Name of this X3D Abstract Type class. """
-        return '_X3DMaterialExtensionNode'
+        """ Name of this X3D Node class. """
+        return 'AnisotropyMaterialExtension'
     @classmethod
     def SPECIFICATION_URL(cls):
         """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
-        return 'NA - Aaron does not have this infomration'
+        return 'https://create3000.github.io/x_ite/components/x-ite/anisotropymaterialextension/'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/anisotropymaterialextension/'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('anisotropyStrength', 0.0, FieldType.SFFloat, AccessType.inputOutput, 'AnisotropyMaterialExtension'),
+        ('anisotropyRotation', 0.0, FieldType.SFFloat, AccessType.inputOutput, 'AnisotropyMaterialExtension'),
+        ('anisotropyTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'AnisotropyMaterialExtension'),
+        ('anisotropyTexture', None, FieldType.SFNode, AccessType.inputOutput, 'AnisotropyMaterialExtension'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        anisotropyStrength=0.0,
+        anisotropyRotation=0.0,
+        anisotropyTextureMapping='',
+        anisotropyTexture=None,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode Group __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.anisotropyStrength = anisotropyStrength
+        self.anisotropyRotation = anisotropyRotation
+        self.anisotropyStrength = anisotropyStrength
+        self.anisotropyRotation = anisotropyRotation
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def anisotropyStrength(self):
+        """The anisotropyStrength defines ior for PhysicalMaterial nodes."""
+        return self.__anisotropyStrength
+    @anisotropyStrength.setter
+    def anisotropyStrength(self, anisotropyStrength):
+        if  anisotropyStrength is None:
+            anisotropyStrength = 0.0 # default
+        assertValidSFFloat(anisotropyStrength)
+        assertNonNegative('anisotropyStrength', anisotropyStrength)
+        self.__anisotropyStrength = anisotropyStrength
+    @property # getter - - - - - - - - - -
+    def anisotropyRotation(self):
+        """The anisotropyRotation defines ior for PhysicalMaterial nodes."""
+        return self.__anisotropyRotation
+    @anisotropyRotation.setter
+    def anisotropyRotation(self, anisotropyRotation):
+        if  anisotropyRotation is None:
+            anisotropyRotation = 0.0 # default
+        assertValidSFFloat(anisotropyRotation)
+        self.__anisotropyRotation = anisotropyRotation
+    @property # getter - - - - - - - - - -
+    def anisotropyTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__anisotropyTextureMapping
+    @anisotropyTextureMapping.setter
+    def anisotropyTextureMapping(self, anisotropyTextureMapping):
+        if  anisotropyTextureMapping is None:
+            anisotropyTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(anisotropyTextureMapping)
+        self.__anisotropyTextureMapping = anisotropyTextureMapping
+    @property # getter - - - - - - - - - -
+    def anisotropyTexture(self):
+        """[X3DSingleTextureNode] When applying ambientIntensity for this material node, the contained texture provides Physically Based Rendering (PBR) modulation for each pixel."""
+        return self.__anisotropyTexture
+    @anisotropyTexture.setter
+    def anisotropyTexture(self, anisotropyTexture):
+        if  anisotropyTexture is None:
+            anisotropyTexture = None  # default
+        assertValidSFNode(anisotropyTexture)
+        if not anisotropyTexture is None and not isinstance(anisotropyTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(anisotropyTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__anisotropyTexture = anisotropyTexture
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.IS or self.metadata
+
+
+class ClearcoatMaterialExtension(_X3DMaterialExtensionNode):
+    """
+    ClearcoatMaterialExtension only works with X_ITE, hopefully other viewers ignore it.
+    Adds Transmission/Transparency to PhysicalMaterial nodes.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'ClearcoatMaterialExtension'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/clearcoatmaterialextension/'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/clearcoatmaterialextension/'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('clearcoat', 0.0, FieldType.SFFloat, AccessType.inputOutput, 'ClearcoatMaterialExtension'),
+        ('clearcoatTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'ClearcoatMaterialExtension'),
+        ('clearcoatTexture', None, FieldType.SFNode, AccessType.inputOutput, 'ClearcoatMaterialExtension'),
+        ('clearcoatRoughness', 0.0, FieldType.SFFloat, AccessType.inputOutput, 'ClearcoatMaterialExtension'),
+        ('clearcoatRoughnessTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'ClearcoatMaterialExtension'),
+        ('clearcoatRoughnessTexture', None, FieldType.SFNode, AccessType.inputOutput, 'ClearcoatMaterialExtension'),
+        ('clearcoatNormalTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'ClearcoatMaterialExtension'),
+        ('clearcoatNormalTexture', None, FieldType.SFNode, AccessType.inputOutput, 'ClearcoatMaterialExtension'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        clearcoat=0.0,
+        clearcoatTextureMapping="",
+        clearcoatTexture=None,
+        clearcoatRoughness=0.0,
+        clearcoatRoughnessTextureMapping="",
+        clearcoatRoughnessTexture=None,
+        clearcoatNormalTextureMapping="",
+        clearcoatNormalTexture=None,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode Group __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.clearcoat = clearcoat
+        self.clearcoatTextureMapping = clearcoatTextureMapping
+        self.clearcoatTexture = clearcoatTexture
+        self.clearcoatRoughness = clearcoatRoughness
+        self.clearcoatRoughnessTextureMapping = clearcoatRoughnessTextureMapping
+        self.clearcoatRoughnessTexture = clearcoatRoughnessTexture
+        self.clearcoatNormalTextureMapping = clearcoatNormalTextureMapping
+        self.clearcoatNormalTexture = clearcoatNormalTexture
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def clearcoat(self):
+        """The clearcoat - NA -  PhysicalMaterial nodes."""
+        return self.__clearcoat
+    @clearcoat.setter
+    def clearcoat(self, clearcoat):
+        if  clearcoat is None:
+            clearcoat = 0.0 # default
+        assertValidSFFloat(clearcoat)
+        assertNonNegative('clearcoat', clearcoat)
+        self.__clearcoat = clearcoat
+    @property # getter - - - - - - - - - -
+    def clearcoatTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__clearcoatTextureMapping
+    @clearcoatTextureMapping.setter
+    def clearcoatTextureMapping(self, clearcoatTextureMapping):
+        if  clearcoatTextureMapping is None:
+            clearcoatTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(clearcoatTextureMapping)
+        self.__clearcoatTextureMapping = clearcoatTextureMapping
+    @property # getter - - - - - - - - - -
+    def clearcoatTexture(self):
+        """[X3DSingleTextureNode] - IDK."""
+        return self.__clearcoatTexture
+    @clearcoatTexture.setter
+    def clearcoatTexture(self, clearcoatTexture):
+        if  clearcoatTexture is None:
+            clearcoatTexture = None  # default
+        assertValidSFNode(clearcoatTexture)
+        if not clearcoatTexture is None and not isinstance(clearcoatTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(clearcoatTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__clearcoatTexture = clearcoatTexture
+    @property # getter - - - - - - - - - -
+    def clearcoatRoughness(self):
+        """The clearcoatRoughness - NA -  PhysicalMaterial nodes."""
+        return self.__clearcoatRoughness
+    @clearcoatRoughness.setter
+    def clearcoatRoughness(self, clearcoatRoughness):
+        if  clearcoatRoughness is None:
+            clearcoatRoughness = 0.0 # default
+        assertValidSFFloat(clearcoatRoughness)
+        assertNonNegative('clearcoatRoughness', clearcoatRoughness)
+        self.__clearcoatRoughness = clearcoatRoughness
+    @property # getter - - - - - - - - - -
+    def clearcoatRoughnessTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__clearcoatRoughnessTextureMapping
+    @clearcoatRoughnessTextureMapping.setter
+    def clearcoatRoughnessTextureMapping(self, clearcoatRoughnessTextureMapping):
+        if  clearcoatRoughnessTextureMapping is None:
+            clearcoatRoughnessTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(clearcoatRoughnessTextureMapping)
+        self.__clearcoatRoughnessTextureMapping = clearcoatRoughnessTextureMapping
+    @property # getter - - - - - - - - - -
+    def clearcoatRoughnessTexture(self):
+        """[X3DSingleTextureNode] - IDK."""
+        return self.__clearcoatRoughnessTexture
+    @clearcoatRoughnessTexture.setter
+    def clearcoatRoughnessTexture(self, clearcoatRoughnessTexture):
+        if  clearcoatRoughnessTexture is None:
+            clearcoatRoughnessTexture = None  # default
+        assertValidSFNode(clearcoatRoughnessTexture)
+        if not clearcoatRoughnessTexture is None and not isinstance(clearcoatRoughnessTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(clearcoatRoughnessTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__clearcoatRoughnessTexture = clearcoatRoughnessTexture
+    @property # getter - - - - - - - - - -
+    def clearcoatNormalTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__clearcoatNormalTextureMapping
+    @clearcoatNormalTextureMapping.setter
+    def clearcoatNormalTextureMapping(self, clearcoatNormalTextureMapping):
+        if  clearcoatNormalTextureMapping is None:
+            clearcoatNormalTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(clearcoatNormalTextureMapping)
+        self.__clearcoatNormalTextureMapping = clearcoatNormalTextureMapping
+    @property # getter - - - - - - - - - -
+    def clearcoatNormalTexture(self):
+        """[X3DSingleTextureNode] - IDK."""
+        return self.__clearcoatNormalTexture
+    @clearcoatNormalTexture.setter
+    def clearcoatNormalTexture(self, clearcoatNormalTexture):
+        if  clearcoatNormalTexture is None:
+            clearcoatNormalTexture = None  # default
+        assertValidSFNode(clearcoatNormalTexture)
+        if not clearcoatNormalTexture is None and not isinstance(clearcoatNormalTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(clearcoatNormalTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__clearcoatNormalTexture = clearcoatNormalTexture
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.IS or self.metadata
+
+
+class DiffuseTransmissionMaterialExtension(_X3DMaterialExtensionNode):
+    """
+    DiffuseTransmissionMaterialExtension only works with X_ITE, hopefully other viewers ignore it.
+    Adds Transmission/Transparency to PhysicalMaterial nodes.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'DiffuseTransmissionMaterialExtension'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/diffusetransmissionmaterialextension/'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/diffusetransmissionmaterialextension/'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('diffuseTransmission', 0.0, FieldType.SFFloat, AccessType.inputOutput, 'DiffuseTransmissionMaterialExtension'),
+        ('diffuseTransmissionTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'DiffuseTransmissionMaterialExtension'),
+        ('diffuseTransmissionTexture', None, FieldType.SFNode, AccessType.inputOutput, 'DiffuseTransmissionMaterialExtension'),
+        ('diffuseTransmissionColor', (1.0, 1.0, 1.0), FieldType.SFColor, AccessType.inputOutput, 'DiffuseTransmissionMaterialExtension'),
+        ('diffuseTransmissionColorTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'DiffuseTransmissionMaterialExtension'),
+        ('diffuseTransmissionColorTexture', None, FieldType.SFNode, AccessType.inputOutput, 'DiffuseTransmissionMaterialExtension'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        diffuseTransmission=0.0,
+        diffuseTransmissionTextureMapping="",
+        diffuseTransmissionTexture=None,
+        diffuseTransmissionColor=(1.0, 1.0, 1.0),
+        diffuseTransmissionColorTextureMapping="",
+        diffuseTransmissionColorTexture=None,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode Group __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.diffuseTransmission = diffuseTransmission
+        self.diffuseTransmissionTextureMapping = diffuseTransmissionTextureMapping
+        self.diffuseTransmissionTexture = diffuseTransmissionTexture
+        self.diffuseTransmissionColor   = diffuseTransmissionColor
+        self.diffuseTransmissionColorTextureMapping = diffuseTransmissionColorTextureMapping
+        self.diffuseTransmissionColorTexture = diffuseTransmissionColorTexture
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def diffuseTransmission(self):
+        """The specualr - NA -  PhysicalMaterial nodes."""
+        return self.__diffuseTransmission
+    @diffuseTransmission.setter
+    def diffuseTransmission(self, diffuseTransmission):
+        if  diffuseTransmission is None:
+            diffuseTransmission = 0.0 # default
+        assertValidSFFloat(diffuseTransmission)
+        assertNonNegative('diffuseTransmission', diffuseTransmission)
+        self.__diffuseTransmission = diffuseTransmission
+    @property # getter - - - - - - - - - -
+    def diffuseTransmissionTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__diffuseTransmissionTextureMapping
+    @diffuseTransmissionTextureMapping.setter
+    def diffuseTransmissionTextureMapping(self, diffuseTransmissionTextureMapping):
+        if  diffuseTransmissionTextureMapping is None:
+            diffuseTransmissionTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(diffuseTransmissionTextureMapping)
+        self.__diffuseTransmissionTextureMapping = diffuseTransmissionTextureMapping
+    @property # getter - - - - - - - - - -
+    def diffuseTransmissionTexture(self):
+        """[X3DSingleTextureNode] - IDK."""
+        return self.__diffuseTransmissionTexture
+    @diffuseTransmissionTexture.setter
+    def diffuseTransmissionTexture(self, diffuseTransmissionTexture):
+        if  diffuseTransmissionTexture is None:
+            diffuseTransmissionTexture = None  # default
+        assertValidSFNode(diffuseTransmissionTexture)
+        if not diffuseTransmissionTexture is None and not isinstance(diffuseTransmissionTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(diffuseTransmissionTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__diffuseTransmissionTexture = diffuseTransmissionTexture
+    @property # getter - - - - - - - - - -
+    def diffuseTransmissionColor(self):
+        """Initial starting value for this node."""
+        return self.__diffuseTransmissionColor
+    @diffuseTransmissionColor.setter
+    def diffuseTransmissionColor(self, diffuseTransmissionColor):
+        if  diffuseTransmissionColor is None:
+            diffuseTransmissionColor = (1.0, 1.0, 1.0)  # default
+        assertValidSFColor(diffuseTransmissionColor)
+        assertZeroToOne('diffuseTransmissionColor', diffuseTransmissionColor)
+        self.__diffuseTransmissionColor = diffuseTransmissionColor
+    @property # getter - - - - - - - - - -
+    def diffuseTransmissionColorTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__diffuseTransmissionColorTextureMapping
+    @diffuseTransmissionColorTextureMapping.setter
+    def diffuseTransmissionColorTextureMapping(self, diffuseTransmissionColorTextureMapping):
+        if  diffuseTransmissionColorTextureMapping is None:
+            diffuseTransmissionColorTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(diffuseTransmissionColorTextureMapping)
+        self.__diffuseTransmissionColorTextureMapping = diffuseTransmissionColorTextureMapping
+    @property # getter - - - - - - - - - -
+    def diffuseTransmissionColorTexture(self):
+        """[X3DSingleTextureNode] - IDK."""
+        return self.__diffuseTransmissionColorTexture
+    @diffuseTransmissionColorTexture.setter
+    def diffuseTransmissionColorTexture(self, diffuseTransmissionColorTexture):
+        if  diffuseTransmissionColorTexture is None:
+            diffuseTransmissionColorTexture = None  # default
+        assertValidSFNode(diffuseTransmissionColorTexture)
+        if not diffuseTransmissionColorTexture is None and not isinstance(diffuseTransmissionColorTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(diffuseTransmissionColorTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__diffuseTransmissionColorTexture = diffuseTransmissionColorTexture
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.IS or self.metadata
+
+
+class DispersionMaterialExtension(_X3DMaterialExtensionNode):
+    """
+    DispersionMaterialExtension only works with X_ITE, hopefully other viewers ignore it.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'DispersionMaterialExtension'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/dispersionmaterialextension/'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/dispersionmaterialextension/'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('dispersion', 0.0, FieldType.SFFloat, AccessType.inputOutput, 'DispersionMaterialExtension'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        dispersion=0.0,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode Group __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.dispersion = dispersion
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def dispersion(self):
+        """The dispersion - PhysicalMaterial nodes."""
+        return self.__dispersion
+    @dispersion.setter
+    def dispersion(self, dispersion):
+        if  dispersion is None:
+            dispersion = 0.0 # default
+        elif dispersion < 0.0:
+            dispersion = 0.0
+        assertValidSFFloat(dispersion)
+        assertNonNegative('dispersion', dispersion)
+        self.__dispersion = dispersion
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.IS or self.metadata
+
+
+class EmissiveStrengthMaterialExtension(_X3DMaterialExtensionNode):
+    """
+    EmissiveStrengthMaterialExtension only works with X_ITE, hopefully other viewers ignore it.
+    Adds EmissiveStrength/Intensity to PhysicalMaterial nodes.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'EmissiveStrengthMaterialExtension'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/emissivestrengthmaterialextension/'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/emissivestrengthmaterialextension/'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('emissiveStrength', 1.0, FieldType.SFFloat, AccessType.inputOutput, 'EmissiveStrengthMaterialExtension'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        emissiveStrength=1.0,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode Group __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.emissiveStrength = emissiveStrength
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def emissiveStrength(self):
+        """The emissiveStrength defines ior for PhysicalMaterial nodes."""
+        return self.__emissiveStrength
+    @emissiveStrength.setter
+    def emissiveStrength(self, emissiveStrength):
+        if  emissiveStrength is None:
+            emissiveStrength = 1.0 # default
+        assertValidSFFloat(emissiveStrength)
+        assertNonNegative('emissiveStrength', emissiveStrength)
+        self.__emissiveStrength = emissiveStrength
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.IS or self.metadata
 
 
 class IORMaterialExtension(_X3DMaterialExtensionNode):
@@ -58103,7 +59072,7 @@ class IORMaterialExtension(_X3DMaterialExtensionNode):
     def FIELD_DECLARATIONS(cls):
         """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
         return [
-        ('indexOfRefraction', 1.5, FieldType.SFFloat, AccessType.initializeOnly, 'IORMaterialExtension'),
+        ('indexOfRefraction', 1.5, FieldType.SFFloat, AccessType.inputOutput, 'IORMaterialExtension'),
         ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
         ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
         ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
@@ -58133,8 +59102,663 @@ class IORMaterialExtension(_X3DMaterialExtensionNode):
     def indexOfRefraction(self, indexOfRefraction):
         if  indexOfRefraction is None:
             indexOfRefraction = 1.5 # default
+        elif indexOfRefraction < 1.0:
+            indexOfRefraction = 1.0
         assertValidSFFloat(indexOfRefraction)
         self.__indexOfRefraction = indexOfRefraction
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.IS or self.metadata
+
+
+class SheenMaterialExtension(_X3DMaterialExtensionNode):
+    """
+    SheenMaterialExtension only works with X_ITE, hopefully other viewers ignore it.
+    Adds Transmission/Transparency to PhysicalMaterial nodes.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'SheenMaterialExtension'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/sheenmaterialextension/'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/sheenmaterialextension/'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('sheenColor', (0.0, 0.0, 0.0), FieldType.SFColor, AccessType.inputOutput, 'SheenMaterialExtension'),
+        ('sheenColorTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'SheenMaterialExtension'),
+        ('sheenColorTexture', None, FieldType.SFNode, AccessType.inputOutput, 'SheenMaterialExtension'),
+        ('sheenRoughness', 0.0, FieldType.SFFloat, AccessType.inputOutput, 'SheenMaterialExtension'),
+        ('sheenRoughnessTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'SheenMaterialExtension'),
+        ('sheenRoughnessTexture', None, FieldType.SFNode, AccessType.inputOutput, 'SheenMaterialExtension'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        sheenColor=(0.0, 0.0, 0.0),
+        sheenColorTextureMapping="",
+        sheenColorTexture=None,
+        sheenRoughness=0.0,
+        sheenRoughnessTextureMapping="",
+        sheenRoughnessTexture=None,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode Group __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.sheenColor   = sheenColor
+        self.sheenColorTextureMapping = sheenColorTextureMapping
+        self.sheenColorTexture = sheenColorTexture
+        self.sheenRoughness = sheenRoughness
+        self.sheenRoughnessTextureMapping = sheenRoughnessTextureMapping
+        self.sheenRoughnessTexture = sheenRoughnessTexture
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def sheenColor(self):
+        """Initial starting value for this node."""
+        return self.__sheenColor
+    @sheenColor.setter
+    def sheenColor(self, sheenColor):
+        if  sheenColor is None:
+            sheenColor = (0.0, 0.0, 0.0)  # default
+        assertValidSFColor(sheenColor)
+        assertZeroToOne('sheenColor', sheenColor)
+        self.__sheenColor = sheenColor
+    @property # getter - - - - - - - - - -
+    def sheenColorTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__sheenColorTextureMapping
+    @sheenColorTextureMapping.setter
+    def sheenColorTextureMapping(self, sheenColorTextureMapping):
+        if  sheenColorTextureMapping is None:
+            sheenColorTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(sheenColorTextureMapping)
+        self.__sheenColorTextureMapping = sheenColorTextureMapping
+    @property # getter - - - - - - - - - -
+    def sheenColorTexture(self):
+        """[X3DSingleTextureNode] - IDK."""
+        return self.__sheenColorTexture
+    @sheenColorTexture.setter
+    def sheenColorTexture(self, sheenColorTexture):
+        if  sheenColorTexture is None:
+            sheenColorTexture = None  # default
+        assertValidSFNode(sheenColorTexture)
+        if not sheenColorTexture is None and not isinstance(sheenColorTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(sheenColorTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__sheenColorTexture = sheenColorTexture
+    @property # getter - - - - - - - - - -
+    def sheenRoughness(self):
+        """The specualr - NA -  PhysicalMaterial nodes."""
+        return self.__sheenRoughness
+    @sheenRoughness.setter
+    def sheenRoughness(self, sheenRoughness):
+        if  sheenRoughness is None:
+            sheenRoughness = 0.0 # default
+        assertValidSFFloat(sheenRoughness)
+        assertNonNegative('sheenRoughness', sheenRoughness)
+        self.__sheenRoughness = sheenRoughness
+    @property # getter - - - - - - - - - -
+    def sheenRoughnessTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__sheenRoughnessTextureMapping
+    @sheenRoughnessTextureMapping.setter
+    def sheenRoughnessTextureMapping(self, sheenRoughnessTextureMapping):
+        if  sheenRoughnessTextureMapping is None:
+            sheenRoughnessTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(sheenRoughnessTextureMapping)
+        self.__sheenRoughnessTextureMapping = sheenRoughnessTextureMapping
+    @property # getter - - - - - - - - - -
+    def sheenRoughnessTexture(self):
+        """[X3DSingleTextureNode] - IDK."""
+        return self.__sheenRoughnessTexture
+    @sheenRoughnessTexture.setter
+    def sheenRoughnessTexture(self, sheenRoughnessTexture):
+        if  sheenRoughnessTexture is None:
+            sheenRoughnessTexture = None  # default
+        assertValidSFNode(sheenRoughnessTexture)
+        if not sheenRoughnessTexture is None and not isinstance(sheenRoughnessTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(sheenRoughnessTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__sheenRoughnessTexture = sheenRoughnessTexture
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.IS or self.metadata
+
+
+class SpecularMaterialExtension(_X3DMaterialExtensionNode):
+    """
+    SpecularMaterialExtension only works with X_ITE, hopefully other viewers ignore it.
+    Adds Transmission/Transparency to PhysicalMaterial nodes.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'SpecularMaterialExtension'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/specularmaterialextension/'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/specularmaterialextension/'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('specular', 1.0, FieldType.SFFloat, AccessType.inputOutput, 'SpecularMaterialExtension'),
+        ('specularTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'SpecularMaterialExtension'),
+        ('specularTexture', None, FieldType.SFNode, AccessType.inputOutput, 'SpecularMaterialExtension'),
+        ('specularColor', (1.0, 1.0, 1.0), FieldType.SFColor, AccessType.inputOutput, 'SpecularMaterialExtension'),
+        ('specularColorTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'SpecularMaterialExtension'),
+        ('specularColorTexture', None, FieldType.SFNode, AccessType.inputOutput, 'SpecularMaterialExtension'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        specular=1.0,
+        specularTextureMapping="",
+        specularTexture=None,
+        specularColor=(1.0, 1.0, 1.0),#Scatter
+        specularColorTextureMapping="",
+        specularColorTexture=None,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode Group __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.specular = specular
+        self.specularTextureMapping = specularTextureMapping
+        self.specularTexture = specularTexture
+        self.specularColor   = specularColor
+        self.specularColorTextureMapping = specularColorTextureMapping
+        self.specularColorTexture = specularColorTexture
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def specular(self):
+        """The specualr - NA -  PhysicalMaterial nodes."""
+        return self.__specular
+    @specular.setter
+    def specular(self, specular):
+        if  specular is None:
+            specular = 1.0 # default
+        assertValidSFFloat(specular)
+        assertNonNegative('specular', specular)
+        self.__specular = specular
+    @property # getter - - - - - - - - - -
+    def specularTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__specularTextureMapping
+    @specularTextureMapping.setter
+    def specularTextureMapping(self, specularTextureMapping):
+        if  specularTextureMapping is None:
+            specularTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(specularTextureMapping)
+        self.__specularTextureMapping = specularTextureMapping
+    @property # getter - - - - - - - - - -
+    def specularTexture(self):
+        """[X3DSingleTextureNode] - IDK."""
+        return self.__specularTexture
+    @specularTexture.setter
+    def specularTexture(self, specularTexture):
+        if  specularTexture is None:
+            specularTexture = None  # default
+        assertValidSFNode(specularTexture)
+        if not specularTexture is None and not isinstance(specularTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(specularTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__specularTexture = specularTexture
+    @property # getter - - - - - - - - - -
+    def specularColor(self):
+        """Initial starting value for this node."""
+        return self.__specularColor
+    @specularColor.setter
+    def specularColor(self, specularColor):
+        if  specularColor is None:
+            specularColor = (1.0, 1.0, 1.0)  # default
+        assertValidSFColor(specularColor)
+        assertZeroToOne('specularColor', specularColor)
+        self.__specularColor = specularColor
+    @property # getter - - - - - - - - - -
+    def specularColorTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__specularColorTextureMapping
+    @specularColorTextureMapping.setter
+    def specularColorTextureMapping(self, specularColorTextureMapping):
+        if  specularColorTextureMapping is None:
+            specularColorTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(specularColorTextureMapping)
+        self.__specularColorTextureMapping = specularColorTextureMapping
+    @property # getter - - - - - - - - - -
+    def specularColorTexture(self):
+        """[X3DSingleTextureNode] - IDK."""
+        return self.__specularColorTexture
+    @specularColorTexture.setter
+    def specularColorTexture(self, specularColorTexture):
+        if  specularColorTexture is None:
+            specularColorTexture = None  # default
+        assertValidSFNode(specularColorTexture)
+        if not specularColorTexture is None and not isinstance(specularColorTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(specularColorTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__specularColorTexture = specularColorTexture
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.IS or self.metadata
+
+
+class TransmissionMaterialExtension(_X3DMaterialExtensionNode):
+    """
+    TransmissionMaterialExtension only works with X_ITE, hopefully other viewers ignore it.
+    Adds Transmission/Transparency to PhysicalMaterial nodes.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'TransmissionMaterialExtension'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/transmissionmaterialextension/'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/transmissionmaterialextension/'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('transmission', 0.0, FieldType.SFFloat, AccessType.inputOutput, 'TransmissionMaterialExtension'),
+        ('transmissionTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'TransmissionMaterialExtension'),
+        ('transmissionTexture', None, FieldType.SFNode, AccessType.inputOutput, 'TransmissionMaterialExtension'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        transmission=0.0,
+        transmissionTextureMapping="",
+        transmissionTexture=None,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode Group __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.transmission = transmission
+        self.transmissionTextureMapping = transmissionTextureMapping
+        self.transmissionTexture = transmissionTexture
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def transmission(self):
+        """The transmission defines ior for PhysicalMaterial nodes."""
+        return self.__transmission
+    @transmission.setter
+    def transmission(self, transmission):
+        if  transmission is None:
+            transmission = 0.0 # default
+        assertValidSFFloat(transmission)
+        assertNonNegative('transmission', transmission)
+        self.__transmission = transmission
+    @property # getter - - - - - - - - - -
+    def transmissionTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__transmissionTextureMapping
+    @transmissionTextureMapping.setter
+    def transmissionTextureMapping(self, transmissionTextureMapping):
+        if  transmissionTextureMapping is None:
+            transmissionTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(transmissionTextureMapping)
+        self.__transmissionTextureMapping = transmissionTextureMapping
+    @property # getter - - - - - - - - - -
+    def transmissionTexture(self):
+        """[X3DSingleTextureNode] - IDK."""
+        return self.__transmissionTexture
+    @transmissionTexture.setter
+    def transmissionTexture(self, transmissionTexture):
+        if  transmissionTexture is None:
+            transmissionTexture = None  # default
+        assertValidSFNode(transmissionTexture)
+        if not transmissionTexture is None and not isinstance(transmissionTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(transmissionTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__transmissionTexture = transmissionTexture
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.IS or self.metadata
+
+
+class VolumeMaterialExtension(_X3DMaterialExtensionNode):
+    """
+    VolumeMaterialExtension only works with X_ITE, hopefully other viewers ignore it.
+    Adds IOR to PhysicalMaterial nodes.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'VolumeMaterialExtension'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/volumematerialextension/'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/volumematerialextension/'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('thickness', 0.0, FieldType.SFFloat, AccessType.inputOutput, 'VolumeMaterialExtension'),
+        ('thicknessTextureMapping',   '', FieldType.SFString, AccessType.inputOutput, 'VolumeMaterialExtension'),
+        ('thicknessTexture',        None, FieldType.SFNode,   AccessType.inputOutput, 'VolumeMaterialExtension'),
+        ('attenuationDistance', 1000000.0, FieldType.SFFloat, AccessType.inputOutput, 'VolumeMaterialExtension'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        thickness=0.0,
+        thicknessTextureMapping='',
+        thicknessTexture=None,
+        attenuationDistance=1000000.0,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode Group __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.thickness = thickness
+        self.thicknessTextureMapping = thicknessTextureMapping
+        self.thicknessTexture = thicknessTexture
+        self.attenuationDistance = attenuationDistance
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def thickness(self):
+        """thickness - PhysicalMaterial nodes."""
+        return self.__thickness
+    @thickness.setter
+    def thickness(self, thickness):
+        if  thickness is None:
+            thickness = 0.0 # default
+        assertValidSFFloat(thickness)
+        assertNonNegative('thickness', thickness)
+        self.__thickness = thickness
+    @property # getter - - - - - - - - - -
+    def thicknessTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__thicknessTextureMapping
+    @thicknessTextureMapping.setter
+    def thicknessTextureMapping(self, thicknessTextureMapping):
+        if  thicknessTextureMapping is None:
+            thicknessTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(thicknessTextureMapping)
+        self.__thicknessTextureMapping = thicknessTextureMapping
+    @property # getter - - - - - - - - - -
+    def thicknessTexture(self):
+        """[X3DSingleTextureNode] - IDK."""
+        return self.__thicknessTexture
+    @thicknessTexture.setter
+    def thicknessTexture(self, thicknessTexture):
+        if  thicknessTexture is None:
+            thicknessTexture = None  # default
+        assertValidSFNode(thicknessTexture)
+        if not thicknessTexture is None and not isinstance(thicknessTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(thicknessTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__thicknessTexture = thicknessTexture
+    @property # getter - - - - - - - - - -
+    def attenuationDistance(self):
+        """attenuationDistance - PhysicalMaterial nodes."""
+        return self.__attenuationDistance
+    @attenuationDistance.setter
+    def attenuationDistance(self, attenuationDistance):
+        if  attenuationDistance is None:
+            attenuationDistance = 1000000.0 # default
+        assertValidSFFloat(attenuationDistance)
+        assertNonNegative('attenuationDistance', attenuationDistance)
+        self.__attenuationDistance = attenuationDistance
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.IS or self.metadata
+
+
+class VolumeScatterMaterialExtension(_X3DMaterialExtensionNode):
+    """
+    VolumeScatterMaterialExtension only works with X_ITE, hopefully other viewers ignore it.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'VolumeScatterMaterialExtension'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/volumescattermaterialextension/'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/volumescattermaterialextension/'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('scatterAnisotropy', 0.0, FieldType.SFFloat, AccessType.inputOutput, 'VolumeScatterMaterialExtension'),
+        ('multiscatterColor', (0.0, 0.0, 0.0), FieldType.SFColor, AccessType.inputOutput, 'VolumeScatterMaterialExtension'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        scatterAnisotropy=0.0,
+        multiscatterColor=(0.0, 0.0, 0.0),
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode Group __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.scatterAnisotropy = scatterAnisotropy
+        self.multiscatterColor = multiscatterColor
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def scatterAnisotropy(self):
+        """The scatterAnisotropy defines ior for PhysicalMaterial nodes."""
+        return self.__scatterAnisotropy
+    @scatterAnisotropy.setter
+    def scatterAnisotropy(self, scatterAnisotropy):
+        if  scatterAnisotropy is None:
+            scatterAnisotropy = 0.0 # default
+        elif scatterAnisotropy < -1.0:
+            scatterAnisotropy = -1.0
+        elif scatterAnisotropy > 1.0:
+            scatterAnisotropy = 1.0
+        assertValidSFFloat(scatterAnisotropy)
+        self.__scatterAnisotropy = scatterAnisotropy
+    @property # getter - - - - - - - - - -
+    def multiscatterColor(self):
+        """Initial starting value for this node."""
+        return self.__multiscatterColor
+    @multiscatterColor.setter
+    def multiscatterColor(self, multiscatterColor):
+        if  multiscatterColor is None:
+            multiscatterColor = (0.0, 0.0, 0.0)  # default
+        assertValidSFColor(multiscatterColor)
+        assertZeroToOne('multiscatterColor', multiscatterColor)
+        self.__multiscatterColor = multiscatterColor
     @property # getter - - - - - - - - - -
     def id_(self):
         """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
@@ -58193,6 +59817,7 @@ def instantiateNodeFromString(x3dType):
         'AcousticProperties':AcousticProperties,
         'Analyser':Analyser,
         'Anchor':Anchor,
+        'AnisotropyMaterialExtension':AnisotropyMaterialExtension, # X_ITE - glTF extension
         'Appearance':Appearance,
         'Arc2D':Arc2D,
         'ArcClose2D':ArcClose2D,
@@ -58218,8 +59843,8 @@ def instantiateNodeFromString(x3dType):
         'CADLayer':CADLayer,
         'CADPart':CADPart,
         'CartoonVolumeStyle':CartoonVolumeStyle,
-        'CGEIndexedFaceSet':CGEIndexedFaceSet,
-        'CGESkin':CGESkin,                    
+        'CGEIndexedFaceSet':CGEIndexedFaceSet,# Castle Game Engine - character skeleton custom node
+        'CGESkin':CGESkin, #                    Castle Game Engine - character skeleton custom node
         'ChannelMerger':ChannelMerger,
         'ChannelSelector':ChannelSelector,
         'ChannelSplitter':ChannelSplitter,
@@ -58266,7 +59891,8 @@ def instantiateNodeFromString(x3dType):
         'EaseInEaseOut':EaseInEaseOut,
         'EdgeEnhancementVolumeStyle':EdgeEnhancementVolumeStyle,
         'ElevationGrid':ElevationGrid,
-        'EnvironmentLight':EnvironmentLight,
+        'EmissiveStrengthMaterialExtension':EmissiveStrengthMaterialExtension, # X_ITE - glTF extension
+        'EnvironmentLight':EnvironmentLight, # X3D 4.1 specification
         'EspduTransform':EspduTransform,
         'ExplosionEmitter':ExplosionEmitter,
         'Extrusion':Extrusion,
@@ -58312,7 +59938,7 @@ def instantiateNodeFromString(x3dType):
         'Inline':Inline,
         'IntegerSequencer':IntegerSequencer,
         'IntegerTrigger':IntegerTrigger,
-        'IORMaterialExtension':IORMaterialExtension,
+        'IORMaterialExtension':IORMaterialExtension, # X_ITE - glTF extension
         'IsoSurfaceVolumeData':IsoSurfaceVolumeData,
         ####################################### K
         'KeySensor':KeySensor,
