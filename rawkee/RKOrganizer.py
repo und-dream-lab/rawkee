@@ -2997,11 +2997,14 @@ class RKOrganizer():
                                 sdLight = aom.MFnDependencyNode(lList.getDependNode(0))
                                 self.processEnviornmentLight(sdLight, x3dPF[0], x3dPF[1], "EnvironmentLight", envNode["name"])
                             else:
-                                lhtBna = self.processBasicNodeAddition(None, x3dPF[0], x3dPF[1], "EnvironmentLight", envNode["name"])
+                                eNode = envNode["node"]
+                                lightName = envNode["name"]
+                                if eNode.typeName == "StingrayPBS":
+                                    lightName = lightName + "_SPBS_EnvLight"
+                                lhtBna = self.processBasicNodeAddition(None, x3dPF[0], x3dPF[1], "EnvironmentLight", lightName)
                                 if lhtBna[0] == False:
                                     lhtBna[1].on = True
                                     lhtBna[1].global_ = False
-                                    eNode = envNode["node"]
                                     if eNode.typeName == "StingrayPBS":
                                         self.processNodeAsEnviornmentLight(eNode, "TEX_global_diffuse_cube",  lhtBna[1], "diffuseTexture")
                                         self.processNodeAsEnviornmentLight(eNode, "TEX_global_specular_cube", lhtBna[1], "specularTexture")
@@ -3085,19 +3088,46 @@ class RKOrganizer():
         if bna[0] == False:
             mTextureNodes        = []
             mTextureFields       = []
+            mTextureParents      = []
             retPlace2d           = []
+            
+            """
+            Texture Processing types:
+                processDoubleSidedAppearance [maybe going to be deprecated soon]
+                processSingleSidedAppearance
+
+                processUnlit_Material
+                processStingrayPBS_PhysicalMaterial
+                processStandard_PhysicalMaterial
+                processOpenPBRSurface
+                processUSDPreview_PhysicalMaterial
+                processBlinn_PhysicalMaterial
+                processLegacy_Material
+            """
             
             #try:
             ssNode = aom.MFnDependencyNode(seNode.findPlug("surfaceShader", True).source().node())
         
             # Check to see if surfaceShader is Double Sided, and then process appropriately
             if ssNode.typeName == "aiTwoSided":
-                self.processDoubleSidedAppearance(matchedSets, ssNode, bna[1], mappings, mTextureNodes, mTextureFields, retPlace2d)
+                self.processDoubleSidedAppearance(matchedSets, ssNode, bna[1], mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d)
             else:
-                self.processSingleSidedAppearance(matchedSets, ssNode, bna[1], mappings, mTextureNodes, mTextureFields, retPlace2d)
+                self.processSingleSidedAppearance(matchedSets, ssNode, bna[1], mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d)
             #except:
             #    print("Failure at inital SurfaceShader search")
             
+            ################################################################
+            # Add the textures to the appropriate material or extension node
+            ################################################################
+            mtexLen = len(mTextureNodes)
+            for a in range(mtexLen):
+                gPlace2d = self.processTexture(mTextureNodes[a].object().apiType(), mTextureNodes[a], mTextureParents[a], mTextureFields[a])
+                if not gPlace2d.object().isNull():
+                    texturemapping = self.getMappingValue(mappings, mTextureFields[a] + "Mapping")
+                    setattr(physMat, mTextureFields[a] + "Mapping", texturemapping)
+                    print("Mapping: " + mTextureFields[a] + "Mapping")
+                    retPlace2d[a]  = gPlace2d
+
             #############################################################################################
             # Set TextureTransform's
             #############################################################################################
@@ -3159,309 +3189,223 @@ class RKOrganizer():
         return bna[1]
                 
     
-    def processDoubleSidedAppearance(self, matchedSets, mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, retPlace2d):
+    def processDoubleSidedAppearance(self, matchedSets, mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d):
         sShaders = []
         sShaders.append(aom.MFnDependencyNode(mayaShader.findPlug("front", True).source().node()))
         sShaders.append(aom.MFnDependencyNode(mayaShader.findPlug("back", True).source().node()))
             
         #try:
-        self.processSingleSidedAppearance(matchedSets, sShaders[0], x3dAppearance, mappings, mTextureNodes, mTextureFields, retPlace2d)
+        self.processSingleSidedAppearance(matchedSets, sShaders[0], x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d)
         #except:
         #    print("Failure at search for front side of a double sided appearance node")
             
         #try:
-        self.processSingleSidedAppearance(matchedSets, sShaders[1], x3dAppearance, mappings, mTextureNodes, mTextureFields, retPlace2d, cField="backMaterial")
+        self.processSingleSidedAppearance(matchedSets, sShaders[1], x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField="backMaterial")
         #except:
         #    print("Failure at search for back side of a double sided appearance node")
 
         
-    def processSingleSidedAppearance(self, matchedSets, mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, retPlace2d, cField="material"):
+    def processSingleSidedAppearance(self, matchedSets, mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField="material"):
         print("Inside Single Sided Appearance.")
-        if mayaShader.typeName == "aiFlat"              or mayaShader.typeName == "surfaceShader":
-            self.processUnlitMaterialNode(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, retPlace2d, cField)
-            
-        elif mayaShader.typeName == "aiStandardSurface" or mayaShader.typeName == "standardSurface" or mayaShader.typeName == "openPBRSurface" or mayaShader.typeName == "usdPreviewSurface" or mayaShader.typeName == "StingrayPBS":
-            self.processAdvancedPhysicalMaterial(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, retPlace2d, cField)
-            
+
+        if   mayaShader.typeName == "aiFlat" or mayaShader.typeName == "surfaceShader":
+            self.processUnlit_Material(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
+        
+        elif mayaShader.typeName == "StingrayPBS":
+            self.processStingrayPBS_PhysicalMaterial(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
+
+        elif mayaShader.typeName == "aiStandardSurface" or mayaShader.typeName == "standardSurface":
+            self.processStandard_PhysicalMaterial(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
+
+        elif mayaShader.typeName == "openPBRSurface":
+            self.processOpenPBRSurface(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
+        
+        elif mayaShader.typeName == "usdPreviewSurface":
+            #TODO Needs to be completed.
+            self.processUSDPreview_PhysicalMaterial(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
+
         elif mayaShader.typeName == "blinn":
-            #or mayaShader.typeName == "lambert"         or mayaShader.typeName == "phong"          or mayaShader.typeName == "phongE":
-            self.processLegacyPhysicalMaterial(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, retPlace2d, cField)
-            
+            self.processBlinn_PhysicalMaterial(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
+
+        elif mayaShader.typeName == "lambert" or mayaShader.typeName == "aiLambert" or mayaShader.typeName == "phong" or mayaShader.typeName == "phongE":
+            self.processLegacy_Material(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
+
         else:
             print("###############################################################################")
-            print("# Current Materials not supported, but are on the would-be-nice-to-have list")
-            print("# - aiToon")
-            print("# - aiCarPaint")
-            print("# - aiLambert")
+            print("# The " + mayaShader.name() + " material is not supported")
             print("###############################################################################\n")
-            
-            print("Attempting to process an unknown Maya material (" + mayaShader.name() + ":" + mayaShader.typeName + ") as an")
-            print("X3D PhysicalMaterial node. Guess I'll give it the old college try!\n")
-            
-            print("WARNING: Results will be less than you hope. If you don't like the results, please choose")
-            print("a different Material.\n")
-            
-            print("###################################")
-            print("# Supported types are:")
-            print("# -- PhysicalMaterial --")
-            print("#    blinn\n#    lambert\n#    phong\n#    phongE\n#    aiStandardSurface")
-            print("#    standardSurface\n#    openPBRSurface\n#    usdPreviewSurface\n#    StringrayPBS\n")
-            print("# -- UnlitMaterial --")
-            print("#    iaFlat\n#    surfaceShader")
-            print("###################################\n")
-            
-            print("...or contact the RawKee development team. They like to implement new")
-            print("stuff if their Maya programming skills allow, and you are willing to provide")
-            print("your content so that the team has something with which to test the export.\n")
-            
-            print("Send Aaron an email at: aaron.bergstrom@und.edu to make requests.")
-            print("Use the 'Subject': RawKee Feature Request")
-            self.processUnknownAsPhysicalMaterial(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, retPlace2d, cField)
 
         
-    def processUnknownAsPhysicalMaterial(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, retPlace2d, cField):
-        pMat = self.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterial")
-        if pMat[0] == False:
-            print("RawKee is attempting to process Unknown Maya material in a 'try/except' block.")
-            try:
-                physMat = pMat[1]
+    def processLegacy_Material(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
+        mNode = self.processBasicNodeAddition(material, x3dAppearance, cField, "Material")
+        if mNode[0] == False:
+            x3dMat = mNode[1]
 
-                colorStore = {}
-                mro        = {}
-                mroStore   = {}
-                mroTexture = {}
-                
-                baseWeightD = {"base":True, "baseWeight":True}
-                mainColorD  = {"color":True, "baseColor":True, "diffuseColor":True}
-                occlusionD  = {"occlusion":True, "ao":True, "AO":True, "ambientOcclusion":True}
-                diffuseValD = {"diffuse":True, "baseDiffuse":True, "baseRoughness":True}
-                specWeightD = {"specular":True, "specularWeight":True}
-                specColorD  = {"specularColor":True}
-                emisColorD  = {"emissiveColor":True, "incandescence":True, "emissive":True}
-                roughnessD  = {"specularRoughness":True, "roughness":True}
-                specIORD    = {"specularIOR":True, "ior":True, "IOR":True}
-                metallicD   = {"metalic":True, "metalness":True}
-                normalMapD  = {"normalCamera":True, "normal":True}
-                
-                validAttrs = {}
-                
-                for key in baseWeightD:
-                    if cmds.objExists(material.name() + "." + key):
-                        validAttrs["baseAttr"] = key
-                        break
-                for key in mainColorD:
-                    if cmds.objExists(material.name() + "." + key):
-                        validAttrs["colorAttr"] = key
-                        break
-                for key in occlusionD:
-                    if cmds.objExists(material.name() + "." + key):
-                        validAttrs["occlAttr"] = key
-                        break
-                for key in diffuseValD:
-                    if cmds.objExists(material.name() + "." + key):
-                        validAttrs["diffAttr"] = key
-                        break
-                for key in specWeightD:
-                    if cmds.objExists(material.name() + "." + key):
-                        validAttrs["specWeightAttr"] = key
-                        break
-                for key in specColorD:
-                    if cmds.objExists(material.name() + "." + key):
-                        validAttrs["specColorAttr"] = key
-                        break
-                for key in emisColorD:
-                    if cmds.objExists(material.name() + "." + key):
-                        validAttrs["emisColorAttr"] = key
-                        break
-                for key in roughnessD:
-                    if cmds.objExists(material.name() + "." + key):
-                        validAttrs["roughAttr"] = key
-                        break
-                for key in specIORD:
-                    if cmds.objExists(material.name() + "." + key):
-                        validAttrs["specIORAttr"] = key
-                        break
-                for key in metallicD:
-                    if cmds.objExists(material.name() + "." + key):
-                        validAttrs["metalAttr"] = key
-                        break
-                for key in normalMapD:
-                    if cmds.objExists(material.name() + "." + key):
-                        validAttrs["normAttr"] = key
-                        break
+            colorStore = {}
+            mro        = {}
+            mroStore   = {}
+            mroTexture = {}
 
-                rkMat.getUnknownBaseColorAndOcclusionTextures(material, colorStore, validAttrs["colorAttr"])
-                
-                # Get Emissive Texture
-                emissAttr = validAttrs.get("emisColorAttr", False)
-                if emissAttr:
-                    emissConn      = material.findPlug(emissAttr, True)
-                    emissTexture   = self.findTextureFromPlug(emissConn)
-                    if emissTexture:
-                        mTextureNodes.append(aom.MFnDependencyNode(emsTex))
-                        mTextureFields.append("emissiveTexture")
-                        retPlace2d.append(None)
-                    else:
-                        physMat.emissiveColor = cmds.getAttr(material.name() + "." + emissAttr)[0]
+            rkMat.getLegacyBaseColorAndOcclusionTextures(material, colorStore)
 
-                
-                # Get Normal Texture
-                normAttr = validAttrs.get("normAttr", False)
-                if normAttr:
-                    normConn = material.findPlug(normAttr, True)
-                    normTex  = self.findTextureFromPlug(normConn)
-                    if normTex:
-                        mTextureNodes.append(aom.MFnDependencyNode(norTex))
-                        mTextureFields.append("normalTexture")
-                        retPlace2d.append(None)
+            # Get BaseTexture
+            baseTexture = colorStore.get("baseTexture", False)
+            if baseTexture:
+                mTextureNodes.append(baseTexture)
+                mTextureFields.append("diffuseTexture")
+                mTextureParents.append(x3dMat)
+                retPlace2d.append(None)
+            else:
+                try:
+                    bc = cmds.getAttr(material.name() + ".color")[0]
+                    x3dMat.diffuseColor = self.getSFColor(bc[0], bc[1], bc[2])
+                except:
+                    bc = cmds.getAttr(material.name() + ".KdColor")[0]
+                    x3dMat.diffuseColor = self.getSFColor(bc[0], bc[1], bc[2])
                     
-                    normAdj = self.findNormScaleNode(normConn)
-                    if normAdj:
-                        if normAdj.typeName == "aiNormalMap":
-                            physMat.normalScale = cmds.getAttr(normAdj.name() + ".strength")
-                        elif normAdj.typeName == "bump2d":
-                            nsValue = cmds.getAttr(normAdj.name() + ".dumpDepth")
-                            if nsValue < 0.0:
-                                nsValue = 0.0
-                            physMat.normalScale = nsValue
-
-
-                # Get Material Texture
-                hasMetal = False
-                metalAttr = validAttrs.get("metalAttr", False)
-                if metalAttr:
-                    metalConn    = material.findPlug(metalAttr, True)
-                    metalTexture = self.findTextureFromPlug(metalConn)
-                    if metalTexture:
-                        mroStore["metallicTexture"] = metalTexture
-                        hasMetal = True
-                    else:
-                        physMat.metallic = cmds.getAttr(material.name() + "." + metalAttr)
-
-
-                # Get Roughness Texture
-                hasRough = False
-                roughAttr = validAttrs.get("roughAttr", False)
-                if roughtAttr:
-                    roughConn    = material.findPlug(roughAttr, True)
-                    roughTexture = self.findTextureFromPlug(roughConn)
-                    if roughTexture:
-                        mroStore["roughnessTexture"] = roughTexture
-                        hasRough = True
-                    else:
-                        physMat.roughness = cmds.getAttr(material.name() + "." + roughAttr)
-
-
-                # Verify Occlusion Texture
-                hasOccl = False
-                occlTex = colorStore.get("occlusionTexture", False)
-                if occlTex:
-                    mroStore["occlusionTexture"] = occlTex.object()
-                    hasOccl = True
-                else:
-                    occlAttr = validAttrs.get("occlAttr", False)
-                    if occlAttr:
-                        occlConn = material.findPlug(occlAttr, True)
-                        occlTexture = self.findTextureFromPlug(occlConn.asMObject(), maom.MFn.kTexture2d)
-                        if occlTexture:
-                            mroStore["occlusionTexture"] = occlTexture
-                            hasOccl = True
-                        else:
-                            physMat.occlusionStrength = cmds.getAttr(material.name() + "." + occlAttr)
-
-
-                ####################################################
-                # Base Color
-                colorAttr = validAttrs.get("colorAttr", False)
-
-                baseTexture = colorStore.get("baseTexture", False)
-                if baseTexture:
-                    mTextureNodes.append(aom.MFnDependencyNode(baseTexture.object()))
-                    mTextureFields.append("baseTexture")
+            #######################################################
+            # Get AmbientTexture and AmbientIntensity
+            ambientIntensity = 1.0
+            if material.typeName != "aiLambert":
+                ambiConn = material.findPlug("ambientColor", True)
+                ambiTexture = self.findTextureFromPlug(ambiConn)
+                if ambiTexture:
+                    mTextureNodes.append(ambiTexture)
+                    mTextureFields.append("ambientTexture")
+                    mTextureParents.append(x3dMat)
                     retPlace2d.append(None)
                 else:
-                    physMat.baseColor = cmds.getAttr(material.name() + "." + colorAttr)[0]
-
-
-                ####################################################
-                # PBR Occlusion
-                oTex = mroStore.get("occlusionTexture", None)
-                if oTex:
-                    occImage = maom.MImage()
-                    occImage.readFromTextureNode(oTex.object(), maom.MImage.kFloat)
-                    mro["red"] = occImage
-                    mroTexture["textTrans"] = rkMat.getTextureTransform(oTex)
-
-                ####################################################
-                # PBR Metallic
-                mTex = mroStore.get("metallicTexture", None)
-                if mTex:
-                    metImage = maom.MImage()
-                    metImage.readFromTextureNode(mTex.object(), maom.MImage.kFloat)
-                    mro["blue"] = metImage
-                    mroTexture["textTrans"] = rkMat.getTextureTransform(mTex)
-
-                ####################################################
-                # PBR Roughness
-                rTex = mroStore.get("roughnessTexture", None)
-                if rTex:
-                    rouImage = maom.MImage()
-                    rouImage.readFromTextureNode(rTex.object(), maom.MImage.kFloat)
-                    mro["green"] = metImage
-                    mroTexture["textTrans"] = rkMat.getTextureTransform(rTex)
-
-                ####################################################
-                # PBR Create Metallic-Roughness and Occlusion Maps
-                if hasOccl == True or hasMetal== True or hasRough == True:
-                    mroImage    = rkMat.generateMROImage(mro, 0)
-                    mroDEF      = material.name() + "_MROTexture"
-                    mroDirPath  = cmds.workspace(query=True, rootDirectory=True)
-                    mroDirPath  += "/sourceimages"
-                    os.makedirs(mroDirPath, exist_ok=True)
+                    ac = cmds.getAttr(material.name() + ".ambientColor")[0]
+                    ambientIntensity = (ac[0] + ac[1] + ac[2]) / 3
+            else:
+                ambientIntensity = cmds.getAttr(material.name() + ".Kd")
+            x3dMat.ambientIntesity = ambientIntensity
+            
+            #######################################################
+            # Get EmissiveTexture and EmissiveColor
+            if material.typeName != "aiLambert":
+                emiConn = material.findPlug("incandescence")
+                emiTexture = self.findTextureFromPlug(emiConn)
+                if emiTexture:
+                    mTextureNodes.append(emiTexture)
+                    mTextureFields.append("emissiveTexture")
+                    mTextureParents.append(x3dMat)
+                    retPlace2d.append(None)
                     
-                    if cmds.objExists(mroDEF) == False:
-                        mroDEF  = cmds.createNode('file', n=mroDEF)
-                        
-                    mroFullPath = mroDirPath + "/" + mroDEF + ".png"
-                    mroImage.writeToFile(mroFullPath, '.png')
-                    cmds.setAtt(mroDEF + ".fileTextureName", mroFullPath, type="string")
+                eColor = cmds.getAttr(material.name() + ".incadescence")[0]
+                x3dMat.emissiveColor = self.getSFColor(eColor[0], eColor[1], eColor[2])
+            
+            #######################################################
+            # Get Transparency
+            try:
+                op = cmds.getAttr(material.name() + ".opacity")[0]
+                x3dMat.transparency = 1 - ((op[0] + op[1] + op[2]) / 3)
+            except:
+                transp = cmds.getAttr(material.name() + ".transparency")[0]
+                x3dMat.transparency = (t[0] + t[1] + t[2]) / 3
 
-                    tTrans = mroTexture.get("textTrans", False)
-                    if tTrans:
-                        rkMat.connectTextureTransformToTexture(tTrans.name(), mroDEF)
-
-                    nfList = aom.MSelectionList()
-                    nfList.add(mroDEF)
-                    texNode = aom.MFnDependencyNode(nfList.getDependNode(0))
+            ######################################################
+            # Get Normal Map
+            normConn    = material.findPlug("normalCamera", True)
+            normTexture = self.findTextureFromPlug(normConn)
+            if normTexture:
+                mTextureNodes.append(aom.MFnDependencyNode(normTexture))
+                mTextureFields.append("normalTexture")
+                mTextureParents.append(x3dMat)
+                retPlace2d.append(None)
+            
+            normAdj = self.findNormScaleNode(normConn)
+            if normAdj:
+                if normAdj.typeName == "aiNormalMap":
+                    x3dMat.normalScale = cmds.getAttr(normAdj.name() + ".strength")
                     
-                    if hasOccl == True:
-                        mTextureNodes.append(texNode)
-                        mTextureFields.append("occlusionTexture")
-                        retPlace2d.append(None)
-                    if hasMetal == True or hasRough == True:
-                        mTextureNodes.append(texNode)
-                        mTextureFields.append("metallicRoughnessTexture")
-                        retPlace2d.append(None)
-                    
+                elif normAdj.typeName == "bump2d":
+                    nsValue = cmds.getAttr(normAdj.name() + ".dumpDepth")
+                    if nsValue < 0.01:
+                        nsValue = 0.01
+                    x3dMat.normalScale = nsValue
 
-                ###########################################################
-                # Add the textures to the material ndoe
-                ###########################################################
-                mtexLen = len(mTextureNodes)
-                for a in range(mtexLen):
-                    gPlace2d = self.processTexture(mTextureNodes[a].object().apiType(), mTextureNodes[a], material, mTextureFields[a])
-                    if not gPlace2d.object().isNull():
-                        texturemapping = self.getMappingValue(mappings, mTextureFields[a] + "Mapping")
-                        setattr(material, mTextureFields[a] + "Mapping", texturemapping)
-                        print("Mapping: " + mTextureFields[a] + "Mapping")
-                        retPlace2d[a]  = gPlace2d
-            except Exception as e:
-                print("Made an attempt, but failed to fully process Unknown Maya Material: " + material.name() + ":" + material.typeName)
-                print(f"Exception Type: {type(e).__name__}")
-                print(f"Exception Message: {e}")                            
+            #########################################################
+            # Get Occlusion Texture
+            occlTexture = colorStore.get("occlusionTexture", False)
+            if occlTexture:
+                mTextureNodes.append(occlTexture)
+                mTextureFields.append("occlusionTexture")
+                mTextureParents.append(x3dMat)
+                retPlace2d.append(None)
+
+            if material.typeName == "phong" and material.typeName == "phongE":
+                #######################################################
+                # Get shininess and shininessTexture values
+                shineAttr = "cosinePower"
+                if material.typeName == "phongE":
+                    shineAttr = "roughness"
+                shiConn = material.findPlug(shineAttr)
+                shiTexture = self.findTextureFromPlug(shiConn)
+                if shiTexture:
+                    mTextureNodes.append(shiTexture)
+                    mTextureFields.append("shininessTexture")
+                    mTextureParents.append(x3dMat)
+                    retPlace2d.append(None)
+                    x3dMat.shininess = 1.0
+                else:
+                    x3dMat.shininess = cmds.getAttr(material.name() + "." + shineAttr)
+
+                #######################################################
+                # Get specularColor and specularTexture values
+                spcConn = material.findPlug("specularColor")
+                spcTexture = self.findTextureFromPlug(spcConn)
+                if spcTexture:
+                    mTextureNodes.append(spcTexture)
+                    mTextureFields.append("specularTexture")
+                    mTextureParents.append(x3dMat)
+                    retPlace2d.append(None)
+                else:
+                    spc = cmds.getAttr(material.name() + ".specularColor")[0]
+                    x3dMat.specularColor = self.getSFColor(spc[0], spc[1], spc[2])
 
 
-    def processLegacyPhysicalMaterial(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, retPlace2d, cField):
+    def processUSDPreview_PhysicalMaterial(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
+        pMat = self.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterialExt")
+        if pMat[0] == False:
+            physMat = pMat[1]
+
+            colorStore = {}
+            mro        = {}
+            mroStore   = {}
+            mroTexture = {}
+            
+            usePrev = 3
+            rkMat.getAdvBaseColorAndOcclusionTextures(material, colorStore, usePrev)
+
+            # Get BaseTexture
+            baseTexture = colorStore.get("baseTexture", False)
+            if baseTexture:
+                mTextureNodes.append(baseTexture)
+                mTextureFields.append("baseTexture")
+                mTextureParents.append(physMat)
+                retPlace2d.append(None)
+
+            else:
+                bc = cmds.getAttr(material.name() + ".diffuseColor")[0]
+                physMat.baseColor = self.getSFColor(bc[0], bc[1], bc[2])
+                
+            #######################################################
+            # Get EmissiveTexture
+            emissConn = material.findPlug("emissiveColor", True)
+            emsTexture = self.findTextureFromPlug(emissConn)
+            if emsTexture:
+                mTextureNodes.append(emsTexture)
+                mTextureFields.append("emissiveTexture")
+                mTextureParents.append(physMat)
+                retPlace2d.append(None)
+
+            eColor = cmds.getAttr(material.name() + ".emissiveColor")[0]
+            physMat.emissiveColor = self.getSFColor(eColor[0], eColor[1], eColor[2])
+
+            # This implementation is incomplete. I can't finish until I upgrade to Maya 2026
+
+    def processBlinn_PhysicalMaterial(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
         pMat = self.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterial")
         if pMat[0] == False:
             physMat = pMat[1]
@@ -3471,15 +3415,16 @@ class RKOrganizer():
             mroStore   = {}
             mroTexture = {}
 
-            rkMat.getLegacyBaseColorAndOcclusionTextures(material, colorStore, physMat)
+            rkMat.getLegacyBaseColorAndOcclusionTextures(material, colorStore)
 
             # Get BaseTexture
             hasBaseTexture = False
             diffuse = cmds.getAttr(material.name() + ".diffuse")
             baseTexture = colorStore.get("baseTexture", False)
             if baseTexture:
-                mTextureNodes.append(aom.MFnDependencyNode(baseTexture.object()))
+                mTextureNodes.append(baseTexture)
                 mTextureFields.append("baseTexture")
+                mTextureParents.append(physMat)
                 retPlace2d.append(None)
                 physMat.baseColor = (diffuse, diffuse, diffuse)
                 hasBaseTexture = True
@@ -3492,12 +3437,13 @@ class RKOrganizer():
             emissConn = material.findPlug("incandescence", True)
             emsTexture = self.findTextureFromPlug(emissConn)
             if emsTexture:
-                mTextureNodes.append(aom.MFnDependencyNode(emsTexture))
+                mTextureNodes.append(emsTexture)
                 mTextureFields.append("emissiveTexture")
+                mTextureParents.append(physMat)
                 retPlace2d.append(None)
-            else:
-                eColor = cmds.getAttr(material.name() + ".incandescence")[0]
-                physMat.emissiveColor = self.getSFColor(eColor[0], eColor[1], eColor[2])
+
+            eColor = cmds.getAttr(material.name() + ".incandescence")[0]
+            physMat.emissiveColor = self.getSFColor(eColor[0], eColor[1], eColor[2])
 
             ######################################################
             # Get Normal Map
@@ -3506,6 +3452,7 @@ class RKOrganizer():
             if normTexture:
                 mTextureNodes.append(aom.MFnDependencyNode(normTexture))
                 mTextureFields.append("normalTexture")
+                mTextureParents.append(physMat)
                 retPlace2d.append(None)
             
             normAdj = self.findNormScaleNode(normConn)
@@ -3526,90 +3473,64 @@ class RKOrganizer():
             if oTex:
                 mroStore["occlusionTexture"] = oTex.object()
                 hasOccl = True
-            else:
-                acVals = cmds.getAttr(material.name()+".ambientColor")[0]
-                acAvg = (acVals[0] + acVals[1] + acVals[2]) / 3
-                if acAvg < 0.0:
-                    acAvg = 0.0
-                elif acAvg > 1.0:
-                    acAvg = 1.0
-                physMat.occlusionStrength = acAvg
             
             #####################################################
             # PBR Metallic
-            hasEnviro = False
             hasMetal = False
-            usedSpec = False
-            metalIsAlpha = False
-            
             metalConn     = material.findPlug("reflectivity", True)
-            metalTexture1 = self.findTextureFromPlug(metalConn)
+            metalTexture = self.findTextureFromPlug(metalConn)
             if metalTexture1:
-                mroStore["metallicTexture"] = metalTexture1
+                mroStore["metallicTexture"] = metalTexture
+                physMat.metallic = 1.0
                 hasMetal = True
-                metalIsAlpha = True
+            else:
+                spColor      = cmds.getAttr(material.name() + ".specularColor")[0]
+                reflectivity = cmds.getAttr(material.name() + ".reflectivity")
+                
+                # Simple saturation check for Specular Tint
+                max_s = max(spColor)
+                min_s = min(spColor)
+                saturation = (max_s - min_s) / max_s if max_s > 0 else 0
 
-            metalConn = material.findPlug("specularColor", True)
-            metalTexture2 = self.findTextureFromPlug(metalConn)
-            if metalTexture2:
-                if hasBaseTexture == False:
-                    mTextureNodes.append(aom.MFnDependencyNode(metalTexture2.object()))
-                    mTextureFields.append("baseTexture")
-                    retPlace2d.append(None)
-                    physMat.baseColor = (1.0, 1.0, 1.0)
-                    hasBaseTexture = True
-                    usedSpec = True
-                elif hasMetal == False:
-                    mroStore["metallicTexture"] = metalTexture2
-                    hasMetal = True
-                    usedSpec = True
-
-            ####################################################
-            # Last change to set metalness value
-            if usedSpec == False and hasBaseTexture == False:
-                spc  = cmds.getAttr(material.name() + ".specularColor")[0]
-                if spc[0] != spc[1] or spc[0] != spc[2]:
-                    physMat.baseColor = spc
-                    
-            sro = cmds.getAttr(material.name() + ".specularRollOff")
-            if sro <= 0.3:
-                physMat.metallic = 0.0
-            elif sro >  0.3 and sro <  0.4:
-                physMat.metallic = 0.25
-            elif sro >= 0.4 and sro <= 0.7:
-                physMat.metallic = 0.5
-            elif sro >  0.7 and sro <  0.8:
-                physMat.metallic = 0.75
+                if saturation > 0.1 and diffuse < 0.5:
+                    physMat.metallic = reflectivity
+                else:
+                    physMat.metallic = 0.0
 
             #####################################################
             # PBR Roughness
             hasRough = False
-            roughIsAlpha = False
             roughAttrName = "eccentricity"
-            rOption = 1
             
             roughConn    = material.findPlug("eccentricity", True)
             roughTexture = self.findTextureFromPlug(roughConn)
             if roughTexture:
                 mroStore["roughnessTexture"] = roughTexture
+                physMat.roughness = 1.0
                 hasRough = True
-                roughIsAlpha = True
-
-            if hasRough == False:
-                rValue = cmds.getAttr(material.name() + '.' + roughAttrName)
-                rValue = np.sqrt(rValue)
-                
-                if metalIsAlpha == False:
-                    ref = cmds.getAttr(material.name() + ".reflectivity")
-                    if ref < 0.3:
-                        rValue += 0.1
-                        
-                if rValue <= 0.0:
+            else:
+                physMat.roughness = cmds.getAttr(material.name() + ".eccentricity")
+                # Because of Antialiasing issues
+                if physMat.roughness == 0.0:
                     physMat.roughness = 0.001
-                elif rValue > 1.0:
-                    physMat.roughness = 1.0
-                else:
-                    physMat.roughness = rValue
+            
+            # Occlusion Strength
+            physMat.occlusionStrength = cmds.getAttr(material.name() + ".specularRollOff")
+
+            # Get Transparency
+            transp = cmds.getAttr(material.name() + ".transparency")[0]
+            t = (transp[0] + transp[1] + transp[2]) / 3
+            physMat.transparency = t
+
+            # Check if Matel, Roughness, and Occlusions are all the same file node
+            metalRoughSame = False
+            occlIsSame = False
+            if hasMetal == True and hasRough == True:
+                if metalTexture.name() == roughnessTexture.name():
+                    metalRoughSame = True
+                    if hasOccl == True:
+                        if metalTexture.name() == occlTexture.name():
+                            occlIsSame = True
 
             ##############################################
             # Collect MRO textures
@@ -3636,224 +3557,9 @@ class RKOrganizer():
 
             ####################################################
             # PBR Create Metallic-Roughness and Occlusion Maps
-            if hasOccl == True or hasMetal== True or hasRough == True:
-                mroImage    = rkMat.generateMROImage(mro, rOption)
-                mroDEF      = material.name() + "_MROTexture"
-                mroDirPath  = cmds.workspace(query=True, rootDirectory=True)
-                mroDirPath  += "/sourceimages"
-                os.makedirs(mroDirPath, exist_ok=True)
-                if cmds.objExists(mroDEF) == False:
-                    mroDEF  = cmds.createNode('file', n=mroDEF)
-                mroFullPath = mroDirPath + "/" + mroDEF + ".png"
-                mroImage.writeToFile(mroFullPath, '.png')
-                cmds.setAtt(mroDEF + ".fileTextureName", mroFullPath, type="string")
-
-                tTrans = mroTexture.get("textTrans", False)
-                if tTrans:
-                    rkMat.connectTextureTransformToTexture(tTrans.name(), mroDEF)
-
-                nfList = aom.MSelectionList()
-                nfList.add(mroDEF)
-                texNode = aom.MFnDependencyNode(nfList.getDependNode(0))
-                
-                if hasOccl == True:
-                    mTextureNodes.append(texNode)
-                    mTextureFields.append("occlusionTexture")
-                    retPlace2d.append(None)
-                if hasMetal == True or hasRough == True:
-                    mTextureNodes.append(texNode)
-                    mTextureFields.append("metallicRoughnessTexture")
-                    retPlace2d.append(None)
-                    
-            transp = cmds.getAttr(material.name() + ".transparency")[0]
-            t = (transp[0] + transp[1] + transp[2]) / 3
-            physMat.transparency = t
-
-            ###########################################################
-            # Add the textures to the material ndoe
-            ###########################################################
-            mtexLen = len(mTextureNodes)
-            for a in range(mtexLen):
-                gPlace2d = self.processTexture(mTextureNodes[a].object().apiType(), mTextureNodes[a], physMat, mTextureFields[a])
-                if not gPlace2d.object().isNull():
-                    texturemapping = self.getMappingValue(mappings, mTextureFields[a] + "Mapping")
-                    setattr(physMat, mTextureFields[a] + "Mapping", texturemapping)
-                    print("Mapping: " + mTextureFields[a] + "Mapping")
-                    retPlace2d[a]  = gPlace2d
-
-
-    def processAdvancedPhysicalMaterial(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, retPlace2d, cField):
-        pMat = self.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterial")
-        if pMat[0] == False:
-            physMat = pMat[1]
-
-            colorStore = {}
-            mro        = {}
-            mroStore   = {}
-            mroTexture = {}
-            
-            advMat = 0
-            #    material.typeName == aiStandardSurface
-            if   material.typeName == "standardSurface":
-                advMat = 1
-            elif material.typeName == "openPBRSurface":
-                advMat = 2
-            elif material.typeName == "usdPreviewSurface":
-                advMat = 3
-            elif material.typeName == "StringrayPBS":
-                advMat = 4
-            #            |   aiStandardSurface  |    standardSurface    |    openPBRSurface     | usdPreviewSurface |    StingrayPBS     |
-            tColorList = [           "baseColor",            "baseColor",            "baseColor",     "diffuseColor",     "TEX_color_map"]
-            colorList  = [           "baseColor",            "baseColor",            "baseColor",     "diffuseColor",         "baseColor"]
-            dColorList = ["baseDiffuseRoughness", "baseDiffuseRoughness", "baseDiffuseRoughness",                 "",                  ""]
-
-            # This can also be done through a multiply node - see https://www.youtube.com/watch?v=Zy0dYnHMRPY
-            # for aiStandardSurface, standardSurface, and openPBRSurface, but not for usdPreviewSurface, and StringrayPBS
-            tOcclList  = [          "baseWeight",           "baseWeight",           "baseWeight",        "occlusion",        "TEX_oa_map"]
-            occlList   = [          "baseWeight",           "baseWeight",           "baseWeight",        "occlusion",                  ""]
-            tEmisList  = [       "emissionColor",        "emissionColor",        "emissionColor",    "emissiveColor",  "TEX_emissive_map"]
-            emisList   = [       "emissionColor",        "emissionColor",        "emissionColor",    "emissiveColor",          "emissive"]
-            tNormList  = [        "normalCamera",         "normalCamera",         "normalCamera",           "normal",    "TEX_normal_map"]
-            tMetalList = [       "baseMetalness",        "baseMetalness",        "baseMetalness",         "metallic",  "TEX_metallic_map"]
-            metalList  = [       "baseMetalness",        "baseMetalness",        "baseMetalness",         "metallic",          "metallic"]
-            tRoughList = [   "specularRoughness",    "specularRoughness",    "specularRoughness",        "roughness",         "roughness"]
-            roughList  = [   "specularRoughness",    "specularRoughness",    "specularRoughness",        "roughness", "TEX_roughness_map"]
-            iorList    = [         "specularIOR",          "specularIOR",          "specularIOR",              "ior"                   ""]
-
-            rkMat.getAdvBaseColorAndOcclusionTextures(material, colorStore, advMat)
-
-            # Get BaseTexture
-            baseTexture = colorStore.get("baseTexture", False)
-            if baseTexture:
-                mTextureNodes.append(aom.MFnDependencyNode(baseTexture.object()))
-                mTextureFields.append("baseTexture")
-                retPlace2d.append(None)
-
-                if advMat == 4:
-                    bc = cmds.getAttr(material.name() + "." + colorList[advMat])[0]
-                    physMat.baseColor = self.getSFColor(bc[0], bc[1], bc[2])
-            else:
-                bc = cmds.getAttr(material.name() + "." + colorList[advMat])[0]
-                physMat.baseColor = self.getSFColor(bc[0], bc[1], bc[2])
-                
-            # Get EmissiveTexture
-            emissConn    = material.findPlug(emisList[advMat], True)
-            emissTexture = self.findTextureFromPlug(emissConn)
-            if emissTexture:
-                mTextureNodes.append(aom.MFnDependencyNode(emsTex))
-                mTextureFields.append("emissiveTexture")
-                retPlace2d.append(None)
-                if advMat == 4:
-                    eInt = cmds.getAttr(material.name() + ".emissiveIntensity")
-                    physMat.emissiveColor = self.getSFColor(eInt, eInt, eInt)
-            else:
-                m = 1.0
-                if advMat == 4:
-                    m = cmds.getAttr(material.name() + ".emissiveIntensity")
-                ec = cmds.getAttr(material.name() + "." + emisList[adv])[0]
-                physMat.emissiveColor = self.getSFColor(ec[0]*m, ec[1]*m, ec[2]*m)
-                
-
-
-            ######################################################
-            # Get Normal Map
-            normConn = material.findPlug(tNormList[advMat], True)
-            normTex = self.findTextureFromPlug(normConn)
-            if normTex:
-                mTextureNodes.append(aom.MFnDependencyNode(norTex))
-                mTextureFields.append("normalTexture")
-                retPlace2d.append(None)
-            
-            if advMat < 4:
-                normAdj = self.findNormScaleNode(normConn)
-                if normAdj:
-                    if normAdj.typeName == "aiNormalMap":
-                        physMat.normalScale = cmds.getAttr(normAdj.name() + ".strength")
-                    elif normAdj.typeName == "bump2d":
-                        nsValue = cmds.getAttr(normAdj.name() + ".dumpDepth")
-                        if nsValue < 0.0:
-                            nsValue = 0.0
-                        physMat.normalScale = nsValue
-
-            # Get Metallic Texture
-            hasMetal = False
-            metalConn    = material.findPlug(tMetalList[advMat], True)
-            metalTexture = self.findTextureFromPlug(metalConn)
-            if metalTexture:
-                mroStore ["metallicTexture"] = metalTexture
-                hasMetal = True
-                if advMat == 4:
-                    physMat.metallic = cmds.getAttr(material.name() + "." + metalList[advMat])
-            else:
-                physMat.metallic = cmds.getAttr(material.name() + "." + metalList[advMat])
-
-            # Get Roughness Texture
-            hasRough = False
-            hasSPColor = False
-            if advMat < 4:
-                roughConn    = material.findPlug("specularColor", True)
-                roughTexture = self.findTextureFromPlug(roughConn)
-                if roughTexture:
-                    mroStore ["roughnessTexture"] = roughTexture
-                    hasRough = True
-                    hasSPColor = True
-                    physMat.roughness = cmds.getAttr(material.name() + "." + roughList[advMat])
-            if hasRough == False:
-                roughConn    = material.findPlug(tRoughList[advMat])
-                roughTexture = self.findTextureFromPlug(roughConn)
-                if roughTexture:
-                    mroStore ["roughnessTexture"] = roughTexture
-                    hasRough = True
-                    if advMat == 4:
-                        physMat.roughness = cmds.getAttr(material.name() + "." + roughList[advMat])
-            if hasRough == False:
-                physMat.roughness = cmds.getAttr(material.name() + "." + roughList[advMat])
-                
-            # Verify Occlusion Texture
-            hasOccl = False
-            occlTex = colorStore.get("occlusionTexture", False)
-            if occlTex:
-                mroStore["occlusionTexture"] = oTex.object()
-                hasOccl = True
-            else:
-                occlConn = material.findPlug(tOcclList[advMat])
-                occlTexture = self.findTextureFromPlug(occlConn)
-                if occlTexture:
-                    mroStore["occlusionTexture"] = occlTexture.object()
-                    hasOccl = True
-            if hasOccl == False and advMat < 4:
-                physMat.occlusionStrength = cmds.getAttr(material.name() + "." + occlList[advMat])
-            
-            ####################################################
-            # PBR Occlusion
-            oTex = mroStore.get("occlusionTexture", False)
-            if oTex:
-                occImage = maom.MImage()
-                occImage.readFromTextureNode(oTex, maom.MImage.kFloat)
-                mro["red"] = occImage
-                mroTexture["textTrans"] = rkMat.getTextureTransform(oTex)
-            
-            ####################################################
-            # PBR Metallic
-            mTex = metTexStore.get("metallicTexture", None)
-            if mTex:
-                metImage = maom.MImage()
-                metImage.readFromTextureNode(mTex, maom.MImage.kFloat)
-                mro["blue"] = metImage
-                mroTexture["textTrans"] = rkMat.getTextureTransform(mTex)
-                
-            ####################################################
-            # PBR Roughness
-            rTex = rouTexStore.get("roughTexture", None)
-            if rTex:
-                rouImage = maom.MImage()
-                rouImage.readFromTextureNode(rTex, maom.MImage.kFloat)
-                mro["green"] = metImage
-                mroTexture["textTrans"] = rkMat.getTextureTransform(rTex)
-
-            ####################################################
-            # PBR Create Metallic-Roughness and Occlusion Maps
-            if hasOccl == True or hasMetal== True or hasRough == True:
+            #
+            hasTexNode = False
+            if (metalRoughSame == False and (hasMetal == True or hasRough == True)) or (occlIsSame == False and hasOccl == True):
                 mroImage    = rkMat.generateMROImage(mro, 0)
                 mroDEF      = material.name() + "_MROTexture"
                 mroDirPath  = cmds.workspace(query=True, rootDirectory=True)
@@ -3874,29 +3580,858 @@ class RKOrganizer():
                 nfList = aom.MSelectionList()
                 nfList.add(mroDEF)
                 texNode = aom.MFnDependencyNode(nfList.getDependNode(0))
-                
-                if hasOccl == True:
+                hasTexNode = True
+            
+            if hasOccl == True:
+                mTextureFields.append("occlusionTexture")
+                mTextureParents.appends(physMat)
+                retPlace2d.append(None)
+
+                if occlIsSame == True:# Assumes hasMetal == True:
+                    mTextureNodes.append(metalTexture)
+                elif hasTexNode == True:
                     mTextureNodes.append(texNode)
-                    mTextureFields.append("occlusionTexture")
+                
+            if hasMetal == True or hasRough == True:
+                mTextureFields.append("metallicRoughnessTexture")
+                mTextureParents.append(physMat)
+                retPlace2d.append(None)
+                
+                if metalRoughSame == True:# Assumes hasMetal == True
+                    mTextureNodes.append(metalTexture)
+                elif hasTexNode == True:                                         ###
+                    mTextureNodes.append(texNode)                                ###
+            ########################################################################
+
+
+    def processStandard_PhysicalMaterial(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
+        pMat = self.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterialExt")
+        if pMat[0] == False:
+            physMat = pMat[1]
+
+            colorStore = {}
+            mro        = {}
+            mroStore   = {}
+            mroTexture = {}
+            
+            stand = 0
+            rkMat.getAdvBaseColorAndOcclusionTextures(material, colorStore, stand)
+
+            ####################################################
+            # Get BaseTexture
+            baseTexture = colorStore.get("baseTexture", False)
+            if baseTexture:
+                mTextureNodes.append(baseTexture)
+                mTextureFields.append("baseTexture")
+                mTextureParents.append(physMat)
+                retPlace2d.append(None)
+
+            bc = cmds.getAttr(material.name() + ".baseColor")[0]
+            physMat.baseColor = self.getSFColor(bc[0], bc[1], bc[2])
+            
+            ####################################################
+            # Get Emissive Values
+            emissConn    = material.findPlug("emissionColor", True)
+            emissTexture = self.findTextureFromPlug(emissConn)
+            if emissTexture:
+                mTextureNodes.append(emissTexture)
+                mTextureFields.append("emissiveTexture")
+                mTextureParents.append(physMat)
+                retPlace2d.append(None)
+
+            ec = cmds.getAttr(material.name() + ".emissiveColor")[0]
+            physMat.emissiveColor = self.getSFColor(ec[0], ec[1], ec[2])
+
+            # Only Materaial Extension Used
+            esBna = self.processBasicNodeAddition(None, physMat, "extensions", "EmssiveStrengthMaterialExtension", physMat.DEF + "_ESME")
+            if esBna[0] == False:
+                esBna[1].emissiveStrength = cmds.getAttr(material.name() + ".emissiveWeight")
+            
+            ######################################################
+            # Get Normal Map
+            normConn = material.findPlug("nomralCamera", True)
+            normTex = self.findTextureFromPlug(normConn)
+            if normTex:
+                mTextureNodes.append(norTex)
+                mTextureFields.append("normalTexture")
+                mTextureParents.append(physMat)
+                retPlace2d.append(None)
+            
+            normAdj = self.findNormScaleNode(normConn)
+            if normAdj:
+                if normAdj.typeName == "aiNormalMap":
+                    physMat.normalScale = cmds.getAttr(normAdj.name() + ".strength")
+                elif normAdj.typeName == "bump2d":
+                    nsValue = cmds.getAttr(normAdj.name() + ".dumpDepth")
+                    if nsValue < 0.0:
+                        nsValue = 0.0
+                    physMat.normalScale = nsValue
+
+            #####################################################################
+            # Analyze for existing shared Metallic, Roughness, Occlusion texture:
+            #
+            hasMetal = False
+            hasRough = False
+            hasOccl  = False
+            metalRoughSame = False
+            occlIsSame     = False
+
+            hasMetal = False
+            metalConn    = material.findPlug("baseMetalness", True)
+            metalTexture = self.findTextureFromPlug(metalConn)
+            if metalTexture:
+                hasMetal = True
+            
+            roughConn    = material.findPlug("specularRoughness", True)
+            roughTexture = self.findTextureFromPlug(roughConn)
+            if roughTexture:
+                hasRough = True
+                    
+            occlTexture = colorStore.get("occlusionTexture", False)
+            if occlTexture:
+                hasOccl = True
+            
+            if hasMetal == True and hasRough == True:
+                if metalTexture.name() == roughnessTexture.name():
+                    metalRoughSame = True
+                    if hasOccl == True:
+                        if metalTexture.name() == occlTexture.name():              ###
+                            occlIsSame = True                                      ###
+            ##########################################################################
+
+            # Get Metallic Texture
+            if hasMetal == True:
+                mroStore ["metallicTexture" ] = metalTexture.object()
+                
+            if hasRough == True and metalRoughSame == False:
+                mroStore ["roughnessTexture"] = roughTexture.object()
+
+            if hasOccl == True and occlIsSame == False:
+                mroStore ["occlusionTexture"] = occlTexture.object()
+
+            ####################################################
+            # PBR Occlusion
+            oTex = mroStore.get("occlusionTexture", False)
+            if oTex:
+                occImage = maom.MImage()
+                occImage.readFromTextureNode(oTex, maom.MImage.kFloat)
+                mro["red"] = occImage
+                mroTexture["textTrans"] = rkMat.getTextureTransform(oTex)
+
+            ####################################################
+            # PBR Roughness
+            rTex = mroStore.get("roughnessTexture", False)
+            if rTex:
+                metImage = aom.MImage()
+                metImage.readFromTextureNode(rTex, aom.MImage.kFloat)
+                mro["green"] = metImage
+                mroTexture["textTrans"] = rkMat.getTextureTransform(rTex)
+            else:
+                physMat.roughness = cmds.getAttr(material.name() + ".specualrRoughness")
+                # For Antialiasing Issues
+                if physMat.roughness == 0.0:
+                    physMatroughness = 0.001
+            
+            ####################################################
+            # PBR Metallic
+            mTex = mroStore.get("metallicTexture", False)
+            if mTex:
+                metImage = maom.MImage()
+                metImage.readFromTextureNode(mTex, maom.MImage.kFloat)
+                mro["blue"] = metImage
+                mroTexture["textTrans"] = rkMat.getTextureTransform(mTex)
+            else:
+                physMat.metallic = cmds.getAttr(material.name() + ".baseMetalness")
+            
+            ####################################################
+            # PBR Create Metallic-Roughness and Occlusion Maps
+            #
+            hasTexNode = False
+            if (metalRoughSame == False and (hasMetal == True or hasRough == True)) or (occlIsSame == False and hasOccl == True):
+                mroImage    = rkMat.generateMROImage(mro, 0)
+                mroDEF      = material.name() + "_MROTexture"
+                mroDirPath  = cmds.workspace(query=True, rootDirectory=True)
+                mroDirPath  += "/sourceimages"
+                os.makedirs(mroDirPath, exist_ok=True)
+
+                if cmds.objExists(mroDEF) == False:
+                    mroDEF  = cmds.createNode('file', n=mroDEF)
+                    
+                mroFullPath = mroDirPath + "/" + mroDEF + ".png"
+                mroImage.writeToFile(mroFullPath, '.png')
+                cmds.setAtt(mroDEF + ".fileTextureName", mroFullPath, type="string")
+
+                tTrans = mroTexture.get("textTrans", False)
+                if tTrans:
+                    rkMat.connectTextureTransformToTexture(tTrans.name(), mroDEF)
+
+                nfList = aom.MSelectionList()
+                nfList.add(mroDEF)
+                texNode = aom.MFnDependencyNode(nfList.getDependNode(0))
+                hasTexNode = True
+            
+            if hasOccl == True:
+                mTextureFields.append("occlusionTexture")
+                mTextureParents.appends(physMat)
+                retPlace2d.append(None)
+
+                if occlIsSame == True:# Assumes hasMetal == True:
+                    mTextureNodes.append(metalTexture)
+                elif hasTexNode == True:
+                    mTextureNodes.append(texNode)
+                
+            if hasMetal == True or hasRough == True:
+                mTextureFields.append("metallicRoughnessTexture")
+                mTextureParents.append(physMat)
+                retPlace2d.append(None)
+                
+                if metalRoughSame == True:# Assumes hasMetal == True
+                    mTextureNodes.append(metalTexture)
+                elif hasTexNode == True:                                         ###
+                    mTextureNodes.append(texNode)                                ###
+            ########################################################################
+            
+            #####################################################################
+            # Ignore Transmission Info to set Transparency
+            physMat.transparency = 1 - cmds.getAttr(material.name() + ".opacity")
+
+
+    # Assumes that the ShaderFX interface is not used.
+    def processStingrayPBS_PhysicalMaterial(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
+        pMat = self.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterialExt")
+        if pMat[0] == False:
+            physMat = pMat[1]
+
+            colorStore = {}
+            mro        = {}
+            mroStore   = {}
+            mroTexture = {}
+            
+            stingray = 4
+            rkMat.getAdvBaseColorAndOcclusionTextures(material, colorStore, stingray)
+
+            ####################################################
+            # Get BaseTexture
+            baseTexture = colorStore.get("baseTexture", False)
+            if baseTexture:
+                mTextureNodes.append(baseTexture)
+                mTextureFields.append("baseTexture")
+                mTextureParents.append(physMat)
+                retPlace2d.append(None)
+
+            bc = cmds.getAttr(material.name() + ".baseColor")[0]
+            physMat.baseColor = self.getSFColor(bc[0], bc[1], bc[2])
+            
+            ####################################################
+            # Get metallic, roughness values.
+            # Just assume that transparency is default value 0.0
+            # and occlusionStrength is default value of 1.0
+            physMat.metallic  = cmds.getAttr(material.name() + ".metallic" )
+            physMat.roughness = cmds.getAttr(material.name() + ".roughness")
+            if physMat.roughness == 0.0:
+                physMat.roughness = 0.001
+            
+            ####################################################
+            # Get Emissive Values
+            emissConn    = material.findPlug("TEX_emissive_map", True)
+            emissTexture = self.findTextureFromPlug(emissConn)
+            if emissTexture:
+                mTextureNodes.append(emissTexture)
+                mTextureFields.append("emissiveTexture")
+                mTextureParents.append(physMat)
+                retPlace2d.append(None)
+
+            ec = cmds.getAttr(material.name() + ".emissive")[0]
+            physMat.emissiveColor = self.getSFColor(ec[0], ec[1], ec[2])
+
+            # Only Materaial Extension Used
+            esBna = self.processBasicNodeAddition(None, physMat, "extensions", "EmssiveStrengthMaterialExtension", physMat.DEF + "_ESME")
+            if esBna[0] == False:
+                esBna[1].emissiveStrength = cmds.getAttr(material.name() + ".emissiveIntensity")
+            
+            ######################################################
+            # Get Normal Map
+            normConn = material.findPlug("TEX_normal_map", True)
+            normTex = self.findTextureFromPlug(normConn)
+            if normTex:
+                mTextureNodes.append(norTex)
+                mTextureFields.append("normalTexture")
+                mTextureParents.append(physMat)
+                retPlace2d.append(None)
+
+            #####################################################################
+            # Analyze for existing shared Metallic, Roughness, Occlusion texture:
+            #
+            hasMetal = False
+            hasRough = False
+            hasOccl  = False
+            metalRoughSame = False
+            occlIsSame     = False
+
+            hasMetal = False
+            metalConn    = material.findPlug("TEX_metallic_map", True)
+            metalTexture = self.findTextureFromPlug(metalConn)
+            if metalTexture:
+                hasMetal = True
+            
+            roughConn    = material.findPlug("TEX_roughness_map", True)
+            roughTexture = self.findTextureFromPlug(roughConn)
+            if roughTexture:
+                hasRough = True
+                    
+            occlTexture = colorStore.get("occlusionTexture", False)
+            if occlTexture:
+                hasOccl = True
+            
+            if hasMetal == True and hasRough == True:
+                if metalTexture.name() == roughnessTexture.name():
+                    metalRoughSame = True
+                    if hasOccl == True:
+                        if metalTexture.name() == occlTexture.name():              ###
+                            occlIsSame = True                                      ###
+            ##########################################################################
+
+            # Get Metallic Texture
+            if hasMetal == True:
+                mroStore ["metallicTexture" ] = metalTexture.object()
+                
+            if hasRough == True and metalRoughSame == False:
+                mroStore ["roughnessTexture"] = roughTexture.object()
+
+            if hasOccl == True and occlIsSame == False:
+                mroStore ["occlusionTexture"] = occlTexture.object()
+
+            ####################################################
+            # PBR Occlusion
+            oTex = mroStore.get("occlusionTexture", False)
+            if oTex:
+                occImage = maom.MImage()
+                occImage.readFromTextureNode(oTex, maom.MImage.kFloat)
+                mro["red"] = occImage
+                mroTexture["textTrans"] = rkMat.getTextureTransform(oTex)
+
+            ####################################################
+            # PBR Roughness
+            rTex = mroStore.get("roughnessTexture", False)
+            if rTex:
+                metImage = aom.MImage()
+                metImage.readFromTextureNode(rTex, aom.MImage.kFloat)
+                mro["green"] = metImage
+                mroTexture["textTrans"] = rkMat.getTextureTransform(rTex)
+            
+            ####################################################
+            # PBR Metallic
+            mTex = mroStore.get("metallicTexture", False)
+            if mTex:
+                metImage = maom.MImage()
+                metImage.readFromTextureNode(mTex, maom.MImage.kFloat)
+                mro["blue"] = metImage
+                mroTexture["textTrans"] = rkMat.getTextureTransform(mTex)
+            
+            ####################################################
+            # PBR Create Metallic-Roughness and Occlusion Maps
+            #
+            hasTexNode = False
+            if (metalRoughSame == False and (hasMetal == True or hasRough == True)) or (occlIsSame == False and hasOccl == True):
+                mroImage    = rkMat.generateMROImage(mro, 0)
+                mroDEF      = material.name() + "_MROTexture"
+                mroDirPath  = cmds.workspace(query=True, rootDirectory=True)
+                mroDirPath  += "/sourceimages"
+                os.makedirs(mroDirPath, exist_ok=True)
+
+                if cmds.objExists(mroDEF) == False:
+                    mroDEF  = cmds.createNode('file', n=mroDEF)
+                    
+                mroFullPath = mroDirPath + "/" + mroDEF + ".png"
+                mroImage.writeToFile(mroFullPath, '.png')
+                cmds.setAtt(mroDEF + ".fileTextureName", mroFullPath, type="string")
+
+                tTrans = mroTexture.get("textTrans", False)
+                if tTrans:
+                    rkMat.connectTextureTransformToTexture(tTrans.name(), mroDEF)
+
+                nfList = aom.MSelectionList()
+                nfList.add(mroDEF)
+                texNode = aom.MFnDependencyNode(nfList.getDependNode(0))
+                hasTexNode = True
+            
+            if hasOccl == True:
+                mTextureFields.append("occlusionTexture")
+                mTextureParents.appends(physMat)
+                retPlace2d.append(None)
+
+                if occlIsSame == True:# Assumes hasMetal == True:
+                    mTextureNodes.append(metalTexture)
+                elif hasTexNode == True:
+                    mTextureNodes.append(texNode)
+                
+            if hasMetal == True or hasRough == True:
+                mTextureFields.append("metallicRoughnessTexture")
+                mTextureParents.append(physMat)
+                retPlace2d.append(None)
+                
+                if metalRoughSame == True:# Assumes hasMetal == True
+                    mTextureNodes.append(metalTexture)
+                elif hasTexNode == True:                                         ###
+                    mTextureNodes.append(texNode)                                ###
+            ########################################################################
+
+
+    def processOpenPBRSurface(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
+        pMat = self.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterialExt")
+        if pMat[0] == False:
+            physMat = pMat[1]
+
+            colorStore = {}
+            mro        = {}
+            mroStore   = {}
+            mroTexture = {}
+            
+            openPBR = 2
+            rkMat.getAdvBaseColorAndOcclusionTextures(material, colorStore, openPBR)
+
+            # Get BaseTexture
+            baseTexture = colorStore.get("baseTexture", False)
+            if baseTexture:
+                mTextureNodes.append(baseTexture)
+                mTextureFields.append("baseTexture")
+                mTextureParents.append(physMat)
+                retPlace2d.append(None)
+
+            else:
+                bc = cmds.getAttr(material.name() + ".baseColor")[0]
+                physMat.baseColor = self.getSFColor(bc[0], bc[1], bc[2])
+                
+            # Get EmissiveTexture
+            emissConn    = material.findPlug("emissionColor", True)
+            emissTexture = self.findTextureFromPlug(emissConn)
+            if emissTexture:
+                mTextureNodes.append(emissTexture)
+                mTextureFields.append("emissiveTexture")
+                mTextureParents.append(physMat)
+                retPlace2d.append(None)
+
+            ec = cmds.getAttr(material.name() + ".emissionColor")[0]
+            physMat.emissiveColor = self.getSFColor(ec[0], ec[1], ec[2])
+            
+            esBna = self.processBasicNodeAddition(None, physMat, "extensions", "EmssiveStrengthMaterialExtension", physMat.DEF + "_ESME")
+            if esBna[0] == False:
+                esBna[1].emissiveStrength = cmds.getAttr(material.name() + ".emissionLuminance")
+
+            ###################################################################################################
+            # Transmission and Transparency
+            opacity = cmds.getAttr(material.name() + ".geometryOpacity")
+            tWeight = cmds.getAttr(material.name() + ".transmissionWeight")
+            sWeight = cmds.getAttr(material.name() + ".subsurfaceWeight")
+            isTWall = cmds.getAttr(material.name() + ".geometryThinWalled")
+            
+            if tWeight == 0.0:
+                physMat.transparency = 1 - opacity # This is always 0.0 since we are using the TransmissionMaterialExtension
+            else:
+                # TransmissionMaterialExtension
+                trBna = self.processBasicNodeAddition(None, physMat, "extensions", "TransmissionMaterialExtension", physMat.DEF + "_TRME")
+                if trBna[0] == False:
+                    trBna[1].transmission = cmds.getAttr(material.name() + ".transmissionWeight")
+                    #The Transmission value is stored in the R channel of the Transmission texture.
+                    transConn    = material.findPlug("transmissionColor", True)
+                    transTexture = self.findTextureFromPlug(transConn)
+                    if transTexture:
+                        mTextureNodes.append(transTexture)
+                        mTextureFields.append("transmissionTexture")
+                        mTextureParents.append(trBna[1])
+                        retPlace2d.append(None)
+                        hasTrTexture = True
+                        
+            if isTWall == True:
+                dtBna = self.processBasicNodeAddition(None, physMat, "extensions", "DiffuseTransmissionMaterialExtension", physMat.DEF + "_DTME")
+                if dtBna[0] == False:
+                    dtBna[1].diffuseTransmission = cmds.getAttr(material.name() + ".subsurfaceWeight")
+                    subsConn = material.findPlug("subsurfaceColor")
+                    subsTexture = self.findTextureFromPlug(subsConn)
+                    if subsTexture:
+                        mTextureNodes.append(subsTexture)
+                        mTextureFields.append("diffuseTransmissionColorTexture")
+                        mTextureParents.append(subsBna[1])
+                        retPlace2d.append(None)
+                        
+                        try:
+                            iPath = cmds.getAttr(subsTexture.name() + ".fileTextureName")
+                            img = aom.MImage()
+                            img.readFromFile(iPath)
+                            if img.depth() == 4:
+                                mTextureNodes.append(subsTexture)
+                                mTextureFields.append("diffuseTransmissionTexture")
+                                mTextureParents.append(spcBna[1])
+                                retPlace2d.append(None)
+                        except:
+                            pass
+            else:
+                # VolumeMaterialExtension
+                vmBna = self.processBasicNodeAddition(None, physMat, "extensions", "VolumeMaterialExtension", physMat.DEF + "_VLME")
+                if vmBna[0] == False:
+                    #The Thickness value is stored in the G channel of the Transmission texture.
+                    myThickness = 1.0
+                    thickConn    = material.findPlug("transmissionDepth", True)
+                    thickTexture = self.findTextureFromPlug(thickConn)
+                    if thickTexture:
+                        mTextureNodes.append(thickTexture)
+                        mTextureFields.append("thicknessTexture")
+                        mTextureParents.append(vmBna[1])
+                        retPlace2d.append(None)
+                    else:
+                        myThickness = cmds.getAttr(material.name() + ".transmissionDepth")
+
+                    # Get thickness
+                    vmThickness = tWeight # More like Water
+                    if sWeight > tWeight: # More like Skin/Wax
+                        vmThickness = sWeight
+                    vmBna[1].thickness = vmThickness * myThickness
+                    
+                    # Get Attenuation Color
+                    ac1 = cmds.getAttr(material.name() + ".subsurfaceColor")[0]
+                    ac1v = (1.0, 1.0, 1.0)
+                    ac1t = ac1[0] + ac1[1] + ac1[2]
+                    ac2 = cmds.getAttr(material.name() + ".subsurfaceRadiusScale")[0]
+                    ac2v = (1.0, 1.0, 1.0)
+                    ac2t = ac2[0] + ac2[1] + ac2[2]
+                    if ac1t > 0.0:
+                        ac1v[0] = ac1[0]
+                        ac1v[1] = ac1[1]
+                        ac1v[2] = ac1[2]
+                    if ac2t > 0.0:
+                        ac2v[0] = ac2[0]
+                        ac2v[1] = ac2[1]
+                        ac2v[2] = ac2[2]
+                        
+                    vmBna[1].attenuationColor    = self.getSFColor(ac1v[0]*ac2v[0], ac1v[1]*ac2v[1], ac1v[2]*ac2v[2])
+                    vmBna[1].attenuationDistance = cmds.getAttr(material.name() + ".subsurfaceScale")
+                        
+                # VolumeScatterMaterialExtension
+                vmsBna = self.processBasicNodeAddition(None, physMat, "extensions", "VolumeScatterMaterialExtension", physMat.DEF + "_VSME")
+                if vmsBna[0] == False:
+                    vmsBna[1].multiscatterColor = cmds.getAttr(material.name() + ".transmissionScatter")[0]
+                    vmsBna[1].scatterAnisotropy = cmds.getAttr(material.name() + ".transmissionScatterAnisotropy")
+
+                # DispersionMaterialExtension
+                dmBna = self.processBasicNodeAddition(None, physMat, "extensions", "DispersionMaterialExtension", physMat.DEF + "_DSPME")
+                if dmBna[0] == False:
+                    noScaleDisp = 20/cmds.getAttr(material.name() + ".transmissionDispersionAbbeNumber")
+                    dmBna[1].dispersion = noScaleDisp * cmds.getAttr(material.name() + ".transmissionDispersionScale")
+                        
+                
+            
+            ######################################################
+            # Get Normal Map
+            normConn = material.findPlug("nomralCamera", True)
+            normTex = self.findTextureFromPlug(normConn)
+            if normTex:
+                mTextureNodes.append(norTex)
+                mTextureFields.append("normalTexture")
+                mTextureParents.append(physMat)
+                retPlace2d.append(None)
+            
+            normAdj = self.findNormScaleNode(normConn)
+            if normAdj:
+                if normAdj.typeName == "aiNormalMap":
+                    physMat.normalScale = cmds.getAttr(normAdj.name() + ".strength")
+                elif normAdj.typeName == "bump2d":
+                    nsValue = cmds.getAttr(normAdj.name() + ".dumpDepth")
+                    if nsValue < 0.0:
+                        nsValue = 0.0
+                    physMat.normalScale = nsValue
+
+            #####################################################################
+            # Analyze for existing shared Metallic, Roughness, Occlusion texture:
+            #
+            hasMetal = False
+            hasRough = False
+            hasOccl  = False
+            metalRoughSame = False
+            occlIsSame     = False
+            isUSDSpecularWorkflow = False
+
+            hasMetal = False
+            metalConn    = material.findPlug("baseMetalness", True)
+            metalTexture = self.findTextureFromPlug(metalConn)
+            if metalTexture:
+                hasMetal = True
+            
+            roughConn    = material.findPlug("specularRoughness", True)
+            roughTexture = self.findTextureFromPlug(roughConn)
+            if roughTexture:
+                hasRough = True
+                    
+            occlTexture = colorStore.get("occlusionTexture", False)
+            if occlTexture:
+                hasOccl = True
+
+            if hasMetal == True and hasRough == True:
+                if metalTexture.name() == roughnessTexture.name():
+                    metalRoughSame = True
+                    if hasOccl == True:
+                        if metalTexture.name() == occlTexture.name():              ###
+                            occlIsSame = True                                      ###
+            ##########################################################################
+
+            # Get Metallic Texture
+            if hasMetal == True and metalRoughSame == False:
+                mroStore ["metallicTexture"] = metalTexture.object()
+                
+            if hasRough == True and metalRoughSame == False:
+                mroStore ["roughnessTexture"] = roughTexture.object()
+
+            if hasOccl == True and occlIsSame == False:
+                mroStore ["occlusionTexture"] = occlTexture.object()
+
+            ####################################################
+            # PBR Occlusion
+            oTex = mroStore.get("occlusionTexture", False)
+            if oTex:
+                occImage = maom.MImage()
+                occImage.readFromTextureNode(oTex, maom.MImage.kFloat)
+                mro["red"] = occImage
+                mroTexture["textTrans"] = rkMat.getTextureTransform(oTex)
+            
+            ####################################################
+            # PBR Metallic
+            mTex = mroStore.get("metallicTexture", False)
+            if mTex:
+                metImage = maom.MImage()
+                metImage.readFromTextureNode(mTex, maom.MImage.kFloat)
+                mro["blue"] = metImage
+                mroTexture["textTrans"] = rkMat.getTextureTransform(mTex)
+            
+            #######################################################################
+            # Evaluate metallic and Specular Values
+            if hasMetal == False:
+                physMat.metallic = cmds.getAttr(material.name() + ".baseMetalness")
+                
+            spcBna = self.processBasicNodeAddition(None, physMat, "extensions", "SpecularMaterialExtension", physMat.DEF + "_SpecME")
+            if spcBna[0] == False:
+                spcBna[1].specular = cmds.getAttr(material.name() + ".specularWeight")
+                
+                specConn = material.findPlug("specularColor")
+                specTexture = self.findTextureFromPlug(specConn)
+                if specTexture:
+                    mTextureNodes.append(specTexture)
+                    mTextureFields.append("specularColorTexture")
+                    mTextureParents.append(spcBna[1])
                     retPlace2d.append(None)
                     
-                if hasMetal == True or hasRough == True:
-                    mTextureNodes.append(texNode)
-                    mTextureFields.append("metallicRoughnessTexture")
-                    retPlace2d.append(None)
-                    
-            # Get Transparency - Maya has the transpanecy value the opposite of X3D
-            # so that a 1.0 is full transparency (aka you can't see it), where as in
-            # X3d a 1.0 means you can see it completely.
-            if advMat < 4:
-                opacity = cmds.getAttr(material.name() + ".opacity")[0]
-                physMat.transparency = 1 - ((opacity[0] + opacity[1] + opacity[2]) / 3)
+                    try:
+                        iPath = cmds.getAttr(specTexture.name() + ".fileTextureName")
+                        img = aom.MImage()
+                        img.readFromFile(iPath)
+                        if img.depth() == 4:
+                            mTextureNodes.append(specTexture)
+                            mTextureFields.append("specularTexture")
+                            mTextureParents.append(spcBna[1])
+                            retPlace2d.append(None)
+                    except:
+                        pass
+                else:
+                    spCol = cmds.getAttr(material.name() + ".specularColor")[0]
+                    spcBna[1].specularColor = self.getSFColor(spCol[0], spCol[1], spCol[2])
+            
+            iorBna = self.processBasicNodeAddition(None, physMat, "extensions", "IORMaterialExtension", physMat.DEF + "_IORME")
+            if iorBna[0] == False:
+                iorBna[1].indexOfRefraction = cmds.getAttr(material.name() + ".specularIOR")
                 
+            aniso = cmds.getAttr(material.name() + ".specularAnisotropy")
+            if aniso > 0.0:
+                aniBna = self.processBasicNodeAddition(None, physMat, "extensions", "AnisotropyMaterialExtension", physMat.DEF + "_AniME")
+                if aniBna[0] == False:
+                    aniBna[1].anisotropyStrength = aniso
+                    if cmds.objExists(material.name() + ".tangentUCamera"):
+                        tangConn = material.findPlug("tangentUCamera")
+                        tangTexture = self.findTextureFromPlug(tangConn)
+                        if tangTexture:
+                            mTextureNodes.append(tangTexture)
+                            mTextureFields.append("anisotropyTexture")
+                            mTextureParents.append(aniBna[1])
+                            retPlace2d.append(None)
+                    elif cmds.objExists(material.name() + ".specularAnisotropyRotation"):
+                        aniBna[1].rotation = cmds.getAttr(material.name()  + ".specularAnisotropyRotation")
+            
+            ####################################################
+            # Clearcoat    
+            coatWeight = cmds.getAttr(material.name() + ".coatWeight")
+            if coatWeight > 0.0:
+                coaBna = self.processBasicNodeAddition(None, physMat, "extensions", "ClearcoatMaterialExtension", physMat.DEF + "_CoatME")
+                if coaBna[0] == False:
+                    coaBna[1].clearcoat = coatWeight
+                    coatConn = material.findPlug("coatColor")
+                    coatTexture = self.findTextureFromPlug(coatConn)
+                    if coatTexture:
+                        mTextureNodes.append(coatTexture)
+                        mTextureFields.append("clearcoatTexture")
+                        mTextureParents.append(coaBna[1])
+                        retPlace2d.append(None)
+                    cRouConn = material.findPlug("coatRoughness")
+                    cRouTexture = self.findTextureFromPlug(cRouConn)
+                    if cRouTexture:
+                        mTextureNodes.append(cRouTexture)
+                        mTextureFields.append("clearcoatRoughnessTexture")
+                        mTextureParents.append(coaBna[1])
+                        retPlace2d.append(None)
+                    else:
+                        coaBna[1].roughness = cmds.getAttr(material.name() + ".coatRoughness")
+                    
+                    # Get Coat Normal Map
+                    cNorConn = material.findPlug("geometryCoatNormal", True)
+                    cNorTexture = self.findTextureFromPlug(cNorConn)
+                    if cNorTexture:
+                        mTextureNodes.append(cNorTexture)
+                        mTextureFields.append("clearcoatNormalTexture")
+                        mTextureParents.append(coaBna[1])
+                        retPlace2d.append(None)
+                            
+            ######################################################################
+            # Fuzz / Sheen Weight
+            fuzz = cmds.getAttr("fuzzWeight")
+            if fuzz > 0.0:
+                fuzBna = self.processBasicNodeAddition(None, physMat, "extensions", "SheenMaterialExtension", physMat.DEF + "_SheenME")
+                if fuzBna[0] == False:
+                    fColConn = material.findPlug("fuzzColor", True)
+                    fColTexture = self.findTextureFromPlug(fColConn)
+                    if fColTexture:
+                        mTextureNodes.append(fColTexture)
+                        mTextureFields.append("sheenColorTexture")
+                        mTextureParents.append(fuzBna[1])
+                        retPlace2d.append(None)
+                    else:
+                        fCol = cmds.getAttr(material.name() + ".fuzzColor")[0]
+                        fuzBna[1].sheenColor = self.getSFColor(fCol[0] * fuzz, fCol[1] * fuzz, fCol[2] * fuzz)
+
+                    fRouConn = material.findPlug("fuzzRoughness")
+                    fRouTexture = self.findTextureFromPlug(fRouConn, True)
+                    if fRouTexture:
+                        mTextureNodes.append(fRouTexture)
+                        mTextureFields.append("sheenRoughnessTexture")
+                        mTextureParents.append(fuzBna[1])
+                        retPlace2d.append(None)
+                    else:
+                        fuzBna[1].sheenRoughenss = cmds.getAttr(material.name() + ".fuzzRoughness")
+                        
+                    # TODO - Find a way to deal with Fuzz/Sheen AOVs
+                    
+            ##############################################################
+            # Thickness / Iridescence
+            iridConn = material.findPlug("thinFilmWeight")
+            iridTexture = self.findTextureFromPlug(iridConn, True)
+            iridWeight = 1.0
+            iridThickness = 1.0
+            hasIrid = False
+            if iridTexture:
+                hasIrid = True
+                mTextureNodes.append(iridTexture)
+                mTextureFields.append("iridescenceTexture")
+                mTextureParents.append(fuzBna[1])
+                retPlace2d.append(None)
+            else:
+                iridWeight = cmds.getAttr(material.name() + ".thinFilmWeight")
+                
+            iThkConn = material.findPlug("thinFilmThickness")
+            iThkTexture = self.findTextureFromPlug(iThkConn, True)
+            if iThkTexture:
+                hasIrid = True
+                mTextureNodes.append(iThkTexture)
+                mTextureFields.append("iridescenceThicknessTexture")
+                mTextureParents.append(fuzBna[1])
+                retPlace2d.append(None)
+            else:
+                iridThickness = cmds.getAttr(material.name() + ".thinFilmThickness")
+            
+            if iridWeight * iridThickness > 0.0:
+                hasIrid = True
+                
+            if hasIrid == True:
+                iriBna = self.processBasicNodeAddition(None, physMat, "extensions", "IridescenceMaterialExtension", physMat.DEF + "_IridME") 
+                if iriBna[0] == False:
+                    if iridTexture:
+                        mTextureNodes.append(iridTexture)
+                        mTextureFields.append("iridescenceTexture")
+                        mTextureParents.append(iriBna[1])
+                        retPlace2d.append(None)
+                    if iThkTexture:
+                        mTextureNodes.append(iThkTexture)
+                        mTextureFields.append("iridescenceThicknessTexture")
+                        mTextureParents.append(iriBna[1])
+                        retPlace2d.append(None)
+                    iriBna[1].iridescence = iridWeight
+                    iriBna[1].iridescenceThicknessMinimum = iridThickness
+                    iriBna[1].iridescenceThicknessMaximum = iridThickness
+                    
+            ####################################################
+            # PBR Roughness
+            rTex = rouTexStore.get("roughTexture", False)
+            if rTex:
+                rouImage = maom.MImage()
+                rouImage.readFromTextureNode(rTex, maom.MImage.kFloat)
+                mro["green"] = metImage
+                mroTexture["textTrans"] = rkMat.getTextureTransform(rTex)
+                
+            ####################################################
+            # PBR Create Metallic-Roughness and Occlusion Maps
+            #
+            hasTexNode = False
+            if (metalRoughSame == False and (hasMetal == True or hasRough == True)) or (occlIsSame == False and hasOccl == True):
+                mroImage    = rkMat.generateMROImage(mro, 0)
+                mroDEF      = material.name() + "_MROTexture"
+                mroDirPath  = cmds.workspace(query=True, rootDirectory=True)
+                mroDirPath  += "/sourceimages"
+                os.makedirs(mroDirPath, exist_ok=True)
+
+                if cmds.objExists(mroDEF) == False:
+                    mroDEF  = cmds.createNode('file', n=mroDEF)
+                    
+                mroFullPath = mroDirPath + "/" + mroDEF + ".png"
+                mroImage.writeToFile(mroFullPath, '.png')
+                cmds.setAtt(mroDEF + ".fileTextureName", mroFullPath, type="string")
+
+                tTrans = mroTexture.get("textTrans", False)
+                if tTrans:
+                    rkMat.connectTextureTransformToTexture(tTrans.name(), mroDEF)
+
+                nfList = aom.MSelectionList()
+                nfList.add(mroDEF)
+                texNode = aom.MFnDependencyNode(nfList.getDependNode(0))
+                hasTexNode = True
+            
+            if hasOccl == True:
+                mTextureFields.append("occlusionTexture")
+                mTextureParents.appends(physMat)
+                retPlace2d.append(None)
+
+                if occlIsSame == True:# Assumes hasMetal == True:
+                    mTextureNodes.append(metalTexture)
+                elif hasTexNode == True:
+                    mTextureNodes.append(texNode)
+                
+            if hasMetal == True or hasRough == True:
+                mTextureFields.append("metallicRoughnessTexture")
+                mTextureParents.append(physMat)
+                retPlace2d.append(None)
+                
+                if metalRoughSame == True:# Assumes hasMetal == True
+                    mTextureNodes.append(metalTexture)
+                elif hasTexNode == True:                                         ###
+                    mTextureNodes.append(texNode)                                ###
+            ########################################################################
+
+            ##########################################################
+            # Set PBR Roughness value.
+            if hasRough == True:
+                physMat.roughness == 1.0
+            else:
+                physMat.roughness = cmds.getAttr(material.name() + ".specularRoughness")
+            
+            # To avoid Aliasing problems.
             if physMat.roughness == 0.0:
                 physMat.roughness = 0.001
 
 
-    def processUnlitMaterialNode(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, retPlace2d, cField):
+    def processUnlit_Material(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
         unlitMat = self.processBasicNodeAddition(material, x3dAppearance, cField, "UnlitMaterial")
         if unlitMat[0] == False:
             unlMat = 0 # aiFlat material
@@ -3909,8 +4444,9 @@ class RKOrganizer():
             emissConn    = material.findPlug(emissAttr, True)
             emsTex = self.findTextureFromPlug(emissConn)
             if emsText:
-                mTextureNodes.append(aom.MFnDependencyNode(emsTex))
+                mTextureNodes.append(emsTex)
                 mTextureFields.append("emissiveTexture")
+                mTextureParents.append(unlitMat[1])
                 retPlace2d.append(None)
             else:
                 eColor = cmds.getAttr(material.name() + "." + emissAttr)[0]
@@ -3923,6 +4459,7 @@ class RKOrganizer():
                 if normTex:
                     mTextureNodes.append(aom.MFnDependencyNode(norTex))
                     mTextureFields.append("normalTexture")
+                    mTextureParents.append(unlitMat[1])
                     retPlace2d.append(None)
                     
                 normAdj = self.findNormScaleNode(normConn)
@@ -3938,18 +4475,6 @@ class RKOrganizer():
             if unlMat > 0:
                 transp = mcmds.getAttr(material.name() + ".outTransparency")[0]
                 unlitMat[1].transparency = (transp[0] + transp[1] + transp[2]) / 3
-
-            ###########################################################
-            # Add the textures to the material ndoe
-            ###########################################################
-            mtexLen = len(mTextureNodes)
-            for a in range(mtexLen):
-                gPlace2d = self.processTexture(mTextureNodes[a].object().apiType(), mTextureNodes[a], unlitMat[1], mTextureFields[a])
-                if not gPlace2d.object().isNull():
-                    texturemapping = self.getMappingValue(mappings, mTextureFields[a] + "Mapping")
-                    setattr(unlitMat[1], mTextureFields[a] + "Mapping", texturemapping)
-                    print("Mapping: " + mTextureFields[a] + "Mapping")
-                    retPlace2d[a]  = gPlace2d
 
     
     # Assumes that the function has been passed a 'Connected' plug)
@@ -5401,7 +5926,7 @@ class RKOrganizer():
             
             # Check if the current node is a texture node
             if cNode.hasFn(rkfn.kFileTexture) or cNode.hasFn(rkfn.kTexture2d):
-                return cNode  # Found a texture node 
+                return aom.MFnDependencyNode(cNode)  # Found a texture node 
                 
             tIter.next()
                 
