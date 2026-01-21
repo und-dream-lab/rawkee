@@ -326,6 +326,7 @@ def getAdvBaseColorAndOcclusionTextures(material, colorStore, advMat):
                 #occlTexture  = searchForNodeByApiType(baseConn, maom.MFn.kTexture2d)
                 #if occlTexture:
                 #    colorTex["occlusionTexture"] = occlTexture
+                
     elif advMat == 3:
         dColorConn = material.findPlug("diffuseColor", True)
         colorTexture = searchForNodeByApiType(dColorConn, maom.MFn.kTexture2d)
@@ -336,6 +337,7 @@ def getAdvBaseColorAndOcclusionTextures(material, colorStore, advMat):
         occlTexture = searchForNodeByApiType(occlConn, maom.MFn.kTexture2d)
         if occlTexture:
             colorStore  ["occlussionTexture"] = occlTexture
+            
     elif advMat == 4:
         tColorConn = material.findPlug("TEX_color_map", True)
         tOcclConn  = material.findPlug("TEX_ao_map",    True)
@@ -344,7 +346,6 @@ def getAdvBaseColorAndOcclusionTextures(material, colorStore, advMat):
         if colorTexture:
             colorStore  ["baseTexture"  ] = colorTexture
         
-        tOcclConn   = material.findPlug("TEX_ao_map", True)
         occlTexture = searchForNodeByApiType(tOcclConn, maom.MFn.kTexture2d)
         if occlTexture:
             colorStore  ["occlussionTexture"] = occlTexture

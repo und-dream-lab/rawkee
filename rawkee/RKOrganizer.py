@@ -3378,6 +3378,7 @@ class RKOrganizer():
             usePrev = 3
             rkMat.getAdvBaseColorAndOcclusionTextures(material, colorStore, usePrev)
 
+            ########################################################
             # Get BaseTexture
             baseTexture = colorStore.get("baseTexture", False)
             if baseTexture:
@@ -3403,7 +3404,210 @@ class RKOrganizer():
             eColor = cmds.getAttr(material.name() + ".emissiveColor")[0]
             physMat.emissiveColor = self.getSFColor(eColor[0], eColor[1], eColor[2])
 
-            # This implementation is incomplete. I can't finish until I upgrade to Maya 2026
+            ######################################################
+            # Get Normal Map
+            normConn    = material.findPlug("normal", True)
+            normTexture = self.findTextureFromPlug(normConn)
+            if normTexture:
+                mTextureNodes.append(normTexture)
+                mTextureFields.append("normalTexture")
+                mTextureParents.append(physMat)
+                retPlace2d.append(None)
+            
+            metalRoughSame = False
+            occlIsSame     = False
+            hasOccl        = False
+            hasMetal       = False
+            hasRough       = False
+            rName = ""
+            oName = ""
+            mName = ""
+
+            #####################################################
+            # PBR Occlusion
+            occlTexture = colorStore.get("occlusionTexture", None)
+            if ocllTexture:
+                mroStore["occlusionTexture"] = occlTexture.object()
+                oName = oTex.name()
+                hasOccl = True
+            else:
+                physMat.occlusionStrength = cmds.getAttr(material.name() + ".occlusion")
+                
+            #####################################################
+            # Transparency
+            x3dAppearance.alphaMode = "MASK"
+            x3dAppearance.alphaCutoff = cmds.getAttr(material.name() + ".opacityThreshold")
+            physMat.transparency  = 1 - cmds.getAttr(material.name() + ".opacity")
+            
+            # Decide whether to process with Specular Workflow
+            isSpcw = cmds.getAttr(material.name() + ".useSpecularWorkflow")
+            metallic = 1.0
+            
+            if isSpcw == True:
+                metallic = 0.0
+                #####################################################################
+                # Get SpecularColor values
+                spcBna = self.processBasicNodeAddition(None, physMat, "extensions", "SpecularMaterialExtension", physMat.DEF + "_SpecME")
+                if spcBna[0] == False:
+                    spcBna[1].specular = 1.0
+                    
+                    specConn = material.findPlug("specularColor")
+                    specTexture = self.findTextureFromPlug(specConn)
+                    if specTexture:
+                        mTextureNodes.append(specTexture)
+                        mTextureFields.append("specularColorTexture")
+                        mTextureParents.append(spcBna[1])
+                        retPlace2d.append(None)
+                        
+                        try:
+                            iPath = cmds.getAttr(specTexture.name() + ".fileTextureName")
+                            img = aom.MImage()
+                            img.readFromFile(iPath)
+                            if img.depth() == 4:
+                                mTextureNodes.append(specTexture)
+                                mTextureFields.append("specularTexture")
+                                mTextureParents.append(spcBna[1])
+                                retPlace2d.append(None)
+                        except:
+                            pass
+                physMat.metallic = metallic
+                
+            else:
+                #####################################################################
+                # Get Metallic values
+                metalConn    = material.findPlug("metallic", True)
+                metalTexture = self.findTextureFromPlug(metalConn)
+                if metalTexture:
+                    mroStore ["metallicTexture" ] = metalTexture.object()
+                    mName = metalTexture.name()
+                    hasMetal = True
+                else:
+                    metallic = cmds.getAttr(material.name() + ".metallic")
+                physMat.metallic = metallic
+                    
+                #####################################################################
+                # Get IOR values
+                iorBna = self.processBasicNodeAddition(None, physMat, "extensions", "IORMaterialExtension", physMat.DEF + "_IORME")
+                if iorBna[0] == False:
+                    iorBna[1].indexOfRefraction = cmds.getAttr(material.name() + ".ior")
+
+            #####################################################################
+            # Get Roughness values
+            roughConn    = material.findPlug("roughness", True)
+            roughTexture = self.findTextureFromPlug(roughConn)
+            if roughTexture:
+                mroStore ["roughnessTexture" ] = roughTexture.object()
+                rName = roughTexture.name()
+                hasRough = True
+            
+            #####################################################################
+            # Evaluate for reuse of texture nodes
+            if mName == rName and mName != "":
+                metalRoughSame = True
+            if oName == rName and oName != "":
+                occlIsSame = True
+            #####################################################################
+
+            ####################################################
+            # PBR Occlusion
+            oTex = mroStore.get("occlusionTexture", False)
+            if oTex:
+                occImage = maom.MImage()
+                occImage.readFromTextureNode(oTex, maom.MImage.kFloat)
+                mro["red"] = occImage
+                mroTexture["textTrans"] = rkMat.getTextureTransform(oTex)
+
+            ####################################################
+            # PBR Roughness
+            rTex = mroStore.get("roughnessTexture", False)
+            if rTex:
+                metImage = aom.MImage()
+                metImage.readFromTextureNode(rTex, aom.MImage.kFloat)
+                mro["green"] = metImage
+                mroTexture["textTrans"] = rkMat.getTextureTransform(rTex)
+            
+            ####################################################
+            # PBR Metallic
+            mTex = mroStore.get("metallicTexture", False)
+            if mTex:
+                metImage = maom.MImage()
+                metImage.readFromTextureNode(mTex, maom.MImage.kFloat)
+                mro["blue"] = metImage
+                mroTexture["textTrans"] = rkMat.getTextureTransform(mTex)
+            
+            ####################################################
+            # PBR Create Metallic-Roughness and Occlusion Maps
+            hasTexNode = False
+            if (occlIsSame != True and hasOccl == True and hasRough == True and hasMetal == False) or (metalRoughSame != True and hasMetal == True and hasRough == True):
+                mroImage    = rkMat.generateMROImage(mro, 0)
+                mroDEF      = material.name() + "_MROTexture"
+                mroDirPath  = cmds.workspace(query=True, rootDirectory=True)
+                mroDirPath  += "/sourceimages"
+                os.makedirs(mroDirPath, exist_ok=True)
+
+                if cmds.objExists(mroDEF) == False:
+                    mroDEF  = cmds.createNode('file', n=mroDEF)
+                    
+                mroFullPath = mroDirPath + "/" + mroDEF + ".png"
+                mroImage.writeToFile(mroFullPath, '.png')
+                cmds.setAtt(mroDEF + ".fileTextureName", mroFullPath, type="string")
+
+                tTrans = mroTexture.get("textTrans", False)
+                if tTrans:
+                    rkMat.connectTextureTransformToTexture(tTrans.name(), mroDEF)
+
+                nfList = aom.MSelectionList()
+                nfList.add(mroDEF)
+                texNode = aom.MFnDependencyNode(nfList.getDependNode(0))
+                hasTexNode = True
+            
+            if hasOccl == True:
+                mTextureFields.append("occlusionTexture")
+                mTextureParents.appends(physMat)
+                retPlace2d.append(None)
+
+                if occlIsSame == True:# Assumes hasMetal == True:
+                    mTextureNodes.append(roughTexture)
+                elif hasTexNode == True:
+                    mTextureNodes.append(texNode)
+                
+            if hasMetal == True or hasRough == True:
+                mTextureFields.append("metallicRoughnessTexture")
+                mTextureParents.append(physMat)
+                retPlace2d.append(None)
+                
+                if metalRoughSame == True:# Assumes hasMetal == True
+                    mTextureNodes.append(metalTexture)
+                elif hasTexNode == True:                                         ###
+                    mTextureNodes.append(texNode)                                ###
+            ########################################################################
+
+            ####################################################
+            # Clearcoat    
+            coaBna = self.processBasicNodeAddition(None, physMat, "extensions", "ClearcoatMaterialExtension", physMat.DEF + "_CoatME")
+            if coaBna[0] == False:
+                coatConn = material.findPlug("clearcoat")
+                coatTexture = self.findTextureFromPlug(coatConn)
+                if coatTexture:
+                    mTextureNodes.append(coatTexture)
+                    mTextureFields.append("clearcoatTexture")
+                    mTextureParents.append(coaBna[1])
+                    retPlace2d.append(None)
+                    coaBna[1].clearcoat = 1.0
+                else:
+                    coaBna[1].clearcoat = cmds.getAttr(material.name() + ".clearcoat")
+                    
+                cRouConn = material.findPlug("clearcoatRoughness")
+                cRouTexture = self.findTextureFromPlug(cRouConn)
+                if cRouTexture:
+                    mTextureNodes.append(cRouTexture)
+                    mTextureFields.append("clearcoatRoughnessTexture")
+                    mTextureParents.append(coaBna[1])
+                    retPlace2d.append(None)
+                    coaBna[1].roughness = 1.0
+                else:
+                    coaBna[1].roughness = cmds.getAttr(material.name() + ".clearcoatRoughness")
+
 
     def processBlinn_PhysicalMaterial(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
         pMat = self.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterial")
@@ -3450,7 +3654,7 @@ class RKOrganizer():
             normConn    = material.findPlug("normalCamera", True)
             normTexture = self.findTextureFromPlug(normConn)
             if normTexture:
-                mTextureNodes.append(aom.MFnDependencyNode(normTexture))
+                mTextureNodes.append(normTexture)
                 mTextureFields.append("normalTexture")
                 mTextureParents.append(physMat)
                 retPlace2d.append(None)
