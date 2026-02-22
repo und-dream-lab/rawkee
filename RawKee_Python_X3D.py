@@ -86,7 +86,20 @@ def maya_useNewAPI():
 
 def rkUpdateStickers(client_data):
     stk.reveal()
+
+
+##################################################
+# Initialize all required MaterialX functionality.
+##################################################
+def initialize_mtlx_paths():
+    maya_root = os.environ.get('MAYA_LOCATION')
+    # Path to the bundled MaterialX Python modules in Maya 2026
+    mtlx_site_packages = os.path.join(maya_root, 'bin', 'python', 'site-packages')
     
+    if mtlx_site_packages not in sys.path:
+        sys.path.append(mtlx_site_packages)
+        
+
 ##########################################
 # Not directly supported Any longer
 ##########################################
@@ -842,9 +855,7 @@ class RKShowMGearSetupEditor(aom.MPxCommand):
             print("RKWeb3D is not set!")
 
 
-# Initialize the plug-in
-def initializePlugin(plugin):
-
+def runRawKeeInitializer(plugin):
     print("Made possible by the: Alias Research Donation Program\n\n")
     pluginFn = aom.MFnPlugin(plugin, RAWKEE_VENDOR, RAWKEE_VERSION)
  
@@ -1082,6 +1093,21 @@ def initializePlugin(plugin):
     #addRKAnimPackNodeDeleteCallback()
     
     
+# Initialize the plug-in
+def initializePlugin(plugin):
+    initialize_mtlx_paths()
+    
+    # Now it is safe to import the specific Gen modules
+    try:
+        import MaterialX.PyMaterialXGenShader as mx_gen_shader
+        import MaterialX.PyMaterialXGenGlsl as mx_gen_glsl
+        
+        runRawKeeInitializer(plugin)
+        # Proceed with registering nodes/commands
+    except ImportError as e:
+        om.MGlobal.displayError(f"Failed to load MaterialX Gen modules: {e}")
+
+
 
 # Uninitialize the plug-in
 def uninitializePlugin(plugin):

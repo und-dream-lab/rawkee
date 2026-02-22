@@ -56,7 +56,7 @@ class RKSceneTraversal():
         mNodeList   = []
 
         #compNode = self.instantiateNodeFromString(nType)
-        compNode = instantiateNodeFromString(nType)
+        compNode = instantiateNodeFromString(nType)[0]
         pastMeta = False
         nDict = vars(node)
 
@@ -86,9 +86,28 @@ class RKSceneTraversal():
                 
                 elif keyp[3] == "toNode"    and value != "":
                     sFieldsList.append("toNode")
+            
+            elif keyp[1] == "field":
+                if   keyp[3] == "name" and value != "":
+                    sFieldsList.append("name")
+                    
+                elif keyp[3] == "type" and value != "":
+                    sFieldsList.append("type")
+                    
+                elif keyp[3] == "accessType" and value != "":
+                    sFieldsList.append("accessType")
+                    
+                elif keyp[3] == "value" and value != "":
+                    sFieldsList.append("value")
+                    
+                elif keyp[3] == "children" and value != None:
+                    mNodeList.append("children")
                     
             if pastMeta == False:# and keyp[3] == nType:
                 continue
+                
+            #if keyp[3] == "metadata":
+            #    print(compNode)
                 
             # For some reason the '_Normal__vector' attribute doesn't show up as an instance of a list, eventhough it should.
             # So I added a one-off check for the vector attribute.
@@ -217,11 +236,19 @@ class RKSceneTraversal():
         self.writeLine("ROUTE " + getattr(node, sFieldList[1]) + "." + getattr(node, sFieldList[0]) + " TO " + getattr(node, sFieldList[3]) + "." + getattr(node, sFieldList[2]))
 
 
+    def processFieldAsClassic(self):
+        pass
+        
+        
     def processNodeAsClassic(self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, isMulti):
         mainline = ""
         
         if nType == "ROUTE":
             self.processROUTEAsClassic(node, sFieldList)
+            return
+            
+        if nType == "field":
+            #self.processFieldAsClassic()
             return
             
         if isMulti == True:
@@ -368,11 +395,19 @@ class RKSceneTraversal():
             self.writeLine('}')
 
 
+    def processFieldAsJSON(self):
+        pass
+        
+        
     def processNodeAsJSON(self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, isMulti, addComma):
         mainline = ''
 
         if nType == "ROUTE":
             self.processROUTEAsJSON(node, sFieldList, isMulti, addComma)
+            return
+
+        if nType == "field":
+            #self.processFieldAsJSON()
             return
 
         if isMulti == True:
@@ -531,10 +566,19 @@ class RKSceneTraversal():
 
         mainline = "<ROUTE " + fromNode + " " + fromField + " " + toNode + " " + toField + "/>"
         self.writeLine(mainline)
+
         
+    def processFieldAsXML(self):
+        pass
+        
+
     def processNodeAsXML( self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, cField):
         if nType == "ROUTE":
             self.processROUTEAsXML(node, sFieldList)
+            return
+
+        if nType == "field":
+            #self.processFieldAsXML()
             return
 
         cap = "/>"
@@ -651,9 +695,17 @@ class RKSceneTraversal():
         self.writeLine(mainline)
         
         
+    def processFieldAsHTML(self):
+        pass
+
+
     def processNodeAsHTML( self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, cField):
         if nType == "ROUTE":
             self.processROUTEAsHTML(node, sFieldList)
+            return
+
+        if nType == "field":
+            #self.processFieldAsHTML()
             return
             
         cap = ">"
@@ -908,3 +960,6 @@ class RKSceneTraversal():
     
     def getRouteObject(self):
         return ROUTE()
+        
+    def getFieldObject(self):
+        return field()

@@ -45,8 +45,52 @@ class RKIO():
         self.hasMultiple = False   #
         ############################
         
-        self.profileType = "Full"
-        self.x3dVersion  = "4.0"
+        self.profileType = "Core"
+        self.x3dVersion  = "4.1"
+        self.profDict    = {}
+        self.compDict    = {}
+        
+        # 36
+        self.full           = {'Core':2,                'Time':2,                   'Networking':4,             'Grouping':3,
+                            'Rendering':5,              'Shape':4,                  'Geometry3D':4,             'Geometry2D':2,
+                            'Text':1,                   'Sound':3,                  'Lighting':3,               'Texturing':4,
+                            'Interpolation':5,          'PointingDeviceSensor':1,   'KeyDeviceSensor':2,
+                            'EnvironmentalSensor':3,    'Navigation':3,             'EnvironmentalEffects':4,   'Geospatial':2,
+                            'HAnim':3,                  'NURBS':4,                  'DIS':2,                    'Scripting':1,
+                            'EventUtilities':1,         'Shaders':1,                'CADGeometry':2,            'Texturing3D':2,
+                            'CubeMapTexturing':3,       'Layering':1,               'Layout':2,                 'RigidBodyPhysics':2,
+                            'Picking':3,                'Followers':1,              'ParticleSystems':3,        'VolumeRendering':4,
+                            'TextureProjection':2}
+
+        # 20
+        self.immersive      = {'Core':2,                'Time':1,                   'Networking':3,             'Grouping':2,
+                            'Rendering':3,              'Shape':2,                  'Geometry3D':4,             'Geometry2D':1,
+                            'Text':1,                   'Sound':1,                  'Lighting':2,               'Texturing':3,
+                            'Interpolation':2,          'PointingDeviceSensor':1,   'KeyDeviceSensor':2,
+                            'EnvironmentalSensor':2,    'Navigation':2,             'EnvironmentalEffects':2,   'Scripting':1,
+                            'EventUtilities':1}
+        
+        # 16
+        self.interactive    = {'Core':1,                'Time':1,                   'Networking':2,             'Grouping':2,
+                            'Rendering':3,              'Shape':1,                  'Geometry3D':3,             'Lighting':2,
+                            'Texturing':2,              'Interpolation':2,          'PointingDeviceSensor':1,   'KeyDeviceSensor':1,
+                            'EnvironmentalSensor':1,    'Navigation':1,             'EnvironmentalEffects':1,   'EventUtilities':1}
+
+        # 14
+        self.mp4Interactive = {'Core':1,                'Time':1,                   'Networking':2,             'Grouping':2,
+                            'Rendering':1,              'Shape':1,                  'Geometry3D':2,             'Lighting':2,
+                            'Texturing':1,              'Interpolation':2,          'PointingDeviceSensor':1,   
+                            'EnvironmentalSensor':1,    'Navigation':1,             'EnvironmentalEffects':1}
+
+        # 12
+        self.interchange    = {'Core':1,                'Time':1,                   'Networking':1,             'Grouping':1,
+                            'Rendering':3,              'Shape':1,                  'Geometry3D':2,             'Lighting':1,
+                            'Texturing':2,              'Interpolation':2,          'Navigation':1,             'EnvironmentalEffects':1}
+        
+        # 10
+        self.cadInterchange = {'Core':1,                'Networking':2,             'Grouping':1,               'Rendering':4,
+                            'Shape':2,                  'Lighting':1,               'Texturing':2,              'Navigation':3,
+                            'Shaders':1,                'CADGeometry':2}
         
         
         self.comments      = []
@@ -463,4 +507,8 @@ class RKIO():
         
     def createRouteObject(self):
         return self.trv.getRouteObject()
+        
+    def createFieldObject(self):
+        return self.trv.getFieldObject()
 
+    
