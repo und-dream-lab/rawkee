@@ -59134,6 +59134,192 @@ class IORMaterialExtension(_X3DMaterialExtensionNode):
         return self.IS or self.metadata
 
 
+class IridescenceMaterialExtension(_X3DMaterialExtensionNode):
+    """
+    IridescenceMaterialExtension only works with X_ITE, hopefully other viewers ignore it.
+    Adds Transmission/Transparency to PhysicalMaterial nodes.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'IridescenceMaterialExtension'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/iridescencematerialextension/'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/iridescencematerialextension/'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('iridescence', 0.0, FieldType.SFFloat, AccessType.inputOutput, 'IridescenceMaterialExtension'),
+        ('iridescenceTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'IridescenceMaterialExtension'),
+        ('iridescenceTexture', None, FieldType.SFNode, AccessType.inputOutput, 'IridescenceMaterialExtension'),
+        ('iridescenceIndexOfRefraction',  1.3, FieldType.SFFloat, AccessType.inputOutput, 'IridescenceMaterialExtension'),
+        ('iridescenceThicknessMinimum', 100.0, FieldType.SFFloat, AccessType.inputOutput, 'IridescenceMaterialExtension'),
+        ('iridescenceThicknessMaximum', 400.0, FieldType.SFFloat, AccessType.inputOutput, 'IridescenceMaterialExtension'),
+        ('iridescenceThicknessTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'IridescenceMaterialExtension'),
+        ('iridescenceThicknessTexture', None, FieldType.SFNode, AccessType.inputOutput, 'IridescenceMaterialExtension'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        iridescence=0.0,
+        iridescenceTextureMapping="",
+        iridescenceTexture=None,
+        iridescenceIndexOfRefraction=1.3,
+        iridescenceThicknessMinimum=100.0,
+        iridescenceThicknessMaximum=400.0,
+        iridescenceThicknessTextureMapping="",
+        iridescenceThicknessTexture=None,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode Group __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.iridescence = iridescence
+        self.iridescenceTextureMapping = iridescenceTextureMapping
+        self.iridescenceTexture = iridescenceTexture
+        self.iridescenceIndexOfRefraction = iridescenceIndexOfRefraction
+        self.iridescenceThicknessMinimum = iridescenceThicknessMinimum
+        self.iridescenceThicknessMaximum = iridescenceThicknessMaximum
+        self.iridescenceThicknessTextureMapping = iridescenceThicknessTextureMapping
+        self.iridescenceThicknessTexture = iridescenceThicknessTexture
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def iridescence(self):
+        """The iridescence - NA -  PhysicalMaterial nodes."""
+        return self.__iridescence
+    @iridescence.setter
+    def iridescence(self, iridescence):
+        if  iridescence is None:
+            iridescence = 0.0 # default
+        assertValidSFFloat(iridescence)
+        assertNonNegative('iridescence', iridescence)
+        self.__iridescence = iridescence
+    @property # getter - - - - - - - - - -
+    def iridescenceTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__iridescenceTextureMapping
+    @iridescenceTextureMapping.setter
+    def iridescenceTextureMapping(self, iridescenceTextureMapping):
+        if  iridescenceTextureMapping is None:
+            iridescenceTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(iridescenceTextureMapping)
+        self.__iridescenceTextureMapping = iridescenceTextureMapping
+    @property # getter - - - - - - - - - -
+    def iridescenceTexture(self):
+        """[X3DSingleTextureNode] - IDK."""
+        return self.__iridescenceTexture
+    @iridescenceTexture.setter
+    def iridescenceTexture(self, iridescenceTexture):
+        if  iridescenceTexture is None:
+            iridescenceTexture = None  # default
+        assertValidSFNode(iridescenceTexture)
+        if not iridescenceTexture is None and not isinstance(iridescenceTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(iridescenceTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__iridescenceTexture = iridescenceTexture
+    @property # getter - - - - - - - - - -
+    def iridescenceIndexOfRefraction(self):
+        """The iridescenceIndexOfRefraction - NA -  PhysicalMaterial nodes."""
+        return self.__iridescenceIndexOfRefraction
+    @iridescenceIndexOfRefraction.setter
+    def iridescenceIndexOfRefraction(self, iridescenceIndexOfRefraction):
+        if  iridescenceIndexOfRefraction is None:
+            iridescenceIndexOfRefraction = 1.3 # default
+        assertValidSFFloat(iridescenceIndexOfRefraction)
+        assertNonNegative('iridescenceIndexOfRefraction', iridescenceIndexOfRefraction)
+        self.__iridescenceIndexOfRefraction = iridescenceIndexOfRefraction
+    @property # getter - - - - - - - - - -
+    def iridescenceThicknessMinimum(self):
+        """The iridescenceThicknessMinimum - NA -  PhysicalMaterial nodes."""
+        return self.__iridescenceThicknessMinimum
+    @iridescenceThicknessMinimum.setter
+    def iridescenceThicknessMinimum(self, iridescenceThicknessMinimum):
+        if  iridescenceThicknessMinimum is None:
+            iridescenceThicknessMinimum = 100.0 # default
+        assertValidSFFloat(iridescenceThicknessMinimum)
+        assertNonNegative('iridescenceThicknessMinimum', iridescenceThicknessMinimum)
+        self.__iridescenceThicknessMinimum = iridescenceThicknessMinimum
+    @property # getter - - - - - - - - - -
+    def iridescenceThicknessMaximum(self):
+        """The iridescenceThicknessMaximum - NA -  PhysicalMaterial nodes."""
+        return self.__iridescenceThicknessMaximum
+    @iridescenceThicknessMaximum.setter
+    def iridescenceThicknessMaximum(self, iridescenceThicknessMaximum):
+        if  iridescenceThicknessMaximum is None:
+            iridescenceThicknessMaximum = 400.0 # default
+        assertValidSFFloat(iridescenceThicknessMaximum)
+        assertNonNegative('iridescenceThicknessMaximum', iridescenceThicknessMaximum)
+        self.__iridescenceThicknessMaximum = iridescenceThicknessMaximum
+
+    @property # getter - - - - - - - - - -
+    def iridescenceThicknessTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__iridescenceThicknessMapping
+    @iridescenceThicknessTextureMapping.setter
+    def iridescenceThicknessTextureMapping(self, iridescenceThicknessTextureMapping):
+        if  iridescenceThicknessTextureMapping is None:
+            iridescenceThicknessTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(iridescenceThicknessTextureMapping)
+        self.__iridescenceThicknessTextureMapping = iridescenceThicknessTextureMapping
+    @property # getter - - - - - - - - - -
+    def iridescenceThicknessTexture(self):
+        """[X3DSingleTextureNode] - IDK."""
+        return self.__iridescenceThickness
+    @iridescenceThicknessTexture.setter
+    def iridescenceThicknessTexture(self, iridescenceThicknessTexture):
+        if  iridescenceThicknessTexture is None:
+            iridescenceThicknessTexture = None  # default
+        assertValidSFNode(iridescenceThicknessTexture)
+        if not iridescenceThicknessTexture is None and not isinstance(iridescenceThicknessTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(iridescenceThicknessTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__iridescenceThicknessTexture = iridescenceThicknessTexture
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.IS or self.metadata
+
+
 class SheenMaterialExtension(_X3DMaterialExtensionNode):
     """
     SheenMaterialExtension only works with X_ITE, hopefully other viewers ignore it.

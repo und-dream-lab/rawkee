@@ -306,7 +306,7 @@ class RKWeb3D():
         #############################################
         # Prepare New X3D Document with Scene
         profileType = "Full"
-        x3dVersion  = "4.0"
+        x3dVersion  = "4.1"
         x3dDoc = rkx3d.X3D(profile=profileType, version=x3dVersion)
         x3dDoc.Scene = rkx3d.Scene()
         eofScene = rkx3d.Scene()
