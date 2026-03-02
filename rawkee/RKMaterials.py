@@ -53,6 +53,14 @@ from pathlib import Path
 #fRouList   = [      "sheenRoughness",       "sheenRoughness",        "fuzzRoughness",                 "",                  ""]
 #tWallList  = [          "thinWalled",           "thinWalled",   "geometryThinWalled",                 "",                  ""]
 
+type_map = {
+    "float": "SFFloat", "integer": "SFInt32", "bool": "SFBool",
+    "vector2": "SFVec2f", "vector3": "SFVec3f", "vector4": "SFVec4f", "string": "SFString",
+    "color3": "SFColor", "color4": "SFColorRGBA", "matrix33": "SFMatrix3f", "matrix44": "SFMatrix4f",
+    "filename": "SFNode", "sampler2D": "SFNode", "sampler3D": "SFNode", "samplerCube": "SFNode"
+}
+
+
 def searchForNodeByNameType(plug, nodeTypes):
     for nType in nodeTypes:
         dgIter = maom.MItDependencyGraph(plug, filter=maom.MFn.kInvalid, direction=maom.MItDependencyGraph.kUpstream, level=maom.MItDependencyGraph.kNodeLevel, traversal=maom.MItDependencyGraph.kDepthFirst)
@@ -381,107 +389,173 @@ def generateMRO_Stable(texDict, wh=(2048, 2048)):
   
 
 #########################################################################
-# Functions to write the MaterialX XML Document to disk and return the 
-# file path by gathering information from the MaterialXSurfaceShader node
 #
-# matX : MaterialXSurfaceShader
-#########################################################################
-def resolve_mtlx_path(match, base_dir):
-    """Callback to turn relative values into absolute ones."""
-    attr_type  = match.group(1)
-    path_value = match.group(2)
+def makeImagePathsRelative(matXDocPath, imagePath):
+    pattern  = r'value="([^"]+)"'
     
-    if attr_type == "filename":
-        if not os.path.isabs(path_value):
-            # Resolve to absolute and swap backslashes for forward slashes
-            full_path = os.path.join(base_dir, path_value)
-            long_path = str(Path(full_path).resolve())
-            
-            return 'type="filename" value="' + long_path.replace("\\", "/") + '"'
-    
-    return match.group(0)
+    # 1. Read all lines from the file
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+
+    # 2. Alter the lines in memory
+    altered_lines = []
+    for line in lines:
+        # Example alteration: replace a specific word in each line
+        altered_lines.append(line)
+        if 'type="filename"' in line:
+            ovMatch = re.search(pattern, line)
+            if ovMatch:
+                oldPath = ovMatch.group(1)
+                head, tail = os.path.split(oldPath)
+                newPath = imagePath + tail
+                result = re.sub(pattern, 'value="' + newPath + '"', line)
+                altered_lines.append(result)
+            else:
+                altered_lines.append(line)
+        else:
+            altered_lines.append(line)
+
+    # 3. Write the altered content back to the same file, which overwrites it
+    with open(filename, 'w') as f:
+        f.writelines(altered_lines)
 
 
-def makeFilePathsAbsolute(tempPath):
-    baseDir = os.path.dirname(tempPath)
+    def getMatXSurfaceInfo(matXShaderName):
+        matXSurfacePath = cmds.getAttr(maXShaderName + ".ufePath")
+        surfacePathString = ufe.PathString.path(matXSurfacePath)
+        surfItem = ufe.Hierarchy.createItem(surfacePathString)
 
-    with open(tempPath, 'r') as f:
-        content = f.read()
+        return surfItem, surfacePathString
 
-    pattern = r'type="([^"]+)"\s+value="([^"]+)"'
-    
-    # Use a lambda to pass the base_dir context to the standalone function
-    clean_content = re.sub(
-        pattern, 
-        lambda m: resolve_mtlx_path(m, baseDir), 
-        content
-    )
-
-    with open(tempPath, 'w') as f:
-        f.write(clean_content)
-
-
-def saveMaterialXDataToFile(matXName):
-    matXStack = mcmds.listConnections(matXName + ".stack", shapes=True)[0]
-    matXdPath = mcmds.ls(matXStack, long=True)[0]
-    
-    stackPathString = ufe.PathString.path(matXdPath)
-    stackItem       = ufe.Hierarchy.createItem(stackPathString)
-    
-    stackHierarchy  = ufe.Hierarchy.hierarchy(stackItem)
-    children        = stackHierarchy.children()
-    
-    if children:
-        docItem     = children[0]
-        contextOps  = ufe.ContextOps.contextOps(docItem)
-
-        tempPath    = os.path.join(tempfile.gettempdir(), "temp_lookdevx.mtlx").replace("\\", "/")
-        baseDir     = os.path.dirname(tempPath)
-        fullPath    = os.path.join(baseDir, "temp_lookdevx.mtlx")
-        long_path   = str(Path(fullPath).resolve())
-        tempPath    = long_path.replace("\\", "/")
-        contextOps.doOp(['MxExportDocument', tempPath])
+    def getMatXSurfaceAttr(surfaceItem):
+        attr_handler = ufe.Attributes.attributes(surfaceItem)
+        surfAttr = attr_handler.attribute("surfaceshader")
         
-        makeFilePathsAbsolute(tempPath)
-
-        return tempPath
+        return surfAttr
         
-    else:
-        return ""                                               #
-                                                                #
-#################################################################
+    def getMatXCompoundItem(surfItem, surfPath, surfAttr):
+        cHandler = ufe.RunTimeMgr.instance().connectionHandler(surfPath.runTimeId())
+        conns = cHandler.sourceConnections(surfItem).allConnections()
 
+        sCompound = None
+        for conn in conns:
+            if "inputs:surfaceshader" == conn.dst.name:
+                print(conn.src.path)
+                sCompound = ufe.Hierarchy.createItem(conn.src.path)
 
-def applyExportSettingsToMaterialXDataFile(matXFilePath, reldir):
-    # 1. Parse the MaterialX (XML) file
-    tree = ET.parse(matXFilePath)
-    root = tree.getroot()
-
-    # 2. Iterate through every element in the file
-    for elem in root.iter():
-        # MaterialX typically stores paths in 'value' or 'file' attributes
-        # depending on the node type (e.g., <input name="file" value="path/to/tex.png">)
-        if 'value' in elem.attrib:
-            original_value = elem.attrib['value']
+        if sCompound:
+            #cmpAttrs = ufe.Attributes.attributes(sCompound)
+            #if cmpAttrs:
+            #    for name in cmpAttrs.attributeNames:
+            #        print(name)
+            return sCompound
             
-            # Check if the value looks like a file path (has an extension)
-            if "." in original_value and "/" in original_value or "\\" in original_value:
-                filename      = os.path.basename(original_value)
-                tReldir       = reldir.replace("\\", "/")
-                new_full_path = "../" + tReldir + filename
+        else:
+            return None
+
+
+    def getX3DFieldsAndGLSLInjectionDefinitions(surfComp):
+        hier = ufe.Hierarchy.hierarchy(surfComp)
+        children = hier.children()
+        
+        defines   = {}
+        x3dFields = {}
+        if children:
+            for child in children:
+                cHandler = ufe.RunTimeMgr.instance().connectionHandler(child.path().runTimeId())
+                cConns = cHandler.sourceConnections(child).allConnections()
+        
+                for cConn in cConns:
+                    if str(cConn.src.path) == str(scPath):
+                        dstName = cConn.dst.name.removeprefix("inputs:")
+                        srcName = cConn.src.name.removeprefix("inputs:")
+                        dstCompare = child.nodeName() + "_" + dstName
+
+                        x3dFields[srcName] = dstCompare
+                        if dstCompare != srcName:
+                            defines[srcName] = dstCompare
+
+        return defines, x3dFields
+        
+        
+    def getX3DShaderFieldNames(mayaMatXSSName):
+        surfItem = None
+        surfPath = None
+        surfAttr = None
+        
+        surfItem, surfPath = getMatXSurfaceItem(mayaMatXSSName)
+        if surfItem:
+            surfAttr = getMatXSurfaceAttr(surfItem)
+        else:
+            return None
+        
+        if surfAttr:
+            surfComp = getMatXCompoundItem(surfItem, surfPath, surfComp)
+        else:
+            return None
+            
+        if surfComp:
+            defines, x3dFields = getX3DFieldsAndGLSLInjectionDefinitions(surfComp)
+            return defines, x3dFields, surfComp
+        else:
+            return None
+
+
+    def saveMaterialXDocuments(activePrj, matXPath, imagePath):
+        matXDocs = []
+        localPath = activePrj + "/" + matXPath
+        
+        matXSS = cmds.ls(type='materialXStackShape')
+        
+        if matXSS:
+            for mxss in matXSS:
+                matXdPath       = mcmds.ls(mass, long=True)[0]
+                stackPathString = ufe.PathString.path(matXdPath)
+                stackItem       = ufe.Hierarchy.createItem(stackPathString)
                 
-                elem.set('value', new_full_path)
-                print(f"Updated: {filename} -> {new_full_path}")
+                stackHierarchy  = ufe.Hierarchy.hierarchy(stackItem)
+                children        = stackHierarchy.children()
+                
+                if children:
+                    for child in children:
+                        docItem     = child
+                        contextOps  = ufe.ContextOps.contextOps(docItem)
+                        
+                        document    = docItem.path().back()
 
-    # 3. Write the modified XML back to disk
-    tree.write(matXFilePath, encoding="utf-8", xml_declaration=True)
+                        tempPath    = os.path.join(localPath, document + ".mtlx").replace("\\", "/")
+                        #baseDir     = os.path.dirname(tempPath)
+                        #fullPath    = os.path.join(baseDir, "temp_lookdevx.mtlx")
+                        #long_path   = str(Path(fullPath).resolve())
+                        #tempPath    = long_path.replace("\\", "/")
+                        contextOps.doOp(['MxExportDocument', tempPath])
+                        
+                        makeImagePathsRelative(tempPath, imagePath)
+                        
+                        docDict = {}
+                        docDict["name"]    = document
+                        docDict["content"] = "./" + matXPath + document + ".mtlx"
+                        matXDoc.append(docDict)
+        
+        return matXDocs
 
 
-def saveGLSLFiles(glslFragPath, glslVertPath, matXFilePath):
+def saveGLSLFiles(glslFragPath, glslVertPath, matXFilePaths, ufeShaderPath, defines, x3dFields):
+    #|materialXStack1|materialXStackShape1,%dHelmetMatXDoc%DamagedHelmetShader
+    x3dFieldTypes = {}
+    pathChop      = ufeShaderPath.split('%')
+    matXDocName   = pathChop[1]
+    searchDocFile = matXDocName + ".mtlx"
+    matXShader    = pathChop[2]
+    
     # Setup Library Loads
     doc = mx.createDocument()
     sPath = mx.FileSearchPath()
-    sPath.append(os.path.dirname(matXFilePath))
+    
+    for fPath in matXFilePaths:
+        if search in fPath:
+            sPath.append(fPath)
+            break
 
     bPath = mx.getDefaultDataSearchPath()
     sPath.append(bPath)
@@ -506,66 +580,147 @@ def saveGLSLFiles(glslFragPath, glslVertPath, matXFilePath):
         options = context.getOptions()
         options.shaderInterfaceType = mx_gen.SHADER_INTERFACE_COMPLETE
         
-        shaderName = getattr(materials[0], 'name', 'shader')
-        safeName   = mx.createValidName(shaderName)
-        
-        shader = gen.generate(safeName, materials[0], context)
-        
-        v_stage = getattr(mx_gen, 'VERTEX_STAGE', 'vertex')
-        with open(glslVertPath, "w") as vfile:
-            vfile.write(shader.getSourceCode(v_stage))
-        
-        p_stage = getattr(mx_gen, 'PIXEL_STAGE', 'pixel')
-        with open(glslFragPath, "w") as ffile:
-            ffile.write(shader.getSourceCode(p_stage))
+        for material in materials:
+            shaderName = getattr(material, 'name', 'shader')
+            if shaderName == matXShader:
+                safeName   = mx.createValidName(shaderName)
+                
+                shader = gen.generate(safeName, material, context)
+                
+                # Write out GLSL VERTEX file
+                v_stage = getattr(mx_gen, 'VERTEX_STAGE', 'vertex')
+                vText   = shader.getSourceCode(v_stage)
+                vpubuni = shader.getStage('vertex').getUniformBlock('PublicUniforms')
+                for key, value in defines:
+                    for port in vpubuni:
+                        if value == port.getName():
+                            inject = "#define " + key + " " + value + "\n"
+                            vText  = inject + vText
+                            break
+                        
+                with open(glslVertPath, "w") as vfile:
+                    vfile.write(vText)
+                
+                # Write out GLSL FRAGMENT (pixel) file
+                p_stage = getattr(mx_gen, 'PIXEL_STAGE', 'pixel')
+                pText   = shader.getSourceCode(p_stage)
+                ppubuni = shader.getStage('pixel').getUniformBlock('PublicUniforms')
+                for key, value in defines:
+                    for port in ppubuni:
+                        if value == port.getName():
+                            inject = "#define " + key + " " + value + "\n"
+                            pText  = inject + pText
+                            break
+                            
+                with open(glslFragPath, "w") as pfile:
+                    pfile.write(pText)
 
+                # Gather 3D Field Types from
+                for key, value in x3dFields:
+                    for port in vpubuni:
+                        if value == port.getName():
+                            x3dFieldTypes[key] = type_map.get(port.getType().getName(), "SFNode")
+                            break
 
-def getDefaultValue(glslType):
-    defaults = {
-        'float': '0.0', 'int': '0', 'bool': 'true',
-        'vec2': '0 0', 'vec3': '0 0 0', 'vec4': '0 0 0 0',
-        'mat3': '1 0 0 0 1 0 0 0 1',
-        'mat4': '1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1',
-        'sampler2D': '', 'samplerCube': ''
-    }
-    return defaults.get(glslType, "")
+                for key, value in x3dFields:
+                    for port in ppubuni:
+                        if value == port.getName():
+                            x3dFieldTypes[key] = type_map.get(port.getType().getName(), "SFNode")
+                            break
+                            
+                return x3dFieldTypes, matXDocName, matXShader
+        return None
+    return None
+                            
+                            
+def getUFETextureNode(surfComp, nodeName):
+    chy      = ufe.Hierarchy.hierarchy(surfComp)
+    children = chy.children()
+    for child in children:
+        if child.nodeName() == nodeName:
+            return child
+    
+    return None
+
 
 #def extract_x3d_fields(file_path):
-def getShaderFieldTags(fTags, filePaths):
+def getShaderFieldTags(fTags, x3dFields, x3dFileTypes, surfComp):
+    for key, value in x3dFields:
+        childNode = x3dFields[key]
+        cParts = childNode.split("_")
+        cpLen = len(cParts)
+        if cpLen > 1:
+            childNode = childNode.removesuffix("_" + cParts[cpLen-1])
 
-    typeMap = {
-        'float': 'SFFloat', 'int': 'SFInt32', 'bool': 'SFBool',
-        'vec2': 'SFVec2f', 'vec3': 'SFVec3f', 'vec4': 'SFVec4f',
-        'mat3': 'SFMatrix3f', 'mat4': 'SFMatrix4f',
-        'sampler2D': 'SFNode', 'samplerCube': 'SFNode'
-    }
+        fName  = key
+        fType  = x3dFieldValues[key]
+        faType = "inputOutput"
+        fValue = ""
 
-    # Regex captures type and the entire name string (including commas/arrays)
-    uniformPattern = re.compile(r'uniform\s+(?:(?:lowp|mediump|highp)\s+)?(\w+)\s+([^;]+);')
-
-    for path in filePaths:
-        if os.path.exists(path):
-            with open(path, 'r') as f:
-                for line in f:
-                    match = uniformPattern.search(line)
-                    if match:
-                        glslType, namesRaw = match.groups()
-                        if glslType in typeMap:
-                            names = [n.strip() for n in namesRaw.split(',')]
-                            for name in names:
-                                # Strip array brackets if present: lightPos[4] -> lightPos
-                                fieldName = re.sub(r'\[.*?\]', '', name)
-                                
-                                x3dType = type_map[glslType]
-                                defaultVal = getDefaultValue(glslType)
-                                
-                                #valAttr = f' value="{defaultVal}"' if defaultVal else ""
-                                valAttr = defaultVal
-                                #fields.append(f'<field name="{fieldName}" type="{x3dType}" accessType="inputOutput"{valAttr}/>')
-                                
-                                hasTag = fTags.get(fieldName, None)
-                                if not hasTag:
-                                    fTags[fieldName] = (x3dType, valAttr)
+        attrs = ufe.Attributes.attributes(surfComp)
+        attribute = attrs.attribute(key)
+        fVal  = attribute.get()
+        if   fType == "SFNode":
+            fValue = childNode + "," + fVal
+        elif fType == "SFString":
+            fValue = fVal
+        elif fType == "SFBool":
+            if fVal == True:
+                fValue = "true"
+            else:
+                fValue = "false"
+        elif fType == "SFFloat":
+            try:
+                fValue = str(fVal)
+            except:
+                fValue = "0.0"
+        elif fType == "SFVec2f":
+            try:
+                fValue = str(fVal[0]) + " " + str(fVal[1])
+            except:
+                fValue = "0.0 0.0"
+        elif fType == "SFVec3f":
+            try:
+                fValue = str(fVal[0]) + " " + str(fVal[1]) + " " + str(fVal[2])
+            except:
+                fValue = "0.0 0.0 0.0"
+        elif fType == "SFVec4f":
+            try:
+                fValue = str(fVal[0]) + " " + str(fVal[1]) + " " + str(fVal[2]) + " " + str(fVal[3])
+            except:
+                fValue = "0.0 0.0 0.0 0.0"
+        elif fType == "SFInt32":
+            try:
+                fValue = str(int(fVal))
+            except:
+                fValue = "0"
+        elif fType == "SFColor":
+            try:
+                fValue = str(fVal[0]) + " " + str(fVal[1]) + " " + str(fVal[2])
+            except:
+                fValue = "1.0 1.0 1.0"
+        elif fType == "SFColorRGBA":
+            try:
+                fValue = str(fVal[0]) + " " + str(fVal[1]) + " " + str(fVal[2]) + " " + str(fVal[3])
+            except:
+                fValue = "1.0 1.0 1.0 1.0"
+        elif fType == "SFMatrix3f":
+            try:
+                fValue =                str(value.matrix[0][0]) + " " + str(value.matrix[0][1]) + " " + str(value.matrix[0][2])
+                fValue = fValue + " " + str(value.matrix[1][0]) + " " + str(value.matrix[1][1]) + " " + str(value.matrix[1][2])
+                fValue = fValue + " " + str(value.matrix[2][0]) + " " + str(value.matrix[2][1]) + " " + str(value.matrix[2][2])
+            except:
+                fValue = "1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0"
+        elif fType == "SFMatrix3f":
+            try:
+                fValue =                str(value.matrix[0][0]) + " " + str(value.matrix[0][1]) + " " + str(value.matrix[0][2]) + " " + str(value.matrix[0][3])
+                fValue = fValue + " " + str(value.matrix[1][0]) + " " + str(value.matrix[1][1]) + " " + str(value.matrix[1][2]) + " " + str(value.matrix[1][3])
+                fValue = fValue + " " + str(value.matrix[2][0]) + " " + str(value.matrix[2][1]) + " " + str(value.matrix[2][2]) + " " + str(value.matrix[2][3])
+                fValue = fValue + " " + str(value.matrix[3][0]) + " " + str(value.matrix[3][1]) + " " + str(value.matrix[3][2]) + " " + str(value.matrix[3][3])
+            except:
+                fValue = "1.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 1.0"
+        
+        fTags[key] = fType + "," + faType + "," + fValue
 
 
 def getUnknownBaseColorAndOcclusionTextures(material, colorStore, colorAttr):
@@ -743,3 +898,80 @@ def getAdvBaseColorAndOcclusionTextures(material, colorStore, advMat):
         if occlTexture:
             colorStore  ["occlussionTexture"] = occlTexture
 
+def get_all_dependencies(node, tracked_nodes):
+    if not node or node in tracked_nodes:
+        return
+    
+    tracked_nodes.add(node)
+    
+    # 1. Standard Upstream Connections
+    for input_ptr in node.getInputs():
+        upstream_node = input_ptr.getConnectedNode()
+        if upstream_node:
+            get_all_dependencies(upstream_node, tracked_nodes)
+            
+        # 2. Interface Connections
+        interface_name = input_ptr.getInterfaceName()
+        if interface_name:
+            parent_graph = node.getParent()
+            if parent_graph and parent_graph.isA(mx.NodeGraph):
+                get_all_dependencies(parent_graph, tracked_nodes)
+
+    # 3. NodeGraph Internal Outputs
+    if node.isA(mx.NodeGraph):
+        for output in node.getOutputs():
+            internal_node = output.getConnectedNode()
+            if internal_node:
+                get_all_dependencies(internal_node, tracked_nodes)
+
+def surgical_mtlx_export(maya_node, final_destination):
+    # --- 1. IDENTIFY TARGET ---
+    ufe_path_str = mcmds.getAttr(f"{maya_node}.ufePath")
+    u_path = ufe.PathString.path(ufe_path_str)
+    
+    target_name = u_path.back()
+    doc_path = u_path.pop()
+    doc_item = ufe.Hierarchy.createItem(doc_path)
+    
+    # --- 2. SILENT EXPORT TO RAW ---
+    context_ops = ufe.ContextOps.contextOps(doc_item)
+    temp_path = os.path.join(tempfile.gettempdir(), "temp_raw_export.mtlx")
+    resolved_temp = str(Path(temp_path).resolve()).replace("\\", "/")
+    context_ops.doOp(['MxExportDocument', resolved_temp])
+    
+    # --- 3. CRAWL & PRUNE ---
+    doc = mx.createDocument()
+    mx.readFromXmlFile(doc, resolved_temp)
+    
+    tracked_nodes = set()
+    target_node = doc.getChild(target_name)
+    
+    if not target_node:
+        mcmds.warning(f"Target {target_name} not found in exported file.")
+        return
+
+    get_all_dependencies(target_node, tracked_nodes)
+            
+    for elem in doc.getChildren():
+        if elem.isA(mx.Node) or elem.isA(mx.NodeGraph):
+            if elem not in tracked_nodes:
+                doc.removeChild(elem.getName())
+        elif elem.isA(mx.Look) or elem.isA(mx.MaterialAssign):
+            doc.removeChild(elem.getName())
+                
+    # --- 4. VALIDATION ---
+    success, errors = doc.validate()
+    if not success:
+        print(f"Warning: Exported document has validation issues: {errors}")
+    else:
+        print("MaterialX Validation: Passed.")
+
+    # --- 5. SAVE & CLEANUP ---
+    mx.writeToXmlFile(doc, final_destination)
+    if os.path.exists(resolved_temp):
+        os.remove(resolved_temp)
+        
+    print(f"Surgical Export Success: {target_name} -> {final_destination}")
+
+# Example Usage:
+# surgical_mtlx_export("myStandardSurface", "C:/temp/final_export.mtlx")
