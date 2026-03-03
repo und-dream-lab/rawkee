@@ -1,4 +1,4 @@
-from rawkee.RKXGraphicsSocket import RKXGraphicsSocket
+from rawkee.maya.RKXGraphicsSocket import RKXGraphicsSocket
 
 LEFT_TOP = 1
 LEFT_BOTTOM = 2

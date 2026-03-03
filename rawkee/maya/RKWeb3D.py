@@ -6,29 +6,12 @@ import maya.mel          as mel
 import os
 import copy
 
-############################################################################
-# Removing this feature.
-############################################################################
-    # Used for killing external applications started by RawKee,
-    # but methods implented don't work as expected. May remove.
-    ###########################################################
-    # import signal                                         ###
-    ###########################################################
+from rawkee.maya import RKOrganizer
+from rawkee.maya import RKSceneEditor
+from rawkee.maya.RKFOptsDialog import RKFOptsDialog
+from rawkee.maya import RKSceneLoaderJSON
+import rawkee.maya.nodes.sticker    as stk
 
-    ##########################################
-    # Used for launching external applications
-    ##########################################
-    # import subprocess        as sp       ###
-    ##########################################
-
-from rawkee import RKOrganizer
-from rawkee import RKSceneEditor
-from rawkee.RKFOptsDialog import RKFOptsDialog
-from maya.api.OpenMaya    import MFn as rkfn
-
-
-import rawkee.nodes.sticker    as stk
-import rawkee.rkx3d            as rkx3d
 
 try:
     from PySide2           import QtCore
@@ -303,17 +286,27 @@ class RKWeb3D():
         # Set Export Mode
         cmds.optionVar(iv=('rkExportMode', expMode))
 
+        #########################################
+        # Create the Object that organizes the 
+        # data in the maya scen to be 
+        # copied into the X3D Document object
+        rko = RKOrganizer.RKOrganizer()
+        rko.prepForSceneTraversal()
+        
         #############################################
         # Prepare New X3D Document with Scene
-        profileType = "Full"
-        x3dVersion  = "4.1"
-        x3dDoc = rkx3d.X3D(profile=profileType, version=x3dVersion)
-        x3dDoc.Scene = rkx3d.Scene()
-        eofScene = rkx3d.Scene()
+        x3dDoc = rko.trv.getX3DObject()
+        x3dDoc.Scene = rko.trv.getSceneObject()
+        
+        #profileType = "Full"
+        #x3dVersion  = "4.1"
+        #x3dDoc = rkx3d.X3D(profile=profileType, version=x3dVersion)
+        #x3dDoc.Scene = rkx3d.Scene()
+        eofScene = rko.trv.getSceneObeject()
         background = rkx3d.Background()
-        background.DEF = "DefaultBackground"
-        background.skyColor = (0.2, 0.2, 0.2)
-        x3dDoc.Scene.children.append(background)
+        
+        bkNode = rko.trv.processBasicNodeAddition(None, x3dDoc.Scene, "children", "Background", "DefaultBackground")
+        bkNode.skyColor = (0.2, 0.2, 0.2)
 
         #############################################
         # Get File Path From QFileDialog File Chooser
@@ -340,16 +333,6 @@ class RKWeb3D():
         # before proceeding.
         if self.fullPath != None and self.fullPath != "":
         
-            # TODO Move this to the actual export call - From RKUtils.py 
-            #processNonFileTextures()
-        
-            #########################################
-            # Create the Object that organizes the 
-            # data in the maya scen to be 
-            # copied into the X3D Document object
-            rko = RKOrganizer.RKOrganizer()
-            rko.prepForSceneTraversal()
-
             # Grab Transforms parented to the real root.
             parentDagPaths, topDagNodes = rko.getAllTopDagNodes()
             
@@ -373,17 +356,15 @@ class RKWeb3D():
             rko.maya2x3d(x3dDoc.Scene, eofScene, parentDagPaths, topDagNodes, self.pVersion, self.fullPath, exEncoding)
 
             # Write X3D Scenegraph to Disk
-            rko.rkio.x3d2disk(x3dDoc, self.fullPath, exEncoding)
-            
-            # Delete the RKOrganizer object.
-            del eofScene
-            del rko
+            rko.trv.x3d2disk(x3dDoc, self.fullPath, exEncoding)
             
         else:
             print("User Cancelled file selection.")
         
         # Delete the X3D Document object now that it is no longer being used.
+        del eofScene
         del x3dDoc
+        del rko
         
         
     # Export Function
@@ -393,16 +374,27 @@ class RKWeb3D():
         # Set Export Mode
         cmds.optionVar(iv=('rkExportMode', expMode))
 
+        #########################################
+        # Create the Object that organizes the 
+        # data in the maya scen to be 
+        # copied into the X3D Document object
+        rko = RKOrganizer.RKOrganizer()
+        rko.prepForSceneTraversal()
+        
         #############################################
         # Prepare New X3D Document with Scene
-        profileType = "Full"
-        x3dVersion  = "4.0"
-        x3dDoc = rkx3d.X3D(profile=profileType, version=x3dVersion)
-        x3dDoc.Scene = rkx3d.Scene()
+        x3dDoc = rko.trv.getX3DObject()
+        x3dDoc.Scene = rko.trv.getSceneObject()
+        
+        #profileType = "Full"
+        #x3dVersion  = "4.1"
+        #x3dDoc = rkx3d.X3D(profile=profileType, version=x3dVersion)
+        #x3dDoc.Scene = rkx3d.Scene()
+        eofScene = rko.trv.getSceneObeject()
         background = rkx3d.Background()
-        background.DEF = "DefaultBackground"
-        background.skyColor = (0.2, 0.2, 0.2)
-        x3dDoc.Scene.children.append(background)
+        
+        bkNode = rko.trv.processBasicNodeAddition(None, x3dDoc.Scene, "children", "Background", "DefaultBackground")
+        bkNode.skyColor = (0.2, 0.2, 0.2)
 
         #############################################
         # Get File Path From QFileDialog File Chooser
@@ -428,9 +420,6 @@ class RKWeb3D():
         # Making certain there is a valid file path 
         # before proceeding.
         if self.fullPath != None and self.fullPath != "":
-        
-            # TODO Move this to the actual export call - From RKUtils.py 
-            #processNonFileTextures()
         
             #########################################
             # Create the Object that organizes the 
@@ -459,19 +448,18 @@ class RKWeb3D():
             #    exEncoding = "html"
                 
             # Traverse DAG and map node data to X3D
-            rko.maya2x3d(x3dDoc.Scene, parentDagPaths, topDagNodes, self.pVersion, self.fullPath, exEncoding)
+            rko.maya2x3d(x3dDoc.Scene, eofScene, parentDagPaths, topDagNodes, self.pVersion, self.fullPath, exEncoding)
 
             # Write X3D Scenegraph to disk.
-            rko.rkio.x3d2disk(x3dDoc, self.fullPath, exEncoding)
-            
-            # Delete the RKOrganizer object.
-            del rko
+            rko.trv.x3d2disk(x3dDoc, self.fullPath, exEncoding)
             
         else:
             print("User Cancelled file selection.")
         
         # Delete the X3D Document object now that it is no longer being used.
+        del eofScene
         del x3dDoc
+        del rko
 
 
 
@@ -932,7 +920,7 @@ class RKDefPoseForASGS(aom.MPxCommand):
         cmds.select(nJoints)
         jSel = aom.MSelectionList()
         jSel.add(nJoints[0])
-        mIter = aom.MItDependencyGraph(jSel.getDependNode(0), rkfn.kDagPose, aom.MItDependencyGraph.kDownstream, aom.MItDependencyGraph.kBreadthFirst, aom.MItDependencyGraph.kNodeLevel)
+        mIter = aom.MItDependencyGraph(jSel.getDependNode(0), aom.MFn.kDagPose, aom.MItDependencyGraph.kDownstream, aom.MItDependencyGraph.kBreadthFirst, aom.MItDependencyGraph.kNodeLevel)
         while not mIter.isDone():
             delThisNode = False
             bPoseNode = aom.MFnDependencyNode(mIter.currentNode())
@@ -1517,11 +1505,11 @@ class RKX3DAuxLoader(aom.MPxCommand):
         fullPath = auxFilePath
         fullPath, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(mayaWin, QtCore.QObject.tr("RawKee - Import X3D JSON File"), auxFilePath, QtCore.QObject.tr(x3dfilters))
         
-        rko = RKOrganizer.RKOrganizer()
+        jsonLoader = RKSceneLoaderJSON.RKSceneLoaderJSON()
         loadedFile = None
         
         try:
-            loadedFile = rko.rkio.jsonLoader.loadX3DJSON(fullPath)
+            loadedFile = jsonLoader.loadX3DJSON(fullPath)
         except:
             print("JSON Load Failed... " + fullPath)
         
@@ -1532,11 +1520,11 @@ class RKX3DAuxLoader(aom.MPxCommand):
             sceneLoaded = False
             
         if sceneLoaded == True:
-            rko.rkio.jsonLoader.processBranchForMaya(scene)
+            jsonLoader.processBranchForMaya(scene)
         else:
             print("X3D Scene not found in file")
         
-        del rko
+        del jsonLoader
 
 
     # Function to get Maya Main Window Widget

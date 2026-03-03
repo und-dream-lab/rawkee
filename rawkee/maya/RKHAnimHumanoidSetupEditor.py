@@ -48,22 +48,22 @@ from   maya.api.OpenMaya import MFn as rkfn
 import maya.api.OpenMayaAnim as omAnim
 
 #Sticker App for applying Outliner icons
-import rawkee.nodes.sticker    as stk
+import rawkee.maya.nodes.sticker    as stk
 
 from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
 
 
-class RKCharacterAnimationClipEditor(MayaQWidgetDockableMixin, QWidget):
+class RKHAnimHumanoidSetupEditor(MayaQWidgetDockableMixin, QWidget):
     
-    OBJECT_NAME = "RKCharacterAnimationClipEditor"
+    OBJECT_NAME = "RKHAnimHumanoidSetupEditor"
     
     @classmethod
-    def character_animation_clip_editor_control_name(cls):
+    def hanim_humanoid_setup_editor_control_name(cls):
         return "{0}WorkspaceControl".format(cls.OBJECT_NAME)
         
     @classmethod
     def workspace_ui_script(cls):
-        return "from rawkee.RKCharacterAnimationClipEditor import RKCharacterAnimationClipEditor\nrkCACEWidget = RKCharacterAnimationClipEditor()"
+        return "from rawkee.maya.RKHAnimHumanoidSetupEditor import RKHAnimHumanoidSetupEditor\nrkHHSEWidget = RKHAnimHumanoidSetupEditor()"
         
     @classmethod
     def workplace_close_command(cls):
@@ -74,37 +74,37 @@ class RKCharacterAnimationClipEditor(MayaQWidgetDockableMixin, QWidget):
         super().__init__()
         
         self.setObjectName(self.OBJECT_NAME)
-        self.setWindowTitle("RawKee Character Animation Clip Editor")
-        self.setMinimumSize(400,600)
+        self.setWindowTitle("RawKee HAnimHumanoid Setup")
+        self.setMinimumSize(300,140)
 
-        self.add_to_character_animation_clip_editor_workspace_control()
+        self.add_to_hanim_humanoid_setup_editor_workspace_control()
 
         self.uiPaths = os.path.abspath(__file__)
         self.uiPaths = os.path.dirname(self.uiPaths)
-        self.uiPaths += "/auxilary/RKCharacterAnimationClipEditorFrame.ui"
+        self.uiPaths += "/auxilary/RKHAnimHumanoidSetupPanel.ui"
 
         loader = QtUiTools.QUiLoader()
         #loader.registerCustomWidget(RKDagPoseComboBox)
         
-        caceGUIFile = QtCore.QFile(self.uiPaths)
-        caceGUIFile.open(QtCore.QFile.ReadOnly)
-        self.cacePanel = loader.load(caceGUIFile)
+        hhseGUIFile = QtCore.QFile(self.uiPaths)
+        hhseGUIFile.open(QtCore.QFile.ReadOnly)
+        self.hhsePanel = loader.load(hhseGUIFile)
 
         ######################################################
         # Top Level Layout                                   #
         main_layout = QtWidgets.QHBoxLayout(self)  
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(self.cacePanel)
+        main_layout.addWidget(self.hhsePanel)
         
 
     def cleanUpOnEditorClose(self):
         print("Cleaned")
 
 
-    def add_to_character_animation_clip_editor_workspace_control(self):
-        character_animation_clip_editor_control_name = omui.MQtUtil.findControl(self.character_animation_clip_editor_control_name())
-        if character_animation_clip_editor_control_name:
-            character_animation_clip_editor_control_name_ptr = int(character_animation_clip_editor_control_name)
-            character_animation_clip_editor_widget_ptr = int(getCppPointer(self)[0])
+    def add_to_hanim_humanoid_setup_editor_workspace_control(self):
+        hanim_humanoid_setup_editor_control_name = omui.MQtUtil.findControl(self.hanim_humanoid_setup_editor_control_name())
+        if hanim_humanoid_setup_editor_control_name:
+            hanim_humanoid_setup_editor_control_name_ptr = int(hanim_humanoid_setup_editor_control_name)
+            hanim_humanoid_setup_editor_widget_ptr = int(getCppPointer(self)[0])
             
-            omui.MQtUtil.addWidgetToMayaLayout(character_animation_clip_editor_widget_ptr, character_animation_clip_editor_workspace_control_ptr)
+            omui.MQtUtil.addWidgetToMayaLayout(hanim_humanoid_setup_editor_widget_ptr, hanim_humanoid_setup_editor_workspace_control_ptr)

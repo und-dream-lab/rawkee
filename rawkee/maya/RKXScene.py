@@ -1,6 +1,6 @@
 import sys
-import rawkee.rkx3d as rkx
-from rawkee.RKGraphics import RKGraphicsScene
+import rawkee.io.RKx3d as rkx
+from rawkee.maya.RKGraphics import RKGraphicsScene
 
 class RKXScene(rkx.Scene):# class X3D_Transform (aom.MPxNode, x3d.Transform):
     

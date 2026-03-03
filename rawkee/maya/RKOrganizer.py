@@ -10,13 +10,11 @@ from   maya.api.OpenMaya import MFn as rkfn
 
 import ufe
 
-from rawkee.RKInterfaces import *
-from rawkee.RKIO         import *
-from rawkee.RKXNodes     import *
-from rawkee.RKPseudoNode import *
+from rawkee.maya.RKInterfaces import RKInterfaces
+from rawkee.io import RKSceneTraversal
 
 # Pushed Material Export into RKMaterials.py
-import rawkee.RKMaterials as rkMat
+import rawkee.maya.RKMaterials as rkMat
 
 import numpy as np
 
@@ -26,25 +24,14 @@ import json
 
 import os
 
-#Python implementation of C++ x3dExportOrganizer
-
-        # For processing the Maya nodes as X3D equivelents
-        # transform - Transform - ############ - children - 4
-        # transform - Group     - x3dGroup     - children - 4
-        # transform - Billboard - x3dBillboard - children - 4
-        # transform - Anchor    - x3dAnchor    - children - 4
-        # transform - Collision - x3dCollision - children - 4
-        # transform - Switch    - x3dSwitch    - choice   - 101
-        # lodGroup  - LOD       - ############ - level    - 102
-
-
 class RKOrganizer():
     def __init__(self):
         #print("RKOrganizer")
         
-        self.rkint    = RKInterfaces()
-        self.rkio      = RKIO()
+        self.rkint     = RKInterfaces.RKInterfaces()
         self.animation = []
+        self.isVerbose = False
+        self.trv       = RKSceneTraversal.RKSceneTraversal()
 
         self.isTreeBuilding = False
         self.hasPassed = False
@@ -238,7 +225,7 @@ class RKOrganizer():
 
 
     def __del__(self):
-        del self.rkio
+        del self.trv
         del self.rkint
         
     def loadRawKeeOptions(self):
@@ -340,16 +327,16 @@ class RKOrganizer():
 
     
     def processImportFile(self, fullFilePath, rkFilter):
-        self.rkio.cMessage("Importing!!!")
-        self.rkio.cMessage(fullFilePath)
-        self.rkio.cMessage(rkFilter)
+        self.cMessage("Importing!!!")
+        self.cMessage(fullFilePath)
+        self.cMessage(rkFilter)
         
         
         
     def processExportFile(self, fullFilePath, rkFilter):
-        self.rkio.cMessage("Exporting!!!")
-        self.rkio.cMessage(fullFilePath)
-        self.rkio.cMessage(rkFilter)
+        self.cMessage("Exporting!!!")
+        self.cMessage(fullFilePath)
+        self.cMessage(rkFilter)
     
     #######################################################################################
     ### maya2x3d(self - RKOrganizer, x3d.Scene, MFnDagPath lsit [], MFnDagNode list [], string - pVersion <rawkee version>) ###
@@ -370,16 +357,11 @@ class RKOrganizer():
 
         self.animation.clear()
         
-        self.rkio.comments.clear()
-        self.rkio.comments.append(pVersion)
-        self.rkio.commentNames.clear()
-        self.rkio.commentNames.append("created_with")
-
         # Should aways be a new root.
         # Telling the IO object that this node has been 
         # visited bofore.
         self.rootName = "|!!!!!_!!!!!|world"
-        self.rkio.setAsHasBeen(self.rootName, x3dScene)
+        self.trv.setAsHasBeen(self.rootName, x3dScene)
         
         ##########################################################
         # Needed for writing animation data at the end of the file
@@ -431,29 +413,29 @@ class RKOrganizer():
         self.allMeshMappings.clear()
         
         # General X3D File Settings
-        self.rkio.trv.metatags.append({"name":"generator", "content":"RawKee X3D Exporter for Maya 2025+ [Python Edition], https://github.com/und-dream-lab/rawkee/"})
+        self.trv.metatags.append({"name":"generator", "content":"RawKee X3D Exporter for Maya 2025+ [Python Edition], https://github.com/und-dream-lab/rawkee/"})
         for doc in self.relMatXDocPaths:
-            self.rkio.trv.metatags.append(doc)
-        self.rkio.trv.x3dVersion = "4.1"
+            self.trv.metatags.append(doc)
+        self.trv.x3dVersion = "4.1"
 
         # Set Profile and Components
-        compLen = len(self.rkio.trv.profDict)
+        compLen = len(self.trv.profDict)
         if   compLen >= 36:
-            self.rkio.trv.evaluateForFull()
+            self.trv.evaluateForFull()
         elif compLen >= 20:
-            self.rkio.trv.evaluateForImmersive()
+            self.trv.evaluateForImmersive()
         elif compLen >= 16:
-            self.rkio.trv.evaluateForInteractive()
+            self.trv.evaluateForInteractive()
         elif compLen >= 14:
-            self.rkio.trv.evaluateForMP4Interactive()
+            self.trv.evaluateForMP4Interactive()
         elif compLen >= 12:
-            self.rkio.trv.evaluateForInterchange()
+            self.trv.evaluateForInterchange()
         elif compLen >= 10:
-            self.rkio.trv.evaluateForCADInterchange()
+            self.trv.evaluateForCADInterchange()
         else:
-            self.rkio.trv.evaluateForCore()
+            self.trv.evaluateForCore()
         
-        self.rkio.trv.setAdditionalComponents()
+        self.trv.setAdditionalComponents()
         
         
     ############################################################
@@ -520,9 +502,11 @@ class RKOrganizer():
         worldDag = aom.MFnDagNode(itDag.root())
         
         #Create the X3D Scene Root
-        x3dScene = self.rkio.resetSceneRoot(x3dDoc)
+        x3dScene = x3dDoc.Scene
+        x3dScene.children.clear()
+        
         self.rootName = "|!!!!!_!!!!!|world"
-        self.rkio.setAsHasBeen(self.rootName, x3dScene)
+        self.trv.setAsHasBeen(self.rootName, x3dScene)
         
         dragPath = worldDag.getPath().fullPathName()
 
@@ -561,9 +545,11 @@ class RKOrganizer():
             iterGP.next()
             
         #Create the X3D Scene Root
-        x3dScene = self.rkio.resetSceneRoot(x3dDoc)
+        x3dScene = x3dDoc.Scene
+        x3dScene.children.clear()
+
         self.rootName = "|!!!!!_!!!!!|world"
-        self.rkio.setAsHasBeen(self.rootName, x3dScene)
+        self.trv.setAsHasBeen(self.rootName, x3dScene)
 
         cNum = len(dagList)
         for i in range(cNum):
@@ -585,7 +571,7 @@ class RKOrganizer():
                 cons = cmds.listConnections(ipNode.name() + ".sourceTexture")
                 if len(cons) > 0:
                     if cmds.nodeType(cons[0]) == "envCube":
-                        bkNode = self.processBasicNodeAddition(ipNode, x3dScene, "children", "Background")
+                        bkNode = self.trv.processBasicNodeAddition(ipNode, x3dScene, "children", "Background", ipNode.name())
                         if bkNode[0] == False:
                             textureNodes = []
                             textureNodes = cmds.listConnections(cons[0], destination=True, type="file")
@@ -722,7 +708,7 @@ class RKOrganizer():
                             moNode.channels = moNode.channels + " " + "Zrotation Yrotation Xrotation"
                         moNode.channels += " "
                         moNode.channelsEnabled.append(True)
-                        defNode = self.rkio.findExisting(mop.joints[j].USE)
+                        defNode = self.trv.findExisting(mop.joints[j].USE)
                         if defNode is not None:
                             moNode.joints = moNode.joints + defNode.name + " "
                         
@@ -949,7 +935,7 @@ class RKOrganizer():
     def processX3DSound(self, dagNode, x3dPF):
         if dagNode.childCount() > 0:
             depNode = aom.MFnDependencyNode(dagNode.child(0))
-            bna = self.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "Sound", dagNode.name())
+            bna = self.trv.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "Sound", dagNode.name())
             if bna[0] == False:
                 x3dNode = bna[1]
 
@@ -970,7 +956,7 @@ class RKOrganizer():
             depNode = aom.MFnDependencyNode(dagNode.child(0))
             isOrtho = depNode.findPlug("orthographic", False).asBool()
             if isOrtho:
-                bna = self.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "OrthoViewpoint", dagNode.name())
+                bna = self.trv.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "OrthoViewpoint", dagNode.name())
                 if bna[0] == False:
                     x3dNode = bna[1]
                     self.processBasicViewpointFields(x3dNode, dagNode.name(), depNode)
@@ -980,7 +966,7 @@ class RKOrganizer():
                     x3dNode.fieldOfView =  (oWidth * -1, oWidth * -1, oWidth, oWidth)
                      
             else:
-                bna = self.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "Viewpoint", dagNode.name())
+                bna = self.trv.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "Viewpoint", dagNode.name())
                 if bna[0] == False:
                     x3dNode = bna[1]
                     self.processBasicViewpointFields(x3dNode, dagNode.name(), depNode)
@@ -1006,7 +992,7 @@ class RKOrganizer():
         try:
             x3dNode.description = dagNode.findPlug("x3dDescription", False).asString()
         except:
-            self.rkio.cMessage("No 'description' X3D Field Found")
+            self.cMessage("No 'description' X3D Field Found")
         
         # X3D farDistance
         x3dNode.farDistance = depNode.findPlug("farClipPlane", False).asFloat()
@@ -1015,7 +1001,7 @@ class RKOrganizer():
         try:
             x3dNode.jump = dagNode.findPlug("x3dJump",False).asBool()
         except:
-            self.rkio.cMessage("No 'jump' X3D Field Found")
+            self.cMessage("No 'jump' X3D Field Found")
         
         ################################################################
         # X3D metadata
@@ -1039,13 +1025,13 @@ class RKOrganizer():
         try:
             x3dNode.retainUserOffsets = dagNode.findPlug("x3dRetainUserOffsets", False).asBool()
         except:
-            self.rkio.cMessage("No 'retainUserOffsets' X3D Field Found")
+            self.cMessage("No 'retainUserOffsets' X3D Field Found")
             
         # X3D viewAll
         try:
             x3dNode.viewAll = dagNode.findPlug("x3dViewAll", False).asBool()
         except:
-            self.rkio.cMessage("No 'viewAll' X3D Field Found")
+            self.cMessage("No 'viewAll' X3D Field Found")
     
     ##########################################################################################################
     # Lighting Related Functions
@@ -1053,7 +1039,7 @@ class RKOrganizer():
         if dagNode.childCount() > 0:
             depNode = aom.MFnDependencyNode(dagNode.child(0))
             if depNode.typeName == "directionalLight":
-                bna = self.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "DirectionalLight", dagNode.name())
+                bna = self.trv.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "DirectionalLight", dagNode.name())
                 if bna[0] == False:
                     x3dNode = bna[1]
                     self.processBasicLightFields(x3dNode, dagNode, depNode)
@@ -1065,7 +1051,7 @@ class RKOrganizer():
                     x3dNode.direction = self.rkint.getDirection(tForm.rotation(aom.MSpace.kTransform, False))
                     
             elif depNode.typeName == "spotLight":
-                bna = self.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "SpotLight", dagNode.name())
+                bna = self.trv.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "SpotLight", dagNode.name())
                 if bna[0] == False:
                     x3dNode = bna[1]
                     self.processBasicLightFields(x3dNode, dagNode, depNode)
@@ -1127,7 +1113,7 @@ class RKOrganizer():
                     # x3dNode.radius = depNode.findPlug("centerOfIllumination").asFloat()
 
             elif depNode.typeName == "pointLight":
-                bna = self.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "PointLight", dagNode.name())
+                bna = self.trv.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "PointLight", dagNode.name())
                 if bna[0] == False:
                     x3dNode = bna[1]
                     self.processBasicLightFields(x3dNode, dagNode, depNode)
@@ -1162,7 +1148,7 @@ class RKOrganizer():
             tfList = aom.MSelectionList()
             tfList.add(tFile[0])
             tfNode = aom.MFnDependencyNode(tfList.getDependNode(0))
-            fbna = self.processBasicNodeAddition(tfNode, x3dParent, x3dField, "ImageCubeMapTexture")
+            fbna = self.trv.processBasicNodeAddition(tfNode, x3dParent, x3dField, "ImageCubeMapTexture", tfNode.name())
             if fbna[0] == False:
                 relativeTexPath = self.rkImagePath
                 localTexWrite   = self.activePrjDir + "/" + relativeTexPath
@@ -1200,7 +1186,7 @@ class RKOrganizer():
 
     def processEnviornmentLight(self,       skyDomeLight, x3dParent, x3dField, x3dType, dagNode):
         print("EL - Print me")
-        bna = self.processBasicNodeAddition(skyDomeLight, x3dParent, x3dField, x3dType, dagNode.name())
+        bna = self.trv.processBasicNodeAddition(skyDomeLight, x3dParent, x3dField, x3dType, dagNode.name())
         if bna[0] == False:
             x3dNode = bna[1]
             self.processBasicLightFields(x3dNode, dagNode, skyDomeLight)
@@ -1214,7 +1200,7 @@ class RKOrganizer():
                 tfList = aom.MSelectionList()
                 tfList.add(tFile[0])
                 tfNode = aom.MFnDependencyNode(tfList.getDependNode(0))
-                fbna = self.processBasicNodeAddition(tfNode, bna[1], "specularTexture", "ImageCubeMapTexture")
+                fbna = self.trv.processBasicNodeAddition(tfNode, bna[1], "specularTexture", "ImageCubeMapTexture", tfNode.name())
                 if fbna[0] == False:
                     relativeTexPath = self.rkImagePath
                     localTexWrite   = self.activePrjDir + "/" + relativeTexPath
@@ -1305,7 +1291,7 @@ class RKOrganizer():
     def processX3DTransform(self, x3dParentDEF, dagNode, x3dPF):
         depNode = aom.MFnDependencyNode(dagNode.object())
         #dragPath = dragPath + "|" + depNode.name()
-        bna = self.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "Transform")
+        bna = self.trv.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "Transform", depNode.name())
         if bna[0] == False:
             self.processBasicTransformFields(depNode, bna[1])
             
@@ -1476,7 +1462,7 @@ class RKOrganizer():
         hName = depNode.name()
             
         # Create X3D HAnimHumanoid node
-        bna = self.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "HAnimHumanoid", nodeName=hName)
+        bna = self.trv.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "HAnimHumanoid", nodeName=hName)
         
         if bna[0] == False:
             if depNode.typeName != "joint":
@@ -1582,7 +1568,7 @@ class RKOrganizer():
         parentNode = self.eofScene
         cField = "children"
             
-        bna = self.processBasicNodeAddition(None, parentNode, cField, "Group", x3dParent.DEF + "_TimerGroup")
+        bna = self.trv.processBasicNodeAddition(None, parentNode, cField, "Group", x3dParent.DEF + "_TimerGroup")
         if bna[0] == False:
             for apNode in rkAPNodes:
                 apType = cmds.getAttr(apNode.name() + ".mimickedType")
@@ -1607,15 +1593,15 @@ class RKOrganizer():
 
 
     def processAudioClipNode   (self, apNode, timerGroup, cField):
-        bna = self.processBasicNodeAddition(apNode, timerGroup, cField, "AudioClip")
+        bna = self.trv.processBasicNodeAddition(apNode, timerGroup, cField, "AudioClip", apNode.name())
 
         
     def processMovieTextureNode(self, apNode, timerGroup, cField):
-        bna = self.processBasicNodeAddition(apNode, timerGroup, cField, "MovieTexture")
+        bna = self.trv.processBasicNodeAddition(apNode, timerGroup, cField, "MovieTexture", apNode.name())
 
     #Processing TimeSensor Node
     def processTimeSensorNode   (self, apNode, timerGroup, cField):
-        bna = self.processBasicNodeAddition(apNode, timerGroup, cField, "TimeSensor")
+        bna = self.trv.processBasicNodeAddition(apNode, timerGroup, cField, "TimeSensor", apNode.name())
         
         if bna[0] == False:
             ##########################################
@@ -1676,7 +1662,7 @@ class RKOrganizer():
             ###### preFrame = cmds.currentTime(query=True)## --- ################
             for tExp in timerExpressions:
                 x3dNodeType = cmds.getAttr(tExp.name() + '.x3dInterpolatorType')
-                bni = self.processBasicNodeAddition(None, timerGroup, cField, x3dNodeType, tExp.name())
+                bni = self.trv.processBasicNodeAddition(None, timerGroup, cField, x3dNodeType, tExp.name())
                 if bni[0] == False:
                     ############################################################################
                     ###### cons   = cmds.listConnections(tExp.name(), p=True, s=True, et=True, sh=True)
@@ -1751,7 +1737,7 @@ class RKOrganizer():
 
 
     def generateRoutes(self, fromNode, outEvent, toNode, inEvent, x3dParentNode, x3dFieldName):
-        newRoute = self.rkio.createRouteObject()
+        newRoute = self.trv.getRouteObject()
         newRoute.fromNode  = fromNode
         newRoute.fromField = outEvent
         newRoute.toNode    = toNode
@@ -1763,7 +1749,7 @@ class RKOrganizer():
 
 
     def generateFields(self, fieldName, fieldType, fieldAccessType):
-        newField = self.rkio.ceateFieldObject()
+        newField = self.trv.getFieldObject()
         newField.name       = fieldName
         newField.type       = fieldType
         newField.accessType = fieldAccessType
@@ -1771,7 +1757,7 @@ class RKOrganizer():
         return newField
         
     def processHAnimMotion(self, x3dParentDEF, moNode, x3dHumanoid, cField="motions"):
-        bna = self.processBasicNodeAddition(moNode, x3dHumanoid, cField, "HAnimMotion")
+        bna = self.trv.processBasicNodeAddition(moNode, x3dHumanoid, cField, "HAnimMotion", moNode.name())
 
         if bna[0] == False:
             #Maya Timeline Key Frame Step (Timeline steps)
@@ -1901,9 +1887,9 @@ class RKOrganizer():
         
         if self.rkNormalOpts > 0 and len(skm) > 0:
             nName = nName + "_Normal"
-            normalbna = self.processBasicNodeAddition(None, x3dParent, "skinNormal", "Normal", nName)
-            #normalbna = self.processBasicNodeAddition(depNode, x3dParent, "skinBindingNormals", "Normal", nName)
-            #sknbna    = self.processBasicNodeAddition(depNode, x3dParent, "skinNormal", "Normal", nName)
+            normalbna = self.trv.processBasicNodeAddition(None, x3dParent, "skinNormal", "Normal", nName)
+            #normalbna = self.trv.processBasicNodeAddition(depNode, x3dParent, "skinBindingNormals", "Normal", nName)
+            #sknbna    = self.trv.processBasicNodeAddition(depNode, x3dParent, "skinNormal", "Normal", nName)
 
             for sm in skm:
                 interSM = self.getIntermediateMesh(sm)
@@ -1968,9 +1954,9 @@ class RKOrganizer():
         
         if skmLen > 0:
             cName = cName + "_Coord"
-            coordbna = self.processBasicNodeAddition(None, x3dParent, "skinCoord", "Coordinate", cName)
-            #coordbna = self.processBasicNodeAddition(depNode, x3dParent, "skinBindingCoords", "Coordinate", cName)
-            #skcbna   = self.processBasicNodeAddition(depNode, x3dParent, "skinCoord", "Coordinate", cName)
+            coordbna = self.trv.processBasicNodeAddition(None, x3dParent, "skinCoord", "Coordinate", cName)
+            #coordbna = self.trv.processBasicNodeAddition(depNode, x3dParent, "skinBindingCoords", "Coordinate", cName)
+            #skcbna   = self.trv.processBasicNodeAddition(depNode, x3dParent, "skinCoord", "Coordinate", cName)
             for sm in skm:
                 ###########################################################################
                 # 
@@ -2144,7 +2130,7 @@ class RKOrganizer():
                             print("H Value Failed: " + str(h))
 
                 for l in range(len(dPaths)):
-                    x3dJoint = self.rkio.getGeneratedX3D(dPaths[l].partialPathName())
+                    x3dJoint = self.trv.getGeneratedX3D(dPaths[l].partialPathName())
                     
                     jWeights = lWeights[l]
                     for vIdx in range(nVtx):
@@ -2168,14 +2154,14 @@ class RKOrganizer():
         skinDEF = skinName + "_" + str(skNameInt)
         skNameExists = True
         while skNameExists == True:
-            skNameExists = self.rkio.checkIfHasBeen(skinDEF) #cmds.objExists(skinDEF)
+            skNameExists = self.trv.checkIfHasBeen(skinDEF) #cmds.objExists(skinDEF)
             if skNameExists == True:
                 skNameInt += 1
                 skinDEF = skinName + "_" + str(skNameInt)
             
         #No dragPath change 777777
-        #bna = self.processBasicNodeAddition(None, x3dParent, cField, "CGESkin", skinDEF)
-        bna = self.processBasicNodeAddition(None, x3dPF[0], x3dPF[1], "CGESkin", skinDEF)
+        #bna = self.trv.processBasicNodeAddition(None, x3dParent, cField, "CGESkin", skinDEF)
+        bna = self.trv.processBasicNodeAddition(None, x3dPF[0], x3dPF[1], "CGESkin", skinDEF)
         if bna[0] == False:
             #################################################
             # List holding all Mesh node objects influenced
@@ -2245,7 +2231,7 @@ class RKOrganizer():
                     jsm.getElement(3,0), jsm.getElement(3,1), jsm.getElement(3,2), jsm.getElement(3,3))
 
             x3dSkin.inverseBindMatrices.append(imx)
-            bna = self.processBasicNodeAddition(None, x3dSkin, "joints", "Transform", nodeName=allJoints[i])
+            bna = self.trv.processBasicNodeAddition(None, x3dSkin, "joints", "Transform", nodeName=allJoints[i])
 
 
     def populateCGEWeightInformation(self, mesh, shape, allJoints):
@@ -2385,7 +2371,7 @@ class RKOrganizer():
 
     def processMayaJointAsCGETransform(self, x3dParentDEF, jNode, x3dSkin, x3dParent, cField="children", allShapes=[], allJoints=[], isBasic=False, wssm=aom.MMatrix()):
 
-        bna   = self.processBasicNodeAddition(jNode, x3dParent, cField, "Transform")
+        bna   = self.trv.processBasicNodeAddition(jNode, x3dParent, cField, "Transform", jNode.name())
         if bna[0] == False:
             # Gather shapes related to this joint.
             self.getMeshFromJoint(jNode, allShapes)
@@ -2428,7 +2414,7 @@ class RKOrganizer():
             # author does not rename this joint with the 
             # label text
             jLabel = self.getCGEJointLabel(jNode)
-            bnam = self.processBasicNodeAddition(None, bna[1], "metadata", "MetadataString", jointName + "_joint_label")
+            bnam = self.trv.processBasicNodeAddition(None, bna[1], "metadata", "MetadataString", jointName + "_joint_label")
             bnam[1].name = "joint_label"
             bnam[1].value.append(jLabel)
             
@@ -2505,8 +2491,8 @@ class RKOrganizer():
     # sc is MFnSkinCluster list, wo is list of ints that are the per-mesh offset from 0 of the weights index for that mesh, sk is MFnMesh node list
     def processHAnimJoint(self, x3dParentDEF, jNode, x3dHumanoid, x3dParent, cField="children", sc=[], wo=[], sk=[], hasSC=False, jOffset=(0.0, 0.0, 0.0), wssm=aom.MMatrix()):
         skinSpaceMatrix = wssm
-        bna   = self.processBasicNodeAddition(jNode,   x3dParent,   cField, "HAnimJoint")
-        bnajt = self.processBasicNodeAddition(jNode, x3dHumanoid, "joints", "HAnimJoint")
+        bna   = self.trv.processBasicNodeAddition(jNode,   x3dParent,   cField, "HAnimJoint", jNode.name())
+        bnajt = self.trv.processBasicNodeAddition(jNode, x3dHumanoid, "joints", "HAnimJoint", jNode.name())
     
 
         if bna[0] == False:
@@ -2607,134 +2593,17 @@ class RKOrganizer():
                     self.processHAnimJoint(bna[1], dagChild, x3dHumanoid, bna[1], cField="children", sc=sc, wo=wo, sk=sk, hasSC=False, jOffset=localPivot, wssm=skinSpaceMatrix)
                 elif dagChild.typeName == "transform":
                     mySegName = dagChild.name() + "_segment"
-                    bnaSeg  = self.processBasicNodeAddition(jNode, bna[1],      "children", "HAnimSegment", nodeName=mySegName)
-                    bnaSeg2 = self.processBasicNodeAddition(jNode, x3dHumanoid, "segments", "HAnimSegment", nodeName=mySegName)
+                    bnaSeg  = self.trv.processBasicNodeAddition(jNode, bna[1],      "children", "HAnimSegment", nodeName=mySegName)
+                    bnaSeg2 = self.trv.processBasicNodeAddition(jNode, x3dHumanoid, "segments", "HAnimSegment", nodeName=mySegName)
                     
                     if bnaSeg[0] == False:
                     #    bnaSeg[1].centerOfMass = bna[1].center
                         pass
                     
                     self.traverseDownward(mySegName, dagChild)
-                    x3dTransChild = self.rkio.getGeneratedX3D(dagChild.name())
+                    x3dTransChild = self.trv.getGeneratedX3D(dagChild.name())
                     x3dTransChild.translation = bna[1].center
 
-#                else:
-#                    print("Skeleton Traverse Miss: " + dagChild.name() + ", Type: "+ dagChild.typeName)
-
-
-    ######################################################################################################################
-    #   Basic Node Functions
-    def processBasicNodeAddition(self, depNode, x3dParentNode, x3dFieldName, x3dType, nodeName=""):
-        defuse = nodeName
-        # Determine the DEF/USE value of the node to be created
-        if defuse == "":
-            defuse = depNode.name()
-            
-        # Create Node from String where x3dType is a string that identifies 
-        # the type of X3D to be created. Must be a node defined by the X3D 4.0 Specification.
-        nodeTuple = self.rkio.createNodeFromString(x3dType)
-        
-        tNode = nodeTuple[0]
-        x3dComps = nodeTuple[1]
-
-        if tNode:
-            # Check to see if the node has previously been created with a DEF 
-            # attribute.
-            hasBeen = self.rkio.checkIfHasBeen(defuse)
-            
-            # If has been created already, assign the "nodeName" value to the 
-            # X3D node's USE attribute and leave the DEF attribute as None.
-            if hasBeen == True:
-                tNode.USE = defuse
-            
-            # However, if the node has not been previously created, set the 
-            # X3D node's DEF attribute to the value of "nodeName", and then
-            # record the node has having been created by calling the 
-            # "setHasBeen()" method.
-            else:
-                tNode.DEF = defuse
-                self.rkio.setAsHasBeen(defuse, tNode)
-                
-            # Now it is time to add the new node to the X3D Scene. First 
-            # we must obtain the value of the X3D Field of the parent by 
-            # calling "getattr". Doing so will return the field's value, 
-            # which will either be a "list" (populated or empty) or a 
-            # 'None' value.           
-            nodeField = getattr(x3dParentNode, x3dFieldName)
-            
-            # Once this value has been obtained, we check to see if the
-            # value is an 'instance' of the 'list' data type. If it is 
-            # an instance of the list data type, then append the new 
-            # X3D node to this list.
-            if isinstance(nodeField, list):
-                nodeField.append(tNode)
-                
-            # If the value is not an instance of list, then use the 
-            # 'setattr' method to set the parent's field value to the 
-            # value of the new X3D node.
-            else:
-                setattr(x3dParentNode, x3dFieldName, tNode)
-                
-            # Adjust the exported Profile and Components
-            self.rkio.trv.adjustProfileAndComponents(x3dComps)
-                
-            # Return a list containing the value of 'hasBeen', which lets
-            # the calling section of code know whether the X3D node in question
-            # had once before, already been added to the scene. This allows the 
-            # section of the code that originally called this method to know 
-            # whether other X3D field values should be added to this new node.
-            # And then also return the new node so if it does need values 
-            # assigned to it's other attributes, the section of the code that
-            # called this metod can do so.
-            return [hasBeen, tNode]
-        
-        else:
-            return[True, tNode]
-            
-
-    def getX3DParentAndContainerField(self, dagNode, dragPath=None):
-        if dragPath == None:
-            dragPath = dagNode.getPath().fullPathName()
-        sp = dragPath.split('|')
-        spLen = len(sp)
-        pName = sp[spLen-2]
-        
-        if spLen == 2:
-            pName = self.rootName
-
-        x3dParent = self.rkio.findExisting(pName)
-        
-        if x3dParent == None:
-#            x3dParent = self.rkio.x3dDoc.Scene
-            x3dParent = self.rkio.findExisting(self.rootName)
-        
-        #Use this code when using the 'traverseDownward()' function for traversing the scene graph
-        #x3dParent = self.rkio.findExisting(pX3DName)
-
-        #TODO: maybe something here in the future to determine x3dField
-        x3dField = "children"
-
-        return [x3dParent, x3dField]
-        attributes = dir(x3dParent)
-        self.rkio.cMessage(attributes)
-    '''
-    def getX3DParent(self, dagNode, dragPath=None):
-        if dragPath == None:
-            dragPath = dagNode.getPath().fullPathName()
-        sp = dragPath.split('|')
-        spLen = len(sp)
-        pName = sp[spLen-2]
-        
-        if spLen == 2:
-            pName = self.rootName
-
-        x3dParent = self.rkio.findExisting(pName)
-        
-        if x3dParent == None:
-            x3dParent = self.rkio.findExisting(self.rootName)
-        
-        return x3dParent
-    '''
 
     def getX3DParent(self, dagNode, searchName=""):
         if searchName == "":
@@ -2747,10 +2616,10 @@ class RKOrganizer():
             else:
                 searchName = pName
 
-        x3dParent = self.rkio.findExisting(searchName)
+        x3dParent = self.trv.findExisting(searchName)
         
         if x3dParent == None:
-            x3dParent = self.rkio.findExisting(self.rootName)
+            x3dParent = self.trv.findExisting(self.rootName)
         
         return x3dParent
 
@@ -2765,9 +2634,9 @@ class RKOrganizer():
         try: 
             x3dTypeAttr = dagNode.findPlug("x3dNodeType", False)
             xta = x3dTypeAttr.asString()
-            self.rkio.cMessage("x3dNodeType exists!")
+            self.cMessage("x3dNodeType exists!")
         except:
-            self.rkio.cMessage("x3dNodeType does not exist")
+            self.cMessage("x3dNodeType does not exist")
         
         #dragPath = dragPath + "|" + dagNode.name()
 
@@ -2776,10 +2645,10 @@ class RKOrganizer():
         x3dPF.append(cField)
 
         if x3dPF[0] == None:
-            self.rkio.cMessage("Parent Not Found. Ignore node: " + dagNode.name())
+            self.cMessage("Parent Not Found. Ignore node: " + dagNode.name())
         else:
             if x3dPF[0] != None and xta != "":
-                self.rkio.cMessage("xta items")
+                self.cMessage("xta items")
                 if xta == "Anchor":
                     isTransform = False
                     self.processX3DAnchor(   x3dParentDEF, dagNode, x3dPF)
@@ -2800,7 +2669,7 @@ class RKOrganizer():
                     self.processX3DViewpointGroup(x3dParentDEF, dagNode, x3dPF)
                 elif xta == "MetadataSet":
                     isTransform = False
-                    self.rkio.cMessage("Do nothing. MetadataSet nodes are not processed by this function.")
+                    self.cMessage("Do nothing. MetadataSet nodes are not processed by this function.")
                 
             if isTransform == True:
                 ###########################################################################
@@ -2873,11 +2742,11 @@ class RKOrganizer():
     def traverseDownward(self, x3dParentDEF, dagNode, cField="children"):
         nodeName = dagNode.name()
         
-        if self.rkio.checkIfIgnored(nodeName) == False:
+        if self.trv.checkIfIgnored(nodeName) == False:
             
-            if self.rkio.checkForRawKeeNoExportLayer(dagNode) == False:
+            if self.checkForRawKeeNoExportLayer(dagNode) == False:
                 #Use cMessage instead of print so that we can block Verbose Export at the cMessage Level
-                self.rkio.cMessage("Node was NOT ignored: " + dagNode.typeName + ", NodeName: " + nodeName)
+                self.cMessage("Node was NOT ignored: " + dagNode.typeName + ", NodeName: " + nodeName)
                 if dagNode.typeName == "transform":
                     self.processMayaTransformNode(x3dParentDEF, dagNode, cField)
                     
@@ -2909,9 +2778,9 @@ class RKOrganizer():
                     self.processCGESkin(dagNode, x3dPF)#, skinSpaceMatrix=ssn)
                         
             else:
-                self.rkio.cMessage("Node: " + nodeName + " will not be exported as it is connected to the 'RawKeeNoExport' Maya layer")
+                self.cMessage("Node: " + nodeName + " will not be exported as it is connected to the 'RawKeeNoExport' Maya layer")
         else:
-            self.rkio.cMessage("Sorry - Node: " + nodeName + " of Type: " + dagNode.typeName + " is not yet supported for RawKee export.")
+            self.cMessage("Sorry - Node: " + nodeName + " of Type: " + dagNode.typeName + " is not yet supported for RawKee export.")
             
             
 
@@ -2963,7 +2832,7 @@ class RKOrganizer():
         shLen = len(shaders)
         ##### print("Mesh Name: " + myMesh.name() + ", shLen: " + str(shLen) + ", isAvatar: " + str(isAvatar) )
         if shLen > 1 and isAvatar == False:
-            bna = self.processBasicNodeAddition(dagNode, x3dPF[0], x3dPF[1], "Group", supMeshName)
+            bna = self.trv.processBasicNodeAddition(dagNode, x3dPF[0], x3dPF[1], "Group", supMeshName)
             if bna[0] == False:
                 return
             else:
@@ -3053,7 +2922,7 @@ class RKOrganizer():
                 if cField != "shapes":
                     envNode = envLightingGroups.get(str(idx), False)
                     if envNode:
-                        envBna = self.processBasicNodeAddition(None, x3dPF[0], x3dPF[1], "Group", lightName)
+                        envBna = self.trv.processBasicNodeAddition(None, x3dPF[0], x3dPF[1], "Group", lightName)
                         if envBna[0] == False:
                             x3dPF[0] = lightName
                             x3dPF[1] = "children"
@@ -3068,7 +2937,7 @@ class RKOrganizer():
                                 lightName = envNode["name"]
                                 if eNode.typeName == "StingrayPBS":
                                     lightName = lightName + "_SPBS_EnvLight"
-                                lhtBna = self.processBasicNodeAddition(None, x3dPF[0], x3dPF[1], "EnvironmentLight", lightName)
+                                lhtBna = self.trv.processBasicNodeAddition(None, x3dPF[0], x3dPF[1], "EnvironmentLight", lightName)
                                 if lhtBna[0] == False:
                                     lhtBna[1].on = True
                                     lhtBna[1].global_ = False
@@ -3081,7 +2950,7 @@ class RKOrganizer():
                                         #TODO
                                         pass
                 
-            sbna = self.processBasicNodeAddition(dagNode, x3dPF[0], x3dPF[1], "Shape", shapeName)
+            sbna = self.trv.processBasicNodeAddition(dagNode, x3dPF[0], x3dPF[1], "Shape", shapeName)
             if sbna[0] == False:
                 
                 #if shLen == 1:
@@ -3151,7 +3020,7 @@ class RKOrganizer():
         mappings = allMaps[index]
         
         #Create the Appearance Node using the Name of the Shader Engine
-        bna = self.processBasicNodeAddition(seNode, pNode, cField, "Appearance")
+        bna = self.trv.processBasicNodeAddition(seNode, pNode, cField, "Appearance", seNode.name())
         if bna[0] == False:
             mTextureNodes        = []
             mTextureFields       = []
@@ -3209,32 +3078,32 @@ class RKOrganizer():
             
             if bna[1].texture:
                 if   len(textTransforms) == 1:
-                    x3dMTTrans = self.processBasicNodeAddition(seNode, bna[1], "textureTransform", "MultiTextureTransform", seNode.name() + "_MTT")
+                    x3dMTTrans = self.trv.processBasicNodeAddition(seNode, bna[1], "textureTransform", "MultiTextureTransform", seNode.name() + "_MTT")
                     if x3dMTTrans[0] == False:
-                        self.processBasicNodeAddition(None, x3dMTTrans[1], "textureTransform", "TextureTransform", seNode.name() + "_GTT")
-                        x3dTTrans = self.processBasicNodeAddition(textTransforms[0], x3dMTTrans[1], "textureTransform", "TextureTransform")
+                        self.trv.processBasicNodeAddition(None, x3dMTTrans[1], "textureTransform", "TextureTransform", seNode.name() + "_GTT")
+                        x3dTTrans = self.trv.processBasicNodeAddition(textTransforms[0], x3dMTTrans[1], "textureTransform", "TextureTransform", textTransforms[0].name())
                         if x3dTTrans[0] == False:
                             self.setTextureTransformFields(textTransforms[0], x3dTTrans[1])
 
                 elif len(textTransforms)  > 1:
-                    x3dMTTrans = self.processBasicNodeAddition(seNode, bna[1], "textureTransform", "MultiTextureTransform", seNode.name() + "_MTT")
+                    x3dMTTrans = self.trv.processBasicNodeAddition(seNode, bna[1], "textureTransform", "MultiTextureTransform", seNode.name() + "_MTT")
                     if x3dMTTrans[0] == False:
-                        self.processBasicNodeAddition(None, x3dMTTrans[1], "textureTransform", "TextureTransform", seNode.name() + "_GTT")
+                        self.trv.processBasicNodeAddition(None, x3dMTTrans[1], "textureTransform", "TextureTransform", seNode.name() + "_GTT")
                         for idx in range(len(textTransforms)):
-                            x3dTTrans = self.processBasicNodeAddition(textTransforms[idx], x3dMTTrans[1], "textureTransform", "TextureTransform")
+                            x3dTTrans = self.trv.processBasicNodeAddition(textTransforms[idx], x3dMTTrans[1], "textureTransform", "TextureTransform", textTransforms[idx].name())
                             if x3dTTrans[0] == False:
                                 self.setTextureTransformFields(textTransforms[idx], x3dTTrans[1])
             else:
                 if   len(textTransforms) == 1:
-                    x3dTTrans = self.processBasicNodeAddition(textTransforms[0], bna[1], "textureTransform", "TextureTransform")
+                    x3dTTrans = self.trv.processBasicNodeAddition(textTransforms[0], bna[1], "textureTransform", "TextureTransform", textTransforms[0].name())
                     if x3dTTrans[0] == False:
                         self.setTextureTransformFields(textTransforms[0], x3dTTrans[1])
 
                 elif len(textTransforms)  > 1:
-                    x3dMTTrans = self.processBasicNodeAddition(seNode, bna[1], "textureTransform", "MultiTextureTransform", seNode.name() + "_MTT")
+                    x3dMTTrans = self.trv.processBasicNodeAddition(seNode, bna[1], "textureTransform", "MultiTextureTransform", seNode.name() + "_MTT")
                     if x3dMTTrans[0] == False:
                         for idx in range(len(textTransforms)):
-                            x3dTTrans = self.processBasicNodeAddition(textTransforms[idx], x3dMTTrans[1], "textureTransform", "TextureTransform")
+                            x3dTTrans = self.trv.processBasicNodeAddition(textTransforms[idx], x3dMTTrans[1], "textureTransform", "TextureTransform", textTransforms[idx].name())
                             if x3dTTrans[0] == False:
                                 self.setTextureTransformFields(textTransforms[idx], x3dTTrans[1])
                             
@@ -3328,7 +3197,7 @@ class RKOrganizer():
             
             
     def processLegacy_Material(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
-        mNode = self.processBasicNodeAddition(material, x3dAppearance, cField, "Material")
+        mNode = self.trv.processBasicNodeAddition(material, x3dAppearance, cField, "Material", material.name())
         if mNode[0] == False:
             x3dMat = mNode[1]
 
@@ -3489,7 +3358,7 @@ class RKOrganizer():
         rkMat.getShaderFieldTags(fTags, x3dFields, x3dFieldValues, surfComp)
         
         # Add a PackagedShader using the MaterialX shader document
-        pShader = self.processBasicNodeAddition(matXSS, x3dAppearance, cField, "PackagedShader", matXSS.name() + "_PkSdr")
+        pShader = self.trv.processBasicNodeAddition(matXSS, x3dAppearance, cField, "PackagedShader", matXSS.name() + "_PkSdr")
         if pShader[0] == False:
             shader = pShader[1]
             
@@ -3516,7 +3385,7 @@ class RKOrganizer():
                         textureNode = fieldValue
                         fileParts   = fChop[3].split('.')
                         fileExt     = fileParts[len(fileParts)-1]
-                        if fileExt == "mov" or fileExt == "mp4" or fileExt == "avi" or fileExt == "ogg":
+                        if fileExt == "m3u8" or fileExt == "ts" or fileExt == "m4s" or fileExt == "mov" or fileExt == "qt" or fileExt == "webm" or fileExt == "mp4" or fileExt == "m4v" or fileExt == "mkv" or fileExt == "avi" or fileExt == "ogv" or fileExt == "ogg":
                             x3dType = "MovieTexture"
                             
                         if x3dType == "ImageTexture" or x3dType == "MovieTexture":
@@ -3533,7 +3402,7 @@ class RKOrganizer():
                 nodeField = getattr(shader, "field")
                 nodeField.append(newField)
         
-        cShader = self.processBasicNodeAddition(matXSS, x3dAppearance, cField, "ComposedShader", matXSS.name() + "_CpSdr")
+        cShader = self.trv.processBasicNodeAddition(matXSS, x3dAppearance, cField, "ComposedShader", matXSS.name() + "_CpSdr")
         if cShader[0] == False:
             shader = cShader[1]
             
@@ -3541,7 +3410,7 @@ class RKOrganizer():
             shader.language = "GLSL"
             
             # Setup the FRAGMENT ShaderPart
-            fragPart = self.processBasicNodeAddition(None, shader, "parts", "ShaderPart", matXSS.name() + "_CpSdr_Frag")
+            fragPart = self.trv.processBasicNodeAddition(None, shader, "parts", "ShaderPart", matXSS.name() + "_CpSdr_Frag")
             if fragPart[0] == False:
                 frag = fragPart[1]
 
@@ -3553,7 +3422,7 @@ class RKOrganizer():
                 frag.type = "FRAGMENT"
 
             # Setup the VERTEX ShadePart
-            vertPart = self.processBasicNodeAddition(None, shader, "parts", "ShaderPart", matXSS.name() + "_CpSdr_Vert")
+            vertPart = self.trv.processBasicNodeAddition(None, shader, "parts", "ShaderPart", matXSS.name() + "_CpSdr_Vert")
             if vertPart[0] == False:
                 vert = verPart[1]
 
@@ -3599,7 +3468,7 @@ class RKOrganizer():
 
 
     def processUSDPreview_PhysicalMaterial(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
-        pMat = self.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterialExt") # marker
+        pMat = self.trv.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterialExt", material.name()) # marker
         if pMat[0] == False:
             physMat = pMat[1]
 
@@ -3685,7 +3554,7 @@ class RKOrganizer():
                 metallic = 0.0
                 #####################################################################
                 # Get SpecularColor values
-                spcBna = self.processBasicNodeAddition(None, physMat, "extensions", "SpecularMaterialExtension", physMat.DEF + "_SpecME")
+                spcBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "SpecularMaterialExtension", physMat.DEF + "_SpecME")
                 if spcBna[0] == False:
                     spcBna[1].specular = 1.0
                     
@@ -3724,7 +3593,7 @@ class RKOrganizer():
                     
                 #####################################################################
                 # Get IOR values
-                iorBna = self.processBasicNodeAddition(None, physMat, "extensions", "IORMaterialExtension", physMat.DEF + "_IORME")
+                iorBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "IORMaterialExtension", physMat.DEF + "_IORME")
                 if iorBna[0] == False:
                     iorBna[1].indexOfRefraction = cmds.getAttr(material.name() + ".ior")
 
@@ -3822,7 +3691,7 @@ class RKOrganizer():
 
             ####################################################
             # Clearcoat    
-            coaBna = self.processBasicNodeAddition(None, physMat, "extensions", "ClearcoatMaterialExtension", physMat.DEF + "_CoatME")
+            coaBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "ClearcoatMaterialExtension", physMat.DEF + "_CoatME")
             if coaBna[0] == False:
                 coatConn = material.findPlug("clearcoat")
                 coatTexture = self.findTextureFromPlug(coatConn)
@@ -3853,7 +3722,7 @@ class RKOrganizer():
 
 
     def processBlinn_PhysicalMaterial(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
-        pMat = self.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterial")
+        pMat = self.trv.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterial", material.name())
         if pMat[0] == False:
             physMat = pMat[1]
             
@@ -4060,7 +3929,7 @@ class RKOrganizer():
 
 
     def processStandard_PhysicalMaterial(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
-        pMat = self.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterialExt")
+        pMat = self.trv.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterialExt", material.name())
         if pMat[0] == False:
             physMat = pMat[1]
 
@@ -4101,7 +3970,7 @@ class RKOrganizer():
                 physMat.emissiveColor = self.getSFColor(ec[0], ec[1], ec[2])
 
             # Only Materaial Extension Used
-            esBna = self.processBasicNodeAddition(None, physMat, "extensions", "EmissiveStrengthMaterialExtension", physMat.DEF + "_ESME")
+            esBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "EmissiveStrengthMaterialExtension", physMat.DEF + "_ESME")
             if esBna[0] == False:
                 esBna[1].emissiveStrength = cmds.getAttr(material.name() + ".emission")
             
@@ -4263,7 +4132,7 @@ class RKOrganizer():
 
     # Assumes that the ShaderFX interface is not used.
     def processStingrayPBS_PhysicalMaterial(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
-        pMat = self.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterialExt")
+        pMat = self.trv.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterialExt", material.name())
         if pMat[0] == False:
             physMat = pMat[1]
 
@@ -4313,7 +4182,7 @@ class RKOrganizer():
                 physMat.emissiveColor = self.getSFColor(ec[0], ec[1], ec[2])
 
             # Only Materaial Extension Used
-            esBna = self.processBasicNodeAddition(None, physMat, "extensions", "EmissiveStrengthMaterialExtension", physMat.DEF + "_ESME")
+            esBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "EmissiveStrengthMaterialExtension", physMat.DEF + "_ESME")
             if esBna[0] == False:
                 esBna[1].emissiveStrength = cmds.getAttr(material.name() + ".emissiveIntensity")
             
@@ -4451,7 +4320,7 @@ class RKOrganizer():
 
 
     def processOpenPBRSurface(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
-        pMat = self.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterialExt")
+        pMat = self.trv.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterialExt", material.name())
         if pMat[0] == False:
             physMat = pMat[1]
 
@@ -4491,7 +4360,7 @@ class RKOrganizer():
                 ec = cmds.getAttr(material.name() + ".emissionColor")[0]
                 physMat.emissiveColor = self.getSFColor(ec[0], ec[1], ec[2])
 
-            esBna = self.processBasicNodeAddition(None, physMat, "extensions", "EmissiveStrengthMaterialExtension", physMat.DEF + "_ESME")
+            esBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "EmissiveStrengthMaterialExtension", physMat.DEF + "_ESME")
             if esBna[0] == False:
                 luminance = float(cmds.getAttr(material.name() + ".emissionLuminance"))
                 esBna[1].emissiveStrength = luminance / 1000.0
@@ -4507,7 +4376,7 @@ class RKOrganizer():
                 physMat.transparency = 1 - opacity # This is always 0.0 since we are using the TransmissionMaterialExtension
             else:
                 # TransmissionMaterialExtension
-                trBna = self.processBasicNodeAddition(None, physMat, "extensions", "TransmissionMaterialExtension", physMat.DEF + "_TRME")
+                trBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "TransmissionMaterialExtension", physMat.DEF + "_TRME")
                 if trBna[0] == False:
                     trBna[1].transmission = cmds.getAttr(material.name() + ".transmissionWeight")
                     #The Transmission value is stored in the R channel of the Transmission texture.
@@ -4521,7 +4390,7 @@ class RKOrganizer():
                         hasTrTexture = True
                         
             if isTWall == True:
-                dtBna = self.processBasicNodeAddition(None, physMat, "extensions", "DiffuseTransmissionMaterialExtension", physMat.DEF + "_DTME")
+                dtBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "DiffuseTransmissionMaterialExtension", physMat.DEF + "_DTME")
                 if dtBna[0] == False:
                     dtBna[1].diffuseTransmission = cmds.getAttr(material.name() + ".subsurfaceWeight")
                     subsConn = material.findPlug("subsurfaceColor")
@@ -4545,7 +4414,7 @@ class RKOrganizer():
                             pass
             else:
                 # VolumeMaterialExtension
-                vmBna = self.processBasicNodeAddition(None, physMat, "extensions", "VolumeMaterialExtension", physMat.DEF + "_VLME")
+                vmBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "VolumeMaterialExtension", physMat.DEF + "_VLME")
                 if vmBna[0] == False:
                     #The Thickness value is stored in the G channel of the Transmission texture.
                     myThickness = 1.0
@@ -4580,13 +4449,13 @@ class RKOrganizer():
                         vmBna[1].attenuationDistance = cmds.getAttr(material.name() + ".subsurfaceRadius")
                         
                 # VolumeScatterMaterialExtension
-                vmsBna = self.processBasicNodeAddition(None, physMat, "extensions", "VolumeScatterMaterialExtension", physMat.DEF + "_VSME")
+                vmsBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "VolumeScatterMaterialExtension", physMat.DEF + "_VSME")
                 if vmsBna[0] == False:
                     vmsBna[1].multiscatterColor = cmds.getAttr(material.name() + ".transmissionScatter")[0]
                     vmsBna[1].scatterAnisotropy = cmds.getAttr(material.name() + ".transmissionScatterAnisotropy")
 
                 # DispersionMaterialExtension
-                dmBna = self.processBasicNodeAddition(None, physMat, "extensions", "DispersionMaterialExtension", physMat.DEF + "_DSPME")
+                dmBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "DispersionMaterialExtension", physMat.DEF + "_DSPME")
                 if dmBna[0] == False:
                     noScaleDisp = 20/cmds.getAttr(material.name() + ".transmissionDispersionAbbeNumber")
                     dmBna[1].dispersion = noScaleDisp * cmds.getAttr(material.name() + ".transmissionDispersionScale")
@@ -4680,7 +4549,7 @@ class RKOrganizer():
             if hasMetal == False:
                 physMat.metallic = cmds.getAttr(material.name() + ".baseMetalness")
                 
-            spcBna = self.processBasicNodeAddition(None, physMat, "extensions", "SpecularMaterialExtension", physMat.DEF + "_SpecME")
+            spcBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "SpecularMaterialExtension", physMat.DEF + "_SpecME")
             if spcBna[0] == False:
                 spcBna[1].specular = cmds.getAttr(material.name() + ".specularWeight")
                 
@@ -4707,13 +4576,13 @@ class RKOrganizer():
                     spCol = cmds.getAttr(material.name() + ".specularColor")[0]
                     spcBna[1].specularColor = self.getSFColor(spCol[0], spCol[1], spCol[2])
             
-            iorBna = self.processBasicNodeAddition(None, physMat, "extensions", "IORMaterialExtension", physMat.DEF + "_IORME")
+            iorBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "IORMaterialExtension", physMat.DEF + "_IORME")
             if iorBna[0] == False:
                 iorBna[1].indexOfRefraction = cmds.getAttr(material.name() + ".specularIOR")
                 
             aniso = cmds.getAttr(material.name() + ".specularRoughnessAnisotropy")
             if aniso > 0.0:
-                aniBna = self.processBasicNodeAddition(None, physMat, "extensions", "AnisotropyMaterialExtension", physMat.DEF + "_AniME")
+                aniBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "AnisotropyMaterialExtension", physMat.DEF + "_AniME")
                 if aniBna[0] == False:
                     aniBna[1].anisotropyStrength = aniso
                     if cmds.objExists(material.name() + ".tangentUCamera"):
@@ -4731,7 +4600,7 @@ class RKOrganizer():
             # Clearcoat    
             coatWeight = cmds.getAttr(material.name() + ".coatWeight")
             if coatWeight > 0.0:
-                coaBna = self.processBasicNodeAddition(None, physMat, "extensions", "ClearcoatMaterialExtension", physMat.DEF + "_CoatME")
+                coaBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "ClearcoatMaterialExtension", physMat.DEF + "_CoatME")
                 if coaBna[0] == False:
                     coaBna[1].clearcoat = coatWeight
                     coatConn = material.findPlug("coatColor")
@@ -4764,7 +4633,7 @@ class RKOrganizer():
             # Fuzz / Sheen Weight
             fuzz = cmds.getAttr(material.name() + ".fuzzWeight")
             if fuzz > 0.0:
-                fuzBna = self.processBasicNodeAddition(None, physMat, "extensions", "SheenMaterialExtension", physMat.DEF + "_SheenME")
+                fuzBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "SheenMaterialExtension", physMat.DEF + "_SheenME")
                 if fuzBna[0] == False:
                     fColConn = material.findPlug("fuzzColor", True)
                     fColTexture = self.findTextureFromPlug(fColConn)
@@ -4820,7 +4689,7 @@ class RKOrganizer():
                 hasIrid = True
                 
             if hasIrid == True:
-                iriBna = self.processBasicNodeAddition(None, physMat, "extensions", "IridescenceMaterialExtension", physMat.DEF + "_IridME") 
+                iriBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "IridescenceMaterialExtension", physMat.DEF + "_IridME") 
                 if iriBna[0] == False:
                     if iridTexture:
                         mTextureNodes.append(iridTexture)
@@ -4916,7 +4785,7 @@ class RKOrganizer():
 
 
     def processUnlit_Material(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
-        unlitMat = self.processBasicNodeAddition(material, x3dAppearance, cField, "UnlitMaterial")
+        unlitMat = self.trv.processBasicNodeAddition(material, x3dAppearance, cField, "UnlitMaterial", material.name())
         if unlitMat[0] == False:
             unlMat = 0 # aiFlat material
             if material.typeName == "surfaceShader":
@@ -5568,7 +5437,7 @@ class RKOrganizer():
             if index > 1:
                 geomName = geomName + "_" + str(index)
                 
-            bna = self.processBasicNodeAddition(myMesh, x3dParentNode, cField, nodeType, geomName)
+            bna = self.trv.processBasicNodeAddition(myMesh, x3dParentNode, cField, nodeType, geomName, myMesh.name())
             if bna[0] == False:
                 # TODO: Future code for implementing 'attrib'
 
@@ -5576,7 +5445,7 @@ class RKOrganizer():
                 
                 #### use gsharedCoord if this is a mesh in an HAnimHumanoid
                 if gsharedCoord != "":
-                    coordbna = self.processBasicNodeAddition(myMesh, bna[1], "coord", "Coordinate", gsharedCoord)
+                    coordbna = self.trv.processBasicNodeAddition(myMesh, bna[1], "coord", "Coordinate", gsharedCoord)
 
                     # Using the MItMeshPolygon Iterator and the propoper sub-component
                     # this secion of the code builds the array of MFInt32 field of IndexedFaceSet
@@ -5595,7 +5464,7 @@ class RKOrganizer():
                     vertIdxList = []
                     
                     geoNameCoord = nodeName + "_Coord"
-                    coordbna = self.processBasicNodeAddition(myMesh, bna[1], "coord", "Coordinate", geoNameCoord)
+                    coordbna = self.trv.processBasicNodeAddition(myMesh, bna[1], "coord", "Coordinate", geoNameCoord)
                     if coordbna[0] == False:
                         # TODO: Metadata processing
                         
@@ -5727,10 +5596,10 @@ class RKOrganizer():
                     
                     mtxHasBeen = True
                     if mapLen > 1:
-                        bnaTXC = self.processBasicNodeAddition(myMesh, bna[1], "texCoord", "MultiTextureCoordinate", geomName + "_MTC_" + str(index))
+                        bnaTXC = self.trv.processBasicNodeAddition(myMesh, bna[1], "texCoord", "MultiTextureCoordinate", geomName + "_MTC_" + str(index))
                         mtxHasBeen = bnaTXC[0]
                     elif x3dApp.texture:
-                        bnaTXC = self.processBasicNodeAddition(myMesh, bna[1], "texCoord", "MultiTextureCoordinate", geomName + "_MTC_" + str(index))
+                        bnaTXC = self.trv.processBasicNodeAddition(myMesh, bna[1], "texCoord", "MultiTextureCoordinate", geomName + "_MTC_" + str(index))
                         mtxHasBeen = bnaTXC[0]
 
                     # Write out TextureCoordinate nodes
@@ -5805,13 +5674,13 @@ class RKOrganizer():
                             txcParent = bnaTXC[1]
                             
                             if x3dApp.texture:
-                                genTC = self.processBasicNodeAddition(myMesh, txcParent, "texCoord", "TextureCoordinateGenerator", geomName + "_GenTC")
+                                genTC = self.trv.processBasicNodeAddition(myMesh, txcParent, "texCoord", "TextureCoordinateGenerator", geomName + "_GenTC")
                                 if genTC[0] == False:
                                     genTC[1].mode = "SPHERE-REFLECT-LOCAL"
                             
                         for n in range(mapLen):#allMeshMappings
                             item = mappings['mappings'][n]
-                            txc = self.processBasicNodeAddition(myMesh, txcParent, "texCoord", "TextureCoordinate", geomName + "_TC_" + str(index) + "_" + str(n))
+                            txc = self.trv.processBasicNodeAddition(myMesh, txcParent, "texCoord", "TextureCoordinate", geomName + "_TC_" + str(index) + "_" + str(n))
                             if txc[0] == False:
                                 for ptx in texCoords[n]:
                                     txc[1].point.append(ptx)
@@ -5872,7 +5741,7 @@ class RKOrganizer():
         tIndex = (mIndex)
         x3dParent.colorIndex = tIndex
         
-        bna = self.processBasicNodeAddition(myMesh, x3dParent, cField, nodeType, colorNodeName)
+        bna = self.trv.processBasicNodeAddition(myMesh, x3dParent, cField, nodeType, colorNodeName)
         if bna[0] == False:
             # TODO: Future code for implementing 'metadata'
             
@@ -5889,7 +5758,7 @@ class RKOrganizer():
         fCount = 0
 
         if sharedNormal != "":
-            bna = self.processBasicNodeAddition(myMesh, x3dParent, cField, "Normal", sharedNormal)
+            bna = self.trv.processBasicNodeAddition(myMesh, x3dParent, cField, "Normal", sharedNormal)
 
             ################################
             #msList = aom.MSelectionList()
@@ -5938,7 +5807,7 @@ class RKOrganizer():
             #    mIter.next()
             
         else:
-            bna = self.processBasicNodeAddition(myMesh, x3dParent, cField, "Normal", normalNodeName)
+            bna = self.trv.processBasicNodeAddition(myMesh, x3dParent, cField, "Normal", normalNodeName)
             if bna[0] == False:
                 # TODO: Future code for implementing 'metadata'
                 
@@ -6172,7 +6041,7 @@ class RKOrganizer():
                     x3dNodeType = "ImageTexture"
                     x3dURIData  = ""
 
-                    x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
+                    x3dTexture = self.trv.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
                     if x3dTexture[0] == False:
                         filePath = mTextureNode.findPlug("fileTextureName", False).asString()
                         fileName = self.rkint.getFileName(filePath)
@@ -6220,7 +6089,7 @@ class RKOrganizer():
 
                 else:
                     x3dNodeType = "PixelTexture"
-                    x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
+                    x3dTexture = self.trv.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
                     if x3dTexture[0] == False:
                         print("PixelTexture One - Around 2725")
                         x3dTexture[1].image = self.rkint.image2pixel(mTextureNode.findPlug("fileTextureName", False).asString())
@@ -6233,7 +6102,7 @@ class RKOrganizer():
                 x3dNodeType = "MovieTexture"
                 x3dURIData  = ""
                 
-                x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
+                x3dTexture = self.trv.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
                 if x3dTexture[0] == False:
                     filePath = mTextureNode.findPlug("fileTextureName", False).asString()
                     fileName = self.rkint.getFileName(filePath)
@@ -6355,7 +6224,7 @@ class RKOrganizer():
                     if self.rkProcTextureFormat == 1:#self.rkProcTexNode == 1
                         x3dURIData = self.rkint.media2uri(localTexWrite)
                         
-                    x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
+                    x3dTexture = self.trv.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
                     if x3dTexture[0] == False:
                         if x3dURIData == "":
                             x3dTexture[1].url.append(procFileName   )
@@ -6370,7 +6239,7 @@ class RKOrganizer():
 
                 else:
                     x3dNodeType = "PixelTexture"
-                    x3dTexture = self.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
+                    x3dTexture = self.trv.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
                     if x3dTexture[0] == False:
                         print("PixelTexture One - Around 2910")
                         localTTexWrite = self.imageMoveDir + "/" + mTextureNode.name() + ".tif"
@@ -6480,7 +6349,7 @@ class RKOrganizer():
         # If not, then execute the following funtions perparing for export.
         if self.isTreeBuilding == False:
             
-            self.rkio.clearMemberLists()
+            self.trv.clearMemberLists()
             self.setIgnoreStatusForDefaults()
     
     
@@ -6490,18 +6359,18 @@ class RKOrganizer():
     # to ignore these nodes if they exist.
     #################################################################################################
     def setIgnoreStatusForDefaults(self):
-        self.rkio.setIgnored("persp")
-        self.rkio.setIgnored("top")
-        self.rkio.setIgnored("front")
-        self.rkio.setIgnored("side")
-        self.rkio.setIgnored("groundPlane_transform")
-        self.rkio.setIgnored("defaultUfeProxyCameraTransformParent")
-        self.rkio.setIgnored("defaultLightSet")
-        self.rkio.setIgnored("defaultObjectSet")
-        self.rkio.setIgnored("defaultUfeProxyTransform")
-        self.rkio.setIgnored("Manipulator1")
-        self.rkio.setIgnored("UniversalManip")
-        self.rkio.setIgnored("CubeCompass")
+        self.trv.setIgnored("persp")
+        self.trv.setIgnored("top")
+        self.trv.setIgnored("front")
+        self.trv.setIgnored("side")
+        self.trv.setIgnored("groundPlane_transform")
+        self.trv.setIgnored("defaultUfeProxyCameraTransformParent")
+        self.trv.setIgnored("defaultLightSet")
+        self.trv.setIgnored("defaultObjectSet")
+        self.trv.setIgnored("defaultUfeProxyTransform")
+        self.trv.setIgnored("Manipulator1")
+        self.trv.setIgnored("UniversalManip")
+        self.trv.setIgnored("CubeCompass")
         
 
     def checkSubDirs(self, fullPath):
@@ -6693,4 +6562,26 @@ class RKOrganizer():
         
         return None #aom.MObject.kNullObj
 
-    
+
+    def cMessage(self, msg):
+        if self.isVerbose:
+            print(msg)
+
+
+    def checkForRawKeeNoExportLayer(self, depNode):
+        layIter = aom.MItDependencyGraph(depNode.object(), 
+                                         aom.MFn.kDisplayLayer,
+                                         aom.MItDependencyGraph.kUpstream, 
+                                         aom.MItDependencyGraph.kDepthFirst, 
+                                         aom.MItDependencyGraph.kNodeLevel)
+        while not layIter.isDone():
+            mObject = layIter.currentNode()
+            layNode = aom.MFnDependencyNode(mObject)
+            
+            dtValue = cmds.getAttr(layNode.name() + ".displayType")
+            if dtValue > 0:
+                return True
+            layIter.next()
+            
+        return False
+

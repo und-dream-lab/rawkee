@@ -48,13 +48,13 @@ from   maya.api.OpenMaya import MFn as rkfn
 import maya.api.OpenMayaAnim as omAnim
 
 #Sticker App for applying Outliner icons
-import rawkee.nodes.sticker    as stk
+import rawkee.maya.nodes.sticker    as stk
 
 #To geth other items from 'rawkee'
-### from rawkee.RKXScene   import RKXScene
-### from rawkee.RKXNodes   import RKXNode #notice the missing 's' - RKXNode is a test class
-### from rawkee.RKXSocket  import RKXSocket
-### from rawkee.RKGraphics import RKGraphicsView
+### from rawkee.maya.RKXScene   import RKXScene
+### from rawkee.maya.RKXNodes   import RKXNode #notice the missing 's' - RKXNode is a test class
+### from rawkee.maya.RKXSocket  import RKXSocket
+### from rawkee.maya.RKGraphics import RKGraphicsView
 
 
 from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
@@ -69,7 +69,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         
     @classmethod
     def workspace_ui_script(cls):
-        return "from rawkee.RKCharacterEditor import RKCharacterEditor\nrkCEWidget = RKCharacterEditor()"
+        return "from rawkee.maya.RKCharacterEditor import RKCharacterEditor\nrkCEWidget = RKCharacterEditor()"
         
     @classmethod
     def workplace_close_command(cls):

@@ -1,6 +1,6 @@
 import sys
 import os
-from rawkee.rkx3d import *
+from rawkee.io.RKx3d import *
 from typing import Final
 
 
@@ -24,7 +24,13 @@ class RKSceneTraversal():
         self.profDict    = {}
         self.compDict    = {}
         self.metatags    = []
-        
+
+        ###### Migrating ######
+        self.ignoredNodes  = []
+        self.haveBeenNodes = {}
+        self.generatedX3D  = {}
+        #######################
+
         # 36
         self.full           = {'Core':2,                'Time':2,                   'Networking':4,             'Grouping':3,
                             'Rendering':5,              'Shape':4,                  'Geometry3D':4,             'Geometry2D':2,
@@ -70,6 +76,13 @@ class RKSceneTraversal():
         self.profiles = {"Full":self.full, "Immersive":self.immersive, "Interactive":self.interactive, "MPG4Interactive":self.mp4Interactive, "Interchange":self.interchange, "CADInterchange":self.cadInterchange}
 
         
+    # Function that writes to disk.
+    def x3d2disk(self, x3dDoc, fullPath, exEncoding):
+        
+        with open(fullPath, "w") as exFile:
+            self.startExport(x3dDoc, exFile, exEncoding)
+
+
     def startExport(self, x3dDoc, iofile, encoding):
         self.iofile = iofile
         if   encoding == "x3d":
@@ -102,6 +115,7 @@ class RKSceneTraversal():
         self.metatags.clear()
         
         print("File Output has completed.")
+
 
     def processNode(self, node, isMulti, addComma, cField=""):
         nType   = type(node).__name__
@@ -1102,31 +1116,152 @@ class RKSceneTraversal():
         if self.tabs > 0:
             self.tabs -= 1
 
+
+    def setAsHasBeen(self, nodeName, x3dNode):
+        self.haveBeenNodes[nodeName] = True
+        self.generatedX3D[ nodeName] = x3dNode
+        
+
+    def getGeneratedX3D(self, namedDEF):
+        foundNode = self.generatedX3D.get(namedDEF, None)
+        return foundNode
+    
+
+    def checkIfHasBeen(self, nodeName):
+        hasBeenExported = self.haveBeenNodes.get(nodeName, False)
             
-    ###########################################################################
-    # Replaces the RKSceneTraversal.createNodeFromString() function with this 
-    # dynamic means of creating new objects.
-    #
-    # Doing so will allow the use of all X3D objects in the latest version of
-    # x3d.py and RKPseudoNode without having to worry if this dictionary
-    # gets updated.
-    ###########################################################################
-    #def instantiateNodeFromString(self, x3dType):
-    #    try:
-    #        ClassObj = globals()[x3dType]
-    #        return ClassObj()
-    #    except:
-    #        return None
+        return hasBeenExported
     
-    
-    
+
+    ######################################################################################################################
+    #   Basic Node Functions
+    #   TODO - Remove reference to Maya MFnDependencyNode
+    def processBasicNodeAddition(self, depNode, x3dParentNode, x3dFieldName, x3dType, nodeName="ERROR_ERROR"):
+        defuse = nodeName
+        # Determine the DEF/USE value of the node to be created
+        if defuse == "":
+            try:
+                defuse = depNode.name()
+            except:
+                pass
+            
+        # Create Node from String where x3dType is a string that identifies 
+        # the type of X3D to be created. Must be a node defined by the X3D 4.0 Specification.
+        nodeTuple = instantiateNodeFromString(x3dType)
+        
+        tNode = nodeTuple[0]
+        x3dComps = nodeTuple[1]
+
+        if tNode:
+            # Check to see if the node has previously been created with a DEF 
+            # attribute.
+            hasBeen = self.checkIfHasBeen(defuse) #checkIfHasBeen
+            
+            # If has been created already, assign the "nodeName" value to the 
+            # X3D node's USE attribute and leave the DEF attribute as None.
+            if hasBeen == True:
+                tNode.USE = defuse
+            
+            # However, if the node has not been previously created, set the 
+            # X3D node's DEF attribute to the value of "nodeName", and then
+            # record the node has having been created by calling the 
+            # "setHasBeen()" method.
+            else:
+                tNode.DEF = defuse
+                self.setAsHasBeen(defuse, tNode)
+                
+            # Now it is time to add the new node to the X3D Scene. First 
+            # we must obtain the value of the X3D Field of the parent by 
+            # calling "getattr". Doing so will return the field's value, 
+            # which will either be a "list" (populated or empty) or a 
+            # 'None' value.           
+            nodeField = getattr(x3dParentNode, x3dFieldName)
+            
+            # Once this value has been obtained, we check to see if the
+            # value is an 'instance' of the 'list' data type. If it is 
+            # an instance of the list data type, then append the new 
+            # X3D node to this list.
+            if isinstance(nodeField, list):
+                nodeField.append(tNode)
+                
+            # If the value is not an instance of list, then use the 
+            # 'setattr' method to set the parent's field value to the 
+            # value of the new X3D node.
+            else:
+                setattr(x3dParentNode, x3dFieldName, tNode)
+                
+            # Adjust the exported Profile and Components
+            self.adjustProfileAndComponents(x3dComps)
+                
+            # Return a list containing the value of 'hasBeen', which lets
+            # the calling section of code know whether the X3D node in question
+            # had once before, already been added to the scene. This allows the 
+            # section of the code that originally called this method to know 
+            # whether other X3D field values should be added to this new node.
+            # And then also return the new node so if it does need values 
+            # assigned to it's other attributes, the section of the code that
+            # called this metod can do so.
+            return [hasBeen, tNode]
+        
+        else:
+            return[True, tNode]
+
+
+    ####################################################################
+    # Function that adds a node name to ignore to the "ignoreNodes" List
+    ####################################################################
+    def setIgnored(self, nodeName):
+        self.ignoredNodes.append(nodeName)
+
+
+    def findExisting(self, nodeDEF):
+        rNode = self.generatedX3D.get(nodeDEF, None)
+        return rNode        
+
+
+    def getX3DObject(self):
+        return X3D()
+
+        
+    def getSceneObject(self):
+        return Scene()
+
+
+    #######################################################
+    # Function clears out the list of node names that have
+    # either been used already or are to be ignored.
+    def clearMemberLists(self):
+        self.ignoredNodes.clear()
+        self.haveBeenNodes.clear()
+        self.generatedX3D.clear()
+
+
+    #######################################################
+    # This method checks the List that holds the names
+    # of nodes that are to be ignored. It returns
+    # a value of True if a match for a node name is found
+    # in this List
+    def checkIfIgnored(self, nodeName):
+        hasBeen = False
+        hbLength = len(self.ignoredNodes)
+        i = 0
+
+        while i < hbLength and hasBeen == False:
+            if nodeName == self.ignoredNodes[i]:
+                hasBeen = True
+            i = i + 1
+        
+        return hasBeen
+
+
     def getRouteObject(self):
         return ROUTE()
-        
+
+
     def getFieldObject(self):
         return field()
-        
-    
+
+
     # Component Evaulation
     def adjustProfileAndComponents(self, pcDict):
         
