@@ -1,10 +1,13 @@
 ###############################################
-
+# RKx3d.py is based on...
 # x3d.py X3D Package for Python
-
+#
 # generator:  X3duomToX3dPythonPackage.xslt
 # X3DUOM:     X3dUnifiedObjectModel-4.0.xml
 # Python X3D: https://www.web3d.org/x3d/stylesheets/python/python.html
+###########
+# However, there is a lot of customization
+###############################################
 """
 The x3d.py Python X3D Package supports programmers with Python interfaces and objects for standards-based X3D programming, all as open source.
 
@@ -60128,6 +60131,7 @@ def instantiateNodeFromString(x3dType):
         'IntegerSequencer':(IntegerSequencer(), {'Core':1, 'Grouping':1, 'EventUtilities':1}),
         'IntegerTrigger':(IntegerTrigger(), {'Core':1, 'Grouping':1, 'EventUtilities':1}),
         'IORMaterialExtension':(IORMaterialExtension(), {'X_ITE':1}), # X_ITE - glTF extension
+        'IridescenceMaterialExtension':(IridescenceMaterialExtension(), {'X_ITE':1}), # X_ITE - glTF extension
         'IsoSurfaceVolumeData':(IsoSurfaceVolumeData(), {'Core':1, 'Grouping':1, 'VolumeRendering':2, 'Rendering':1, 'Shape':1}),
         ####################################### K
         'KeySensor':(KeySensor(), {'Core':1, 'KeyDeviceSensor':1}),
