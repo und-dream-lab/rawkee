@@ -1,8 +1,10 @@
 import sys
 import maya.cmds as cmds
 import maya.mel  as mel
+import ufe
 
 import numpy as np
+import cv2
 import imageio.v3 as iio
 #import py360convert
 
@@ -29,95 +31,6 @@ except:
 import maya.api.OpenMaya as aom
 
 
-#import ntpath
-
-#Python implementation of C++ web3dExportMethods
-
-X3D_TRANS:     Final[str] = "transform"
-###########################################
-# Versions of the Maya Transform Node     #
-###########################################
-X3D_GROUP:     Final[str] = "x3dGroup"    #
-X3D_SWITCH:    Final[str] = "x3dSwitch"   #
-X3D_COLLISION: Final[str] = "x3dCollision"#
-X3D_BILLBOARD: Final[str] = "x3dBillboard"#
-X3D_ANCHOR:    Final[str] = "x3dAnchor"   #
-###########################################
-
-X3D_LOD:       Final[str] = "lodGroup"
-X3D_MESH:      Final[str] = "mesh"
-
-X3D_INLINE:    Final[str] = "x3dInline"
-
-X3D_AUDIOCLIP: Final[str] = "audio"
-X3D_SOUND:     Final[str] = "x3dSound"
-X3D_TEXTTRANS: Final[str] = "place2dTexture"
-X3D_MESH:      Final[str] = "mesh"
-
-X3D_PROXSENSOR:      Final[str] = "x3dProximitySensor"
-X3D_VISSENSOR:       Final[str] = "x3dVisbilitySensor"
-X3D_LOADSENSOR:      Final[str] = "x3dLoadSensor"
-X3D_KEYSENSOR:       Final[str] = "x3dKeySensor"
-X3D_STRINGSENSOR:    Final[str] = "x3dStringSensor"
-X3D_CYLSENSOR:       Final[str] = "x3dCylinderSensor"
-X3D_PLANESENSOR:     Final[str] = "x3dPlaneSensor"
-X3D_SPHERESENSOR:    Final[str] = "x3dSphereSensor"
-X3D_TIMESENSOR:      Final[str] = "x3dTimeSensor"
-X3D_TOUCHSENSOR:     Final[str] = "x3dTouchSensor"
-
-X3D_BOOLTRIGGER:      Final[str] = "x3dBooleanTrigger"
-X3D_BOOLFILTER:       Final[str] = "x3dBooleanFilter"
-X3D_BOOLTOGGLE:       Final[str] = "x3dBooleanToggle"
-X3D_INTTRIGGER:       Final[str] = "x3dIntegerTrigger"
-X3D_TIMETRIGGER:      Final[str] = "x3dTimeTrigger"
-
-X3D_NAVIGATION:      Final[str] = "x3dNavigationInfo"
-X3D_WORLDINFO:       Final[str] = "x3dWorldInfo"
-
-X3D_POSINTER:       Final[str] = "x3dPositionInterpolator"
-X3D_ORIINTER:       Final[str] = "x3dOrientationInterpolator"
-X3D_COORDINTER:     Final[str] = "x3dCoordinateInterpolator"
-X3D_NORMINTER:      Final[str] = "x3dNormalInterpolator"
-X3D_COLORINTER:     Final[str] = "x3dColorInterpolator"
-X3D_SCALINTER:      Final[str] = "x3dScalarInterpolator"
-
-X3D_BOOLSEQ:      Final[str] = "x3dBooleanSequencer"
-X3D_INTSEQ:       Final[str] = "x3dIntegerSequencer"
-
-X3D_SCRIPT:       Final[str] = "x3dScript"
-
-X3D_IFS:       Final[str] = "x3dIndexedFaceSet"
-X3D_COL:       Final[str] = "x3dColor"
-X3D_COLRGBA:   Final[str] = "x3dColorRGBA"
-X3D_NORMAL:    Final[str] = "x3dNormal"
-X3D_TEXCOORD:  Final[str] = "x3dTextureCoordinate"
-X3D_COORD:     Final[str] = "x3dCoordinate"
-
-X3D_BOX:       Final[str] = "x3dBox"
-X3D_SPHERE:    Final[str] = "x3dSphere"
-X3D_CONE:      Final[str] = "x3dCone"
-X3D_CYL:       Final[str] = "x3dCylinder"
-
-X3D_VIEW:       Final[str] = "camera"
-X3D_DIRLIGHT:   Final[str] = "directionalLight"
-X3D_SPOTLIGHT:  Final[str] = "spotLight"
-X3D_POINTLIGHT: Final[str] = "pointLight"
-
-X3D_AMBLIGHT:   Final[str] = "ambientLight"
-X3D_AREALIGHT:  Final[str] = "areaLight"
-X3D_VOLLIGHT:   Final[str] = "volumeLight"
-
-X3D_HANIMJOINT:      Final[str] = "joint"
-X3D_HANIMSITE:       Final[str] = "transform"
-X3D_GAMEPADSENSOR:   Final[str] = "x3dGamepadSensor"
-
-X3DMETAD:  Final[int] = 0
-X3DMETAF:  Final[int] = 1
-X3DMETAI:  Final[int] = 2
-X3DMETASE: Final[int] = 3
-X3DMETAST: Final[int] = 4
-
-
 class RKInterfaces():
     def __init__(self):
         print("RKInterfaces")
@@ -125,36 +38,11 @@ class RKInterfaces():
     def __del__(self):
         pass
         
-    def setExportEncoding(self, exEncoding):
-        pass
-        
-    def setConsolidate(self, value):
-        pass
-        
-    def setGlobalNPV(self, value):
-        pass
-        
-    def setGlobalCA(self, value):
-        pass
-        
-    def setUseRelURL(self, value):
-        pass
-        
-    def setUseRelURLW(self, value):
-        pass
-        
-    def setImageDir(self, value):
-        pass
-        
-    def setAudioDir(self, value):
-        pass
-        
-    def setInlineDir(self, value):
-        pass
-        
-    def setBaseUrl(self, value):
-        pass
-    
+
+    def getDeg2Rad(self, deg):
+        return np.deg2rad(deg)
+
+
     def getDirection(self, euler, point=(0.0, 0.0, -1.0)):
         tMat  = aom.MTransformationMatrix()
         tMat.setRotation(euler)
@@ -258,6 +146,7 @@ class RKInterfaces():
             return width
         
         return height
+        
     
     # Method converts Maya textureNode colorRGB(a) to an image file.
     def proc2file(self, textureObj, outPath, imgFormat):
@@ -447,21 +336,93 @@ class RKInterfaces():
 #        imageio.imwrite(output_path, cross_hdr.astype(np.float32))
 #        print(f"Successfully saved single cubemap: {output_path}")
 
-    def hdri2png(self, inputPath, outputPath):
-        # 1. Load the HDRI image
-        # This returns a float32 array where values typically range from 0.0 to +inf
-        hdriImage = iio.imread(inputPath)
+#    def hdri2png(self, inputPath, outputPath):
+#        # 1. Load the HDRI image
+#        # This returns a float32 array where values typically range from 0.0 to +inf
+#        hdriImage = iio.imread(inputPath)
+#
+#        # 2. Prepare the data for 16-bit PNG
+#        # PNG does not support float32 directly; it uses uint16 (0 to 65535)
+#        # We must scale the float values to the 16-bit integer range.
+#        # Note: If your HDR has values > 1.0, you may need to 'tone map' or normalize first.
+#        hdriNormalized = np.clip(hdriImage, 0, 1)  # Optional: Clamping to 0-1 range
+#        hdri16bit = (hdriNormalized * 65535).astype(np.uint16)
+#
+#        # 3. Save as a 16-bit PNG
+#        # Use the 'PNG-FI' (FreeImage) or 'PIL' plugin to ensure 16-bit support
+#        iio.imwrite(outputPath, hdri16bit, extension='.png')
 
-        # 2. Prepare the data for 16-bit PNG
-        # PNG does not support float32 directly; it uses uint16 (0 to 65535)
-        # We must scale the float values to the 16-bit integer range.
-        # Note: If your HDR has values > 1.0, you may need to 'tone map' or normalize first.
-        hdriNormalized = np.clip(hdriImage, 0, 1)  # Optional: Clamping to 0-1 range
-        hdri16bit = (hdriNormalized * 65535).astype(np.uint16)
 
-        # 3. Save as a 16-bit PNG
-        # Use the 'PNG-FI' (FreeImage) or 'PIL' plugin to ensure 16-bit support
-        iio.imwrite(outputPath, hdri16bit, extension='.png')
+    #def convert_hdr_to_png16(self, hdr_path, png_path, gamma=2.2):
+    def hdri2png(self, hdr_path, png_path, gamma=2.2, bits=16, exposure=1.1, contrast=1.3, saturation=1.5, sharpen_amount=0.5):
+        """
+        Converts a 32-bit float HDR image to a 16-bit uint PNG image 
+        with safety checks for channels and invalid numerical values.
+        """
+        # 1. Read the HDR image (as float32)
+        # IMREAD_ANYDEPTH is critical for reading the 32-bit float data
+
+        hdr_image = cv2.imread(hdr_path, flags=cv2.IMREAD_ANYDEPTH | cv2.IMREAD_COLOR)
+
+        if hdr_image is None:
+            print(f"Error: Could not read the HDR image from {hdr_path}")
+            return
+
+        # SAFETY CHECK: OpenCV tone mappers require 3-channel CV_32FC3
+        #if len(hdr_image.shape) == 2:  # Handle grayscale
+        #    hdr_image = cv2.cvtColor(hdr_image, cv2.COLOR_GRAY2BGR)
+        #elif hdr_image.shape[2] == 4:  # Handle alpha channel
+        #    hdr_image = cv2.cvtColor(hdr_image, cv2.COLOR_BGRA2BGR)
+        if len(hdr_image.shape) == 2:
+            hdr_image = cv2.cvtColor(hdr_image, cv2.COLOR_GRAY2BGR)
+        elif hdr_image.shape[2] == 4:
+            hdr_image = cv2.cvtColor(hdr_image, cv2.COLOR_BGRA2BGR)
+        
+        # Ensure data type is float32
+        hdr_image = hdr_image.astype(np.float32)
+
+        # 2. Tone map to displayable range [0, 1]
+        #tonemap = cv2.createTonemap(gamma=gamma)
+        tonemap = cv2.createTonemapReinhard(gamma=gamma)
+        ldr_float = tonemap.process(hdr_image)
+        
+        ldr_float = np.clip(ldr_float * exposure, 0, 1)
+        ldr_float = np.clip(((ldr_float - 0.5) * contrast) + 0.5, 0, 1)
+        
+        # Saturation
+        hsv = cv2.cvtColor(ldr_float, cv2.COLOR_BGR2HSV)
+        hsv[:,:,1] *= saturation
+        ldr_float = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+        
+        # Sharpening
+        if sharpen_amount > 0:
+            blurred = cv2.GaussianBlur(ldr_float, (0,0), 3)
+            ldr_float = cv2.addWeighted(ldr_float, 1.0 + sharpen_amount, blurred, -sharpen_amount, 0)
+        
+        # SAFETY CHECK: Handle NaNs/Infs and clip strictly to [0, 1] 
+        # This prevents the "invalid value encountered in cast" warning
+        ldr_float = np.nan_to_num(ldr_float, nan=0.0, posinf=1.0, neginf=0.0)
+        ldr_float = np.clip(ldr_float, 0.0, 1.0)
+
+        # 3. Scale and convert to 16-bit unsigned integer (0-65535)
+        # Using np.round ensures better precision during the conversion
+        
+        intType = np.uint16
+        intLen  = 65535
+        if bits == 8:
+            intType = np.uint8
+            intLen  = 255
+            
+        png16_image = np.round(ldr_float * intLen).astype(intType)
+
+        # 4. Save as 16-bit PNG
+        # OpenCV imwrite supports 16-bit PNG depth natively
+        success = cv2.imwrite(png_path, png16_image)
+
+        if success:
+            print(f"Successfully converted {hdr_path} to {png_path}")
+        else:
+            print(f"Error: Could not write the PNG image to {png_path}")
 
 
     # Creating a Data URI from any file type.
@@ -497,11 +458,117 @@ class RKInterfaces():
             print("Input File not Found.")
         except Exception as e:
             print(f"An error occurred: {e}")
-        
+
+
     def getFileName(self, inPath):
         head, tail = os.path.split(inPath)
         return tail
 
+
+    ################################################################################
+    # get URLs for MaterialX and GLSL Files
+    ################################################################################
+    def getShaderURLs(self, shaderPath, relativeDir, matXDocName, matXShader):
+        shaderFileName = self.getFileName(shaderPath)
+        
+        urls = []
+
+        #isDataUri = cmds.optionVar( q='rkMtlx2Uri' )
+        #if isDataUri:
+        #    dataURI = self.media2uri(shaderPath)
+        #    if dataURI != "":
+        #        urls.append(dataURI)
+        #else:
+        #    urls.append(relativeDir + shaderFileName)
+        #    urls.append(shaderFileName)
+            
+            #isCons = cmds.optionVar( q='rkConsolidate' )
+            #if isCons:
+            #    self.copyFile(matXFullFilePath, localPath + matXFileName)
+        urls.append("meta://" + matXDocName + "#" + matXShader)
+        
+        return (isDataUri, urls)
+    
+    def getMaterialXDocURLs(self, matXExportPath, relativeDir, matXDocName, matXShader):
+        return self.getShaderURLs(matXExportPath, relativeDir, matXDocName, matXShader)
+    
+    def getFragURLs(self, fragPath, relativeDir):
+        return self.getShaderURLs(fragPath, relativeDir)
+        
+    def getVertURLs(self, vertPath, relativeDir):
+        return self.getShaderURLs(vertPath, relativeDir)
+        
+
+    ###########################################################################
+    # Get an attribute from a MaterialX Graph Editor Node
+    ###########################################################################
+    def getMaterialXAttribute(self, materialXSurfaceShader, matXGraphEditorNode, matXAttr):
+        attribute = None
+
+        document = self.getMatrialXDocument(materialXSurfaceShader)
+        if document:
+            print(f"Found Doc: {document.nodeName()}")
+
+            dhy = ufe.Hierarchy.hierarchy(document)
+            sObject = None
+            
+            for shader in dhy.children():
+                if matXGraphEditorNode == shader.nodeName():
+                    sObject = shader
+                    break
+        
+            if sObject:
+                attrs     = ufe.Attributes.attributes(sObject)
+                attribute = attrs.attribute(matXAttr)
+                
+        return attribute
+
+
+    def getUFENode(self, materialXSurfaceShader, nodeName):
+        ufeNode = None
+
+        document = self.getMatrialXDocument(materialXSurfaceShader)
+        if document:
+            print(f"Found Doc: {document.nodeName()}")
+
+            dhy = ufe.Hierarchy.hierarchy(document)
+            sObject = None
+            
+            for shader in dhy.children():
+                if nodeName == shader.nodeName():
+                    ufeNode = shader
+                    break
+
+        x3dType = None
+        if ufeNode:
+            fileAttr = "filename"
+            if "image" in ufeNode.nodeType():
+                fileAttr = "fileName"
+                if "tiledimage" in ufeNode.nodeType():
+                    fileAttr = "file"
+
+                attrs    = ufe.Attributes.attributes(ufeNode)
+                fileName = self.getFileName(attrs.attribute(fileAttr).get())
+                if ".mov" in fileName.lower() or ".mp4" in fileName.lower() or ".avi" in fileName.lower():
+                    x3dType = "MovieTexture"
+                else:
+                    x3dType = "ImageTexture"
+                
+        return ufeNode, x3dType
+
+
+    def getMatrialXDocument(self, materialXSurfaceShader):
+        ufeNode = None
+
+        matXStack = cmds.listConnections(materialXSurfaceShader + ".stack", shapes=True)[0]
+        matXdPath = cmds.ls(matXStack, long=True)[0]
+        
+        ufePath = ufe.PathString.path(matXdPath)
+        ufeItem = ufe.Hierarchy.createItem(ufePath)
+        hy = ufe.Hierarchy.hierarchy(ufeItem)
+        
+        return hy.children()[0]
+        
 
     ################################################################################
     # Get Skin Space Joint Inverse Bind Matrix

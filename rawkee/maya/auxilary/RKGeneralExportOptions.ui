@@ -7,19 +7,19 @@
     <x>0</x>
     <y>0</y>
     <width>780</width>
-    <height>600</height>
+    <height>700</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>780</width>
-    <height>600</height>
+    <height>700</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>780</width>
-    <height>600</height>
+    <height>700</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -229,6 +229,432 @@
      </item>
      <item>
       <widget class="Line" name="line">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" name="envLightLayout">
+       <item>
+        <layout class="QHBoxLayout" name="envHeaderLayout">
+         <item>
+          <widget class="QLabel" name="envlightHeader">
+           <property name="minimumSize">
+            <size>
+             <width>140</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>140</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>EnvironmentLight Options</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_17">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="hdr2pngLayout">
+         <property name="spacing">
+          <number>10</number>
+         </property>
+         <property name="leftMargin">
+          <number>110</number>
+         </property>
+         <property name="rightMargin">
+          <number>10</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="label_17">
+           <property name="minimumSize">
+            <size>
+             <width>210</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>210</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>HDR Images:</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="h2pCheckBox">
+           <property name="text">
+            <string>Convert to PNG Image</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="bit16">
+           <property name="minimumSize">
+            <size>
+             <width>60</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>60</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>16-Bit</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="bit8">
+           <property name="minimumSize">
+            <size>
+             <width>60</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>60</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>8-Bit</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_20">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_13">
+         <property name="spacing">
+          <number>10</number>
+         </property>
+         <property name="leftMargin">
+          <number>250</number>
+         </property>
+         <property name="rightMargin">
+          <number>10</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="label_18">
+           <property name="minimumSize">
+            <size>
+             <width>60</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>50</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>Exposure</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSlider" name="exposureSlider">
+           <property name="minimumSize">
+            <size>
+             <width>100</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>100</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="expText">
+           <property name="minimumSize">
+            <size>
+             <width>25</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>25</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>0.0</string>
+           </property>
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_19">
+           <property name="minimumSize">
+            <size>
+             <width>60</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>60</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>Contrast</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSlider" name="contrastSlider">
+           <property name="minimumSize">
+            <size>
+             <width>100</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>100</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="conText">
+           <property name="minimumSize">
+            <size>
+             <width>25</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>25</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>0.0</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_18">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>230</width>
+             <height>24</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_14">
+         <property name="spacing">
+          <number>10</number>
+         </property>
+         <property name="leftMargin">
+          <number>250</number>
+         </property>
+         <property name="rightMargin">
+          <number>10</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="label_20">
+           <property name="minimumSize">
+            <size>
+             <width>60</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>60</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>Saturation</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSlider" name="saturationSlider">
+           <property name="minimumSize">
+            <size>
+             <width>100</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>100</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="satText">
+           <property name="minimumSize">
+            <size>
+             <width>25</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>25</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>0.0</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_21">
+           <property name="minimumSize">
+            <size>
+             <width>60</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>60</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>Sharpen</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSlider" name="sharpenSlider">
+           <property name="minimumSize">
+            <size>
+             <width>100</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>100</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="shaText">
+           <property name="minimumSize">
+            <size>
+             <width>25</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>25</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>0.0</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_19">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>230</width>
+             <height>24</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="Line" name="line_4">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>

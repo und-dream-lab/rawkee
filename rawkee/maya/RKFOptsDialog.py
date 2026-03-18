@@ -410,7 +410,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         cmds.optionVar( fv=('rkCreaseAngle', caf))
 
         cmds.optionVar( iv=('rkProcTexFormat', self.procTextureComboBox.currentIndex()))
-        cmds.optionVar( iv=('rkFileTexFormat', self.fileTextureComboBox.currentIndex()))
+        cmds.optionVar( iv=('rkFileTexFormat', self.consFormatComboBox.currentIndex())) #self.consFormatComboBox
 
 
     def exportX3D(self):

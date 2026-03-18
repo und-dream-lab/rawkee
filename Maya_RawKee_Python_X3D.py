@@ -1,31 +1,29 @@
 import sys
 import os
 
-from rawkee import RKWeb3D
-from rawkee.RKWeb3D import RKAddSwitch, RKAddGroup, RKAddCollision, RKSetAsBillboard, RKAddX3DSound, RKTestIt
-from rawkee.RKWeb3D import RKASBackupClipBoard, RKASRestoreClipBoard
-from rawkee.RKWeb3D import RKSetAsHAnimHumanoid
-from rawkee.RKWeb3D import RKTransferSkinASGS,     RKLoadDefPoseForHAnim,  RKAdvancedSkeleton
-from rawkee.RKWeb3D import RKEstimateIPoseForASGS, RKEstimateAPoseForASGS, RKEstimateTPoseForASGS, RKSetASPoseForASGS, RKDefPoseForASGS
-from rawkee.RKWeb3D import RKLoadIPoseForASGS,     RKLoadAPoseForASGS,     RKLoadTPoseForASGS
-from rawkee.RKWeb3D import RKSaveIPoseForASGS,     RKSaveAPoseForASGS,     RKSaveTPoseForASGS
-from rawkee.RKWeb3D import RKX3DAuxLoader
-from rawkee.RKSceneEditor import *
-from rawkee.RKCharacterEditor import *
-from rawkee.RKBindPoseEditor import *
-from rawkee.RKCharacterAnimationClipEditor import *
-from rawkee.RKHAnimHumanoidSetupEditor import *
-from rawkee.RKmGearSetupEditor import *
+from rawkee.maya import RKWeb3D
+from rawkee.maya.RKWeb3D import RKAddSwitch, RKAddGroup, RKAddCollision, RKSetAsBillboard, RKAddX3DSound, RKTestIt
+from rawkee.maya.RKWeb3D import RKASBackupClipBoard, RKASRestoreClipBoard
+from rawkee.maya.RKWeb3D import RKSetAsHAnimHumanoid
+from rawkee.maya.RKWeb3D import RKTransferSkinASGS,     RKLoadDefPoseForHAnim,  RKAdvancedSkeleton
+from rawkee.maya.RKWeb3D import RKEstimateIPoseForASGS, RKEstimateAPoseForASGS, RKEstimateTPoseForASGS, RKSetASPoseForASGS, RKDefPoseForASGS
+from rawkee.maya.RKWeb3D import RKLoadIPoseForASGS,     RKLoadAPoseForASGS,     RKLoadTPoseForASGS
+from rawkee.maya.RKWeb3D import RKSaveIPoseForASGS,     RKSaveAPoseForASGS,     RKSaveTPoseForASGS
+from rawkee.maya.RKWeb3D import RKX3DAuxLoader
+from rawkee.maya.RKSceneEditor import *
+from rawkee.maya.RKCharacterEditor import *
+from rawkee.maya.RKBindPoseEditor import *
+from rawkee.maya.RKCharacterAnimationClipEditor import *
+from rawkee.maya.RKHAnimHumanoidSetupEditor import *
+from rawkee.maya.RKmGearSetupEditor import *
 
 # From Early 2000s C++ Registered Node IDs
-from rawkee.nodes.x3dTimeSensor import X3DTimeSensor
-from rawkee.nodes.x3dSound import X3DSound, X3DSoundDrawOverride
+from rawkee.maya.nodes.x3dSound import X3DSound, X3DSoundDrawOverride
 
 # From 2024 RawKee PE Registered Node IDSs
-from rawkee.nodes.x3dHAnimMotion import X3DHAnimMotion
-from rawkee.nodes.rkAnimPack import RKAnimPack
+from rawkee.maya.nodes.rkAnimPack import RKAnimPack
 
-import rawkee.nodes.sticker    as stk
+import rawkee.maya.nodes.sticker    as stk
 
 
 #### from rawkee.nodes.X3D_Scene import X3D_Scene, RKPrimeX3DScene
@@ -33,6 +31,7 @@ import rawkee.nodes.sticker    as stk
 #### from rawkee.nodes.X3D_Group import X3D_Group
 #from rawkee.nodes.x3dViewpointCamera import X3DViewpointCamera
 #from rawkee.RKUtils import *#setDefRKOptVars
+
 
 from maya import cmds as cmds
 from maya import mel  as mel
@@ -86,7 +85,20 @@ def maya_useNewAPI():
 
 def rkUpdateStickers(client_data):
     stk.reveal()
+
+
+##################################################
+# Initialize all required MaterialX functionality.
+##################################################
+def initialize_mtlx_paths():
+    maya_root = os.environ.get('MAYA_LOCATION')
+    # Path to the bundled MaterialX Python modules in Maya 2026
+    mtlx_site_packages = os.path.join(maya_root, 'bin', 'python', 'site-packages')
     
+    if mtlx_site_packages not in sys.path:
+        sys.path.append(mtlx_site_packages)
+        
+
 ##########################################
 # Not directly supported Any longer
 ##########################################
@@ -842,9 +854,7 @@ class RKShowMGearSetupEditor(aom.MPxCommand):
             print("RKWeb3D is not set!")
 
 
-# Initialize the plug-in
-def initializePlugin(plugin):
-
+def runRawKeeInitializer(plugin):
     print("Made possible by the: Alias Research Donation Program\n\n")
     pluginFn = aom.MFnPlugin(plugin, RAWKEE_VENDOR, RAWKEE_VERSION)
  
@@ -896,24 +906,6 @@ def initializePlugin(plugin):
                               X3DSound.DRAW_CLASSIFICATION)     # 
     except:
         aom.MGlobal.displayError("Failed to register node: {0}".format(X3DSound.kPluginNodeName))
-                              
-    try:
-        pluginFn.registerNode(X3DHAnimMotion.TYPE_NAME,         # name of node
-                              X3DHAnimMotion.TYPE_ID,           # unique id that identifiesnode
-                              X3DHAnimMotion.creator,                 # function/method that returns new instance of class
-                              X3DHAnimMotion.initialize,              # function/method that will initialize all attributes of node
-                              aom.MPxNode.kLocatorNode)         # type of node to be registered
-    except:
-        aom.MGlobal.displayError("Failed to register node: {0}".format(X3DHAnimMotion.kPluginNodeName))
-                              
-    try:
-        pluginFn.registerNode(X3DTimeSensor.TYPE_NAME,         # name of node
-                              X3DTimeSensor.TYPE_ID,           # unique id that identifiesnode
-                              X3DTimeSensor.creator,                 # function/method that returns new instance of class
-                              X3DTimeSensor.initialize,              # function/method that will initialize all attributes of node
-                              aom.MPxNode.kLocatorNode)         # type of node to be registered
-    except:
-        aom.MGlobal.displayError("Failed to register node: {0}".format(X3DTimeSensor.kPluginNodeName))
                               
     try:
         pluginFn.registerNode(RKAnimPack.TYPE_NAME,         # name of node
@@ -1041,7 +1033,7 @@ def initializePlugin(plugin):
     except:
         sys.stderr.write("Failed to register a plugin command.\n")
 
-    # Function that sets the Maya global varaibles required by RawKee - Found in 'rawkee.RKUtils'
+    # Function that sets the Maya global varaibles required by RawKee - Found in 'rawkee.maya.RKUtils'
     mel.eval('setDefRKOptVars()')
 
     # Create Menu System for RawKee 'rawkee.RKMenus'
@@ -1082,6 +1074,21 @@ def initializePlugin(plugin):
     #addRKAnimPackNodeDeleteCallback()
     
     
+# Initialize the plug-in
+def initializePlugin(plugin):
+    initialize_mtlx_paths()
+    
+    # Now it is safe to import the specific Gen modules
+    try:
+        import MaterialX.PyMaterialXGenShader as mx_gen_shader
+        import MaterialX.PyMaterialXGenGlsl as mx_gen_glsl
+        
+        runRawKeeInitializer(plugin)
+        # Proceed with registering nodes/commands
+    except ImportError as e:
+        om.MGlobal.displayError(f"Failed to load MaterialX Gen modules: {e}")
+
+
 
 # Uninitialize the plug-in
 def uninitializePlugin(plugin):
@@ -1512,8 +1519,6 @@ def uninitializePlugin(plugin):
     try:
         pluginFn.deregisterNode(    RKAnimPack.TYPE_ID)
         pluginFn.deregisterNode(      X3DSound.TYPE_ID)
-        pluginFn.deregisterNode(X3DHAnimMotion.TYPE_ID)
-        pluginFn.deregisterNode( X3DTimeSensor.TYPE_ID)
     except:
         aom.MGlobal.displayError("Failed to deregister a node.")#{0}".format(X3DSound.TYPE_NAME))
 

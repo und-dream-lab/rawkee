@@ -1,6 +1,6 @@
 import sys
 import os
-from rawkee.rkx3d import *
+from rawkee.io.RKx3d import *
 from typing import Final
 
 
@@ -19,7 +19,70 @@ class RKSceneTraversal():
         self.iofile = None
         self.enc = encx
 
+        self.profileType = "Core"
+        self.x3dVersion  = "4.1"
+        self.profDict    = {}
+        self.compDict    = {}
+        self.metatags    = []
+
+        ###### Migrating ######
+        self.ignoredNodes  = []
+        self.haveBeenNodes = {}
+        self.generatedX3D  = {}
+        #######################
+
+        # 36
+        self.full           = {'Core':2,                'Time':2,                   'Networking':4,             'Grouping':3,
+                            'Rendering':5,              'Shape':4,                  'Geometry3D':4,             'Geometry2D':2,
+                            'Text':1,                   'Sound':3,                  'Lighting':3,               'Texturing':4,
+                            'Interpolation':5,          'PointingDeviceSensor':1,   'KeyDeviceSensor':2,
+                            'EnvironmentalSensor':3,    'Navigation':3,             'EnvironmentalEffects':4,   'Geospatial':2,
+                            'HAnim':3,                  'NURBS':4,                  'DIS':2,                    'Scripting':1,
+                            'EventUtilities':1,         'Shaders':1,                'CADGeometry':2,            'Texturing3D':2,
+                            'CubeMapTexturing':3,       'Layering':1,               'Layout':2,                 'RigidBodyPhysics':2,
+                            'Picking':3,                'Followers':1,              'ParticleSystems':3,        'VolumeRendering':4,
+                            'TextureProjection':2}
+
+        # 20
+        self.immersive      = {'Core':2,                'Time':1,                   'Networking':3,             'Grouping':2,
+                            'Rendering':3,              'Shape':2,                  'Geometry3D':4,             'Geometry2D':1,
+                            'Text':1,                   'Sound':1,                  'Lighting':2,               'Texturing':3,
+                            'Interpolation':2,          'PointingDeviceSensor':1,   'KeyDeviceSensor':2,
+                            'EnvironmentalSensor':2,    'Navigation':2,             'EnvironmentalEffects':2,   'Scripting':1,
+                            'EventUtilities':1}
         
+        # 16
+        self.interactive    = {'Core':1,                'Time':1,                   'Networking':2,             'Grouping':2,
+                            'Rendering':3,              'Shape':1,                  'Geometry3D':3,             'Lighting':2,
+                            'Texturing':2,              'Interpolation':2,          'PointingDeviceSensor':1,   'KeyDeviceSensor':1,
+                            'EnvironmentalSensor':1,    'Navigation':1,             'EnvironmentalEffects':1,   'EventUtilities':1}
+
+        # 14
+        self.mp4Interactive = {'Core':1,                'Time':1,                   'Networking':2,             'Grouping':2,
+                            'Rendering':1,              'Shape':1,                  'Geometry3D':2,             'Lighting':2,
+                            'Texturing':1,              'Interpolation':2,          'PointingDeviceSensor':1,   
+                            'EnvironmentalSensor':1,    'Navigation':1,             'EnvironmentalEffects':1}
+
+        # 12
+        self.interchange    = {'Core':1,                'Time':1,                   'Networking':1,             'Grouping':1,
+                            'Rendering':3,              'Shape':1,                  'Geometry3D':2,             'Lighting':1,
+                            'Texturing':2,              'Interpolation':2,          'Navigation':1,             'EnvironmentalEffects':1}
+        
+        # 10
+        self.cadInterchange = {'Core':1,                'Networking':2,             'Grouping':1,               'Rendering':4,
+                            'Shape':2,                  'Lighting':1,               'Texturing':2,              'Navigation':3,
+                            'Shaders':1,                'CADGeometry':2}
+                            
+        self.profiles = {"Full":self.full, "Immersive":self.immersive, "Interactive":self.interactive, "MPG4Interactive":self.mp4Interactive, "Interchange":self.interchange, "CADInterchange":self.cadInterchange}
+
+        
+    # Function that writes to disk.
+    def x3d2disk(self, x3dDoc, fullPath, exEncoding):
+        
+        with open(fullPath, "w") as exFile:
+            self.startExport(x3dDoc, exFile, exEncoding)
+
+
     def startExport(self, x3dDoc, iofile, encoding):
         self.iofile = iofile
         if   encoding == "x3d":
@@ -45,6 +108,14 @@ class RKSceneTraversal():
                 self.processNode(node, tMulti, False, cField="children")
         self.writeFooter()
 
+        self.profileType = "Core"
+        self.x3dVersion  = "4.1"
+        self.profDict.clear()
+        self.compDict.clear()
+        self.metatags.clear()
+        
+        print("File Output has completed.")
+
 
     def processNode(self, node, isMulti, addComma, cField=""):
         nType   = type(node).__name__
@@ -56,7 +127,7 @@ class RKSceneTraversal():
         mNodeList   = []
 
         #compNode = self.instantiateNodeFromString(nType)
-        compNode = instantiateNodeFromString(nType)
+        compNode = instantiateNodeFromString(nType)[0]
         pastMeta = False
         nDict = vars(node)
 
@@ -86,9 +157,28 @@ class RKSceneTraversal():
                 
                 elif keyp[3] == "toNode"    and value != "":
                     sFieldsList.append("toNode")
+            
+            #elif keyp[1] == "field":
+            #    if   keyp[3] == "name" and value != "":
+            #        sFieldsList.append("name")
+            #        
+            #    elif keyp[3] == "type" and value != "":
+            #        sFieldsList.append("type")
+            #        
+            #    elif keyp[3] == "accessType" and value != "":
+            #        sFieldsList.append("accessType")
+            #        
+            #    elif keyp[3] == "value" and value != "":
+            #        sFieldsList.append("value")
+            #        
+            #    elif keyp[3] == "children" and value != None:
+            #        mNodeList.append("children")
                     
             if pastMeta == False:# and keyp[3] == nType:
                 continue
+                
+            #if keyp[3] == "metadata":
+            #    print(compNode)
                 
             # For some reason the '_Normal__vector' attribute doesn't show up as an instance of a list, eventhough it should.
             # So I added a one-off check for the vector attribute.
@@ -114,56 +204,8 @@ class RKSceneTraversal():
                         #if getattr(compNode,keyp[3]) != value:
                         sNodeList.append(keyp[3])
 
-            
-            ########################################################
-            # Fix for x3d.py misordering of "joints" and "skeleton" 
-            # fields in its HAnimHumanoid node implementation.
-            ########################################################
-            '''
-            # No longer needed as RawKee is now using a customized version of x3d.py
-            if nType == "HAnimHumanoid":
-                jIdx = -1
-                sIdx = -1
-                
-                for idx in range(len(mNodeList)):
-                    if   mNodeList[idx] == "joints":
-                        jIdx = idx
-                    elif mNodeList[idx] == "skeleton":
-                        sIdx = idx
-                    
-                    hasDEF = False
-                    if compNode.skeleton != node.skeleton:
-                        for rj in getattr(node, "skeleton"):
-                            if type(rj).__name__ == "HAnimJoint" and (rj.DEF != '' or rj.DEF != None):
-                                hasDEF = True
-
-                    if sIdx > -1 and jIdx > -1 and sIdx > jIdx and hasDEF == True:
-                        mNodeList[jIdx] = "skeleton"
-                        mNodeList[sIdx] = "joints"
-                        
-            elif nType == "Appearance":
-                bIdx = -1
-                fIdx = -1
-                
-                for idx in range(len(sNodeList)):
-                    if   sNodeList[idx] == "backMaterial":
-                        bIdx = idx
-                    elif sNodeList[idx] == "material":
-                        fIdx = idx
-                    
-                hasUSE = False
-                if bIdx != -1:
-                    bMat = getattr(node, "backMaterial")
-                    if bMat.USE != None and bMat.USE != '':
-                        hasUSE = True
-
-                if fIdx > -1 and bIdx > -1 and fIdx > bIdx and hasUSE == True:
-                    sNodeList[bIdx] = "material"
-                    sNodeList[fIdx] = "backMaterial"
-            '''
         compNode = None
         
-        #self.processSortedNode(nType, node, sFieldsList, mFieldsList, sNodeList, mNodeList, isMulti, addComma, cField)
         self.processSortedNode(node.NAME(), node, sFieldsList, mFieldsList, sNodeList, mNodeList, isMulti, addComma, cField)
 
 
@@ -217,11 +259,36 @@ class RKSceneTraversal():
         self.writeLine("ROUTE " + getattr(node, sFieldList[1]) + "." + getattr(node, sFieldList[0]) + " TO " + getattr(node, sFieldList[3]) + "." + getattr(node, sFieldList[2]))
 
 
+    def processFieldAsClassic(self, node, sFieldList, mFieldList, isMulti):
+        fieldText = "field " + node.type + " " + node.name
+        if node.type == "SFNode":
+            self.itabs()
+            self.writePrefix("children")
+            self.processNode(node.children[0], False, False)
+            self.dtabs()
+            
+        elif node.type == "MFNode": # TODO Implement Later for Script, ExternProto, and Proto nodes
+            pass
+            
+        else:
+            fieldText = fieldText + " " + node.value
+            if isMulti == True:
+                self.writeLine(fieldText)
+            else:
+                self.writeRemaining(fieldText)
+        
+        
+    # This is only setup to handle Shader custom fields
+    # TODO Change update Function to handle fields for Script, ExternProto, and Proto nodes
     def processNodeAsClassic(self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, isMulti):
         mainline = ""
         
         if nType == "ROUTE":
             self.processROUTEAsClassic(node, sFieldList)
+            return
+            
+        if nType == "field":
+            self.processFieldAsClassic(node, sFieldList, mFieldList, isMulti)
             return
             
         if isMulti == True:
@@ -361,18 +428,58 @@ class RKSceneTraversal():
         self.dtabs()
         self.writeLine('}')
         self.dtabs()
-        #self.writePrefix('}')
         if addComma == True:
             self.writeLine('},')
         else:
             self.writeLine('}')
 
 
+    # This is only setup to handle Shader custom fields
+    # TODO Change update Function to handle fields for Script, ExternProto, and Proto nodes
+    def processFieldAsJSON(self, node, sFieldList, mNodeList, isMulti, addComma):
+        if isMulti == True:
+            self.writeLine(     '{ "field":')
+        else:
+            self.writeRemaining('{ "field":')
+        self.itabs()
+        self.writeLine('{')
+        self.itabs()
+        fieldName  = '"@name": "' + node.name + '",'
+        fieldType  = '"@type": "' + node.type + '",'
+        fieldAType = '"@accessType": "' + node.accessType + '",'
+        self.writeLine(fieldName)
+        self.writeLine(fieldType)
+        self.writeLine(fieldAType)
+        if node.type == "SFNode":
+            sValue = '"-children":'
+            self.writePrefix(sValue)
+            hasComma = False
+            self.processNode(node.children[0], False, hasComma)
+            
+        elif node.type == "MFNode":
+            pass # TODO Implement Later for Script, ExternProto, and Proto nodes
+            
+        else:
+            fieldValue = '"@value": "' + node.value + '"'
+            self.writeLine(fieldValue)
+        self.dtabs()
+        self.writeLine('}')
+        self.dtabs()
+        if addComma == True:
+            self.writeLine('},')
+        else:
+            self.writeLine('}')
+        
+        
     def processNodeAsJSON(self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, isMulti, addComma):
         mainline = ''
 
         if nType == "ROUTE":
             self.processROUTEAsJSON(node, sFieldList, isMulti, addComma)
+            return
+
+        if nType == "field":
+            self.processFieldAsJSON(node, sFieldList, mNodeList, isMulti, addComma)
             return
 
         if isMulti == True:
@@ -504,7 +611,6 @@ class RKSceneTraversal():
                     
                 self.processNode(mNode, True, hasComma)
             self.dtabs()
-#            self.writeLine(']')
             self.writePrefix(']')
             
             if nIdx < (mnlLen - 1):
@@ -516,7 +622,6 @@ class RKSceneTraversal():
         self.dtabs()
         self.writeLine('}')
         self.dtabs()
-        #self.writePrefix('}')
         if addComma == True:
             self.writeLine('},')
         else:
@@ -531,10 +636,45 @@ class RKSceneTraversal():
 
         mainline = "<ROUTE " + fromNode + " " + fromField + " " + toNode + " " + toField + "/>"
         self.writeLine(mainline)
+
         
+    # This is only setup to handle Shader custom fields
+    # TODO Change update Function to handle fields for Script, ExternProto, and Proto nodes
+    def processFieldAsXML(self, node, sFieldList, mNodeList):
+        fieldText = "<field name='" + node.name + "' type='" + node.type + "' accessType='" + node.accessType
+        if fieldType == "SFNode":
+            fieldText += " containderField='fields'>"
+            self.writeLine(fieldText)
+            self.itabs()
+            self.processNode(node.children[0], False, False, cField="children")
+            self.dtabs()
+            self.writeLine("</field>")
+            
+        elif fieldType == "MFNode": # TODO Implement Later for Script, ExternProto, and Proto nodes
+            #fieldText += ">"
+            #self.writeLine(fieldText)
+            #self.itabs()
+
+            #for field in mNodeList:
+            #    fList = getattr(node, field)
+            #    for fNode in fList:
+            #        self.processNode(fNode, True, False, cField=field)
+            #self.dtabs()
+            #self.writeLine("</field>")
+            pass
+            
+        else:
+            fieldText += " value='" + node.value + "' containderField='fields'/>"
+            self.writeLine(fieldText)
+        
+
     def processNodeAsXML( self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, cField):
         if nType == "ROUTE":
             self.processROUTEAsXML(node, sFieldList)
+            return
+
+        if nType == "field":
+            self.processFieldAsXML(node, sFieldList, mNodeList)
             return
 
         cap = "/>"
@@ -651,9 +791,43 @@ class RKSceneTraversal():
         self.writeLine(mainline)
         
         
+    # This is only setup to handle Shader custom fields
+    # TODO Change update Function to handle fields for Script, ExternProto, and Proto nodes
+    def processFieldAsHTML(self, node, sFieldList, mNodeList):
+        fieldText = "<field name='" + node.name + "' type='" + node.type + "' accessType='" + node.accessType
+        if fieldType == "SFNode":
+            fieldText += " containderField='fields'>"
+            self.writeLine(fieldText)
+            self.itabs()
+            self.processNode(node.children[0], False, False, cField="children")
+            self.dtabs()
+            self.writeLine("</field>")
+            
+        elif fieldType == "MFNode": # TODO Implement Later for Script, ExternProto, and Proto nodes
+            #fieldText += ">"
+            #self.writeLine(fieldText)
+            #self.itabs()
+
+            #for field in mNodeList:
+            #    fList = getattr(node, field)
+            #    for fNode in fList:
+            #        self.processNode(fNode, True, False, cField=field)
+            #self.dtabs()
+            #self.writeLine("</field>")
+            pass
+            
+        else:
+            fieldText += " value='" + node.value + "' containderField='fields'></field>"
+            self.writeLine(fieldText)
+
+
     def processNodeAsHTML( self, nType, node, showCF, sFieldList, mFieldList, sNodeList, mNodeList, cField):
         if nType == "ROUTE":
             self.processROUTEAsHTML(node, sFieldList)
+            return
+
+        if nType == "field":
+            self.processFieldAsHTML()
             return
             
         cap = ">"
@@ -756,7 +930,6 @@ class RKSceneTraversal():
         self.writeLine("</" + nType + ">")
                 
 
-
     def writePrefix(self, prefix):
         myline = ''
         
@@ -783,19 +956,31 @@ class RKSceneTraversal():
     def writeHeader(self):
         if   self.enc == encx:
             self.writeLine('<?xml version="1.0" encoding="UTF-8"?>')
-            self.writeLine('<!DOCTYPE X3D PUBLIC "ISO//Web3D//DTD X3D 4.0//EN" "https://www.web3d.org/specifications/x3d-4.0.dtd">')
-            self.writeLine("<X3D profile='Full' version='4.0' xmlns:xsd='http://www.w3.org/2001/XMLSchema-instance' xsd:noNamespaceSchemaLocation='https://www.web3d.org/specifications/x3d-4.0.xsd'>")
+            self.writeLine('<!DOCTYPE X3D PUBLIC "ISO//Web3D//DTD X3D ' + self.x3dVersion +'//EN" "https://www.web3d.org/specifications/x3d-' + self.x3dVersion +'.dtd">')
+            self.writeLine("<X3D profile='" + self.profileType + "' version='" + self.x3dVersion +"' xmlns:xsd='http://www.w3.org/2001/XMLSchema-instance' xsd:noNamespaceSchemaLocation='https://www.web3d.org/specifications/x3d-" + self.x3dVersion + ".xsd'>")
             self.itabs()
+            self.writeLine("<head>")
+            self.itabs()
+            for key, value in self.profDict:
+                self.writeLine("<component name='" + key + "' level='" + str(value) + "'/>")
+            for meta in self.metatags:
+                self.writeLine("<meta name='" + meta["name"] + "' content='" + meta["content"] + "'/>")
+            self.dtabs()
+            self.writeLine("</head>")
             self.writeLine("<Scene>")
             self.itabs()
                     
         elif self.enc == encv:
-            self.writeLine('#X3D V4.0 utf8')
-            #self.writeLine('#VRML V4.0 utf8')
-            #self.writeLine('')
-            self.writeLine('PROFILE Full')
-            self.writeLine('')
-            self.writeLine('META "generator" "RawKee X3D Exporter for Maya 2025+ [Python Edition], https://github.com/und-dream-lab/rawkee/"')
+            self.writeLine('#X3D ' + self.x3dVersion + ' utf8')
+            self.writeLine('PROFILE ' + self.profileType)
+            if len(self.profDict) > 0:
+                self.writeLine('')
+                for key, value in self.profDict:
+                    self.writeLine('COMPONENT ' + key + ' : ' + str(value))
+            if len(self.metatags) > 0:
+                self.writeLine('')
+                for meta in self.metatags:
+                    self.writeLine('META "' + meta["name"] + '" "' + meta["content"] + '"')
             self.writeLine('')
             
         elif self.enc == encj:
@@ -804,24 +989,58 @@ class RKSceneTraversal():
             self.writeLine('"X3D": {')
             self.itabs()
             self.writeLine('"encoding": "UTF-8",')
-            self.writeLine('"@profile": "Full",')
-            self.writeLine('"@version": "4.0",')
-            self.writeLine('"@xsd:noNamespaceSchemaLocation": "https://www.web3d.org/specifications/x3d-4.0.xsd",')
-            self.writeLine('"JSON schema": "https://www.web3d.org/specifications/x3d-4.0-JSONSchema.json",')
-            self.writeLine('"head": {')
-            self.itabs()
-            self.writeLine('"meta": [')
-            self.itabs()
-            self.writeLine('{')
-            self.itabs()
-            self.writeLine('"@name": "generator",')
-            self.writeLine('"@content": "RawKee X3D Exporter for Maya 2025+ [Python Edition], https://github.com/und-dream-lab/rawkee/"')
-            self.dtabs()
-            self.writeLine('}')
-            self.dtabs()
-            self.writeLine(']')
-            self.dtabs()
-            self.writeLine('},')
+            self.writeLine('"@profile": "' + self.profileType + '",')
+            self.writeLine('"@version": "' + self.x3dVersion + '",')
+            self.writeLine('"@xsd:noNamespaceSchemaLocation": "https://www.web3d.org/specifications/x3d-' + self.x3dVersion + '.xsd",')
+            self.writeLine('"JSON schema": "https://www.web3d.org/specifications/x3d-' + self.x3dVersion + '-JSONSchema.json",')
+            
+            pdLen = len(self.profDict)
+            mtLen = len(self.metatags)
+            
+            if pdLen > 0 or mtLen > 0:
+                self.writeLine('"head": {')
+                self.itabs()
+                if mtLen > 0:
+                    self.writeLine('"meta": [')
+                    self.itabs()
+                    for m in range(mtLen):
+                        meta = self.metatags[m]
+                        self.writeLine('{')
+                        self.itabs()
+                        self.writeLine('"@name": "' + meta["name"] + '",')
+                        self.writeLine('"@content": "' + meta["content"] + '"')
+                        self.dtabs()
+                        if m < mtLen - 1:
+                            self.writeRemaining('},')
+                        else:
+                            self.writeRemaining('}')
+                            
+                    self.dtabs()    
+                    if pdLen > 0:
+                        self.writeRemaining('],')
+                    else:
+                        self.writeRemaining(']')
+                        
+                if pdLen > 0:
+                    keys   = list(self.profDict.keys())
+                    values = list(self.profDict.values())
+                    self.writeLine('"component": [')
+                    self.itabs()
+                    for p in range(pdLen):
+                        self.writeLine('{')
+                        self.itabs()
+                        self.writeLine('"@name": "' + keys[p] + '",')
+                        self.writeLine('"@level": ' + str(values[p]))
+                        self.dtabs()
+                        if p < pdLen - 1:
+                            self.writeRemaining('},')
+                        else:
+                            self.writeRemaining('}')
+                    self.dtabs()
+                    self.writeLine(']')
+                    
+                self.dtabs()
+                self.writeLine('},')
             self.writeLine('"Scene": {')
             self.itabs()
             self.writeLine('"-children": [')
@@ -844,6 +1063,14 @@ class RKSceneTraversal():
             self.itabs()
             self.writeLine("<X3D>")
             self.itabs()
+            self.writeLine("<head>")
+            self.itabs()
+            for key, value in self.profDict:
+                self.writeLine("<component name='" + key + "' level='" + str(value) + "'></component>")
+            for meta in self.metatags:
+                self.writeLine("<meta name='" + meta["name"] + "' content='" + meta["content"] + "'></meta>")
+            self.dtabs()
+            self.writeLine("</head>")
             self.writeLine("<Scene>")
             self.itabs()
 
@@ -880,6 +1107,7 @@ class RKSceneTraversal():
             self.dtabs()
             self.writeLine("</html>")
 
+
     def itabs(self):
         self.tabs += 1
 
@@ -888,23 +1116,240 @@ class RKSceneTraversal():
         if self.tabs > 0:
             self.tabs -= 1
 
+
+    def setAsHasBeen(self, nodeName, x3dNode):
+        self.haveBeenNodes[nodeName] = True
+        self.generatedX3D[ nodeName] = x3dNode
+        
+
+    def getGeneratedX3D(self, namedDEF):
+        foundNode = self.generatedX3D.get(namedDEF, None)
+        return foundNode
+    
+
+    def checkIfHasBeen(self, nodeName):
+        hasBeenExported = self.haveBeenNodes.get(nodeName, False)
             
-    ###########################################################################
-    # Replaces the RKSceneTraversal.createNodeFromString() function with this 
-    # dynamic means of creating new objects.
-    #
-    # Doing so will allow the use of all X3D objects in the latest version of
-    # x3d.py and RKPseudoNode without having to worry if this dictionary
-    # gets updated.
-    ###########################################################################
-    #def instantiateNodeFromString(self, x3dType):
-    #    try:
-    #        ClassObj = globals()[x3dType]
-    #        return ClassObj()
-    #    except:
-    #        return None
+        return hasBeenExported
     
-    
-    
+
+    ######################################################################################################################
+    #   Basic Node Functions
+    def processBasicNodeAddition(self, x3dParentNode, x3dFieldName, x3dType, nodeName=""):
+        nodeTuple = instantiateNodeFromString(x3dType)
+        
+        tNode = nodeTuple[0]
+        x3dComps = nodeTuple[1]
+
+        if tNode:
+            # Check to see if the node has previously been created with a DEF 
+            # attribute.
+            hasBeen = False
+            
+            if nodeName != "":
+                hasBeen = self.checkIfHasBeen(nodeName) #checkIfHasBeen
+            
+                # If has been created already, assign the "nodeName" value to the 
+                # X3D node's USE attribute and leave the DEF attribute as None.
+                if hasBeen == True:
+                    tNode.USE = nodeName
+            
+                # However, if the node has not been previously created, set the 
+                # X3D node's DEF attribute to the value of "nodeName", and then
+                # record the node has having been created by calling the 
+                # "setHasBeen()" method.
+                else:
+                    tNode.DEF = nodeName
+                    self.setAsHasBeen(nodeName, tNode)
+                
+            # Now it is time to add the new node to the X3D Scene. First 
+            # we must obtain the value of the X3D Field of the parent by 
+            # calling "getattr". Doing so will return the field's value, 
+            # which will either be a "list" (populated or empty) or a 
+            # 'None' value.           
+            nodeField = getattr(x3dParentNode, x3dFieldName)
+            
+            # Once this value has been obtained, we check to see if the
+            # value is an 'instance' of the 'list' data type. If it is 
+            # an instance of the list data type, then append the new 
+            # X3D node to this list.
+            if isinstance(nodeField, list):
+                nodeField.append(tNode)
+                
+            # If the value is not an instance of list, then use the 
+            # 'setattr' method to set the parent's field value to the 
+            # value of the new X3D node.
+            else:
+                setattr(x3dParentNode, x3dFieldName, tNode)
+                
+            # Adjust the exported Profile and Components
+            self.adjustProfileAndComponents(x3dComps)
+                
+            # Return a list containing the value of 'hasBeen', which lets
+            # the calling section of code know whether the X3D node in question
+            # had once before, already been added to the scene. This allows the 
+            # section of the code that originally called this method to know 
+            # whether other X3D field values should be added to this new node.
+            # And then also return the new node so if it does need values 
+            # assigned to it's other attributes, the section of the code that
+            # called this metod can do so.
+            return [hasBeen, tNode]
+        
+        else:
+            return[True, tNode]
+
+
+    ####################################################################
+    # Function that adds a node name to ignore to the "ignoreNodes" List
+    ####################################################################
+    def setIgnored(self, nodeName):
+        self.ignoredNodes.append(nodeName)
+
+
+    def findExisting(self, nodeDEF):
+        rNode = self.generatedX3D.get(nodeDEF, None)
+        return rNode        
+
+
+    def getX3DObject(self):
+        return X3D()
+
+        
+    def getSceneObject(self):
+        return Scene()
+
+
+    #######################################################
+    # Function clears out the list of node names that have
+    # either been used already or are to be ignored.
+    def clearMemberLists(self):
+        self.ignoredNodes.clear()
+        self.haveBeenNodes.clear()
+        self.generatedX3D.clear()
+
+
+    #######################################################
+    # This method checks the List that holds the names
+    # of nodes that are to be ignored. It returns
+    # a value of True if a match for a node name is found
+    # in this List
+    def checkIfIgnored(self, nodeName):
+        hasBeen = False
+        hbLength = len(self.ignoredNodes)
+        i = 0
+
+        while i < hbLength and hasBeen == False:
+            if nodeName == self.ignoredNodes[i]:
+                hasBeen = True
+            i = i + 1
+        
+        return hasBeen
+
+
     def getRouteObject(self):
         return ROUTE()
+
+
+    def getFieldObject(self):
+        return field()
+
+
+    # Component Evaulation
+    def adjustProfileAndComponents(self, pcDict):
+        
+        for key in pcDict:
+            pdVal = self.profDict.get(key, 0)
+            pcVal = pcDict[key]
+            
+            if pcVal > pdVal:
+                self.profDict[key] = pcVal
+
+                
+    def evaluateForCore(self):
+        self.profileType = "Core"
+
+        for key in self.profDict:
+            self.compDict[key] = self.profDict[key]
+
+
+    def evaluateForCADInterchange(self):
+        cnt = self.countComponents(10, self.interchange)
+                
+        if cnt == 10:
+            self.profileType = "CADInterchange"
+        else:
+            self.evaluateForCore()
+
+
+    def evaluateForInterchange(self):
+        cnt = self.countComponents(12, self.interchange)
+                
+        if cnt == 12:
+            self.profileType = "Interchange"
+        else:
+            self.evaluateForCADInterchange()
+        
+        
+    def evaluateForMP4Interactive(self):
+        cnt = self.countComponents(14, self.mp4Interactive)
+                
+        if cnt == 14:
+            self.profileType = "MPEG4Interactive"
+        else:
+            self.evaluateForInterchange()
+
+        
+    def evaluateForInteractive(self):
+        cnt = self.countComponents(16, self.interactive)
+                
+        if cnt == 16:
+            self.rkio.trv.profileType = "Interactive"
+        else:
+            self.evaluateForMP4Interactive()
+        
+        
+    def evaluateForImmersive(self):
+        cnt = self.countComponents(20, self.immersive)
+                
+        if cnt == 20:
+            self.profileType = "Immersive"
+        else:
+            self.evaluateForInteractive()
+        
+
+    def evaluateForFull(self):
+        cnt = self.countComponents(36, self.full)
+                
+        if cnt == 36:
+            self.profileType = "Full"
+        else:
+            self.evaluateForImmersive()
+            
+            
+    def countComponents(self, limit, profile):
+        cnt = 0
+        
+        for key in profile:
+            fVal = profile[key]
+            kVal = self.profDict.get(key, 0)
+            
+            if kVal >= fVal:
+                cnt += 1
+                if kVal > fVal:
+                    self.compDict[key] = kVal
+            else:
+                self.compDict.clear()
+                break
+
+        return cnt
+
+
+    def setAdditionalComponents(self):
+        cProf = self.profiles[self.profileType]
+        keepDict = {}
+        for key, value in self.profDict:
+            cValue = cProf.get(key, 0)
+            if cValue != value:
+                keepDict[key] = cValue
+                
+        self.profDict = keepDict

@@ -51,7 +51,7 @@ from   maya.api.OpenMaya import MFn as rkfn
 import maya.api.OpenMayaAnim as omAnim
 
 #Sticker App for applying Outliner icons
-import rawkee.nodes.sticker    as stk
+import rawkee.maya.nodes.sticker    as stk
 
 from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
 
@@ -141,7 +141,7 @@ class RKBindPoseEditor(MayaQWidgetDockableMixin, QWidget):
         
     @classmethod
     def workspace_ui_script(cls):
-        return "from rawkee.RKBindPoseEditor import RKBindPoseEditor\nrkBPEWidget = RKBindPoseEditor()"
+        return "from rawkee.maya.RKBindPoseEditor import RKBindPoseEditor\nrkBPEWidget = RKBindPoseEditor()"
         
     @classmethod
     def workplace_close_command(cls):

@@ -48,10 +48,7 @@ from   maya.api.OpenMaya import MFn as rkfn
 import maya.api.OpenMayaAnim as omAnim
 
 #Sticker App for applying Outliner icons
-import rawkee.nodes.sticker    as stk
-
-#To get local file path for html file
-#from rawkee import RKWeb3D
+import rawkee.maya.nodes.sticker    as stk
 
 from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
 
@@ -66,7 +63,7 @@ class RKmGearSetupEditor(MayaQWidgetDockableMixin, QWidget):
         
     @classmethod
     def workspace_ui_script(cls):
-        return "from rawkee.RKmGearSetupEditor import RKmGearSetupEditor\nrkMGSEWidget = RKmGearSetupEditor()"
+        return "from rawkee.maya.RKmGearSetupEditor import RKmGearSetupEditor\nrkMGSEWidget = RKmGearSetupEditor()"
         
     @classmethod
     def workplace_close_command(cls):

@@ -1,10 +1,13 @@
 ###############################################
-
+# RKx3d.py is based on...
 # x3d.py X3D Package for Python
-
+#
 # generator:  X3duomToX3dPythonPackage.xslt
 # X3DUOM:     X3dUnifiedObjectModel-4.0.xml
 # Python X3D: https://www.web3d.org/x3d/stylesheets/python/python.html
+###########
+# However, there is a lot of customization
+###############################################
 """
 The x3d.py Python X3D Package supports programmers with Python interfaces and objects for standards-based X3D programming, all as open source.
 
@@ -59134,6 +59137,192 @@ class IORMaterialExtension(_X3DMaterialExtensionNode):
         return self.IS or self.metadata
 
 
+class IridescenceMaterialExtension(_X3DMaterialExtensionNode):
+    """
+    IridescenceMaterialExtension only works with X_ITE, hopefully other viewers ignore it.
+    Adds Transmission/Transparency to PhysicalMaterial nodes.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'IridescenceMaterialExtension'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/iridescencematerialextension/'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://create3000.github.io/x_ite/components/x-ite/iridescencematerialextension/'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('iridescence', 0.0, FieldType.SFFloat, AccessType.inputOutput, 'IridescenceMaterialExtension'),
+        ('iridescenceTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'IridescenceMaterialExtension'),
+        ('iridescenceTexture', None, FieldType.SFNode, AccessType.inputOutput, 'IridescenceMaterialExtension'),
+        ('iridescenceIndexOfRefraction',  1.3, FieldType.SFFloat, AccessType.inputOutput, 'IridescenceMaterialExtension'),
+        ('iridescenceThicknessMinimum', 100.0, FieldType.SFFloat, AccessType.inputOutput, 'IridescenceMaterialExtension'),
+        ('iridescenceThicknessMaximum', 400.0, FieldType.SFFloat, AccessType.inputOutput, 'IridescenceMaterialExtension'),
+        ('iridescenceThicknessTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'IridescenceMaterialExtension'),
+        ('iridescenceThicknessTexture', None, FieldType.SFNode, AccessType.inputOutput, 'IridescenceMaterialExtension'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        iridescence=0.0,
+        iridescenceTextureMapping="",
+        iridescenceTexture=None,
+        iridescenceIndexOfRefraction=1.3,
+        iridescenceThicknessMinimum=100.0,
+        iridescenceThicknessMaximum=400.0,
+        iridescenceThicknessTextureMapping="",
+        iridescenceThicknessTexture=None,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode Group __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.iridescence = iridescence
+        self.iridescenceTextureMapping = iridescenceTextureMapping
+        self.iridescenceTexture = iridescenceTexture
+        self.iridescenceIndexOfRefraction = iridescenceIndexOfRefraction
+        self.iridescenceThicknessMinimum = iridescenceThicknessMinimum
+        self.iridescenceThicknessMaximum = iridescenceThicknessMaximum
+        self.iridescenceThicknessTextureMapping = iridescenceThicknessTextureMapping
+        self.iridescenceThicknessTexture = iridescenceThicknessTexture
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def iridescence(self):
+        """The iridescence - NA -  PhysicalMaterial nodes."""
+        return self.__iridescence
+    @iridescence.setter
+    def iridescence(self, iridescence):
+        if  iridescence is None:
+            iridescence = 0.0 # default
+        assertValidSFFloat(iridescence)
+        assertNonNegative('iridescence', iridescence)
+        self.__iridescence = iridescence
+    @property # getter - - - - - - - - - -
+    def iridescenceTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__iridescenceTextureMapping
+    @iridescenceTextureMapping.setter
+    def iridescenceTextureMapping(self, iridescenceTextureMapping):
+        if  iridescenceTextureMapping is None:
+            iridescenceTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(iridescenceTextureMapping)
+        self.__iridescenceTextureMapping = iridescenceTextureMapping
+    @property # getter - - - - - - - - - -
+    def iridescenceTexture(self):
+        """[X3DSingleTextureNode] - IDK."""
+        return self.__iridescenceTexture
+    @iridescenceTexture.setter
+    def iridescenceTexture(self, iridescenceTexture):
+        if  iridescenceTexture is None:
+            iridescenceTexture = None  # default
+        assertValidSFNode(iridescenceTexture)
+        if not iridescenceTexture is None and not isinstance(iridescenceTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(iridescenceTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__iridescenceTexture = iridescenceTexture
+    @property # getter - - - - - - - - - -
+    def iridescenceIndexOfRefraction(self):
+        """The iridescenceIndexOfRefraction - NA -  PhysicalMaterial nodes."""
+        return self.__iridescenceIndexOfRefraction
+    @iridescenceIndexOfRefraction.setter
+    def iridescenceIndexOfRefraction(self, iridescenceIndexOfRefraction):
+        if  iridescenceIndexOfRefraction is None:
+            iridescenceIndexOfRefraction = 1.3 # default
+        assertValidSFFloat(iridescenceIndexOfRefraction)
+        assertNonNegative('iridescenceIndexOfRefraction', iridescenceIndexOfRefraction)
+        self.__iridescenceIndexOfRefraction = iridescenceIndexOfRefraction
+    @property # getter - - - - - - - - - -
+    def iridescenceThicknessMinimum(self):
+        """The iridescenceThicknessMinimum - NA -  PhysicalMaterial nodes."""
+        return self.__iridescenceThicknessMinimum
+    @iridescenceThicknessMinimum.setter
+    def iridescenceThicknessMinimum(self, iridescenceThicknessMinimum):
+        if  iridescenceThicknessMinimum is None:
+            iridescenceThicknessMinimum = 100.0 # default
+        assertValidSFFloat(iridescenceThicknessMinimum)
+        assertNonNegative('iridescenceThicknessMinimum', iridescenceThicknessMinimum)
+        self.__iridescenceThicknessMinimum = iridescenceThicknessMinimum
+    @property # getter - - - - - - - - - -
+    def iridescenceThicknessMaximum(self):
+        """The iridescenceThicknessMaximum - NA -  PhysicalMaterial nodes."""
+        return self.__iridescenceThicknessMaximum
+    @iridescenceThicknessMaximum.setter
+    def iridescenceThicknessMaximum(self, iridescenceThicknessMaximum):
+        if  iridescenceThicknessMaximum is None:
+            iridescenceThicknessMaximum = 400.0 # default
+        assertValidSFFloat(iridescenceThicknessMaximum)
+        assertNonNegative('iridescenceThicknessMaximum', iridescenceThicknessMaximum)
+        self.__iridescenceThicknessMaximum = iridescenceThicknessMaximum
+
+    @property # getter - - - - - - - - - -
+    def iridescenceThicknessTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__iridescenceThicknessMapping
+    @iridescenceThicknessTextureMapping.setter
+    def iridescenceThicknessTextureMapping(self, iridescenceThicknessTextureMapping):
+        if  iridescenceThicknessTextureMapping is None:
+            iridescenceThicknessTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(iridescenceThicknessTextureMapping)
+        self.__iridescenceThicknessTextureMapping = iridescenceThicknessTextureMapping
+    @property # getter - - - - - - - - - -
+    def iridescenceThicknessTexture(self):
+        """[X3DSingleTextureNode] - IDK."""
+        return self.__iridescenceThickness
+    @iridescenceThicknessTexture.setter
+    def iridescenceThicknessTexture(self, iridescenceThicknessTexture):
+        if  iridescenceThicknessTexture is None:
+            iridescenceThicknessTexture = None  # default
+        assertValidSFNode(iridescenceThicknessTexture)
+        if not iridescenceThicknessTexture is None and not isinstance(iridescenceThicknessTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(iridescenceThicknessTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__iridescenceThicknessTexture = iridescenceThicknessTexture
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.IS or self.metadata
+
+
 class SheenMaterialExtension(_X3DMaterialExtensionNode):
     """
     SheenMaterialExtension only works with X_ITE, hopefully other viewers ignore it.
@@ -59786,6 +59975,369 @@ class VolumeScatterMaterialExtension(_X3DMaterialExtensionNode):
         """ Whether or not this node has any child node or statement """
         return self.IS or self.metadata
 
+class PhysicalMaterial_X3DOM(_X3DOneSidedMaterialNode):
+    """
+    PhysicalMaterial specifies surface rendering properties for associated geometry nodes.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'PhysicalMaterial'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://www.web3d.org/specifications/X3Dv4/ISO-IEC19775-1v4-IS/Part01/components/shape.html#PhysicalMaterial'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://www.web3d.org/x3d/tooltips/X3dTooltips.html#PhysicalMaterial'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('alphaCutoff', 0.5, FieldType.SFFloat, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('alphaMode', "OPAQUE", FieldType.SFString, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('ambientIntensity', 0.2, FieldType.SFFloat, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('baseColorFactor', (1, 1, 1, 1), FieldType.SFColorRGBA, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('baseColorTexture', None, FieldType.SFNode, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('diffuseColor', (0.8, 0.8, 0.8), FieldType.SFColor, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('diffuseFactor', (1, 1, 1, 1), FieldType.SFColorRGBA, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('emissiveColor', (0, 0, 0), FieldType.SFColor, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('emissiveFactor', (0, 0, 0), FieldType.SFColor, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('emissiveTexture', None, FieldType.SFNode, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('model', "roughnessMetallic", FieldType.SFString, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('specularColor', (0, 0, 0), FieldType.SFColor, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('specularFactor', (1, 1, 1), FieldType.SFColor, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('specularGlossinessTexture', None, FieldType.SFNode, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('shininess', 1, FieldType.SFFloat, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('roughnessFactor', 0.2, FieldType.SFFloat, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('metallicFactor', 0.0, FieldType.SFFloat, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('occlusionRoughnessMetallicTexture', None, FieldType.SFNode, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('normalScale', 1, FieldType.SFFloat, AccessType.inputOutput, 'X3DOneSidedMaterialNode'),
+        ('normalTexture', None, FieldType.SFNode, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('transparency', 0, FieldType.SFFloat, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('unlit', False, FieldType.SFBool, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        alphaCutoff=0.5,
+        alphaMode="OPAQUE",
+        ambientIntensity=0.2,
+        baseColorFactor=(1, 1, 1, 1),
+        baseColorTexture=None,
+        diffuseColor=(1, 1, 1),
+        diffuseFactor=(1, 1, 1, 1),
+        emissiveColor=(0, 0, 0),
+        emissiveFactor=(0, 0, 0),
+        emissiveTexture=None,
+        model="roughnessMetallic",
+        specularColor=(0, 0, 0),
+        specularFactor=(1, 1, 1),
+        specularGlossinessTexture=None,
+        shininess=1,
+        roughnessFactor=0.2,
+        metallicFactor=0.0,
+        occlusionRoughnessMetallicTexture=None,
+        normalScale=1,
+        normalTexture=None,
+        transparency=0,
+        unlit=False,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode PhysicalMaterial __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.alphaCutoff = alphaCutoff
+        self.alphaMode   = alphaMode
+        self.ambientIntensity = ambientIntensity
+        self.baseColorFactor = baseColorFactor
+        self.baseColorTexture = baseColorTexture
+        self.diffuseColor = diffuseColor
+        self.diffuseFactor = diffuseFactor
+        self.emissiveColor = emissiveColor
+        self.emissiveFactor = emissiveFactor
+        self.emissiveTexture = emissiveTexture
+        self.model = model
+        self.specularColor = specularColor
+        self.specularFactor = specularFactor
+        self.specularGlossinessTexture = specularGlossinessTexture
+        self.shininess = shininess
+        self.roughnessFactor = roughnessFactor
+        self.metallicFactor = metallicFactor
+        self.occlusionRoughnessMetallicTexture = occlusionRoughnessMetallicTexture
+        self.normalScale = normalScale
+        self.normalTexture = normalTexture
+        self.transparency = transparency
+        self.unlit = unlit
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def alphaCutoff(self):
+        return self.__alphaCutoff
+    @alphaCutoff.setter
+    def alphaCutoff(self, alphaCutoff):
+        if  alphaCutoff is None:
+            alphaCutoff = 0.5  # default
+        assertValidSFFloat(alphaCutoff)
+        assertZeroToOne('alphaCutoff', alphaCutoff)
+        self.__alphaCutoff = alphaCutoff
+    @property # getter - - - - - - - - - -
+    def alphaMode(self):
+        return self.__alphaMode
+    @alphaMode.setter
+    def alphaMode(self, alphaMode):
+        if  alphaMode is None:
+            alphaMode = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(alphaMode)
+        self.__alphaMode = alphaMode
+    @property # getter - - - - - - - - - -
+    def ambientIntensity(self):
+        return self.__ambientIntensity
+    @ambientIntensity.setter
+    def ambientIntensity(self, ambientIntensity):
+        if  ambientIntensity is None:
+            ambientIntensity = 0.2  # default
+        assertValidSFFloat(ambientIntensity)
+        assertZeroToOne('ambientIntensity', ambientIntensity)
+        self.__ambientIntensity = ambientIntensity
+    @property # getter - - - - - - - - - -
+    def baseColorFactor(self):
+        return self.__baseColorFactor
+    @baseColorFactor.setter
+    def baseColorFactor(self, baseColorFactor):
+        if  baseColorFactor is None:
+            baseColorFactor = (1, 1, 1)  # default
+        assertValidSFColor(baseColorFactor)
+        assertZeroToOne('baseColorFactor', baseColorFactor)
+        self.__baseColorFactor = baseColorFactor
+    @property # getter - - - - - - - - - -
+    def baseColorTexture(self):
+        return self.__baseColorTexture
+    @baseColorTexture.setter
+    def baseColorTexture(self, baseColorTexture):
+        if  baseColorTexture is None:
+            baseColorTexture = None  # default
+        assertValidSFNode(baseColorTexture)
+        if not baseColorTexture is None and not isinstance(baseColorTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(baseColorTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__baseColorTexture = baseColorTexture
+    @property # getter - - - - - - - - - -
+    def diffuseColor(self):
+        return self.__diffuseColor
+    @diffuseColor.setter
+    def diffuseColor(self, diffuseColor):
+        if  diffuseColor is None:
+            diffuseColor = (1, 1, 1)  # default
+        assertValidSFColor(diffuseColor)
+        assertZeroToOne('diffuseColor', diffuseColor)
+        self.__diffuseColor = diffuseColor
+    @property # getter - - - - - - - - - -
+    def diffuseColorFactor(self):
+        return self.__diffuseColorFactor
+    @diffuseColorFactor.setter
+    def diffuseColorFactor(self, diffuseColorFactor):
+        if  diffuseColorFactor is None:
+            diffuseColorFactor = (1, 1, 1, 1)  # default
+        assertValidSFColor(diffuseColorFactor)
+        assertZeroToOne('diffuseColorFactor', diffuseColorFactor)
+        self.__diffuseColorFactor = diffuseColorFactor
+    @property # getter - - - - - - - - - -
+    def emissiveColor(self):
+        return self.__emissiveColor
+    @emissiveColor.setter
+    def emissiveColor(self, emissiveColor):
+        if  emissiveColor is None:
+            emissiveColor = (0, 0, 0)  # default
+        assertValidSFColor(emissiveColor)
+        assertZeroToOne('emissiveColor', emissiveColor)
+        self.__emissiveColor = emissiveColor
+    @property # getter - - - - - - - - - -
+    def emissiveColorFactor(self):
+        return self.__emissiveColorFactor
+    @emissiveColorFactor.setter
+    def emissiveColorFactor(self, emissiveColorFactor):
+        if  emissiveColorFactor is None:
+            emissiveColorFactor = (1, 1, 1)  # default
+        assertValidSFColor(emissiveColorFactor)
+        assertZeroToOne('emissiveColorFactor', emissiveColorFactor)
+        self.__emissiveColorFactor = emissiveColorFactor
+    @property # getter - - - - - - - - - -
+    def emissiveColorTexture(self):
+        return self.__emissiveColorTexture
+    @emissiveColorTexture.setter
+    def emissiveColorTexture(self, emissiveColorTexture):
+        if  emissiveColorTexture is None:
+            emissiveColorTexture = None  # default
+        assertValidSFNode(emissiveColorTexture)
+        if not emissiveColorTexture is None and not isinstance(emissiveColorTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(emissiveColorTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__emissiveColorTexture = emissiveColorTexture
+    @property # getter - - - - - - - - - -
+    def model(self):
+        return self.__model
+    @model.setter
+    def model(self, model):
+        if  model is None:
+            model = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(model)
+        self.__model = model
+    @property # getter - - - - - - - - - -
+    def specularColor(self):
+        return self.__specularColor
+    @specularColor.setter
+    def specularColor(self, specularColor):
+        if  specularColor is None:
+            specularColor = (0, 0, 0)  # default
+        assertValidSFColor(specularColor)
+        assertZeroToOne('specularColor', specularColor)
+        self.__specularColor = specularColor
+    @property # getter - - - - - - - - - -
+    def specularColorFactor(self):
+        return self.__specularColorFactor
+    @specularColorFactor.setter
+    def specularColorFactor(self, specularColorFactor):
+        if  specularColorFactor is None:
+            specularColorFactor = (1, 1, 1)  # default
+        assertValidSFColor(specularColorFactor)
+        assertZeroToOne('specularColorFactor', specularColorFactor)
+        self.__specularColorFactor = specularColorFactor
+    @property # getter - - - - - - - - - -
+    def specularGlossinessTexture(self):
+        return self.__specularGlossinessTexture
+    @specularGlossinessTexture.setter
+    def specularGlossinessTexture(self, specularGlossinessTexture):
+        if  specularGlossinessTexture is None:
+            specularGlossinessTexture = None  # default
+        assertValidSFNode(specularGlossinessTexture)
+        if not specularGlossinessTexture is None and not isinstance(specularGlossinessTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(specularGlossinessTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__specularGlossinessTexture = specularGlossinessTexture
+    @property # getter - - - - - - - - - -
+    def shininess(self):
+        return self.__alphaCutoff
+    @shininess.setter
+    def shininess(self, shininess):
+        if  shininess is None:
+            shininess = 1.0  # default
+        assertValidSFFloat(shininess)
+        assertZeroToOne('shininess', shininess)
+        self.__shininess = shininess
+    @property # getter - - - - - - - - - -
+    def roughnessFactor(self):
+        return self.__roughnessFactor
+    @roughnessFactor.setter
+    def roughnessFactor(self, roughnessFactor):
+        if  roughnessFactor is None:
+            roughnessFactor = 0.2  # default
+        assertValidSFFloat(roughnessFactor)
+        assertZeroToOne('roughnessFactor', roughnessFactor)
+        self.__roughnessFactor = roughnessFactor
+    @property # getter - - - - - - - - - -
+    def metallicFactor(self):
+        return self.__metallicFactor
+    @metallicFactor.setter
+    def metallicFactor(self, metallicFactor):
+        if  metallicFactor is None:
+            metallicFactor = 0.0  # default
+        assertValidSFFloat(metallicFactor)
+        assertZeroToOne('metallicFactor', metallicFactor)
+        self.__metallicFactor = metallicFactor
+    @property # getter - - - - - - - - - -
+    def occlusionRoughnessMetallicTexture(self):
+        return self.__occlusionRoughnessMetallicTexture
+    @occlusionRoughnessMetallicTexture.setter
+    def occlusionRoughnessMetallicTexture(self, occlusionRoughnessMetallicTexture):
+        if  occlusionRoughnessMetallicTexture is None:
+            occlusionRoughnessMetallicTexture = None  # default
+        assertValidSFNode(occlusionRoughnessMetallicTexture)
+        if not occlusionRoughnessMetallicTexture is None and not isinstance(occlusionRoughnessMetallicTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(occlusionRoughnessMetallicTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__occlusionRoughnessMetallicTexture = occlusionRoughnessMetallicTexture
+    @property # getter - - - - - - - - - -
+    def normalScale(self):
+        return self.__normalScale
+    @normalScale.setter
+    def normalScale(self, normalScale):
+        if  normalScale is None:
+            normalScale = 1  # default
+        assertValidSFFloat(normalScale)
+        assertNonNegative('normalScale', normalScale)
+        self.__normalScale = normalScale
+    @property # getter - - - - - - - - - -
+    def normalTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__normalTextureMapping
+    @normalTextureMapping.setter
+    def normalTextureMapping(self, normalTextureMapping):
+        if  normalTextureMapping is None:
+            normalTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(normalTextureMapping)
+        self.__normalTextureMapping = normalTextureMapping
+    @property # getter - - - - - - - - - -
+    def transparency(self):
+        """[0,1] how "clear" an object is: 1."""
+        return self.__transparency
+    @transparency.setter
+    def transparency(self, transparency):
+        if  transparency is None:
+            transparency = 0  # default
+        assertValidSFFloat(transparency)
+        assertZeroToOne('transparency', transparency)
+        self.__transparency = transparency
+    @property # getter - - - - - - - - - -
+    def unlit(self):
+        return self.__unlit
+    @unlit.setter
+    def unlit(self, unlit):
+        if  unlit is None:
+            unlit = False  # default
+        assertValidSFBool(unlit)
+        self.__unlit = unlit
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.baseTexture or self.emissiveTexture or self.IS or self.metadata or self.metallicRoughnessTexture or self.normalTexture or self.occlusionTexture
+    # output function - - - - - - - - - -
+
 
 class X3DError(Exception):
     """ Base class for all exceptions raised by this module.
@@ -59814,292 +60366,306 @@ print("x3d.py package 4.0.64.5 loaded, have fun with X3D Graphics!", flush=True)
 def instantiateNodeFromString(x3dType):
     x3dNodeMapping = {
         ####################################### A
-        'AcousticProperties':AcousticProperties,
-        'Analyser':Analyser,
-        'Anchor':Anchor,
-        'AnisotropyMaterialExtension':AnisotropyMaterialExtension, # X_ITE - glTF extension
-        'Appearance':Appearance,
-        'Arc2D':Arc2D,
-        'ArcClose2D':ArcClose2D,
-        'AudioClip':AudioClip,
-        'AudioDestination':AudioDestination,
+        'AcousticProperties':(AcousticProperties(), {'Core':1, 'Lighting':4, 'Grouping':1, 'Rendering':1, 'Shape':4}),
+        'Analyser':(Analyser(), {'Core':1, 'Sound':2, 'Time':1}),
+        'Anchor':(Anchor(),{'Core':1, 'Grouping':1, 'Networking':2}),
+        'AnisotropyMaterialExtension':(AnisotropyMaterialExtension(), {'X_ITE':1}), # X_ITE - glTF extension
+        'Appearance':(Appearance(), {'Core':1, 'Lighting':4, 'Grouping':1, 'Rendering':1, 'Texturing':1, 'Shape':4}),
+        'Arc2D':(Arc2D(), {'Core':1, 'Geometry2D':2, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'ArcClose2D':(ArcClose2D(), {'Core':1, 'Geometry2D':2, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'AudioClip':(AudioClip(), {'Core':1, 'Sound':1, 'Time':1}),
+        'AudioDestination':(AudioDestination(), {'Core':1, 'Sound':2, 'Time':1}),
         ####################################### B
-        'Background':Background,
-        'BallJoint':BallJoint,
-        'Billboard':Billboard,
-        'BiquadFilter':BiquadFilter,
-        'BlendedVolumeStyle':BlendedVolumeStyle,
-        'BooleanFilter':BooleanFilter,
-        'BooleanSequencer':BooleanSequencer,
-        'BooleanToggle':BooleanToggle,
-        'BooleanTrigger':BooleanTrigger,
-        'BoundaryEnhancementVolumeStyle':BoundaryEnhancementVolumeStyle,
-        'BoundedPhysicsModel':BoundedPhysicsModel,
-        'Box':Box,
-        'BufferAudioSource':BufferAudioSource,
+        'Background':(Background(), {'Core':1, 'Time':1, 'Grouping':1, 'EnvironmentalEffects':2}),
+        'BallJoint':(BallJoint(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Shape':1, 'RigidBodyPhysics':2}),
+        'Billboard':(Billboard(), {'Core':1, 'EnvironmentalSensor':2, 'Grouping':1, 'Navigation':2, 'Shape':1}),
+        'BiquadFilter':(BiquadFilter(), {'Core':1, 'Sound':2, 'Time':1}),
+        'BlendedVolumeStyle':(BlendedVolumeStyle(), {'Core':1, 'Grouping':1, 'VolumeRendering':3, 'Rendering':1, 'Shape':1}),
+        'BooleanFilter':(BooleanFilter(), {'Core':1, 'Grouping':1, 'EventUtilities':1}),
+        'BooleanSequencer':(BooleanSequencer(), {'Core':1, 'Grouping':1, 'EventUtilities':1}),
+        'BooleanToggle':(BooleanToggle(), {'Core':1, 'Grouping':1, 'EventUtilities':1}),
+        'BooleanTrigger':(BooleanTrigger(), {'Core':1, 'Grouping':1, 'EventUtilities':1}),
+        'BoundaryEnhancementVolumeStyle':(BoundaryEnhancementVolumeStyle(), {'Core':1, 'Grouping':1, 'VolumeRendering':2, 'Rendering':1, 'Shape':1}),
+        'BoundedPhysicsModel':(BoundedPhysicsModel(), {'Core':1, 'Grouping':1, 'ParticleSystems':2, 'Rendering':1, 'Shape':1, 'Texturing':1}),
+        'Box':(Box(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'BufferAudioSource':(BufferAudioSource(), {'Core':1, 'Sound':2, 'Time':1}),
         ####################################### C
-        'CADAssembly':CADAssembly,
-        'CADFace':CADFace,
-        'CADLayer':CADLayer,
-        'CADPart':CADPart,
-        'CartoonVolumeStyle':CartoonVolumeStyle,
-        'CGEIndexedFaceSet':CGEIndexedFaceSet,# Castle Game Engine - character skeleton custom node
-        'CGESkin':CGESkin, #                    Castle Game Engine - character skeleton custom node
-        'ChannelMerger':ChannelMerger,
-        'ChannelSelector':ChannelSelector,
-        'ChannelSplitter':ChannelSplitter,
-        'Circle2D':Circle2D,
-        'ClipPlane':ClipPlane,
-        'CollidableOffset':CollidableOffset,
-        'CollidableShape':CollidableShape,
-        'Collision':Collision,
-        'CollisionCollection':CollisionCollection,
-        'CollisionSensor':CollisionSensor,
-        'CollisionSpace':CollisionSpace,
-        'Color':Color,
-        'ColorChaser':ColorChaser,
-        'ColorDamper':ColorDamper,
-        'ColorInterpolator':ColorInterpolator,
-        'ColorRGBA':ColorRGBA,
-        'ComposedCubeMapTexture':ComposedCubeMapTexture,
-        'ComposedShader':ComposedShader,
-        'ComposedTexture3D':ComposedTexture3D,
-        'ComposedVolumeStyle':ComposedVolumeStyle,
-        'Cone':Cone,
-        'ConeEmitter':ConeEmitter,
-        'Contact':Contact,
-        'Contour2D':Contour2D,
-        'ContourPolyline2D':ContourPolyline2D,
-        'Convolver':Convolver,
-        'Coordinate':Coordinate,
-        'CoordinateChaser':CoordinateChaser,
-        'CoordinateDamper':CoordinateDamper,
-        'CoordinateDouble':CoordinateDouble,
-        'CoordinateInterpolator':CoordinateInterpolator,
-        'CoordinateInterpolator2D':CoordinateInterpolator2D,
-        'Cylinder':Cylinder,
-        'CylinderSensor':CylinderSensor,
+        'CADAssembly':(CADAssembly(), {'CADGeometry':2, 'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'CADFace':(CADFace(), {'CADGeometry':2, 'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'CADLayer':(CADLayer(), {'CADGeometry':2, 'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'CADPart':(CADPart(), {'CADGeometry':2, 'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'CartoonVolumeStyle':(CartoonVolumeStyle(), {'Core':1, 'Grouping':1, 'VolumeRendering':3, 'Rendering':1, 'Shape':1}),
+        'CGEIndexedFaceSet':(CGEIndexedFaceSet(), {'CastleEngine':1, 'Core':1, 'Geometry3D':3, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing':1}), # Castle Game Engine - character skeleton custom node
+        'CGESkin':(CGESkin(),                     {'CastleEngine':1, 'Core':1, 'Geometry3D':3, 'Grouping':1, 'HAnim':1, 'Navigation':2, 'Rendering':1, 'Shape':1, 'Texturing':1}), # Castle Game Engine - character skeleton custom node
+        'ChannelMerger':(ChannelMerger(), {'Core':1, 'Sound':2, 'Time':1}),
+        'ChannelSelector':(ChannelSelector(), {'Core':1, 'Sound':2, 'Time':1}),
+        'ChannelSplitter':(ChannelSplitter(), {'Core':1, 'Sound':2, 'Time':1}),
+        'Circle2D':(Circle2D(), {'Core':1, 'Geometry2D':2, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'ClearcoatMaterialExtension':(ClearcoatMaterialExtension(), {'X_ITE':1}), # X_ITE - glTF extension
+        'ClipPlane':(ClipPlane(), {'Core':1, 'Grouping':1, 'Rendering':4}),
+        'CollidableOffset':(CollidableOffset(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Shape':1, 'RigidBodyPhysics':1}),
+        'CollidableShape':(CollidableShape(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Shape':1, 'RigidBodyPhysics':1}),
+        'Collision':(Collision(), {'Core':1, 'EnvironmentalSensor':2, 'Grouping':1, 'Navigation':2, 'Shape':1}),
+        'CollisionCollection':(CollisionCollection(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Shape':1, 'RigidBodyPhysics':1}),
+        'CollisionSensor':(CollisionSensor(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Shape':1, 'RigidBodyPhysics':2}),
+        'CollisionSpace':(CollisionSpace(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Shape':1, 'RigidBodyPhysics':1}),
+        'Color':(Color(), {'Core':1, 'Grouping':1, 'Rendering':1}),
+        'ColorChaser':(ColorChaser(), {'Core':1, 'Grouping':1, 'Followers':1, 'Rendering':1, 'Shape':1}),
+        'ColorDamper':(ColorDamper(), {'Core':1, 'Grouping':1, 'Followers':1, 'Rendering':1, 'Shape':1}),
+        'ColorInterpolator':(ColorInterpolator(), {'Core':1, 'Grouping':1, 'Shape':1, 'Interpolation':2}),
+        'ColorRGBA':(ColorRGBA(), {'Core':1, 'Grouping':1, 'Rendering':3}),
+        'ComposedCubeMapTexture':(ComposedCubeMapTexture(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'CubeMapTexturing':1, 'Texturing':1}),
+        'ComposedShader':(ComposedShader(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shaders':1, 'Shape':1}),
+        'ComposedTexture3D':(ComposedTexture3D(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing3D':1, 'Texturing':1}),
+        'ComposedVolumeStyle':(ComposedVolumeStyle(), {'Core':1, 'Grouping':1, 'VolumeRendering':3, 'Rendering':1, 'Shape':1}),
+        'Cone':(Cone(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'ConeEmitter':(ConeEmitter(), {'Core':1, 'Grouping':1, 'ParticleSystems':1, 'Rendering':1, 'Shape':1}),
+        'Contact':(Contact(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Shape':1, 'RigidBodyPhysics':2}),
+        'Contour2D':(Contour2D(), {'Core':1, 'Grouping':1, 'Interpolation':1, 'NURBS':4, 'Shape':1, 'Texturing':1}),
+        'ContourPolyline2D':(ContourPolyline2D(), {'Core':1, 'Grouping':1, 'Interpolation':1, 'NURBS':3, 'Shape':1, 'Texturing':1}),
+        'Convolver':(Convolver(), {'Core':1, 'Sound':2, 'Time':1}),
+        'Coordinate':(Coordinate(), {'Core':1, 'Grouping':1, 'Rendering':1}),
+        'CoordinateChaser':(CoordinateChaser(), {'Core':1, 'Grouping':1, 'Followers':1, 'Rendering':1, 'Shape':1}),
+        'CoordinateDamper':(CoordinateDamper(), {'Core':1, 'Grouping':1, 'Followers':1, 'Rendering':1, 'Shape':1}),
+        'CoordinateDouble':(CoordinateDouble(), {'Core':1, 'Grouping':1, 'Rendering':1}),
+        'CoordinateInterpolator':(CoordinateInterpolator(), {'Core':1, 'Grouping':1, 'Shape':1, 'Interpolation':1}),
+        'CoordinateInterpolator2D':(CoordinateInterpolator2D(), {'Core':1, 'Grouping':1, 'Shape':1, 'Interpolation':3}),
+        'Cylinder':(Cylinder(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'CylinderSensor':(CylinderSensor(), {'Core':1, 'Grouping':1, 'Shape':1, 'PointingDeviceSensor':1}),
         ####################################### D
-        'Delay':Delay,
-        'DirectionalLight':DirectionalLight,
-        'DISEntityManager':DISEntityManager,
-        'DISEntityTypeMapping':DISEntityTypeMapping,
-        'Disk2D':Disk2D,
-        'DoubleAxisHingeJoint':DoubleAxisHingeJoint,
-        'DynamicsCompressor':DynamicsCompressor,
+        'Delay':(Delay(), {'Core':1, 'Sound':2, 'Time':1}),
+        'DiffuseTransmissionMaterialExtension':(DiffuseTransmissionMaterialExtension(), {'X_ITE':1}), # X_ITE - glTF extension
+        'DirectionalLight':(DirectionalLight(), {'Core':1, 'Lighting':2, 'Shape':2}),
+        'DISEntityManager':(DISEntityManager(), {'Core':1, 'DIS':2, 'Geometry3D':1, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':3, 'PointingDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
+        'DISEntityTypeMapping':(DISEntityTypeMapping(), {'Core':1, 'DIS':2, 'Geometry3D':1, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':3, 'PointingDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
+        'Disk2D':(Disk2D(), {'Core':1, 'Geometry2D':2, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'DispersionMaterialExtension':(DispersionMaterialExtension(), {'X_ITE':1}), # X_ITE - glTF extension
+        'DoubleAxisHingeJoint':(DoubleAxisHingeJoint(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Shape':1, 'RigidBodyPhysics':2}),
+        'DynamicsCompressor':(DynamicsCompressor(), {'Core':1, 'Sound':2, 'Time':1}),
         ####################################### E
-        'EaseInEaseOut':EaseInEaseOut,
-        'EdgeEnhancementVolumeStyle':EdgeEnhancementVolumeStyle,
-        'ElevationGrid':ElevationGrid,
-        'EmissiveStrengthMaterialExtension':EmissiveStrengthMaterialExtension, # X_ITE - glTF extension
-        'EnvironmentLight':EnvironmentLight, # X3D 4.1 specification
-        'EspduTransform':EspduTransform,
-        'ExplosionEmitter':ExplosionEmitter,
-        'Extrusion':Extrusion,
+        'EaseInEaseOut':(EaseInEaseOut(), {'Core':1, 'Grouping':1, 'Shape':1, 'Interpolation':4}),
+        'EdgeEnhancementVolumeStyle':(EdgeEnhancementVolumeStyle(), {'Core':1, 'Grouping':1, 'VolumeRendering':2, 'Rendering':1, 'Shape':1}),
+        'ElevationGrid':(ElevationGrid(), {'Core':1, 'Geometry3D':4, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'EmissiveStrengthMaterialExtension':(EmissiveStrengthMaterialExtension(), {'X_ITE':1}), # X_ITE - glTF extension
+        'EnvironmentLight':(EnvironmentLight(), {'Core':1, 'Lighting':3, 'Shape':2}), # X3D 4.1 specification
+        'EspduTransform':(EspduTransform(), {'Core':1, 'DIS':1, 'Geometry3D':1, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':3, 'PointingDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
+        'ExplosionEmitter':(ExplosionEmitter(), {'Core':1, 'Grouping':1, 'ParticleSystems':1, 'Rendering':1, 'Shape':1}),
+        'Extrusion':(Extrusion(), {'Core':1, 'Geometry3D':4, 'Grouping':1, 'Rendering':1, 'Shape':1}),
         ####################################### F
-        'FillProperties':FillProperties,
-        'FloatVertexAttribute':FloatVertexAttribute,
-        'Fog':Fog,
-        'FogCoordinate':FogCoordinate,
-        'FontStyle':FontStyle,
-        'ForcePhysicsModel':ForcePhysicsModel,
+        'FillProperties':(FillProperties(), {'Core':1, 'Lighting':4, 'Rendering':1, 'Texturing':1, 'Shape':3}),
+        'FloatVertexAttribute':(FloatVertexAttribute(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shaders':1, 'Shape':1}),
+        'Fog':(Fog(), {'Core':1, 'Time':1, 'Grouping':1, 'EnvironmentalEffects':2}),
+        'FogCoordinate':(FogCoordinate(), {'Core':1, 'Time':1, 'Grouping':1, 'EnvironmentalEffects':3}),
+        'FontStyle':(FontStyle(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Text':1}),
+        'ForcePhysicsModel':(ForcePhysicsModel(), {'Core':1, 'Grouping':1, 'ParticleSystems':1, 'Rendering':1, 'Shape':1}),
         ####################################### G
-        'Gain':Gain,
-        'GeneratedCubeMapTexture':GeneratedCubeMapTexture,
-        'GeoCoordinate':GeoCoordinate,
-        'GeoElevationGrid':GeoElevationGrid,
-        'GeoLocation':GeoLocation,
-        'GeoLOD':GeoLOD,
-        'GeoMetadata':GeoMetadata,
-        'GeoOrigin':GeoOrigin,
-        'GeoPositionInterpolator':GeoPositionInterpolator,
-        'GeoProximitySensor':GeoProximitySensor,
-        'GeoTouchSensor':GeoTouchSensor,
-        'GeoTransform':GeoTransform,
-        'GeoViewpoint':GeoViewpoint,
-        'Group':Group,
+        'Gain':(Gain(), {'Core':1, 'Sound':2, 'Time':1}),
+        'GeneratedCubeMapTexture':(GeneratedCubeMapTexture(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'CubeMapTexturing':3, 'Texturing':1}),
+        'GeoCoordinate':(GeoCoordinate(), {'Core':1, 'Geometry3D':1, 'Geospatial':1, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':1, 'PointDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
+        'GeoElevationGrid':(GeoElevationGrid(), {'Core':1, 'Geometry3D':1, 'Geospatial':1, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':1, 'PointDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
+        'GeoLocation':(GeoLocation(), {'Core':1, 'Geometry3D':1, 'Geospatial':1, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':1, 'PointDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
+        'GeoLOD':(GeoLOD(), {'Core':1, 'Geometry3D':1, 'Geospatial':1, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':1, 'PointDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
+        'GeoMetadata':(GeoMetadata(), {'Core':1, 'Geometry3D':1, 'Geospatial':1, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':1, 'PointDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
+        'GeoOrigin':(GeoOrigin(), {'Core':1, 'Geometry3D':1, 'Geospatial':1, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':1, 'PointDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
+        'GeoPositionInterpolator':(GeoPositionInterpolator(), {'Core':1, 'Geometry3D':1, 'Geospatial':1, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':1, 'PointDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
+        'GeoProximitySensor':(GeoProximitySensor(), {'Core':1, 'Geometry3D':1, 'Geospatial':2, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':1, 'EnvironmentalDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
+        'GeoTouchSensor':(GeoTouchSensor(), {'Core':1, 'Geometry3D':1, 'Geospatial':1, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':1, 'PointDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
+        'GeoTransform':(GeoTransform(), {'Core':1, 'Geometry3D':1, 'Geospatial':2, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':1, 'EnvironmentalDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
+        'GeoViewpoint':(GeoViewpoint(), {'Core':1, 'Geometry3D':1, 'Geospatial':1, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':1, 'PointDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
+        'Group':(Group(), {'Core':1,'Grouping':1}),
         ####################################### H
-        'HAnimDisplacer':HAnimDisplacer,
-        'HAnimHumanoid':HAnimHumanoid,
-        'HAnimJoint':HAnimJoint,
-        'HAnimMotion':HAnimMotion,
-        'HAnimSegment':HAnimSegment,
-        'HAnimSite':HAnimSite,
+        'HAnimDisplacer':(HAnimDisplacer(), {'Core':1, 'Geometry3D':2, 'Grouping':1, 'Shape':1, 'Texturing':1, 'Navigation':2, 'HAnim':3}),
+        'HAnimHumanoid':(HAnimHumanoid(), {'Core':1, 'Geometry3D':2, 'Grouping':1, 'Shape':1, 'Texturing':1, 'Navigation':2, 'HAnim':3}),
+        'HAnimJoint':(HAnimJoint(), {'Core':1, 'Geometry3D':2, 'Grouping':1, 'Shape':1, 'Texturing':1, 'Navigation':2, 'HAnim':3}),
+        'HAnimMotion':(HAnimMotion(), {'Core':1, 'Geometry3D':2, 'Grouping':1, 'Shape':1, 'Texturing':1, 'Navigation':2, 'HAnim':3}),
+        'HAnimSegment':(HAnimSegment(), {'Core':1, 'Geometry3D':2, 'Grouping':1, 'Shape':1, 'Texturing':1, 'Navigation':2, 'HAnim':3}),
+        'HAnimSite':(HAnimSite(), {'Core':1, 'Geometry3D':2, 'Grouping':1, 'Shape':1, 'Texturing':1, 'Navigation':2, 'HAnim':3}),
         ####################################### I
-        'ImageCubeMapTexture':ImageCubeMapTexture,
-        'ImageTexture':ImageTexture,
-        'ImageTexture3D':ImageTexture3D,
-        'IndexedFaceSet':IndexedFaceSet,
-        'IndexedLineSet':IndexedLineSet,
-        'IndexedQuadSet':IndexedQuadSet,
-        'IndexedTriangleFanSet':IndexedTriangleFanSet,
-        'IndexedTriangleSet':IndexedTriangleSet,
-        'IndexedTriangleStripSet':IndexedTriangleStripSet,
-        'Inline':Inline,
-        'IntegerSequencer':IntegerSequencer,
-        'IntegerTrigger':IntegerTrigger,
-        'IORMaterialExtension':IORMaterialExtension, # X_ITE - glTF extension
-        'IsoSurfaceVolumeData':IsoSurfaceVolumeData,
+        'ImageCubeMapTexture':(ImageCubeMapTexture(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'CubeMapTexturing':2, 'Texturing':1}),
+        'ImageTexture':(ImageTexture(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing':1}),
+        'ImageTexture3D':(ImageTexture3D(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing3D':2, 'Texturing':1}),
+        'IndexedFaceSet':(IndexedFaceSet(), {'Core':1, 'Geometry3D':3, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'IndexedLineSet':(IndexedLineSet(), {'Core':1, 'Grouping':1, 'Rendering':2}),
+        'IndexedQuadSet':(IndexedQuadSet(), {'CADGeometry':1, 'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'IndexedTriangleFanSet':(IndexedTriangleFanSet(), {'Core':1, 'Grouping':1, 'Rendering':3}),
+        'IndexedTriangleSet':(IndexedTriangleSet(), {'Core':1, 'Grouping':1, 'Rendering':3}),
+        'IndexedTriangleStripSet':(IndexedTriangleStripSet(), {'Core':1, 'Grouping':1, 'Rendering':3}),
+        'Inline':(Inline,{'Core':1, 'Grouping':1, 'Shape':2, 'Lighting':3, 'Networking':4}),
+        'IntegerSequencer':(IntegerSequencer(), {'Core':1, 'Grouping':1, 'EventUtilities':1}),
+        'IntegerTrigger':(IntegerTrigger(), {'Core':1, 'Grouping':1, 'EventUtilities':1}),
+        'IORMaterialExtension':(IORMaterialExtension(), {'X_ITE':1}), # X_ITE - glTF extension
+        'IridescenceMaterialExtension':(IridescenceMaterialExtension(), {'X_ITE':1}), # X_ITE - glTF extension
+        'IsoSurfaceVolumeData':(IsoSurfaceVolumeData(), {'Core':1, 'Grouping':1, 'VolumeRendering':2, 'Rendering':1, 'Shape':1}),
         ####################################### K
-        'KeySensor':KeySensor,
+        'KeySensor':(KeySensor(), {'Core':1, 'KeyDeviceSensor':1}),
         ####################################### L
-        'Layer':Layer,
-        'LayerSet':LayerSet,
-        'Layout':Layout,
-        'LayoutGroup':LayoutGroup,
-        'LayoutLayer':LayoutLayer,
-        'LinePickSensor':LinePickSensor,
-        'LineProperties':LineProperties,
-        'LineSet':LineSet,
-        'ListenerPointSource':ListenerPointSource,
-        'LoadSensor':LoadSensor,
-        'LocalFog':LocalFog,
-        'LOD':LOD,
+        'Layer':(Layer(), {'Core':1, 'Grouping':1, 'Layering':1}),
+        'LayerSet':(LayerSet(), {'Core':1, 'Grouping':1, 'Layering':1}),
+        'Layout':(Layout(), {'Core':1, 'Grouping':1, 'Layering':1, 'Layout':2}),
+        'LayoutGroup':(LayoutGroup(), {'Core':1, 'Grouping':1, 'Layering':1, 'Layout':1}),
+        'LayoutLayer':(LayoutLayer(), {'Core':1, 'Grouping':1, 'Layering':1, 'Layout':1}),
+        'LinePickSensor':(LinePickSensor(), {'Core':1, 'Grouping':1, 'Picking':1, 'Rendering':1, 'Shape':1}),
+        'LineProperties':(LineProperties(), {'Core':1, 'Lighting':4, 'Rendering':1, 'Texturing':1, 'Shape':2}),
+        'LineSet':(LineSet(), {'Core':1, 'Grouping':1, 'Rendering':2}),
+        'ListenerPointSource':(ListenerPointSource(), {'Core':1, 'Sound':3, 'Time':1}),
+        'LoadSensor':(LoadSensor,{'Core':1, 'Grouping':1, 'Networking':3}),
+        'LocalFog':(LocalFog(), {'Core':1, 'Time':1, 'Grouping':1, 'EnvironmentalEffects':3}),
+        'LOD':(LOD(), {'Core':1, 'EnvironmentalSensor':2, 'Grouping':1, 'Navigation':2, 'Shape':1}),
         ####################################### M
-        'Material':Material,
-        'Matrix3VertexAttribute':Matrix3VertexAttribute,
-        'Matrix4VertexAttribute':Matrix4VertexAttribute,
-        'MetadataBoolean':MetadataBoolean,
-        'MetadataDouble':MetadataDouble,
-        'MetadataFloat':MetadataFloat,
-        'MetadataInteger':MetadataInteger,
-        'MetadataSet':MetadataSet,
-        'MetadataString':MetadataString,
-        'MicrophoneSource':MicrophoneSource,
-        'MotorJoint':MotorJoint,
-        'MovieTexture':MovieTexture,
-        'MultiTexture':MultiTexture,
-        'MultiTextureCoordinate':MultiTextureCoordinate,
-        'MultiTextureTransform':MultiTextureTransform,
+        'Material':(Material(), {'Core':1, 'Lighting':4, 'Rendering':1, 'Texturing':1, 'Shape':2}),
+        'Matrix3VertexAttribute':(Matrix3VertexAttribute(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shaders':1, 'Shape':1}),
+        'Matrix4VertexAttribute':(Matrix4VertexAttribute(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shaders':1, 'Shape':1}),
+        'MetadataBoolean':(MetadataBoolean(), {'Core':1}),
+        'MetadataDouble':(MetadataDouble(), {'Core':1}),
+        'MetadataFloat':(MetadataFloat(), {'Core':1}),
+        'MetadataInteger':(MetadataInteger(), {'Core':1}),
+        'MetadataSet':(MetadataSet(), {'Core':1}),
+        'MetadataString':(MetadataString(), {'Core':1}),
+        'MicrophoneSource':(MicrophoneSource(), {'Core':1, 'Sound':2, 'Time':1}),
+        'MotorJoint':(MotorJoint(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Shape':1, 'RigidBodyPhysics':2}),
+        'MovieTexture':(MovieTexture(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing':4}),
+        'MultiTexture':(MultiTexture(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing':3}),
+        'MultiTextureCoordinate':(MultiTextureCoordinate(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing':2}),
+        'MultiTextureTransform':(MultiTextureTransform(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing':2}),
         ####################################### N
-        'NavigationInfo':NavigationInfo,
-        'Normal':Normal,
-        'NormalInterpolator':NormalInterpolator,
-        'NurbsCurve':NurbsCurve,
-        'NurbsCurve2D':NurbsCurve2D,
-        'NurbsOrientationInterpolator':NurbsOrientationInterpolator,
-        'NurbsPatchSurface':NurbsPatchSurface,
-        'NurbsPositionInterpolator':NurbsPositionInterpolator,
-        'NurbsSet':NurbsSet,
-        'NurbsSurfaceInterpolator':NurbsSurfaceInterpolator,
-        'NurbsSweptSurface':NurbsSweptSurface,
-        'NurbsSwungSurface':NurbsSwungSurface,
-        'NurbsTextureCoordinate':NurbsTextureCoordinate,
-        'NurbsTrimmedSurface':NurbsTrimmedSurface,
+        'NavigationInfo':(NavigationInfo(), {'Core':1, 'EnvironmentalSensor':2, 'Grouping':1, 'Navigation':2, 'Shape':1}),
+        'Normal':(Normal(), {'Core':1, 'Grouping':1, 'Rendering':2}),
+        'NormalInterpolator':(NormalInterpolator(), {'Core':1, 'Grouping':1, 'Shape':1, 'Interpolation':2}),
+        'NurbsCurve':(NurbsCurve(), {'Core':1, 'Grouping':1, 'Interpolation':1, 'NURBS':1, 'Rendering':1, 'Shape':1, 'Texturing':1}),
+        'NurbsCurve2D':(NurbsCurve2D(), {'Core':1, 'Grouping':1, 'Interpolation':1, 'NURBS':3, 'Shape':1, 'Texturing':1}),
+        'NurbsOrientationInterpolator':(NurbsOrientationInterpolator(), {'Core':1, 'Grouping':1, 'Interpolation':1, 'NURBS':1, 'Rendering':1, 'Shape':1, 'Texturing':1}),
+        'NurbsPatchSurface':(NurbsPatchSurface(), {'Core':1, 'Grouping':1, 'Interpolation':1, 'NURBS':1, 'Rendering':1, 'Shape':1, 'Texturing':1}),
+        'NurbsPositionInterpolator':(NurbsPositionInterpolator(), {'Core':1, 'Grouping':1, 'Interpolation':1, 'NURBS':1, 'Rendering':1, 'Shape':1, 'Texturing':1}),
+        'NurbsSet':(NurbsSet(), {'Core':1, 'Grouping':1, 'Interpolation':1, 'NURBS':2, 'Shape':1, 'Texturing':1}),
+        'NurbsSurfaceInterpolator':(NurbsSurfaceInterpolator(), {'Core':1, 'Grouping':1, 'Interpolation':1, 'NURBS':1, 'Rendering':1, 'Shape':1, 'Texturing':1}),
+        'NurbsSweptSurface':(NurbsSweptSurface(), {'Core':1, 'Grouping':1, 'Interpolation':1, 'NURBS':3, 'Shape':1, 'Texturing':1}),
+        'NurbsSwungSurface':(NurbsSwungSurface(), {'Core':1, 'Grouping':1, 'Interpolation':1, 'NURBS':3, 'Shape':1, 'Texturing':1}),
+        'NurbsTextureCoordinate':(NurbsTextureCoordinate(), {'Core':1, 'Grouping':1, 'Interpolation':1, 'NURBS':1, 'Rendering':1, 'Shape':1, 'Texturing':1}),
+        'NurbsTrimmedSurface':(NurbsTrimmedSurface(), {'Core':1, 'Grouping':1, 'Interpolation':1, 'NURBS':4, 'Shape':1, 'Texturing':1}),
         ####################################### O
-        'OpacityMapVolumeStyle':OpacityMapVolumeStyle,
-        'OrientationChaser':OrientationChaser,
-        'OrientationDamper':OrientationDamper,
-        'OrientationInterpolator':OrientationInterpolator,
-        'OrthoViewpoint':OrthoViewpoint,
-        'OscillatorSource':OscillatorSource,
+        'OpacityMapVolumeStyle':(OpacityMapVolumeStyle(), {'Core':1, 'Grouping':1, 'VolumeRendering':2, 'Rendering':1, 'Shape':1}),
+        'OrientationChaser':(OrientationChaser(), {'Core':1, 'Grouping':1, 'Followers':1, 'Rendering':1, 'Shape':1}),
+        'OrientationDamper':(OrientationDamper(), {'Core':1, 'Grouping':1, 'Followers':1, 'Rendering':1, 'Shape':1}),
+        'OrientationInterpolator':(OrientationInterpolator(), {'Core':1, 'Grouping':1, 'Shape':1, 'Interpolation':1}),
+        'OrthoViewpoint':(OrthoViewpoint(), {'Core':1, 'EnvironmentalSensor':2, 'Grouping':1, 'Navigation':3, 'Shape':1}),
+        'OscillatorSource':(OscillatorSource(), {'Core':1, 'Sound':2, 'Time':1}),
         ####################################### P
-        'PackagedShader':PackagedShader,
-        'ParticleSystem':ParticleSystem,
-        'PeriodicWave':PeriodicWave,
-        'PhysicalMaterial':PhysicalMaterial,
-        'PickableGroup':PickableGroup,
-        'PixelTexture':PixelTexture,
-        'PixelTexture3D':PixelTexture3D,
-        'PlaneSensor':PlaneSensor,
-        'PointEmitter':PointEmitter,
-        'PointLight':PointLight,
-        'PointPickSensor':PointPickSensor,
-        'PointProperties':PointProperties,
-        'PointSet':PointSet,
-        'Polyline2D':Polyline2D,
-        'PolylineEmitter':PolylineEmitter,
-        'Polypoint2D':Polypoint2D,
-        'PositionChaser':PositionChaser,
-        'PositionChaser2D':PositionChaser2D,
-        'PositionDamper':PositionDamper,
-        'PositionDamper2D':PositionDamper2D,
-        'PositionInterpolator':PositionInterpolator,
-        'PositionInterpolator2D':PositionInterpolator2D,
-        'PrimitivePickSensor':PrimitivePickSensor,
-        'ProgramShader':ProgramShader,
-        'ProjectionVolumeStyle':ProjectionVolumeStyle,
-        'ProximitySensor':ProximitySensor,
+        'PackagedShader':(PackagedShader(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shaders':1, 'Shape':1}),
+        'ParticleSystem':(ParticleSystem(), {'Core':1, 'Grouping':1, 'ParticleSystems':3, 'Rendering':1, 'Shape':1}),
+        'PeriodicWave':(PeriodicWave(), {'Core':1, 'Sound':2, 'Time':1}),
+        'PhysicalMaterial':(PhysicalMaterial(), {'Core':1, 'Lighting':4, 'Rendering':1, 'Texturing':1, 'Shape':2}),
+        'PhysicalMaterialExt':(PhysicalMaterialExt(), {'Core':1, 'Lighting':4, 'Rendering':1, 'Texturing':1, 'Shape':2, 'X_ITE':1}), # Required for X_ITE - glTF extension export.
+        'PhysicalMaterial_X3DOM':(PhysicalMaterial_X3DOM(), {'Core':1, 'Lighting':4, 'Rendering':1, 'Texturing':1, 'Shape':2}), # Required for basic X3DOM Texture Support
+        'PickableGroup':(PickableGroup(), {'Core':1, 'Grouping':1, 'Picking':1, 'Rendering':1, 'Shape':1}),
+        'PixelTexture':(PixelTexture(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing':1}),
+        'PixelTexture3D':(PixelTexture3D(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing3D':1, 'Texturing':1}),
+        'PlaneSensor':(PlaneSensor(), {'Core':1, 'Grouping':1, 'Shape':1, 'PointingDeviceSensor':1}),
+        'PointEmitter':(PointEmitter(), {'Core':1, 'Grouping':1, 'ParticleSystems':1, 'Rendering':1, 'Shape':1}),
+        'PointLight':(PointLight(), {'Core':1, 'Lighting':3, 'Shape':2}),
+        'PointPickSensor':(PointPickSensor(), {'Core':1, 'Grouping':1, 'Picking':1, 'Rendering':1, 'Shape':1}),
+        'PointProperties':(PointProperties(), {'Core':1, 'Lighting':4, 'Rendering':1, 'Texturing':1, 'Shape':3}),
+        'PointSet':(PointSet(), {'Core':1, 'Grouping':1, 'Rendering':2}),
+        'Polyline2D':(Polyline2D(), {'Core':1, 'Geometry2D':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'PolylineEmitter':(PolylineEmitter(), {'Core':1, 'Grouping':1, 'ParticleSystems':1, 'Rendering':1, 'Shape':1}),
+        'Polypoint2D':(Polypoint2D(), {'Core':1, 'Geometry2D':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'PositionChaser':(PositionChaser(), {'Core':1, 'Grouping':1, 'Followers':1, 'Rendering':1, 'Shape':1}),
+        'PositionChaser2D':(PositionChaser2D(), {'Core':1, 'Grouping':1, 'Followers':1, 'Rendering':1, 'Shape':1}),
+        'PositionDamper':(PositionDamper(), {'Core':1, 'Grouping':1, 'Followers':1, 'Rendering':1, 'Shape':1}),
+        'PositionDamper2D':(PositionDamper2D(), {'Core':1, 'Grouping':1, 'Followers':1, 'Rendering':1, 'Shape':1}),
+        'PositionInterpolator':(PositionInterpolator(), {'Core':1, 'Grouping':1, 'Shape':1, 'Interpolation':1}),
+        'PositionInterpolator2D':(PositionInterpolator2D(), {'Core':1, 'Grouping':1, 'Shape':1, 'Interpolation':3}),
+        'PrimitivePickSensor':(PrimitivePickSensor(), {'Core':1, 'Grouping':1, 'Picking':3, 'Rendering':1, 'Shape':1}),
+        'ProgramShader':(ProgramShader(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shaders':1, 'Shape':1}),
+        'ProjectionVolumeStyle':(ProjectionVolumeStyle(), {'Core':1, 'Grouping':1, 'VolumeRendering':2, 'Rendering':1, 'Shape':1}),
+        'ProximitySensor':(ProximitySensor(), {'Core':1, 'Grouping':1, 'Navigation':1, 'Time':1, 'EnvironmentalSensor':2}),
         ####################################### Q
-        'QuadSet':QuadSet,
+        'QuadSet':(QuadSet(), {'CADGeometry':1, 'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
         ####################################### R
-        'ReceiverPdu':ReceiverPdu,
-        'Rectangle2D':Rectangle2D,
-        'RigidBody':RigidBody,
-        'RigidBodyCollection':RigidBodyCollection,
-        'ROUTE':ROUTE,
+        'ReceiverPdu':(ReceiverPdu(), {'Core':1, 'DIS':1, 'Geometry3D':1, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':3, 'PointingDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
+        'Rectangle2D':(Rectangle2D(), {'Core':1, 'Geometry2D':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'RigidBody':(RigidBody(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Shape':1, 'RigidBodyPhysics':2}),
+        'RigidBodyCollection':(RigidBodyCollection(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Shape':1, 'RigidBodyPhysics':2}),
+        'ROUTE':(ROUTE(), {'Core':1}),
         ####################################### S
-        'ScalarChaser':ScalarChaser,
-        'ScalarDamper':ScalarDamper,
-        'ScalarInterpolator':ScalarInterpolator,
-        'ScreenFontStyle':ScreenFontStyle,
-        'ScreenGroup':ScreenGroup,
-        'Script':Script,
-        'SegmentedVolumeData':SegmentedVolumeData,
-        'ShadedVolumeStyle':ShadedVolumeStyle,
-        'ShaderPart':ShaderPart,
-        'ShaderProgram':ShaderProgram,
-        'Shape':Shape,
-        'SignalPdu':SignalPdu,
-        'SilhouetteEnhancementVolumeStyle':SilhouetteEnhancementVolumeStyle,
-        'SingleAxisHingeJoint':SingleAxisHingeJoint,
-        'SliderJoint':SliderJoint,
-        'Sound':Sound,
-        'SpatialSound':SpatialSound,
-        'Sphere':Sphere,
-        'SphereSensor':SphereSensor,
-        'SplinePositionInterpolator':SplinePositionInterpolator,
-        'SplinePositionInterpolator2D':SplinePositionInterpolator2D,
-        'SplineScalarInterpolator':SplineScalarInterpolator,
-        'SpotLight':SpotLight,
-        'StaticGroup':StaticGroup,
-        'StreamAudioDestination':StreamAudioDestination,
-        'StreamAudioSource':StreamAudioSource,
-        'StringSensor':StringSensor,
-        'SurfaceEmitter':SurfaceEmitter,
-        'Switch':Switch,
+        'ScalarChaser':(ScalarChaser(), {'Core':1, 'Grouping':1, 'Followers':1, 'Rendering':1, 'Shape':1}),
+        'ScalarDamper':(ScalarDamper(), {'Core':1, 'Grouping':1, 'Followers':1, 'Rendering':1, 'Shape':1}),
+        'ScalarInterpolator':(ScalarInterpolator(), {'Core':1, 'Grouping':1, 'Shape':1, 'Interpolation':1}),
+        'ScreenFontStyle':(ScreenFontStyle(), {'Core':1, 'Grouping':1, 'Layering':1, 'Layout':2, 'Text':1}),
+        'ScreenGroup':(ScreenGroup(), {'Core':1, 'Grouping':1, 'Layering':1, 'Layout':2, 'Text':1}),
+        'Script':(Script(), {'Core':1, 'Scripting':1}),
+        'SegmentedVolumeData':(SegmentedVolumeData(), {'Core':1, 'Grouping':1, 'VolumeRendering':2, 'Rendering':1, 'Shape':1}),
+        'ShadedVolumeStyle':(ShadedVolumeStyle(), {'Core':1, 'Grouping':1, 'VolumeRendering':4, 'Rendering':1, 'Shape':1}),
+        'ShaderPart':(ShaderPart(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shaders':1, 'Shape':1}),
+        'ShaderProgram':(ShaderProgram(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shaders':1, 'Shape':1}),
+        'Shape':(Shape(), {'Core':1, 'Rendering':1, 'Texturing':1, 'Shape':1}),
+        'SheenMaterialExtension':(SheenMaterialExtension(), {'X_ITE':1}), # X_ITE - glTF extension
+        'SignalPdu':(SignalPdu(), {'Core':1, 'DIS':1, 'Geometry3D':1, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':3, 'PointingDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
+        'SilhouetteEnhancementVolumeStyle':(SilhouetteEnhancementVolumeStyle(), {'Core':1, 'Grouping':1, 'VolumeRendering':2, 'Rendering':1, 'Shape':1}),
+        'SingleAxisHingeJoint':(SingleAxisHingeJoint(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Shape':1, 'RigidBodyPhysics':2}),
+        'SliderJoint':(SliderJoint(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Shape':1, 'RigidBodyPhysics':2}),
+        'Sound':(Sound(), {'Core':1, 'Sound':2, 'Time':1}),
+        'SpatialSound':(SpatialSound(), {'Core':1, 'Sound':3, 'Time':1}),
+        'SpecularMaterialExtension':(SpecularMaterialExtension(), {'X_ITE':1}), # X_ITE - glTF extension
+        'Sphere':(Sphere(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'SphereSensor':(SphereSensor(), {'Core':1, 'Grouping':1, 'Shape':1, 'PointingDeviceSensor':1}),
+        'SplinePositionInterpolator':(SplinePositionInterpolator(), {'Core':1, 'Grouping':1, 'Shape':1, 'Interpolation':4}),
+        'SplinePositionInterpolator2D':(SplinePositionInterpolator2D(), {'Core':1, 'Grouping':1, 'Shape':1, 'Interpolation':4}),
+        'SplineScalarInterpolator':(SplineScalarInterpolator(), {'Core':1, 'Grouping':1, 'Shape':1, 'Interpolation':4}),
+        'SpotLight':(SpotLight(), {'Core':1, 'Lighting':3, 'Shape':2}),
+        'SquadOrientationInterpolator':(SquadOrientationInterpolator(), {'Core':1, 'Grouping':1, 'Shape':1, 'Interpolation':5}),
+        'StaticGroup':(StaticGroup(), {'Core':1,'Grouping':3}),
+        'StreamAudioDestination':(StreamAudioDestination(), {'Core':1, 'Sound':2, 'Time':1}),
+        'StreamAudioSource':(StreamAudioSource(), {'Core':1, 'Sound':2, 'Time':1}),
+        'StringSensor':(StringSensor(), {'Core':1, 'KeyDeviceSensor':2}),
+        'SurfaceEmitter':(SurfaceEmitter(), {'Core':1, 'Grouping':1, 'ParticleSystems':2, 'Rendering':1, 'Shape':1, 'Texturing':1}),
+        'Switch':(Switch(), {'Core':1,'Grouping':2}),
         ####################################### T
-        'TexCoordChaser2D':TexCoordChaser2D,
-        'TexCoordDamper2D':TexCoordDamper2D,
-        'Text':Text,
-        'TextureBackground':TextureBackground,
-        'TextureCoordinate':TextureCoordinate,
-        'TextureCoordinate3D':TextureCoordinate3D,
-        'TextureCoordinate4D':TextureCoordinate4D,
-        'TextureCoordinateGenerator':TextureCoordinateGenerator,
-        'TextureProjector':TextureProjector,
-        'TextureProjectorParallel':TextureProjectorParallel,
-        'TextureProperties':TextureProperties,
-        'TextureTransform':TextureTransform,
-        'TextureTransform3D':TextureTransform3D,
-        'TextureTransformMatrix3D':TextureTransformMatrix3D,
-        'TimeSensor':TimeSensor,
-        'TimeTrigger':TimeTrigger,
-        'ToneMappedVolumeStyle':ToneMappedVolumeStyle,
-        'TouchSensor':TouchSensor,
-        'Transform':Transform,
-        'TransformSensor':TransformSensor,
-        'TransmitterPdu':TransmitterPdu,
-        'TriangleFanSet':TriangleFanSet,
-        'TriangleSet':TriangleSet,
-        'TriangleSet2D':TriangleSet2D,
-        'TriangleStripSet':TriangleStripSet,
-        'TwoSidedMaterial':TwoSidedMaterial,
+        'TexCoordChaser2D':(TexCoordChaser2D(), {'Core':1, 'Grouping':1, 'Followers':1, 'Rendering':1, 'Shape':1}),
+        'TexCoordDamper2D':(TexCoordDamper2D(), {'Core':1, 'Grouping':1, 'Followers':1, 'Rendering':1, 'Shape':1}),
+        'Text':(Text(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Text':1}),
+        'TextureBackground':(TextureBackground(), {'Core':1, 'Time':1, 'Grouping':1, 'EnvironmentalEffects':3}),
+        'TextureCoordinate':(TextureCoordinate(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing':1}),
+        'TextureCoordinate3D':(TextureCoordinate3D(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing3D':1, 'Texturing':1}),
+        'TextureCoordinate4D':(TextureCoordinate4D(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing3D':1, 'Texturing':1}),
+        'TextureCoordinateGenerator':(TextureCoordinateGenerator(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing':2}),
+        'TextureProjector':(TextureProjector(), {'Core':1, 'Grouping':1, 'TextureProjection':1, 'Rendering':1, 'Shape':1, 'Texturing':1}),
+        'TextureProjectorParallel':(TextureProjectorParallel(), {'Core':1, 'Grouping':1, 'TextureProjection':2, 'Rendering':1, 'Shape':1, 'Texturing':1}),
+        'TextureProperties':(TextureProperties(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing':2}),
+        'TextureTransform':(TextureTransform(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing':1}),
+        'TextureTransform3D':(TextureTransform3D(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing3D':1, 'Texturing':1}),
+        'TextureTransformMatrix3D':(TextureTransformMatrix3D(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing3D':1, 'Texturing':1}),
+        'TimeSensor':(TimeSensor(), {'Core':1,'Time':2}),
+        'TimeTrigger':(TimeTrigger(), {'Core':1, 'Grouping':1, 'EventUtilities':1}),
+        'ToneMappedVolumeStyle':(ToneMappedVolumeStyle(), {'Core':1, 'Grouping':1, 'VolumeRendering':2, 'Rendering':1, 'Shape':1}),
+        'TouchSensor':(TouchSensor(), {'Core':1, 'Grouping':1, 'Shape':1, 'PointingDeviceSensor':1}),
+        'Transform':(Transform(), {'Core':1,'Grouping':1}),
+        'TransformSensor':(TransformSensor(), {'Core':1, 'Grouping':1, 'Navigation':1, 'Time':1, 'EnvironmentalSensor':3}),
+        'TransmissionMaterialExtension':(TransmissionMaterialExtension(), {'X_ITE':1}), # X_ITE - glTF extension
+        'TransmitterPdu':(TransmitterPdu(), {'Core':1, 'DIS':1, 'Geometry3D':1, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':3, 'PointingDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
+        'TriangleFanSet':(TriangleFanSet(), {'Core':1, 'Grouping':1, 'Rendering':3}),
+        'TriangleSet':(TriangleSet(), {'Core':1, 'Grouping':1, 'Rendering':3}),
+        'TriangleSet2D':(TriangleSet2D(), {'Core':1, 'Geometry2D':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'TriangleStripSet':(TriangleStripSet(), {'Core':1, 'Grouping':1, 'Rendering':3}),
+        'TwoSidedMaterial':(TwoSidedMaterial(), {'Core':1, 'Lighting':4, 'Rendering':1, 'Texturing':1, 'Shape':3}),
         ####################################### U
-        'UniversalJoint':UniversalJoint,
-        'UnlitMaterial':UnlitMaterial,
+        'UniversalJoint':(UniversalJoint(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Shape':1, 'RigidBodyPhysics':2}),
+        'UnlitMaterial':(UnlitMaterial(), {'Core':1, 'Rendering':1, 'Texturing':1, 'Shape':1}),
         ####################################### V
-        'Viewpoint':Viewpoint,
-        'ViewpointGroup':ViewpointGroup,
-        'Viewport':Viewport,
-        'VisibilitySensor':VisibilitySensor,
-        'VolumeData':VolumeData,
-        'VolumeEmitter':VolumeEmitter,
-        'VolumePickSensor':VolumePickSensor,
+        'Viewpoint':(Viewpoint(), {'Core':1, 'Navigation':1}),
+        'ViewpointGroup':(ViewpointGroup(), {'Core':1, 'EnvironmentalSensor':2, 'Grouping':1, 'Navigation':3, 'Shape':1}),
+        'Viewport':(Viewport(), {'Core':1, 'Grouping':1, 'Layering':1}),
+        'VisibilitySensor':(VisibilitySensor(), {'Core':1, 'Grouping':1, 'Navigation':1, 'Time':1, 'EnvironmentalSensor':2}),
+        'VolumeData':(VolumeData(), {'Core':1, 'Grouping':1, 'VolumeRendering':1, 'Rendering':1, 'Shape':1}),
+        'VolumeEmitter':(VolumeEmitter(), {'Core':1, 'Grouping':1, 'ParticleSystems':2, 'Rendering':1, 'Shape':1, 'Texturing':1}),
+        'VolumeMaterialExtension':(VolumeMaterialExtension(), {'X_ITE':1}), # X_ITE - glTF extension
+        'VolumePickSensor':(VolumePickSensor(), {'Core':1, 'Grouping':1, 'Picking':3, 'Rendering':1, 'Shape':1}),
+        'VolumeScatterMaterialExtension':(VolumeScatterMaterialExtension(), {'X_ITE':1}), # X_ITE - glTF extension
         ####################################### W
-        'WaveShaper':WaveShaper,
-        'WindPhysicsModel':WindPhysicsModel,
-        'WorldInfo':WorldInfo
+        'WaveShaper':(WaveShaper(), {'Core':1, 'Sound':2, 'Time':1}),
+        'WindPhysicsModel':(WindPhysicsModel(), {'Core':1, 'Grouping':1, 'ParticleSystems':1, 'Rendering':1, 'Shape':1}),
+        'WorldInfo':(WorldInfo(), {'Core':1})
     }
 
-    return x3dNodeMapping[x3dType]()
+    return x3dNodeMapping.get(x3dType, (None, {'NotFound':0}))
+    
+    #return x3dNodeMapping[x3dType]()

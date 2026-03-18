@@ -43,13 +43,13 @@ import maya.cmds as cmds
 import maya.api.OpenMaya as aom
 
 #To get local file path for html file
-from rawkee import RKWeb3D
+from rawkee.maya import RKWeb3D
 
 #To geth other items from 'rawkee'
-from rawkee.RKXScene   import RKXScene
-from rawkee.RKXNodes   import RKXNode #notice the missing 's' - RKXNode is a test class
-from rawkee.RKXSocket  import RKXSocket
-from rawkee.RKGraphics import RKGraphicsView
+from rawkee.maya.RKXScene   import RKXScene
+from rawkee.maya.RKXNodes   import RKXNode #notice the missing 's' - RKXNode is a test class
+from rawkee.maya.RKXSocket  import RKXSocket
+from rawkee.maya.RKGraphics import RKGraphicsView
 
 
 from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
@@ -66,7 +66,7 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         
     @classmethod
     def workspace_ui_script(cls):
-        return "from rawkee.RKSceneEditor import RKSceneEditor\nrkSEWidget = RKSceneEditor()"
+        return "from rawkee.maya.RKSceneEditor import RKSceneEditor\nrkSEWidget = RKSceneEditor()"
         
     @classmethod
     def workplace_close_command(cls):

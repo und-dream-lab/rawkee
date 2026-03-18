@@ -1,6 +1,6 @@
 import sys
 import os
-import rawkee.rkx3d
+import rawkee.io.RKx3d
 import json
 import io
 
@@ -9,12 +9,11 @@ import maya.mel  as mel
 
 import maya.api.OpenMaya as aom
 import maya.api.OpenMayaAnim as aoma
-import rawkee.nodes.sticker    as stk
+import rawkee.maya.nodes.sticker    as stk
 
 from   maya.api.OpenMaya import MFn as rkfn
 
-from   rawkee.rkx3d import *
-#from   rawkee.RKPseudoNode import *
+from   rawkee.io.RKx3d import *
 
 from   typing import Final
 
@@ -25,6 +24,10 @@ from   typing import Final
 #in-m: 0.0254
 #ft-m: 0.3048
 #yd-m: 0.9144
+
+#############################################
+# TODO - THIS CLASS NEEDS SOME SERIOUS WORK
+#############################################
 
 class RKSceneLoaderJSON():
     def __init__(self):
@@ -612,7 +615,7 @@ class RKSceneLoaderJSON():
             'ColorDamper':ColorDamper,
             'ColorInterpolator':ColorInterpolator,
             'ColorRGBA':ColorRGBA,
-            'CommonSurfaceShader':CommonSurfaceShader,#             From rawkee.RKPseudoNode, not x3d.py
+            #'CommonSurfaceShader':CommonSurfaceShader,#             From rawkee.RKPseudoNode, not x3d.py
             'ComposedCubeMapTexture':ComposedCubeMapTexture,
             'ComposedShader':ComposedShader,
             'ComposedTexture3D':ComposedTexture3D,

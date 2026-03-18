@@ -194,18 +194,41 @@ global proc setDefRKOptVars()
     if(`optionVar -exists "rkImagePath"`)
     {
     }else{
-        print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
+        print("Creating the optionVar to hold the relative image directory for image and video media files");
 		optionVar -sv "rkImagePath" "images/";
     }
     
     if(`optionVar -exists "rkAudioPath"`)
     {
     }else{
-        print("Creating the optionVar to hold the a RawKee Project Directory for general X3D Export");
+        print("Creating the optionVar to hold the relative audio directory for audio media files");
 		optionVar -sv "rkAudioPath" "audio/";
     }
 
+    if(`optionVar -exists "rkMatXPath"`)
+    {
+    }else{
+        print("Creating the optionVar to hold the relative shader directory for MaterialX xml files");
+		optionVar -sv "rkMatXPath" "shaders/";
+    }
+    
     //---------------------------------------------
+    ///////////////////////////////////////////////
+    // Export MaterialX XML Contents as Metadata Nodes
+    if(`optionVar -exists "rkExportMtlxInfo"`){
+    }
+    else{
+        optionVar -iv rkExportMtlxInfo 0;
+    }
+    
+    ///////////////////////////////////////////////
+    // Convert MaterialX file into dataURI Option Variable
+    if(`optionVar -exists "rkMtlx2Uri"`){
+    }
+    else{
+        optionVar -iv rkMtlx2Uri 0;
+    }
+    
     ///////////////////////////////////////////////
     // Consolidating and Format Conversion Option Variables
     if(`optionVar -exists "rkConsolidate"`){
