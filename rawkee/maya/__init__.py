@@ -9,6 +9,7 @@ from . import RKInterfaces
 from . import RKOrganizer
 from . import RKSceneEditor
 from . import RKSceneLoaderJSON
+from . import RKufe
 from . import RKWeb3D
 from . import RKXContentWidget
 from . import RKXGraphicsNode
