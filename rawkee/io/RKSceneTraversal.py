@@ -1135,18 +1135,7 @@ class RKSceneTraversal():
 
     ######################################################################################################################
     #   Basic Node Functions
-    #   TODO - Remove reference to Maya MFnDependencyNode
-    def processBasicNodeAddition(self, depNode, x3dParentNode, x3dFieldName, x3dType, nodeName="ERROR_ERROR"):
-        defuse = nodeName
-        # Determine the DEF/USE value of the node to be created
-        if defuse == "":
-            try:
-                defuse = depNode.name()
-            except:
-                pass
-            
-        # Create Node from String where x3dType is a string that identifies 
-        # the type of X3D to be created. Must be a node defined by the X3D 4.0 Specification.
+    def processBasicNodeAddition(self, x3dParentNode, x3dFieldName, x3dType, nodeName=""):
         nodeTuple = instantiateNodeFromString(x3dType)
         
         tNode = nodeTuple[0]
@@ -1155,20 +1144,23 @@ class RKSceneTraversal():
         if tNode:
             # Check to see if the node has previously been created with a DEF 
             # attribute.
-            hasBeen = self.checkIfHasBeen(defuse) #checkIfHasBeen
+            hasBeen = False
             
-            # If has been created already, assign the "nodeName" value to the 
-            # X3D node's USE attribute and leave the DEF attribute as None.
-            if hasBeen == True:
-                tNode.USE = defuse
+            if nodeName != "":
+                hasBeen = self.checkIfHasBeen(nodeName) #checkIfHasBeen
             
-            # However, if the node has not been previously created, set the 
-            # X3D node's DEF attribute to the value of "nodeName", and then
-            # record the node has having been created by calling the 
-            # "setHasBeen()" method.
-            else:
-                tNode.DEF = defuse
-                self.setAsHasBeen(defuse, tNode)
+                # If has been created already, assign the "nodeName" value to the 
+                # X3D node's USE attribute and leave the DEF attribute as None.
+                if hasBeen == True:
+                    tNode.USE = nodeName
+            
+                # However, if the node has not been previously created, set the 
+                # X3D node's DEF attribute to the value of "nodeName", and then
+                # record the node has having been created by calling the 
+                # "setHasBeen()" method.
+                else:
+                    tNode.DEF = nodeName
+                    self.setAsHasBeen(nodeName, tNode)
                 
             # Now it is time to add the new node to the X3D Scene. First 
             # we must obtain the value of the X3D Field of the parent by 

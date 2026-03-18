@@ -59975,6 +59975,369 @@ class VolumeScatterMaterialExtension(_X3DMaterialExtensionNode):
         """ Whether or not this node has any child node or statement """
         return self.IS or self.metadata
 
+class PhysicalMaterial_X3DOM(_X3DOneSidedMaterialNode):
+    """
+    PhysicalMaterial specifies surface rendering properties for associated geometry nodes.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'PhysicalMaterial'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://www.web3d.org/specifications/X3Dv4/ISO-IEC19775-1v4-IS/Part01/components/shape.html#PhysicalMaterial'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://www.web3d.org/x3d/tooltips/X3dTooltips.html#PhysicalMaterial'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('alphaCutoff', 0.5, FieldType.SFFloat, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('alphaMode', "OPAQUE", FieldType.SFString, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('ambientIntensity', 0.2, FieldType.SFFloat, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('baseColorFactor', (1, 1, 1, 1), FieldType.SFColorRGBA, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('baseColorTexture', None, FieldType.SFNode, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('diffuseColor', (0.8, 0.8, 0.8), FieldType.SFColor, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('diffuseFactor', (1, 1, 1, 1), FieldType.SFColorRGBA, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('emissiveColor', (0, 0, 0), FieldType.SFColor, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('emissiveFactor', (0, 0, 0), FieldType.SFColor, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('emissiveTexture', None, FieldType.SFNode, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('model', "roughnessMetallic", FieldType.SFString, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('specularColor', (0, 0, 0), FieldType.SFColor, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('specularFactor', (1, 1, 1), FieldType.SFColor, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('specularGlossinessTexture', None, FieldType.SFNode, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('shininess', 1, FieldType.SFFloat, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('roughnessFactor', 0.2, FieldType.SFFloat, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('metallicFactor', 0.0, FieldType.SFFloat, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('occlusionRoughnessMetallicTexture', None, FieldType.SFNode, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('normalScale', 1, FieldType.SFFloat, AccessType.inputOutput, 'X3DOneSidedMaterialNode'),
+        ('normalTexture', None, FieldType.SFNode, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('transparency', 0, FieldType.SFFloat, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('unlit', False, FieldType.SFBool, AccessType.inputOutput, 'PhysicalMaterial_X3DOM'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        alphaCutoff=0.5,
+        alphaMode="OPAQUE",
+        ambientIntensity=0.2,
+        baseColorFactor=(1, 1, 1, 1),
+        baseColorTexture=None,
+        diffuseColor=(1, 1, 1),
+        diffuseFactor=(1, 1, 1, 1),
+        emissiveColor=(0, 0, 0),
+        emissiveFactor=(0, 0, 0),
+        emissiveTexture=None,
+        model="roughnessMetallic",
+        specularColor=(0, 0, 0),
+        specularFactor=(1, 1, 1),
+        specularGlossinessTexture=None,
+        shininess=1,
+        roughnessFactor=0.2,
+        metallicFactor=0.0,
+        occlusionRoughnessMetallicTexture=None,
+        normalScale=1,
+        normalTexture=None,
+        transparency=0,
+        unlit=False,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode PhysicalMaterial __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.alphaCutoff = alphaCutoff
+        self.alphaMode   = alphaMode
+        self.ambientIntensity = ambientIntensity
+        self.baseColorFactor = baseColorFactor
+        self.baseColorTexture = baseColorTexture
+        self.diffuseColor = diffuseColor
+        self.diffuseFactor = diffuseFactor
+        self.emissiveColor = emissiveColor
+        self.emissiveFactor = emissiveFactor
+        self.emissiveTexture = emissiveTexture
+        self.model = model
+        self.specularColor = specularColor
+        self.specularFactor = specularFactor
+        self.specularGlossinessTexture = specularGlossinessTexture
+        self.shininess = shininess
+        self.roughnessFactor = roughnessFactor
+        self.metallicFactor = metallicFactor
+        self.occlusionRoughnessMetallicTexture = occlusionRoughnessMetallicTexture
+        self.normalScale = normalScale
+        self.normalTexture = normalTexture
+        self.transparency = transparency
+        self.unlit = unlit
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def alphaCutoff(self):
+        return self.__alphaCutoff
+    @alphaCutoff.setter
+    def alphaCutoff(self, alphaCutoff):
+        if  alphaCutoff is None:
+            alphaCutoff = 0.5  # default
+        assertValidSFFloat(alphaCutoff)
+        assertZeroToOne('alphaCutoff', alphaCutoff)
+        self.__alphaCutoff = alphaCutoff
+    @property # getter - - - - - - - - - -
+    def alphaMode(self):
+        return self.__alphaMode
+    @alphaMode.setter
+    def alphaMode(self, alphaMode):
+        if  alphaMode is None:
+            alphaMode = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(alphaMode)
+        self.__alphaMode = alphaMode
+    @property # getter - - - - - - - - - -
+    def ambientIntensity(self):
+        return self.__ambientIntensity
+    @ambientIntensity.setter
+    def ambientIntensity(self, ambientIntensity):
+        if  ambientIntensity is None:
+            ambientIntensity = 0.2  # default
+        assertValidSFFloat(ambientIntensity)
+        assertZeroToOne('ambientIntensity', ambientIntensity)
+        self.__ambientIntensity = ambientIntensity
+    @property # getter - - - - - - - - - -
+    def baseColorFactor(self):
+        return self.__baseColorFactor
+    @baseColorFactor.setter
+    def baseColorFactor(self, baseColorFactor):
+        if  baseColorFactor is None:
+            baseColorFactor = (1, 1, 1)  # default
+        assertValidSFColor(baseColorFactor)
+        assertZeroToOne('baseColorFactor', baseColorFactor)
+        self.__baseColorFactor = baseColorFactor
+    @property # getter - - - - - - - - - -
+    def baseColorTexture(self):
+        return self.__baseColorTexture
+    @baseColorTexture.setter
+    def baseColorTexture(self, baseColorTexture):
+        if  baseColorTexture is None:
+            baseColorTexture = None  # default
+        assertValidSFNode(baseColorTexture)
+        if not baseColorTexture is None and not isinstance(baseColorTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(baseColorTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__baseColorTexture = baseColorTexture
+    @property # getter - - - - - - - - - -
+    def diffuseColor(self):
+        return self.__diffuseColor
+    @diffuseColor.setter
+    def diffuseColor(self, diffuseColor):
+        if  diffuseColor is None:
+            diffuseColor = (1, 1, 1)  # default
+        assertValidSFColor(diffuseColor)
+        assertZeroToOne('diffuseColor', diffuseColor)
+        self.__diffuseColor = diffuseColor
+    @property # getter - - - - - - - - - -
+    def diffuseColorFactor(self):
+        return self.__diffuseColorFactor
+    @diffuseColorFactor.setter
+    def diffuseColorFactor(self, diffuseColorFactor):
+        if  diffuseColorFactor is None:
+            diffuseColorFactor = (1, 1, 1, 1)  # default
+        assertValidSFColor(diffuseColorFactor)
+        assertZeroToOne('diffuseColorFactor', diffuseColorFactor)
+        self.__diffuseColorFactor = diffuseColorFactor
+    @property # getter - - - - - - - - - -
+    def emissiveColor(self):
+        return self.__emissiveColor
+    @emissiveColor.setter
+    def emissiveColor(self, emissiveColor):
+        if  emissiveColor is None:
+            emissiveColor = (0, 0, 0)  # default
+        assertValidSFColor(emissiveColor)
+        assertZeroToOne('emissiveColor', emissiveColor)
+        self.__emissiveColor = emissiveColor
+    @property # getter - - - - - - - - - -
+    def emissiveColorFactor(self):
+        return self.__emissiveColorFactor
+    @emissiveColorFactor.setter
+    def emissiveColorFactor(self, emissiveColorFactor):
+        if  emissiveColorFactor is None:
+            emissiveColorFactor = (1, 1, 1)  # default
+        assertValidSFColor(emissiveColorFactor)
+        assertZeroToOne('emissiveColorFactor', emissiveColorFactor)
+        self.__emissiveColorFactor = emissiveColorFactor
+    @property # getter - - - - - - - - - -
+    def emissiveColorTexture(self):
+        return self.__emissiveColorTexture
+    @emissiveColorTexture.setter
+    def emissiveColorTexture(self, emissiveColorTexture):
+        if  emissiveColorTexture is None:
+            emissiveColorTexture = None  # default
+        assertValidSFNode(emissiveColorTexture)
+        if not emissiveColorTexture is None and not isinstance(emissiveColorTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(emissiveColorTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__emissiveColorTexture = emissiveColorTexture
+    @property # getter - - - - - - - - - -
+    def model(self):
+        return self.__model
+    @model.setter
+    def model(self, model):
+        if  model is None:
+            model = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(model)
+        self.__model = model
+    @property # getter - - - - - - - - - -
+    def specularColor(self):
+        return self.__specularColor
+    @specularColor.setter
+    def specularColor(self, specularColor):
+        if  specularColor is None:
+            specularColor = (0, 0, 0)  # default
+        assertValidSFColor(specularColor)
+        assertZeroToOne('specularColor', specularColor)
+        self.__specularColor = specularColor
+    @property # getter - - - - - - - - - -
+    def specularColorFactor(self):
+        return self.__specularColorFactor
+    @specularColorFactor.setter
+    def specularColorFactor(self, specularColorFactor):
+        if  specularColorFactor is None:
+            specularColorFactor = (1, 1, 1)  # default
+        assertValidSFColor(specularColorFactor)
+        assertZeroToOne('specularColorFactor', specularColorFactor)
+        self.__specularColorFactor = specularColorFactor
+    @property # getter - - - - - - - - - -
+    def specularGlossinessTexture(self):
+        return self.__specularGlossinessTexture
+    @specularGlossinessTexture.setter
+    def specularGlossinessTexture(self, specularGlossinessTexture):
+        if  specularGlossinessTexture is None:
+            specularGlossinessTexture = None  # default
+        assertValidSFNode(specularGlossinessTexture)
+        if not specularGlossinessTexture is None and not isinstance(specularGlossinessTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(specularGlossinessTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__specularGlossinessTexture = specularGlossinessTexture
+    @property # getter - - - - - - - - - -
+    def shininess(self):
+        return self.__alphaCutoff
+    @shininess.setter
+    def shininess(self, shininess):
+        if  shininess is None:
+            shininess = 1.0  # default
+        assertValidSFFloat(shininess)
+        assertZeroToOne('shininess', shininess)
+        self.__shininess = shininess
+    @property # getter - - - - - - - - - -
+    def roughnessFactor(self):
+        return self.__roughnessFactor
+    @roughnessFactor.setter
+    def roughnessFactor(self, roughnessFactor):
+        if  roughnessFactor is None:
+            roughnessFactor = 0.2  # default
+        assertValidSFFloat(roughnessFactor)
+        assertZeroToOne('roughnessFactor', roughnessFactor)
+        self.__roughnessFactor = roughnessFactor
+    @property # getter - - - - - - - - - -
+    def metallicFactor(self):
+        return self.__metallicFactor
+    @metallicFactor.setter
+    def metallicFactor(self, metallicFactor):
+        if  metallicFactor is None:
+            metallicFactor = 0.0  # default
+        assertValidSFFloat(metallicFactor)
+        assertZeroToOne('metallicFactor', metallicFactor)
+        self.__metallicFactor = metallicFactor
+    @property # getter - - - - - - - - - -
+    def occlusionRoughnessMetallicTexture(self):
+        return self.__occlusionRoughnessMetallicTexture
+    @occlusionRoughnessMetallicTexture.setter
+    def occlusionRoughnessMetallicTexture(self, occlusionRoughnessMetallicTexture):
+        if  occlusionRoughnessMetallicTexture is None:
+            occlusionRoughnessMetallicTexture = None  # default
+        assertValidSFNode(occlusionRoughnessMetallicTexture)
+        if not occlusionRoughnessMetallicTexture is None and not isinstance(occlusionRoughnessMetallicTexture,(_X3DSingleTextureNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(occlusionRoughnessMetallicTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
+        self.__occlusionRoughnessMetallicTexture = occlusionRoughnessMetallicTexture
+    @property # getter - - - - - - - - - -
+    def normalScale(self):
+        return self.__normalScale
+    @normalScale.setter
+    def normalScale(self, normalScale):
+        if  normalScale is None:
+            normalScale = 1  # default
+        assertValidSFFloat(normalScale)
+        assertNonNegative('normalScale', normalScale)
+        self.__normalScale = normalScale
+    @property # getter - - - - - - - - - -
+    def normalTextureMapping(self):
+        """The mapping label identifies which texture coordinates and transformations are used to compute texture effects from corresponding geometry on a given material."""
+        return self.__normalTextureMapping
+    @normalTextureMapping.setter
+    def normalTextureMapping(self, normalTextureMapping):
+        if  normalTextureMapping is None:
+            normalTextureMapping = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(normalTextureMapping)
+        self.__normalTextureMapping = normalTextureMapping
+    @property # getter - - - - - - - - - -
+    def transparency(self):
+        """[0,1] how "clear" an object is: 1."""
+        return self.__transparency
+    @transparency.setter
+    def transparency(self, transparency):
+        if  transparency is None:
+            transparency = 0  # default
+        assertValidSFFloat(transparency)
+        assertZeroToOne('transparency', transparency)
+        self.__transparency = transparency
+    @property # getter - - - - - - - - - -
+    def unlit(self):
+        return self.__unlit
+    @unlit.setter
+    def unlit(self, unlit):
+        if  unlit is None:
+            unlit = False  # default
+        assertValidSFBool(unlit)
+        self.__unlit = unlit
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.baseTexture or self.emissiveTexture or self.IS or self.metadata or self.metallicRoughnessTexture or self.normalTexture or self.occlusionTexture
+    # output function - - - - - - - - - -
+
 
 class X3DError(Exception):
     """ Base class for all exceptions raised by this module.
@@ -60192,6 +60555,7 @@ def instantiateNodeFromString(x3dType):
         'PeriodicWave':(PeriodicWave(), {'Core':1, 'Sound':2, 'Time':1}),
         'PhysicalMaterial':(PhysicalMaterial(), {'Core':1, 'Lighting':4, 'Rendering':1, 'Texturing':1, 'Shape':2}),
         'PhysicalMaterialExt':(PhysicalMaterialExt(), {'Core':1, 'Lighting':4, 'Rendering':1, 'Texturing':1, 'Shape':2, 'X_ITE':1}), # Required for X_ITE - glTF extension export.
+        'PhysicalMaterial_X3DOM':(PhysicalMaterial_X3DOM(), {'Core':1, 'Lighting':4, 'Rendering':1, 'Texturing':1, 'Shape':2}), # Required for basic X3DOM Texture Support
         'PickableGroup':(PickableGroup(), {'Core':1, 'Grouping':1, 'Picking':1, 'Rendering':1, 'Shape':1}),
         'PixelTexture':(PixelTexture(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing':1}),
         'PixelTexture3D':(PixelTexture3D(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing3D':1, 'Texturing':1}),

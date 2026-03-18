@@ -305,7 +305,7 @@ class RKWeb3D():
         eofScene = rko.trv.getSceneObeject()
         background = rkx3d.Background()
         
-        bkNode = rko.trv.processBasicNodeAddition(None, x3dDoc.Scene, "children", "Background", "DefaultBackground")
+        bkNode = rko.trv.processBasicNodeAddition(x3dDoc.Scene, "children", "Background", "DefaultBackground")
         bkNode.skyColor = (0.2, 0.2, 0.2)
 
         #############################################
@@ -345,6 +345,9 @@ class RKWeb3D():
                 exEncoding = "x3dj"
             elif fext == ".json":
                 exEncoding = "json"
+            elif fext == ".html":
+                exEncoding = "html"
+
             #####################################################################################################################################
             # *.html export will remain temporarily unsupported because of the increasing complexity of the code necessary to support 
             # custom node and field features unique to X3DOM's shader, material, and texture implementation.
@@ -393,7 +396,7 @@ class RKWeb3D():
         eofScene = rko.trv.getSceneObeject()
         background = rkx3d.Background()
         
-        bkNode = rko.trv.processBasicNodeAddition(None, x3dDoc.Scene, "children", "Background", "DefaultBackground")
+        bkNode = rko.trv.processBasicNodeAddition(x3dDoc.Scene, "children", "Background", "DefaultBackground")
         bkNode.skyColor = (0.2, 0.2, 0.2)
 
         #############################################
@@ -440,6 +443,9 @@ class RKWeb3D():
                 exEncoding = "x3dj"
             elif fext == ".json":
                 exEncoding = "json"
+            elif fext == ".html":
+                exEncoding = "html"
+
             #####################################################################################################################################
             # *.html export will remain temporarily unsupported because of the increasing complexity of the code necessary to support 
             # custom node and field features unique to X3DOM's shader, material, and texture implementation.

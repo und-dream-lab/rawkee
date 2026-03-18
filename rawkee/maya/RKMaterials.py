@@ -53,12 +53,17 @@ from pathlib import Path
 #fRouList   = [      "sheenRoughness",       "sheenRoughness",        "fuzzRoughness",                 "",                  ""]
 #tWallList  = [          "thinWalled",           "thinWalled",   "geometryThinWalled",                 "",                  ""]
 
+textTypes = ["file", "movie", "envChrome", "envCube", "envBall", "envSphere"]
+
+
 type_map = {
     "float": "SFFloat", "integer": "SFInt32", "bool": "SFBool",
     "vector2": "SFVec2f", "vector3": "SFVec3f", "vector4": "SFVec4f", "string": "SFString",
     "color3": "SFColor", "color4": "SFColorRGBA", "matrix33": "SFMatrix3f", "matrix44": "SFMatrix4f",
     "filename": "SFNode", "sampler2D": "SFNode", "sampler3D": "SFNode", "samplerCube": "SFNode"
 }
+
+alphaModes = {0:"OPAQUE", 1:"MASK", 2:"BLEND"}
 
 
 def searchForNodeByNameType(plug, nodeTypes):
@@ -87,6 +92,10 @@ def searchForNodeByApiType(plug, apiType):
 
 def getTextureTransform(textureObj):
     return searchForNodeByNameType(textureObj, ["place2dTexture"])
+
+
+def getAlphaMode(index):
+    return alphaModes.get(index, "AUTO")
 
 
 def connectTextureTransformToTexture(ttName, texName):
@@ -420,124 +429,173 @@ def makeImagePathsRelative(matXDocPath, imagePath):
         f.writelines(altered_lines)
 
 
-    def getMatXSurfaceInfo(matXShaderName):
-        matXSurfacePath = cmds.getAttr(maXShaderName + ".ufePath")
-        surfacePathString = ufe.PathString.path(matXSurfacePath)
-        surfItem = ufe.Hierarchy.createItem(surfacePathString)
+def getMatXSurfaceInfo(matXShaderName):
+    matXSurfacePath = cmds.getAttr(maXShaderName + ".ufePath")
+    surfacePathString = ufe.PathString.path(matXSurfacePath)
+    surfItem = ufe.Hierarchy.createItem(surfacePathString)
 
-        return surfItem, surfacePathString
+    return surfItem, surfacePathString
 
-    def getMatXSurfaceAttr(surfaceItem):
-        attr_handler = ufe.Attributes.attributes(surfaceItem)
-        surfAttr = attr_handler.attribute("surfaceshader")
-        
-        return surfAttr
-        
-    def getMatXCompoundItem(surfItem, surfPath, surfAttr):
-        cHandler = ufe.RunTimeMgr.instance().connectionHandler(surfPath.runTimeId())
-        conns = cHandler.sourceConnections(surfItem).allConnections()
+def getMatXSurfaceAttr(surfaceItem):
+    attr_handler = ufe.Attributes.attributes(surfaceItem)
+    surfAttr = attr_handler.attribute("surfaceshader")
+    
+    return surfAttr
 
-        sCompound = None
+
+def getUFEAttribute(matXItem, attrName, asSource=False, connected=False):
+    if connected == True:
+        itemPath = matXItem.path()
+        cHandler = ufe.RunTimeMgr.instance().connectionHandler(itemPath.runTimeId())
+        conns    = cHandler.sourceConnections(matXItem).allConnections()
         for conn in conns:
-            if "inputs:surfaceshader" == conn.dst.name:
-                print(conn.src.path)
-                sCompound = ufe.Hierarchy.createItem(conn.src.path)
+            if asSource == True:
+                srcName = "outputs:" + attrName
+                if itemPath == conn.src.path and srcName == conn.src.name:
+                    return conn
+            else:
+                dstName = "inputs:" + attrName
+                if itemPath == conn.dst.path and dstName == conn.dst.name:
+                    return conn
+                    
+        return None
 
-        if sCompound:
-            #cmpAttrs = ufe.Attributes.attributes(sCompound)
-            #if cmpAttrs:
-            #    for name in cmpAttrs.attributeNames:
-            #        print(name)
-            return sCompound
+    else:
+        attrHandler = ufe.Attributes.attributes(matXItem)
+        itemAttr = attrHandler.attribute(attrName)
+
+    return None
+
+
+def getUFEConnectedTexture(matXItem, attrName):
+    connection = getUFEAttribute(matXItem, attrName, connected=True)
+    ufeItem = ufe.Hierarchy.createItem(connection.src.path)
+    
+    if "image" in ufeItem.nodeType().lower():
+        return ufeItem
+
+    return None
+
+def getMatXAttribute(matXItem, attrName, grasp=False):
+    itemAttr = None
+    
+    attrHandler = ufe.Attributes.attributes(matXItem)
+    try:
+        itemAttr = attrHandler.attribute(attrName)
+    except:
+        if grasp == True:
+            for name in attrHandler.attributeNames:
+                if attrName in name:
+                    return attrHandler.attribute(name)
+    
+    return itemAttr
+
+
+def getMatXCompoundItem(surfItem, surfPath, surfAttr):
+    cHandler = ufe.RunTimeMgr.instance().connectionHandler(surfPath.runTimeId())
+    conns = cHandler.sourceConnections(surfItem).allConnections()
+
+    sCompound = None
+    for conn in conns:
+        if "inputs:surfaceshader" == conn.dst.name:
+            print(conn.src.path)
+            sCompound = ufe.Hierarchy.createItem(conn.src.path)
+
+    if sCompound:
+        #cmpAttrs = ufe.Attributes.attributes(sCompound)
+        #if cmpAttrs:
+        #    for name in cmpAttrs.attributeNames:
+        #        print(name)
+        return sCompound
+        
+    else:
+        return None
+
+
+def getX3DFieldsAndGLSLInjectionDefinitions(surfComp):
+    hier = ufe.Hierarchy.hierarchy(surfComp)
+    children = hier.children()
+    
+    defines   = {}
+    x3dFields = {}
+    if children:
+        for child in children:
+            cHandler = ufe.RunTimeMgr.instance().connectionHandler(child.path().runTimeId())
+            cConns = cHandler.sourceConnections(child).allConnections()
+    
+            for cConn in cConns:
+                if str(cConn.src.path) == str(scPath):
+                    dstName = cConn.dst.name.removeprefix("inputs:")
+                    srcName = cConn.src.name.removeprefix("inputs:")
+                    dstCompare = child.nodeName() + "_" + dstName
+
+                    x3dFields[srcName] = dstCompare
+                    if dstCompare != srcName:
+                        defines[srcName] = dstCompare
+
+    return defines, x3dFields
+    
+    
+def getX3DShaderFieldNames(mayaMatXSSName):
+    surfItem = None
+    surfPath = None
+    surfAttr = None
+    
+    surfItem, surfPath = getMatXSurfaceItem(mayaMatXSSName)
+    if surfItem:
+        surfAttr = getMatXSurfaceAttr(surfItem)
+    else:
+        return None
+    
+    if surfAttr:
+        surfComp = getMatXCompoundItem(surfItem, surfPath, surfComp)
+    else:
+        return None
+        
+    if surfComp:
+        defines, x3dFields = getX3DFieldsAndGLSLInjectionDefinitions(surfComp)
+        return defines, x3dFields, surfComp
+    else:
+        return None
+
+
+def saveMaterialXDocuments(activePrj, matXPath, imagePath):
+    matXDocs = []
+    localPath = activePrj + "/" + matXPath
+    
+    matXSS = cmds.ls(type='materialXStackShape')
+    
+    if matXSS:
+        for mxss in matXSS:
+            matXdPath       = mcmds.ls(mass, long=True)[0]
+            stackPathString = ufe.PathString.path(matXdPath)
+            stackItem       = ufe.Hierarchy.createItem(stackPathString)
             
-        else:
-            return None
-
-
-    def getX3DFieldsAndGLSLInjectionDefinitions(surfComp):
-        hier = ufe.Hierarchy.hierarchy(surfComp)
-        children = hier.children()
-        
-        defines   = {}
-        x3dFields = {}
-        if children:
-            for child in children:
-                cHandler = ufe.RunTimeMgr.instance().connectionHandler(child.path().runTimeId())
-                cConns = cHandler.sourceConnections(child).allConnections()
-        
-                for cConn in cConns:
-                    if str(cConn.src.path) == str(scPath):
-                        dstName = cConn.dst.name.removeprefix("inputs:")
-                        srcName = cConn.src.name.removeprefix("inputs:")
-                        dstCompare = child.nodeName() + "_" + dstName
-
-                        x3dFields[srcName] = dstCompare
-                        if dstCompare != srcName:
-                            defines[srcName] = dstCompare
-
-        return defines, x3dFields
-        
-        
-    def getX3DShaderFieldNames(mayaMatXSSName):
-        surfItem = None
-        surfPath = None
-        surfAttr = None
-        
-        surfItem, surfPath = getMatXSurfaceItem(mayaMatXSSName)
-        if surfItem:
-            surfAttr = getMatXSurfaceAttr(surfItem)
-        else:
-            return None
-        
-        if surfAttr:
-            surfComp = getMatXCompoundItem(surfItem, surfPath, surfComp)
-        else:
-            return None
+            stackHierarchy  = ufe.Hierarchy.hierarchy(stackItem)
+            children        = stackHierarchy.children()
             
-        if surfComp:
-            defines, x3dFields = getX3DFieldsAndGLSLInjectionDefinitions(surfComp)
-            return defines, x3dFields, surfComp
-        else:
-            return None
+            if children:
+                for child in children:
+                    docItem     = child
+                    contextOps  = ufe.ContextOps.contextOps(docItem)
+                    
+                    document    = docItem.path().back()
 
-
-    def saveMaterialXDocuments(activePrj, matXPath, imagePath):
-        matXDocs = []
-        localPath = activePrj + "/" + matXPath
-        
-        matXSS = cmds.ls(type='materialXStackShape')
-        
-        if matXSS:
-            for mxss in matXSS:
-                matXdPath       = mcmds.ls(mass, long=True)[0]
-                stackPathString = ufe.PathString.path(matXdPath)
-                stackItem       = ufe.Hierarchy.createItem(stackPathString)
-                
-                stackHierarchy  = ufe.Hierarchy.hierarchy(stackItem)
-                children        = stackHierarchy.children()
-                
-                if children:
-                    for child in children:
-                        docItem     = child
-                        contextOps  = ufe.ContextOps.contextOps(docItem)
-                        
-                        document    = docItem.path().back()
-
-                        tempPath    = os.path.join(localPath, document + ".mtlx").replace("\\", "/")
-                        #baseDir     = os.path.dirname(tempPath)
-                        #fullPath    = os.path.join(baseDir, "temp_lookdevx.mtlx")
-                        #long_path   = str(Path(fullPath).resolve())
-                        #tempPath    = long_path.replace("\\", "/")
-                        contextOps.doOp(['MxExportDocument', tempPath])
-                        
-                        makeImagePathsRelative(tempPath, imagePath)
-                        
-                        docDict = {}
-                        docDict["name"]    = document
-                        docDict["content"] = "./" + matXPath + document + ".mtlx"
-                        matXDoc.append(docDict)
-        
-        return matXDocs
+                    tempPath    = os.path.join(localPath, document + ".mtlx").replace("\\", "/")
+                    #baseDir     = os.path.dirname(tempPath)
+                    #fullPath    = os.path.join(baseDir, "temp_lookdevx.mtlx")
+                    #long_path   = str(Path(fullPath).resolve())
+                    #tempPath    = long_path.replace("\\", "/")
+                    contextOps.doOp(['MxExportDocument', tempPath])
+                    
+                    makeImagePathsRelative(tempPath, imagePath)
+                    
+                    docDict = {}
+                    docDict["name"]    = document
+                    docDict["content"] = "./" + matXPath + document + ".mtlx"
+                    matXDoc.append(docDict)
+    
+    return matXDocs
 
 
 def saveGLSLFiles(glslFragPath, glslVertPath, matXFilePaths, ufeShaderPath, defines, x3dFields):
@@ -642,7 +700,13 @@ def getUFETextureNode(surfComp, nodeName):
     
     return None
 
-
+# TODO
+def getMayaPlace2dFromUFETexture(textureItem):
+    mayaPlace2d = None
+    
+    return mayaPlace2d
+    
+    
 #def extract_x3d_fields(file_path):
 def getShaderFieldTags(fTags, x3dFields, x3dFileTypes, surfComp):
     for key, value in x3dFields:
@@ -723,51 +787,6 @@ def getShaderFieldTags(fTags, x3dFields, x3dFileTypes, surfComp):
         fTags[key] = fType + "," + faType + "," + fValue
 
 
-def getUnknownBaseColorAndOcclusionTextures(material, colorStore, colorAttr):
-    # Color Plug
-    colorConn = material.findPlug(colorAttr, True)
-    
-    # Search for multiply node
-    # Get baseTexture and occlusionTexture
-    multiply = searchForNodeByNameType(colorConn, ["multiplyDivide", "aiMultiply"])
-    if multiply:
-        inputConn1   = multiply.findPlug("input1", True)
-        colorTexture = searchForNodeByApiType(inputConn1, maom.MFn.kTexture2d)
-        if colorTexture:
-            colorStore["baseTexture"] = colorTexture
-        
-        inputConn2   = multiply.findPlug("input2", True)
-        occlTexture  = searchForNodeByApiType(inputConn2, maom.MFn.kTexture2d)
-        if occlTexture:
-            colorStore["occlusionTexture"] = occlTexture
-        else:
-            inputConn2 = multiply.findPlug("input2R", True)
-            occlTexture2R = searchForNodeByApiType(inputConn2, maom.MFn.kTexture2d)
-            if occlTexture2R:
-                colorStore["occlusionTexture"] = occlTexture2R
-    else:
-        aiImage = searchForNodeByNameType(colorConn, ["aiImage"])
-        if aiImage:
-            colorStore["baseTexture"] = aiImage
-            multiConn = aiImage.findPlug("multiply", True)
-            occlTexture  = searchForNodeByApiType(multiConn, maom.MFn.kTexture2d)
-            if occlTexture:
-                colorStore["occlusionTexture"] = occlTexture
-            else:
-                multiConn = aiImage.findPlug("multiplyR", True)
-                occlTexture2R = searchForNodeByApiType(multiConn, maom.MFn.kTexture2d)
-                if occlTexture2R:
-                    colorStore["occlusionTexture"] = occlTexture2R
-        else:
-            colorTexture = searchForNodeByApiType(colorConn, maom.MFn.kTexture2d)
-            if colorTexture:
-                colorStore["baseTexture"] = colorTexture
-            
-            occlTexture  = searchForNodeByApiType(baseConn, maom.MFn.kTexture2d)
-            if occlTexture:
-                colorTex["occlusionTexture"] = occlTexture
-
-
 def getLegacyBaseColorAndOcclusionTextures(material, colorStore):
     hasOcclTexture = False
     
@@ -782,12 +801,14 @@ def getLegacyBaseColorAndOcclusionTextures(material, colorStore):
         multiply = searchForNodeByNameType(colorConn, ["multiplyDivide", "aiMultiply"])
         if multiply:
             inputConn1   = multiply.findPlug("input1", True)
-            colorTexture = searchForNodeByApiType(inputConn1, maom.MFn.kTexture2d)
+            #colorTexture = searchForNodeByApiType(inputConn1, maom.MFn.kTexture2d)
+            colorTexture = searchForNodeByNameType(inputConn1, textTypes)
             if colorTexture:
                 colorStore["baseTexture"] = colorTexture
             
             inputConn2   = multiply.findPlug("input2", True)
-            occlTexture  = searchForNodeByApiType(inputConn2, maom.MFn.kTexture2d)
+            #occlTexture  = searchForNodeByApiType(inputConn2, maom.MFn.kTexture2d)
+            occlTexture  = searchForNodeByNameType(inputConn2, textTypes)
             if occlTexture:
                 hasOcclTexture = True
                 colorStore["occlusionTexture"] = occlTexture
@@ -797,7 +818,8 @@ def getLegacyBaseColorAndOcclusionTextures(material, colorStore):
                     plugName = "input2X"
                     
                 inputConn2 = multiply.findPlug(plugName, True)
-                occlTexture2R = searchForNodeByApiType(inputConn2, maom.MFn.kTexture2d)
+                #occlTexture2R = searchForNodeByApiType(inputConn2, maom.MFn.kTexture2d)
+                occlTexture2R = searchForNodeByNameType(inputConn2, textTypes)
                 if occlTexture2R:
                     hasOcclTexture = True
                     colorStore["occlusionTexture"] = occlTexture2R
@@ -806,18 +828,21 @@ def getLegacyBaseColorAndOcclusionTextures(material, colorStore):
             if aiImage:
                 colorStore["baseTexture"] = aiImage
                 multiConn = aiImage.findPlug("multiply", True)
-                occlTexture  = searchForNodeByApiType(multiConn, maom.MFn.kTexture2d)
+                #occlTexture  = searchForNodeByApiType(multiConn, maom.MFn.kTexture2d)
+                occlTexture  = searchForNodeByNameType(multiConn, textTypes)
                 if occlTexture:
                     hasOcclTexture = True
                     colorStore["occlusionTexture"] = occlTexture
                 else:
                     multiConn = aiImage.findPlug("multiplyR", True)
-                    occlTexture2R = searchForNodeByApiType(multiConn.asMObject(), maom.MFn.kTexture2d)
+                    #occlTexture2R = searchForNodeByApiType(multiConn, maom.MFn.kTexture2d)
+                    occlTexture2R = searchForNodeByNameType(multiConn, textTypes)
                     if occlTexture2R:
                         hasOcclTexture = True
                         colorStore["occlusionTexture"] = occlTexture2R
             else:
-                colorTexture = searchForNodeByApiType(colorConn, maom.MFn.kTexture2d)
+                #colorTexture = searchForNodeByApiType(colorConn, maom.MFn.kTexture2d)
+                colorTexture = searchForNodeByNameType(colorConn, textTypes)
                 if colorTexture:
                     colorStore["baseTexture"] = colorTexture
 
@@ -840,17 +865,20 @@ def getAdvBaseColorAndOcclusionTextures(material, colorStore, advMat):
         multiply = searchForNodeByNameType(colorConn, ["multiplyDivide", "aiMultiply"])
         if multiply:
             inputConn1   = multiply.findPlug("input1", True)
-            colorTexture = searchForNodeByApiType(inputConn1, maom.MFn.kTexture2d)
+            #colorTexture = searchForNodeByApiType(inputConn1, maom.MFn.kTexture2d)
+            colorTexture = searchForNodeByNameType(inputConn1, textTypes)
             if colorTexture:
                 colorStore["baseTexture"] = colorTexture
             
             inputConn2   = multiply.findPlug("input2", True)
-            occlTexture  = searchForNodeByApiType(inputConn2, maom.MFn.kTexture2d)
+            #occlTexture  = searchForNodeByApiType(inputConn2, maom.MFn.kTexture2d)
+            occlTexture  = searchForNodeByNameType(inputConn2, textTypes)
             if occlTexture:
                 colorStore["occlusionTexture"] = occlTexture
             else:
                 inputConn2 = multiply.findPlug("input2R", True)
-                occlTexture2R = searchForNodeByApiType(inputConn2, maom.MFn.kTexture2d)
+                #occlTexture2R = searchForNodeByApiType(inputConn2, maom.MFn.kTexture2d)
+                occlTexture2R = searchForNodeByNameType(inputConn2, textTypes)
                 if occlTexture2R:
                     colorStore["occlusionTexture"] = occlTexture2R
         else:
@@ -858,16 +886,19 @@ def getAdvBaseColorAndOcclusionTextures(material, colorStore, advMat):
             if aiImage:
                 colorStore["baseTexture"] = aiImage
                 multiConn = aiImage.findPlug("multiply", True)
-                occlTexture  = searchForNodeByApiType(multiConn, maom.MFn.kTexture2d)
+                #occlTexture  = searchForNodeByApiType(multiConn, maom.MFn.kTexture2d)
+                occlTexture  = searchForNodeByNameType(multiConn, textTypes)
                 if occlTexture:
                     colorStore["occlusionTexture"] = occlTexture
                 else:
                     multiConn = aiImage.findPlug("multiplyR", True)
-                    occlTexture2R = searchForNodeByApiType(multiConn, maom.MFn.kTexture2d)
+                    occlTexture2R = searchForNodeByNameType(multiConn, textTypes)
                     if occlTexture2R:
                         colorStore["occlusionTexture"] = occlTexture2R
             else:
-                colorTexture = searchForNodeByApiType(colorConn, maom.MFn.kTexture2d)
+                #colorTexture = searchForNodeByApiType(colorConn, maom.MFn.kTexture2d)
+                colorTexture = searchForNodeByNameType(colorConn, textTypes)
+                
                 if colorTexture:
                     colorStore["baseTexture"] = colorTexture
                 
@@ -877,12 +908,14 @@ def getAdvBaseColorAndOcclusionTextures(material, colorStore, advMat):
                 
     elif advMat == 3:
         dColorConn = material.findPlug("diffuseColor", True)
-        colorTexture = searchForNodeByApiType(dColorConn, maom.MFn.kTexture2d)
+        #colorTexture = searchForNodeByApiType(dColorConn, maom.MFn.kTexture2d)
+        colorTexture = searchForNodeByNameType(dColorConn, textTypes)
         if colorTexture:
             colorStore  ["baseTexture" ] = colorTexture
         
         occlConn    = material.findPlug("occlusion", True)
-        occlTexture = searchForNodeByApiType(occlConn, maom.MFn.kTexture2d)
+        #occlTexture = searchForNodeByApiType(occlConn, maom.MFn.kTexture2d)
+        occlTexture = searchForNodeByNameType(occlConn, textTypes)
         if occlTexture:
             colorStore  ["occlussionTexture"] = occlTexture
             
@@ -890,13 +923,97 @@ def getAdvBaseColorAndOcclusionTextures(material, colorStore, advMat):
         tColorConn = material.findPlug("TEX_color_map", True)
         tOcclConn  = material.findPlug("TEX_ao_map",    True)
 
-        colorTexture = searchForNodeByApiType(tColorConn, maom.MFn.kTexture2d)
+        #colorTexture = searchForNodeByApiType(tColorConn, maom.MFn.kTexture2d)
+        colorTexture = searchForNodeByNameType(tColorConn, textTypes)
         if colorTexture:
             colorStore  ["baseTexture"  ] = colorTexture
         
-        occlTexture = searchForNodeByApiType(tOcclConn, maom.MFn.kTexture2d)
+        #occlTexture = searchForNodeByApiType(tOcclConn, maom.MFn.kTexture2d)
+        occlTexture = searchForNodeByNameType(tOcclConn, textTypes)
         if occlTexture:
             colorStore  ["occlussionTexture"] = occlTexture
+
+
+def attachMatXTextureTransforms(trv, rkint, textureTransforms, x3dAppearance):
+    ttLen = len(textureTransforms)
+    x3dParent = x3dAppearance
+    
+    if ttLen > 1:
+        mtt = trv.processBasicNodeAddition(x3dParent, "textureTransform", "MultiTextureTransform", "")
+        if mtt[0] == False:
+            x3dParent = mtt[1]
+    
+    if ttLen > 0:
+        for tt in textureTransforms:
+            nodeName = tt[0].name()
+            tTrans = trv.processBasicNodeAddition(x3dParent, "textureTransform", "TextureTransform", nodeName)
+            if  tTrans[0] == False:
+                tTrans[1].mapping = tt[1]
+                
+                tTrans[1].center      =                  getUFEAttribute(tt[0], "pivot" ).get()
+                tTrans[1].rotation    = rkint.getDeg2Rad(getUFEAttribute(tt[0], "rotate").get())
+                tTrans[1].translation =                  getUFEAttribute(tt[0], "offset").get()
+                tTrans[1].scale       =                  getUFEAttribute(tt[0], "scale" ).get()
+    else:
+        tTrans = trv.processBasicNodeAddition(x3dParent, "textureTransform", "TextureTransform", x3dParent.DEF + "_TT")
+    
+
+def attachTextureTransforms(trv, rkint, textureTransforms, x3dAppearance):
+    ttLen = len(textureTransforms)
+    x3dParent = x3dAppearance
+    
+    if ttLen > 1:
+        mtt = trv.processBasicNodeAddition(x3dParent, "textureTransform", "MultiTextureTransform", "")
+        if mtt[0] == False:
+            x3dParent = mtt[1]
+
+    if ttLen > 0:
+        for tt in textureTransforms:
+            nodeName = tt[0].name()
+            tTrans = trv.processBasicNodeAddition(x3dParent, "textureTransform", "TextureTransform", nodeName)
+            if  tTrans[0] == False:
+                tTrans[1].mapping = tt[1]
+                
+                tTrans[1].center      =                  cmds.getAttr(nodeName + ".offset"        )[0]
+                tTrans[1].rotation    = rkint.getDeg2Rad(cmds.getAttr(nodeName + ".rotateFrame"   ))
+                tTrans[1].translation =                  cmds.getAttr(nodeName + ".translateFrame")[0]
+                ru = cmds.getAttr(nodeName + ".repeatU")
+                cu = cmds.getAttr(nodeName + ".coverageU")
+                rv = cmds.getAttr(nodeName + ".repeatV")
+                cv = cmds.getAttr(nodeName + ".coverageV")
+                if ru <= 0.0:
+                    ru = 0.0001
+                if rv <= 0.0:
+                    rv = 0.0001
+                if cu <= 0.0:
+                    cu = 0.0001
+                if cv <= 0.0:
+                    cv = 0.0001
+                tTrans[1].scale = (ru/cu, rv/cv)
+    else:
+        tTrans = trv.processBasicNodeAddition(x3dParent, "textureTransform", "TextureTransform", x3dParent.DEF + "_TT")
+
+
+def getMatXSurfaceMaterialSceneItem(ufePath):
+    ssPath = ufe.PathString.path(ufePath)
+    ssItem = ufe.Hierarchy.createItem(ssPath)
+    
+    return ssItem
+    
+def getMatXSurfaceShaderSceneItem(smSceneItem, smPath):
+    connection    = getUFEAttribute(smSceneItem, "surfaceshader", connected=True)
+    surfaceshader = ufe.Hierarchy.createItem(connection.src.path)
+    if surfaceshader.nodeType() == "nodegraph":
+        hy = ufe.Hierarchy.hierarchy(surfaceshader)
+
+        children = hy.children()
+        if children:
+            for child in children:
+                if "_surfaceshader" in child.nodeType():
+                    return child
+    else:
+        return surfaceshader
+
 
 def get_all_dependencies(node, tracked_nodes):
     if not node or node in tracked_nodes:
@@ -923,6 +1040,7 @@ def get_all_dependencies(node, tracked_nodes):
             internal_node = output.getConnectedNode()
             if internal_node:
                 get_all_dependencies(internal_node, tracked_nodes)
+
 
 def surgical_mtlx_export(maya_node, final_destination):
     # --- 1. IDENTIFY TARGET ---

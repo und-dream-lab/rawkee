@@ -9,6 +9,7 @@ import maya.api.OpenMayaAnim as aoma
 from   maya.api.OpenMaya import MFn as rkfn
 
 import ufe
+import rawkee.maya.RKufe as rkufe
 
 from rawkee.maya.RKInterfaces import RKInterfaces
 from rawkee.io import RKSceneTraversal
@@ -76,7 +77,7 @@ class RKOrganizer():
                        
         Import/Export file coding
         '''
-        self.exEncoding = 0
+        self.exEncoding = "x3d"
         
         # Tells RK-IO whether or not location-defined leaf nodes should be exported as syblings to their parents
         self.asSyblings = False
@@ -571,7 +572,7 @@ class RKOrganizer():
                 cons = cmds.listConnections(ipNode.name() + ".sourceTexture")
                 if len(cons) > 0:
                     if cmds.nodeType(cons[0]) == "envCube":
-                        bkNode = self.trv.processBasicNodeAddition(ipNode, x3dScene, "children", "Background", ipNode.name())
+                        bkNode = self.trv.processBasicNodeAddition(x3dScene, "children", "Background", ipNode.name())
                         if bkNode[0] == False:
                             textureNodes = []
                             textureNodes = cmds.listConnections(cons[0], destination=True, type="file")
@@ -935,7 +936,7 @@ class RKOrganizer():
     def processX3DSound(self, dagNode, x3dPF):
         if dagNode.childCount() > 0:
             depNode = aom.MFnDependencyNode(dagNode.child(0))
-            bna = self.trv.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "Sound", dagNode.name())
+            bna = self.trv.processBasicNodeAddition(x3dPF[0], x3dPF[1], "Sound", dagNode.name())
             if bna[0] == False:
                 x3dNode = bna[1]
 
@@ -956,7 +957,7 @@ class RKOrganizer():
             depNode = aom.MFnDependencyNode(dagNode.child(0))
             isOrtho = depNode.findPlug("orthographic", False).asBool()
             if isOrtho:
-                bna = self.trv.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "OrthoViewpoint", dagNode.name())
+                bna = self.trv.processBasicNodeAddition(x3dPF[0], x3dPF[1], "OrthoViewpoint", dagNode.name())
                 if bna[0] == False:
                     x3dNode = bna[1]
                     self.processBasicViewpointFields(x3dNode, dagNode.name(), depNode)
@@ -966,7 +967,7 @@ class RKOrganizer():
                     x3dNode.fieldOfView =  (oWidth * -1, oWidth * -1, oWidth, oWidth)
                      
             else:
-                bna = self.trv.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "Viewpoint", dagNode.name())
+                bna = self.trv.processBasicNodeAddition(x3dPF[0], x3dPF[1], "Viewpoint", dagNode.name())
                 if bna[0] == False:
                     x3dNode = bna[1]
                     self.processBasicViewpointFields(x3dNode, dagNode.name(), depNode)
@@ -1039,7 +1040,7 @@ class RKOrganizer():
         if dagNode.childCount() > 0:
             depNode = aom.MFnDependencyNode(dagNode.child(0))
             if depNode.typeName == "directionalLight":
-                bna = self.trv.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "DirectionalLight", dagNode.name())
+                bna = self.trv.processBasicNodeAddition(x3dPF[0], x3dPF[1], "DirectionalLight", dagNode.name())
                 if bna[0] == False:
                     x3dNode = bna[1]
                     self.processBasicLightFields(x3dNode, dagNode, depNode)
@@ -1051,7 +1052,7 @@ class RKOrganizer():
                     x3dNode.direction = self.rkint.getDirection(tForm.rotation(aom.MSpace.kTransform, False))
                     
             elif depNode.typeName == "spotLight":
-                bna = self.trv.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "SpotLight", dagNode.name())
+                bna = self.trv.processBasicNodeAddition(x3dPF[0], x3dPF[1], "SpotLight", dagNode.name())
                 if bna[0] == False:
                     x3dNode = bna[1]
                     self.processBasicLightFields(x3dNode, dagNode, depNode)
@@ -1113,7 +1114,7 @@ class RKOrganizer():
                     # x3dNode.radius = depNode.findPlug("centerOfIllumination").asFloat()
 
             elif depNode.typeName == "pointLight":
-                bna = self.trv.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "PointLight", dagNode.name())
+                bna = self.trv.processBasicNodeAddition(x3dPF[0], x3dPF[1], "PointLight", dagNode.name())
                 if bna[0] == False:
                     x3dNode = bna[1]
                     self.processBasicLightFields(x3dNode, dagNode, depNode)
@@ -1148,7 +1149,7 @@ class RKOrganizer():
             tfList = aom.MSelectionList()
             tfList.add(tFile[0])
             tfNode = aom.MFnDependencyNode(tfList.getDependNode(0))
-            fbna = self.trv.processBasicNodeAddition(tfNode, x3dParent, x3dField, "ImageCubeMapTexture", tfNode.name())
+            fbna = self.trv.processBasicNodeAddition(x3dParent, x3dField, "ImageCubeMapTexture", tfNode.name())
             if fbna[0] == False:
                 relativeTexPath = self.rkImagePath
                 localTexWrite   = self.activePrjDir + "/" + relativeTexPath
@@ -1186,7 +1187,7 @@ class RKOrganizer():
 
     def processEnviornmentLight(self,       skyDomeLight, x3dParent, x3dField, x3dType, dagNode):
         print("EL - Print me")
-        bna = self.trv.processBasicNodeAddition(skyDomeLight, x3dParent, x3dField, x3dType, dagNode.name())
+        bna = self.trv.processBasicNodeAddition(x3dParent, x3dField, x3dType, dagNode.name())
         if bna[0] == False:
             x3dNode = bna[1]
             self.processBasicLightFields(x3dNode, dagNode, skyDomeLight)
@@ -1200,7 +1201,7 @@ class RKOrganizer():
                 tfList = aom.MSelectionList()
                 tfList.add(tFile[0])
                 tfNode = aom.MFnDependencyNode(tfList.getDependNode(0))
-                fbna = self.trv.processBasicNodeAddition(tfNode, bna[1], "specularTexture", "ImageCubeMapTexture", tfNode.name())
+                fbna = self.trv.processBasicNodeAddition(bna[1], "specularTexture", "ImageCubeMapTexture", tfNode.name())
                 if fbna[0] == False:
                     relativeTexPath = self.rkImagePath
                     localTexWrite   = self.activePrjDir + "/" + relativeTexPath
@@ -1291,7 +1292,7 @@ class RKOrganizer():
     def processX3DTransform(self, x3dParentDEF, dagNode, x3dPF):
         depNode = aom.MFnDependencyNode(dagNode.object())
         #dragPath = dragPath + "|" + depNode.name()
-        bna = self.trv.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "Transform", depNode.name())
+        bna = self.trv.processBasicNodeAddition(x3dPF[0], x3dPF[1], "Transform", depNode.name())
         if bna[0] == False:
             self.processBasicTransformFields(depNode, bna[1])
             
@@ -1462,7 +1463,7 @@ class RKOrganizer():
         hName = depNode.name()
             
         # Create X3D HAnimHumanoid node
-        bna = self.trv.processBasicNodeAddition(depNode, x3dPF[0], x3dPF[1], "HAnimHumanoid", nodeName=hName)
+        bna = self.trv.processBasicNodeAddition(x3dPF[0], x3dPF[1], "HAnimHumanoid", nodeName=hName)
         
         if bna[0] == False:
             if depNode.typeName != "joint":
@@ -1568,7 +1569,7 @@ class RKOrganizer():
         parentNode = self.eofScene
         cField = "children"
             
-        bna = self.trv.processBasicNodeAddition(None, parentNode, cField, "Group", x3dParent.DEF + "_TimerGroup")
+        bna = self.trv.processBasicNodeAddition(parentNode, cField, "Group", x3dParent.DEF + "_TimerGroup")
         if bna[0] == False:
             for apNode in rkAPNodes:
                 apType = cmds.getAttr(apNode.name() + ".mimickedType")
@@ -1593,15 +1594,15 @@ class RKOrganizer():
 
 
     def processAudioClipNode   (self, apNode, timerGroup, cField):
-        bna = self.trv.processBasicNodeAddition(apNode, timerGroup, cField, "AudioClip", apNode.name())
+        bna = self.trv.processBasicNodeAddition(timerGroup, cField, "AudioClip", apNode.name())
 
         
     def processMovieTextureNode(self, apNode, timerGroup, cField):
-        bna = self.trv.processBasicNodeAddition(apNode, timerGroup, cField, "MovieTexture", apNode.name())
+        bna = self.trv.processBasicNodeAddition(timerGroup, cField, "MovieTexture", apNode.name())
 
     #Processing TimeSensor Node
     def processTimeSensorNode   (self, apNode, timerGroup, cField):
-        bna = self.trv.processBasicNodeAddition(apNode, timerGroup, cField, "TimeSensor", apNode.name())
+        bna = self.trv.processBasicNodeAddition(timerGroup, cField, "TimeSensor", apNode.name())
         
         if bna[0] == False:
             ##########################################
@@ -1662,7 +1663,7 @@ class RKOrganizer():
             ###### preFrame = cmds.currentTime(query=True)## --- ################
             for tExp in timerExpressions:
                 x3dNodeType = cmds.getAttr(tExp.name() + '.x3dInterpolatorType')
-                bni = self.trv.processBasicNodeAddition(None, timerGroup, cField, x3dNodeType, tExp.name())
+                bni = self.trv.processBasicNodeAddition(timerGroup, cField, x3dNodeType, tExp.name())
                 if bni[0] == False:
                     ############################################################################
                     ###### cons   = cmds.listConnections(tExp.name(), p=True, s=True, et=True, sh=True)
@@ -1757,7 +1758,7 @@ class RKOrganizer():
         return newField
         
     def processHAnimMotion(self, x3dParentDEF, moNode, x3dHumanoid, cField="motions"):
-        bna = self.trv.processBasicNodeAddition(moNode, x3dHumanoid, cField, "HAnimMotion", moNode.name())
+        bna = self.trv.processBasicNodeAddition(x3dHumanoid, cField, "HAnimMotion", moNode.name())
 
         if bna[0] == False:
             #Maya Timeline Key Frame Step (Timeline steps)
@@ -1887,9 +1888,9 @@ class RKOrganizer():
         
         if self.rkNormalOpts > 0 and len(skm) > 0:
             nName = nName + "_Normal"
-            normalbna = self.trv.processBasicNodeAddition(None, x3dParent, "skinNormal", "Normal", nName)
-            #normalbna = self.trv.processBasicNodeAddition(depNode, x3dParent, "skinBindingNormals", "Normal", nName)
-            #sknbna    = self.trv.processBasicNodeAddition(depNode, x3dParent, "skinNormal", "Normal", nName)
+            normalbna = self.trv.processBasicNodeAddition(x3dParent, "skinNormal", "Normal", nName)
+            #normalbna = self.trv.processBasicNodeAddition(x3dParent, "skinBindingNormals", "Normal", nName)
+            #sknbna    = self.trv.processBasicNodeAddition(x3dParent, "skinNormal", "Normal", nName)
 
             for sm in skm:
                 interSM = self.getIntermediateMesh(sm)
@@ -1954,9 +1955,9 @@ class RKOrganizer():
         
         if skmLen > 0:
             cName = cName + "_Coord"
-            coordbna = self.trv.processBasicNodeAddition(None, x3dParent, "skinCoord", "Coordinate", cName)
-            #coordbna = self.trv.processBasicNodeAddition(depNode, x3dParent, "skinBindingCoords", "Coordinate", cName)
-            #skcbna   = self.trv.processBasicNodeAddition(depNode, x3dParent, "skinCoord", "Coordinate", cName)
+            coordbna = self.trv.processBasicNodeAddition(x3dParent, "skinCoord", "Coordinate", cName)
+            #coordbna = self.trv.processBasicNodeAddition(x3dParent, "skinBindingCoords", "Coordinate", cName)
+            #skcbna   = self.trv.processBasicNodeAddition(x3dParent, "skinCoord", "Coordinate", cName)
             for sm in skm:
                 ###########################################################################
                 # 
@@ -2161,7 +2162,7 @@ class RKOrganizer():
             
         #No dragPath change 777777
         #bna = self.trv.processBasicNodeAddition(None, x3dParent, cField, "CGESkin", skinDEF)
-        bna = self.trv.processBasicNodeAddition(None, x3dPF[0], x3dPF[1], "CGESkin", skinDEF)
+        bna = self.trv.processBasicNodeAddition(x3dPF[0], x3dPF[1], "CGESkin", skinDEF)
         if bna[0] == False:
             #################################################
             # List holding all Mesh node objects influenced
@@ -2231,7 +2232,7 @@ class RKOrganizer():
                     jsm.getElement(3,0), jsm.getElement(3,1), jsm.getElement(3,2), jsm.getElement(3,3))
 
             x3dSkin.inverseBindMatrices.append(imx)
-            bna = self.trv.processBasicNodeAddition(None, x3dSkin, "joints", "Transform", nodeName=allJoints[i])
+            bna = self.trv.processBasicNodeAddition(x3dSkin, "joints", "Transform", nodeName=allJoints[i])
 
 
     def populateCGEWeightInformation(self, mesh, shape, allJoints):
@@ -2371,7 +2372,7 @@ class RKOrganizer():
 
     def processMayaJointAsCGETransform(self, x3dParentDEF, jNode, x3dSkin, x3dParent, cField="children", allShapes=[], allJoints=[], isBasic=False, wssm=aom.MMatrix()):
 
-        bna   = self.trv.processBasicNodeAddition(jNode, x3dParent, cField, "Transform", jNode.name())
+        bna   = self.trv.processBasicNodeAddition(x3dParent, cField, "Transform", jNode.name())
         if bna[0] == False:
             # Gather shapes related to this joint.
             self.getMeshFromJoint(jNode, allShapes)
@@ -2414,7 +2415,7 @@ class RKOrganizer():
             # author does not rename this joint with the 
             # label text
             jLabel = self.getCGEJointLabel(jNode)
-            bnam = self.trv.processBasicNodeAddition(None, bna[1], "metadata", "MetadataString", jointName + "_joint_label")
+            bnam = self.trv.processBasicNodeAddition(bna[1], "metadata", "MetadataString", jointName + "_joint_label")
             bnam[1].name = "joint_label"
             bnam[1].value.append(jLabel)
             
@@ -2491,8 +2492,8 @@ class RKOrganizer():
     # sc is MFnSkinCluster list, wo is list of ints that are the per-mesh offset from 0 of the weights index for that mesh, sk is MFnMesh node list
     def processHAnimJoint(self, x3dParentDEF, jNode, x3dHumanoid, x3dParent, cField="children", sc=[], wo=[], sk=[], hasSC=False, jOffset=(0.0, 0.0, 0.0), wssm=aom.MMatrix()):
         skinSpaceMatrix = wssm
-        bna   = self.trv.processBasicNodeAddition(jNode,   x3dParent,   cField, "HAnimJoint", jNode.name())
-        bnajt = self.trv.processBasicNodeAddition(jNode, x3dHumanoid, "joints", "HAnimJoint", jNode.name())
+        bna   = self.trv.processBasicNodeAddition(  x3dParent,   cField, "HAnimJoint", jNode.name())
+        bnajt = self.trv.processBasicNodeAddition(x3dHumanoid, "joints", "HAnimJoint", jNode.name())
     
 
         if bna[0] == False:
@@ -2593,8 +2594,8 @@ class RKOrganizer():
                     self.processHAnimJoint(bna[1], dagChild, x3dHumanoid, bna[1], cField="children", sc=sc, wo=wo, sk=sk, hasSC=False, jOffset=localPivot, wssm=skinSpaceMatrix)
                 elif dagChild.typeName == "transform":
                     mySegName = dagChild.name() + "_segment"
-                    bnaSeg  = self.trv.processBasicNodeAddition(jNode, bna[1],      "children", "HAnimSegment", nodeName=mySegName)
-                    bnaSeg2 = self.trv.processBasicNodeAddition(jNode, x3dHumanoid, "segments", "HAnimSegment", nodeName=mySegName)
+                    bnaSeg  = self.trv.processBasicNodeAddition(bna[1],      "children", "HAnimSegment", nodeName=mySegName)
+                    bnaSeg2 = self.trv.processBasicNodeAddition(x3dHumanoid, "segments", "HAnimSegment", nodeName=mySegName)
                     
                     if bnaSeg[0] == False:
                     #    bnaSeg[1].centerOfMass = bna[1].center
@@ -2832,7 +2833,7 @@ class RKOrganizer():
         shLen = len(shaders)
         ##### print("Mesh Name: " + myMesh.name() + ", shLen: " + str(shLen) + ", isAvatar: " + str(isAvatar) )
         if shLen > 1 and isAvatar == False:
-            bna = self.trv.processBasicNodeAddition(dagNode, x3dPF[0], x3dPF[1], "Group", supMeshName)
+            bna = self.trv.processBasicNodeAddition(x3dPF[0], x3dPF[1], "Group", supMeshName)
             if bna[0] == False:
                 return
             else:
@@ -2922,7 +2923,7 @@ class RKOrganizer():
                 if cField != "shapes":
                     envNode = envLightingGroups.get(str(idx), False)
                     if envNode:
-                        envBna = self.trv.processBasicNodeAddition(None, x3dPF[0], x3dPF[1], "Group", lightName)
+                        envBna = self.trv.processBasicNodeAddition(x3dPF[0], x3dPF[1], "Group", lightName)
                         if envBna[0] == False:
                             x3dPF[0] = lightName
                             x3dPF[1] = "children"
@@ -2937,7 +2938,7 @@ class RKOrganizer():
                                 lightName = envNode["name"]
                                 if eNode.typeName == "StingrayPBS":
                                     lightName = lightName + "_SPBS_EnvLight"
-                                lhtBna = self.trv.processBasicNodeAddition(None, x3dPF[0], x3dPF[1], "EnvironmentLight", lightName)
+                                lhtBna = self.trv.processBasicNodeAddition(x3dPF[0], x3dPF[1], "EnvironmentLight", lightName)
                                 if lhtBna[0] == False:
                                     lhtBna[1].on = True
                                     lhtBna[1].global_ = False
@@ -2950,7 +2951,7 @@ class RKOrganizer():
                                         #TODO
                                         pass
                 
-            sbna = self.trv.processBasicNodeAddition(dagNode, x3dPF[0], x3dPF[1], "Shape", shapeName)
+            sbna = self.trv.processBasicNodeAddition(x3dPF[0], x3dPF[1], "Shape", shapeName)
             if sbna[0] == False:
                 
                 #if shLen == 1:
@@ -3001,9 +3002,12 @@ class RKOrganizer():
         pass
 
     def processX3DAppearance(self, mesh, seObj, comp, pNode, cField="appearance", index=0):
-        usedUVSets, texNodes = self.getUsedUVSetsAndTexturesInOrder(mesh, seObj)
+        uvSetNames = myMesh.getUVSetNames()
+        usedUVSets, texNodes = self.getUsedUVSetsAndTexturesInOrder(mesh, seObj, uvSetNames)
         
-        matchedSets = [usedUVSets, texNodes]
+        #matchedSets = [usedUVSets, texNodes]
+        
+        matchedSets = self.getUsedUVSetDictionary(mesh,seObj)
         
         # Texture Transform List
         ttList = []
@@ -3020,7 +3024,7 @@ class RKOrganizer():
         mappings = allMaps[index]
         
         #Create the Appearance Node using the Name of the Shader Engine
-        bna = self.trv.processBasicNodeAddition(seNode, pNode, cField, "Appearance", seNode.name())
+        bna = self.trv.processBasicNodeAddition(pNode, cField, "Appearance", seNode.name())
         if bna[0] == False:
             mTextureNodes        = []
             mTextureFields       = []
@@ -3046,9 +3050,11 @@ class RKOrganizer():
         
             # Check to see if surfaceShader is Double Sided, and then process appropriately
             if ssNode.typeName == "aiTwoSided":
-                self.processDoubleSidedAppearance(matchedSets, ssNode, bna[1], mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d)
+                #self.processDoubleSidedAppearance(matchedSets, ssNode, bna[1], mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d)
+                self.processDoubleSidedAppearance(matchedSets, ssNode, bna[1], uvSetNames, mTextureNodes, mTextureFields, mTextureParents, retPlace2d)
             else:
-                self.processSingleSidedAppearance(matchedSets, ssNode, bna[1], mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d)
+                #self.processSingleSidedAppearance(matchedSets, ssNode, bna[1], mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d)
+                self.processSingleSidedAppearance(matchedSets, ssNode, bna[1], uvSetNames, mTextureNodes, mTextureFields, mTextureParents, retPlace2d)
             #except:
             #    print("Failure at inital SurfaceShader search")
             
@@ -3067,6 +3073,7 @@ class RKOrganizer():
             #############################################################################################
             # Set TextureTransform's
             #############################################################################################
+            '''
             print("Setting TextureTransforms")
             textTransforms = []
 
@@ -3078,89 +3085,93 @@ class RKOrganizer():
             
             if bna[1].texture:
                 if   len(textTransforms) == 1:
-                    x3dMTTrans = self.trv.processBasicNodeAddition(seNode, bna[1], "textureTransform", "MultiTextureTransform", seNode.name() + "_MTT")
+                    x3dMTTrans = self.trv.processBasicNodeAddition(bna[1], "textureTransform", "MultiTextureTransform", seNode.name() + "_MTT")
                     if x3dMTTrans[0] == False:
-                        self.trv.processBasicNodeAddition(None, x3dMTTrans[1], "textureTransform", "TextureTransform", seNode.name() + "_GTT")
-                        x3dTTrans = self.trv.processBasicNodeAddition(textTransforms[0], x3dMTTrans[1], "textureTransform", "TextureTransform", textTransforms[0].name())
+                        self.trv.processBasicNodeAddition(x3dMTTrans[1], "textureTransform", "TextureTransform", seNode.name() + "_GTT")
+                        x3dTTrans = self.trv.processBasicNodeAddition(x3dMTTrans[1], "textureTransform", "TextureTransform", textTransforms[0].name())
                         if x3dTTrans[0] == False:
                             self.setTextureTransformFields(textTransforms[0], x3dTTrans[1])
 
                 elif len(textTransforms)  > 1:
-                    x3dMTTrans = self.trv.processBasicNodeAddition(seNode, bna[1], "textureTransform", "MultiTextureTransform", seNode.name() + "_MTT")
+                    x3dMTTrans = self.trv.processBasicNodeAddition(bna[1], "textureTransform", "MultiTextureTransform", seNode.name() + "_MTT")
                     if x3dMTTrans[0] == False:
-                        self.trv.processBasicNodeAddition(None, x3dMTTrans[1], "textureTransform", "TextureTransform", seNode.name() + "_GTT")
+                        self.trv.processBasicNodeAddition(x3dMTTrans[1], "textureTransform", "TextureTransform", seNode.name() + "_GTT")
                         for idx in range(len(textTransforms)):
-                            x3dTTrans = self.trv.processBasicNodeAddition(textTransforms[idx], x3dMTTrans[1], "textureTransform", "TextureTransform", textTransforms[idx].name())
+                            x3dTTrans = self.trv.processBasicNodeAddition(x3dMTTrans[1], "textureTransform", "TextureTransform", textTransforms[idx].name())
                             if x3dTTrans[0] == False:
                                 self.setTextureTransformFields(textTransforms[idx], x3dTTrans[1])
             else:
                 if   len(textTransforms) == 1:
-                    x3dTTrans = self.trv.processBasicNodeAddition(textTransforms[0], bna[1], "textureTransform", "TextureTransform", textTransforms[0].name())
+                    x3dTTrans = self.trv.processBasicNodeAddition(bna[1], "textureTransform", "TextureTransform", textTransforms[0].name())
                     if x3dTTrans[0] == False:
                         self.setTextureTransformFields(textTransforms[0], x3dTTrans[1])
 
                 elif len(textTransforms)  > 1:
-                    x3dMTTrans = self.trv.processBasicNodeAddition(seNode, bna[1], "textureTransform", "MultiTextureTransform", seNode.name() + "_MTT")
+                    x3dMTTrans = self.trv.processBasicNodeAddition(bna[1], "textureTransform", "MultiTextureTransform", seNode.name() + "_MTT")
                     if x3dMTTrans[0] == False:
                         for idx in range(len(textTransforms)):
-                            x3dTTrans = self.trv.processBasicNodeAddition(textTransforms[idx], x3dMTTrans[1], "textureTransform", "TextureTransform", textTransforms[idx].name())
+                            x3dTTrans = self.trv.processBasicNodeAddition(x3dMTTrans[1], "textureTransform", "TextureTransform", textTransforms[idx].name())
                             if x3dTTrans[0] == False:
                                 self.setTextureTransformFields(textTransforms[idx], x3dTTrans[1])
+            '''
                             
         print("Made it to the end of the appearance.")
         
         return bna[1]
                 
     
-    def processDoubleSidedAppearance(self, matchedSets, mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d):
+    def processDoubleSidedAppearance(self, matchedSets, mayaShader, x3dAppearance, uvSetNamess, mTextureNodes, mTextureFields, mTextureParents, retPlace2d):
         sShaders = []
         sShaders.append(aom.MFnDependencyNode(mayaShader.findPlug("front", True).source().node()))
         sShaders.append(aom.MFnDependencyNode(mayaShader.findPlug("back", True).source().node()))
             
         #try:
-        self.processSingleSidedAppearance(matchedSets, sShaders[0], x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d)
+        self.processSingleSidedAppearance(matchedSets, sShaders[0], x3dAppearance, uvSetNamess, mTextureNodes, mTextureFields, mTextureParents, retPlace2d)
         #except:
         #    print("Failure at search for front side of a double sided appearance node")
             
         #try:
-        self.processSingleSidedAppearance(matchedSets, sShaders[1], x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField="backMaterial")
+        self.processSingleSidedAppearance(matchedSets, sShaders[1], x3dAppearance, uvSetNames, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField="backMaterial")
         #except:
         #    print("Failure at search for back side of a double sided appearance node")
 
         
-    def processSingleSidedAppearance(self, matchedSets, mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField="material"):
+    def processSingleSidedAppearance(self, matchedSets, mayaShader, x3dAppearance, uvSetNames, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField="material"):
         print("Inside Single Sided Appearance.")
         
         x3dMaterial = None
 
-        if   mayaShader.typeName == "MaterialXSurfaceShader":
-            if   mappings["type"] == "shaderMaterial":
-                x3dMaterial = self.processMaterialX_PhysicalMaterial(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
-
-            elif mappings["type"] == "shaderSet":
-                x3dMaterial = self.processMaterialX_X3DShaderSet(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, "shaders")
+        if mayaShader.typeName == "MaterialXSurfaceShader":
+            matXType = mayaShader.name() + ".asX3DShader"
+            if cmds.objExists(matXType):
+                asX3DShader = cmds.getAttr(matXType)
+                if asX3DShader == True:
+                    x3dMaterial = self.processMaterialX_X3DShaderSet(   mayaShader, x3dAppearance, uvSetNames, "shaders")
+                else:
+                    x3dMaterial = self.processMaterialX_X3DMaterialType(mayaShader, x3dAppearance, uvSetNames, cField   )
+            else:
+                x3dMaterial = self.processMaterialX_X3DShaderSet(       mayaShader, x3dAppearance, uvSetNames, "shaders")
             
         elif mayaShader.typeName == "aiFlat" or mayaShader.typeName == "surfaceShader":
-            x3dMaterial = self.processUnlit_Material(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
+            x3dMaterial = self.processUnlit_Material(matchedSets, mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
         
         elif mayaShader.typeName == "StingrayPBS":
-            x3dMaterial = self.processStingrayPBS_PhysicalMaterial(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
+            x3dMaterial = self.processStingrayPBS_PhysicalMaterial(matchedSets, mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
 
         elif mayaShader.typeName == "aiStandardSurface" or mayaShader.typeName == "standardSurface":
-            x3dMaterial = self.processStandard_PhysicalMaterial(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
+            x3dMaterial = self.processStandard_PhysicalMaterial(matchedSets, mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
 
         elif mayaShader.typeName == "openPBRSurface":
-            x3dMaterial = self.processOpenPBRSurface(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
+            x3dMaterial = self.processOpenPBRSurface(matchedSets, mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
         
         elif mayaShader.typeName == "usdPreviewSurface":
-            #TODO Needs to be completed.
-            x3dMaterial = self.processUSDPreview_PhysicalMaterial(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
+            x3dMaterial = self.processUSDPreview_PhysicalMaterial(matchedSets, mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
 
         elif mayaShader.typeName == "blinn":
-            x3dMaterial = self.processBlinn_PhysicalMaterial(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
+            x3dMaterial = self.processBlinn_PhysicalMaterial(matchedSets, mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
 
         elif mayaShader.typeName == "lambert" or mayaShader.typeName == "aiLambert" or mayaShader.typeName == "phong" or mayaShader.typeName == "phongE":
-            x3dMaterial = self.processLegacy_Material(mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
+            x3dMaterial = self.processLegacy_Material(matchedSets, mayaShader, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField)
 
         else:
             print("###############################################################################")
@@ -3172,11 +3183,12 @@ class RKOrganizer():
         #################################################################
         ## TODO Account for MaterialX shader export
         #################################################################
+        '''
         if x3dMaterial:
             if mappings["type"] == "material":
                 mtexLen = len(mTextureNodes)
                 for a in range(mtexLen):
-                    gPlace2d = self.processTexture(mTextureNodes[a].object().apiType(), mTextureNodes[a], mTextureParents[a], mTextureFields[a])
+                    gPlace2d = self.processTextureOld(mTextureNodes[a].object().apiType(), mTextureNodes[a], mTextureParents[a], mTextureFields[a])
                     if gPlace2d:
                         texturemapping, extValue = self.getMappingValue(mappings, mTextureFields[a] + "Mapping")
 
@@ -3193,28 +3205,32 @@ class RKOrganizer():
                 pass
 
             elif mappings["type"] == "shaderSet":
-                pass
-            
-            
-    def processLegacy_Material(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
-        mNode = self.trv.processBasicNodeAddition(material, x3dAppearance, cField, "Material", material.name())
+                mtexLen = len(mTextureNodes)
+                for a in range(mtexLen):
+                    gPlace2d = self.processMatXTexture(mTextureNodes[a], mTextureParents[a], mTextureFields[a])
+                    if gPlace2d:
+                        texturemapping, extValue = self.getMappingValue(mappings, mTextureFields[a] + "Mapping")
+                        setattr(x3dMaterial[0], mTextureFields[a] + "Mapping", texturemapping)
+                        retPlace2d[a]  = gPlace2d
+        '''
+
+
+    def processLegacy_Material(self, matchedSets, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
+        mNode = self.trv.processBasicNodeAddition(x3dAppearance, cField, "Material", material.name())
         if mNode[0] == False:
             x3dMat = mNode[1]
 
+            ignoreTT          = False
+            textureTransforms = []
+            
             colorStore = {}
-            mro        = {}
-            mroStore   = {}
-            mroTexture = {}
 
             rkMat.getLegacyBaseColorAndOcclusionTextures(material, colorStore)
 
             # Get BaseTexture
             baseTexture = colorStore.get("baseTexture", False)
             if baseTexture:
-                mTextureNodes.append(baseTexture)
-                mTextureFields.append("diffuseTexture")
-                mTextureParents.append(x3dMat)
-                retPlace2d.append(None)
+                ignoreTT = self.processTexture(baseTexture, x3dAppearance, x3dMat, "baseTexture", matchedSets, textureTransforms, ignoreTT)
             else:
                 try:
                     bc = cmds.getAttr(material.name() + ".color")[0]
@@ -3230,10 +3246,7 @@ class RKOrganizer():
                 ambiConn = material.findPlug("ambientColor", True)
                 ambiTexture = self.findTextureFromPlug(ambiConn)
                 if ambiTexture:
-                    mTextureNodes.append(ambiTexture)
-                    mTextureFields.append("ambientTexture")
-                    mTextureParents.append(x3dMat)
-                    retPlace2d.append(None)
+                    ignoreTT = self.processTexture(ambiTexture, x3dAppearance, x3dMat, "ambientTexture", matchedSets, textureTransforms, ignoreTT)
                 else:
                     ac = cmds.getAttr(material.name() + ".ambientColor")[0]
                     ambientIntensity = (ac[0] + ac[1] + ac[2]) / 3
@@ -3247,11 +3260,7 @@ class RKOrganizer():
                 emiConn = material.findPlug("incandescence")
                 emiTexture = self.findTextureFromPlug(emiConn)
                 if emiTexture:
-                    mTextureNodes.append(emiTexture)
-                    mTextureFields.append("emissiveTexture")
-                    mTextureParents.append(x3dMat)
-                    retPlace2d.append(None)
-                    
+                    ignoreTT = self.processTexture(emiTexture, x3dAppearance, x3dMat, "emissiveTexture", matchedSets, textureTransforms, ignoreTT)
                     x3dMat.emissiveColor = self.getSFColor(1.0, 1.0, 1.0)
                 else:
                     eColor = cmds.getAttr(material.name() + ".incadescence")[0]
@@ -3271,10 +3280,7 @@ class RKOrganizer():
             normConn    = material.findPlug("normalCamera", True)
             normTexture = self.findTextureFromPlug(normConn)
             if normTexture:
-                mTextureNodes.append(aom.MFnDependencyNode(normTexture))
-                mTextureFields.append("normalTexture")
-                mTextureParents.append(x3dMat)
-                retPlace2d.append(None)
+                ignoreTT = self.processTexture(normTexture, x3dAppearance, x3dMat, "normalTexture", matchedSets, textureTransforms, ignoreTT)
             
             normAdj = self.findNormScaleNode(normConn)
             if normAdj:
@@ -3291,10 +3297,7 @@ class RKOrganizer():
             # Get Occlusion Texture
             occlTexture = colorStore.get("occlusionTexture", False)
             if occlTexture:
-                mTextureNodes.append(occlTexture)
-                mTextureFields.append("occlusionTexture")
-                mTextureParents.append(x3dMat)
-                retPlace2d.append(None)
+                ignoreTT = self.processTexture(occlTexture, x3dAppearance, x3dMat, "occlusionTexture", matchedSets, textureTransforms, ignoreTT)
 
             if material.typeName == "phong" and material.typeName == "phongE":
                 #######################################################
@@ -3305,10 +3308,7 @@ class RKOrganizer():
                 shiConn = material.findPlug(shineAttr)
                 shiTexture = self.findTextureFromPlug(shiConn)
                 if shiTexture:
-                    mTextureNodes.append(shiTexture)
-                    mTextureFields.append("shininessTexture")
-                    mTextureParents.append(x3dMat)
-                    retPlace2d.append(None)
+                    ignoreTT = self.processTexture(shiTexture, x3dAppearance, x3dMat, "shininessTexture", matchedSets, textureTransforms, ignoreTT)
                     x3dMat.shininess = 1.0
                 else:
                     x3dMat.shininess = cmds.getAttr(material.name() + "." + shineAttr)
@@ -3318,23 +3318,1463 @@ class RKOrganizer():
                 spcConn = material.findPlug("specularColor", True)
                 spcTexture = self.findTextureFromPlug(spcConn)
                 if spcTexture:
-                    mTextureNodes.append(spcTexture)
-                    mTextureFields.append("specularTexture")
-                    mTextureParents.append(x3dMat)
-                    retPlace2d.append(None)
+                    ignoreTT = self.processTexture(spcTexture, x3dAppearance, x3dMat, "specularTexture", matchedSets, textureTransforms, ignoreTT)
                 else:
                     spc = cmds.getAttr(material.name() + ".specularColor")[0]
                     x3dMat.specularColor = self.getSFColor(spc[0], spc[1], spc[2])
             
-            return x3dMat
+                if cmds.objExists(material.name() + ".reflectedColor"):
+                    reflConn = material.findPlug("reflectedColor", True)
+                    reflTexture = self.findTextureFromPlug(reflConn)
+                    
+                    if reflTexture.typeName == "envChrome" or reflTexture.typeName == "envCube" or reflTexture.typeName == "envBall" or reflTexture.typeName == "envSphere":
+                        refBna = self.trv.processBasicNodeAddition(x3dAppearance, "texture", "GeneratedCubeMapTexture", reflTexture.name())
+                        ignoreTT = True
+
+                # Check for GeneratedCubeMapTexture
+                if ignoreTT == True:
+                    x3dAppearance.material = None
+                else:
+                    rkMat.attachTextureTransforms(self.trv, self.rkint, textureTransforms, x3dAppearance)
+
+
+    def processMaterialX_X3DMaterialType(self, matXSS, x3dAppearance, uvSetNames, cField):
+        isX3DOM = False
+        if self.exEncoding == "html":
+            isX3DOM = True
+            
+
+        textureTransforms = []
+        ignoreTT = False
+
+        surfacePath = cmds.getAttr(matXSS.name() + ".ufePath")
+        smSceneItem = rkMat.getMatXSurfaceMaterialSceneItem(surfacePath)
+        shSceneItem = rkMat.getMatXSurfaceShaderSceneItem(  smSceneItem, surfacePath)
         
+        shaderType = shSceneItem.nodeType()
+        if   shaderType == "ND_gltf_pbr_surfaceshader":
+            self.processMatX_gltf_pbr(    matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+        elif shaderType == "ND_open_pbr_surface_surfaceshader":
+            self.processMatX_open_pbr(    matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+        elif shaderType == "ND_standard_surface_surfaceshader":
+            self.processMatX_stnd_pbr(    matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+        elif shaderType == "ND_UsdPreviewSurface_surfaceshader":
+            self.processMatX_usd_preview_pbr(    matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+        elif shaderType == "MayaND_phong_surfaceshader":
+            self.processMatX_maya_phong(  matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+        elif shaderType == "MayaND_blinn_surfaceshader":
+            self.processMatX_maya_blinn(  matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+        elif shaderType == "MayaND_lambert_surfaceshader":
+            self.processMatX_maya_lambert(matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+        elif shaderType == "ARNOLD_ND_lambert":
+            self.processMatX_ai_lambert(matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+
+        # Check for GeneratedCubeMapTexture
+        if ignoreTT == True:
+            x3dAppearance.material = None
         else:
-            return None
+            rkMat.attachMatXTextureTransforms(self.trv, self.rkint, textureTransforms, x3dAppearance)
 
 
-    def processMaterialX_X3DShaderSet(  self, matXSS, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
+    def processMatX_usd_preview_pbr(self, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM):
+        # Collect basic PhysicalMaterial node information
+        attributes = {}
+        
+        # baseColor / baseTexture
+        #baseColorAttrText = rkMat.getUFEAttribute(shSceneItem, "baseColor", connected=True)
+        baseColorTexture = rkMat.getUFEConnectedTexture(shSceneItem, "diffuseColor")
+        if baseColorTexture:
+            attributes["baseTexture"] = baseColorTexture
+        else:
+            baseColorAttr = rkMat.getUFEAttribute(shSceneItem, "diffuseColor")
+            bcv = baseColorAttr.get()
+            attributes["baseColor"] = self.getSFColor(bcv.r(), bcv.g(), bcv.b())
+            
+        # emissiveColor / emissiveTexture
+        emissiveColorTexture = rkMat.getUFEConnectedTexutre(shSceneItem, "emissiveColor")
+        if emissiveColorTexture:
+            attributes["emissiveTexture"] = emissiveColorTexture
+        else:
+            emissiveColorAttr = rkMat.getUFEAttribute(shSceneItem, "emissiveColor")
+            ecv = emissiveColorAttr.get()
+            attributes["emissiveColor"] = self.getSFColor(ecv.r(), ecv.g(), ecv.b())
+            
+        spcWork = rkMat.getUFEAttribute(shSceneItem, "useSpecularWorkflow").get()
+        
+        metallicTexture = None
+
+        if spcWork == 0:
+            # metallic / metallicRoughnessTexture
+            metallicTexture = rkMat.getUFEConnectedTexture(shSceneItem, "metallic")
+            if not metallicTexture:
+                attributes["metallic"] = rkMat.getUFEAttribute(shSceneItem, "metallic").get()
+        else:
+            attributes["metallic"] = 0.0
+        
+        roughnessTexture = rkMat.getUFEConnectedTexture(shSceneItem, "roughness")
+        if not roughnessTexture:
+            attributes["roughness"] = rkMat.getUFEAttribute(shSceneItem, "roughness").get()
+            
+        if metallicTexture:
+            attributes["metallicRoughnessTexture"] = metallicTexture
+        elif roughnessTexture:
+            attributes["metallicRoughnessTexture"] = roughnessTexture
+        
+        # Get occlusionStrength / occlusionTexture
+        occlusionTexture = rkMat.getUFEConnectedTexture(shSceneItem, "occlusion")
+        if occlusionTexture:
+            attributes["occlusionTexture"] = occlusionTexture
+        else:
+            attributes["occlusionStrength"] = rkMat.getUFEAttribute(shSceneItem, "occlusion").get()
+        
+        # Get normalStrength / normalTexture
+        normalScaleAttr = rkMat.getUFEAttribute(shSceneItem, "normal", connected=True)
+        if normalScaleAttr:
+            scaleItem = ufe.Hierarchy.createItem(normalScaleAttr.src.path)
+            scaleAttr = rkMat.getUFEAttribute(scaleItem, "scale")
+            if not scaleAttr:
+                scaleAttr = rkMat.getUFEAttribute(scaleItem, "bump_height")
+            if scaleAttr:
+                attributes["normalScale"] = scaleAttr.get()
+                
+            normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "bump_map")
+            if not normalTexture:
+                normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "height")
+            if not normalTexture:
+                normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "in")
+            if normalTexture:
+                attributes["normalTexture"] = normalTexture
+
+        if spcWork == 1:
+        # Get basic specular information
+            specularColorTexture = rkMat.getUFEConnectedTexture(shSceneItem, "specularColor")
+            if specularColorTexture:
+                attributes["specularColorTexture"] = specularColorTexture
+                try:
+                    iPath = rkMat.getMatXAttribute(specularColorTexture, "file", grasp=True)
+                    img = aom.MImage()
+                    img.readFromFile(iPath)
+                    if img.depth() == 4:
+                        attributes["specularTexture"] = specularColorTexture
+                except:
+                    pass
+            else:
+                specularColorAttr = rkMat.getUFEAttribute(shSceneItem, "specularColor")
+                spc = specularColorAttr.get()
+                attributes["specularColor"] = self.getSFColor(spc.r(), spc.g(), spc.b())
+                
+            attributes["specularWeight"] = 1.0
+
+        # Alpha Information
+        trspAttr = rkMat.getUFEAttribute(shSceneItem, "opacity")
+        attributes["transparency"] = 1 - trspAttr.get()
+        attributes["alphaCutoff" ] = rkMat.getUFEAttribute(shSceneItem, "opacityThreshold")
+        
+        # Populate the PhysicalMaterial fields with values.
+        if isX3DOM:
+            # For X3DOM
+            attributes["diffuseColor"] = (1.0, 1.0, 1.0)
+            attributes["shininess"   ] = 0.0
+            self.setMatX_PhysicalMaterialX3DOM(attributes, physMat, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+        else:
+            ###################################################################################
+            ###################################################################################
+            # Collect Up PhysicalMaterial X_ITE Material Extensions for PhysicalMaterialEXT
+            #
+            #Clearcoat Material
+            ccTexture = rkMat.getUFEConnectedTexture(shSceneItem, "clearcoat")
+            if ccTexture:
+                attributes["clearcoatTexture"] = ccTexture
+                attributes["clearcoat"] = 1.0
+            else:
+                attributes["clearcoat"] = rkMat.getUFEAttribute(shSceneItem, "clearcoat").get()
+            
+            ccrTexture = rkMat.getUFEConnectedTexture(shSceneItem, "clearcoatRoughness")
+            if ccrTexture:
+                attributes["clearcoatRoughnessTexture"] = ccrTexture
+                attributes["clearcoatRoughness"] = 1.0
+            else:
+                attributes["clearcoatRoughness"] = rkMat.getUFEAttribute(shSceneItem, "clearcoatRoughness").get()
+            
+            attributes["indexOfRefraction"] = rkMat.getUFEAttribute(shSceneItem, "ior").get()
+            
+            # For X_ITE and CGE
+            self.setMatX_PhysicalMaterialEXT(attributes, physMat, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+
+
+    def processMatX_gltf_pbr(self, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM):
+        # Collect basic PhysicalMaterial node information
+        attributes = {}
+        
+        # baseColor / baseTexture
+        #baseColorAttrText = rkMat.getUFEAttribute(shSceneItem, "baseColor", connected=True)
+        baseColorTexture = rkMat.getUFEConnectedTexture(shSceneItem, "base_color")
+        if baseColorTexture:
+            attributes["baseTexture"] = baseColorTexture
+        else:
+            baseColorAttr = rkMat.getUFEAttribute(shSceneItem, "base_color")
+            bcv = baseColorAttr.get()
+            attributes["baseColor"] = self.getSFColor(bcv.r(), bcv.g(), bcv.b())
+        
+        # emissiveColor / emissiveTexture
+        #emissiveColorAttrText = rkMat.getUFEAttribute(shSceneItem, "emissive", connected=True)
+        emissiveColorTexture = rkMat.getUFEConnectedTexutre(shSceneItem, "emissive")
+        if emissiveColorTexture:
+            attributes["emissiveTexture"] = emissiveColorTexture
+        else:
+            emissiveColorAttr = rkMat.getUFEAttribute(shSceneItem, "emissive")
+            ecv = emissiveColorAttr.get()
+            attributes["emissiveColor"] = self.getSFColor(ecv.r(), ecv.g(), ecv.b())
+            
+        # metallic / metallicRoughnessTexture
+        #metallicAttrTexture = rkMat.getUFEAttribute(shSceneItem, "metallic", connected=True)
+        metallicTexture = rkMat.getUFEConnectedTexture(shSceneItem, "metallic")
+        if not metallicTexture:
+            attributes["metallic"] = rkMat.getUFEAttribute(shSceneItem, "metallic").get()
+        
+        roughnessTexture = rkMat.getUFEConnectedTexture(shSceneItem, "roughness")
+        if not roughnessTexture:
+            attributes["roughness"] = rkMat.getUFEAttribute(shSceneItem, "roughness").get()
+            
+        if metallicTexture:
+            attributes["metallicRoughnessTexture"] = metallicTexture
+        elif roughnessTexture:
+            attributes["metallicRoughnessTexture"] = roughnessTexture
+        
+        # Get occlusionStrength / occlusionTexture
+        occlusionTexture = rkMat.getUFEConnectedTexture(shSceneItem, "occlusion")
+        if occlusionTexture:
+            attributes["occlusionTexture"] = occlusionTexture
+        else:
+            attributes["occlusionStrength"] = rkMat.getUFEAttribute(shSceneItem, "occlusion").get()
+        
+        # Get normalStrength / normalTexture
+        normalScaleAttr = rkMat.getUFEAttribute(shSceneItem, "normal", connected=True)
+        if normalScaleAttr:
+            scaleItem = ufe.Hierarchy.createItem(normalScaleAttr.src.path)
+            scaleAttr = rkMat.getUFEAttribute(scaleItem, "scale")
+            if not scaleAttr:
+                scaleAttr = rkMat.getUFEAttribute(scaleItem, "bump_height")
+            if scaleAttr:
+                attributes["normalScale"] = scaleAttr.get()
+                
+            normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "bump_map")
+            if not normalTexture:
+                normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "height")
+            if not normalTexture:
+                normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "in")
+            if normalTexture:
+                attributes["normalTexture"] = normalTexture
+
+        # Get basic specular information
+        specularColorTexture = rkMat.getUFEConnectedTexture(shSceneItem, "specular_color")
+        if specularColorTexture:
+            attributes["specularColorTexture"] = specularColorTexture
+            try:
+                iPath = rkMat.getMatXAttribute(specularColorTexture, "file", grasp=True)
+                img = aom.MImage()
+                img.readFromFile(iPath)
+                if img.depth() == 4:
+                    attributes["specularTexture"] = specularColorTexture
+            except:
+                pass
+        else:
+            specularColorAttr = rkMat.getUFEAttribute(shSceneItem, "specular_color")
+            spc = specularColorAttr.get()
+            attributes["specularColor"] = self.getSFColor(spc.r(), spc.g(), spc.b())
+            
+        specularWeightAttr = rkMat.getUFEAttribute(shSceneItem, "specular")
+        attributes["specularWeight"] = specularWeightAttr.get()
+
+        # Alpha Information
+        trspAttr = rkMat.getUFEAttribute(shSceneItem, "alpha")
+        attributes["transparency"] = 1 - trspAttr.get()
+        attributes["alphaCutoff"] = rkMat.getUFEAttribute(shSceneItem, "alpha_cutoff").get()
+        attributes["alphaMode"]   = rkMat.getUFEAttribute(shSceneItem, "alpha_mode").get()
+        
+        # Populate the PhysicalMaterial fields with values.
+        if isX3DOM:
+            # For X3DOM
+            self.setMatX_PhysicalMaterialX3DOM(attributes, physMat, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+        else:
+            ###################################################################################
+            ###################################################################################
+            # Collect Up PhysicalMaterial X_ITE Material Extensions for PhysicalMaterialEXT
+            #
+            attributes["emissiveStrength"] =  rkMat.getUFEAttribute(shSceneItem, "emissive_strength").get()
+            
+            transmissionTexture = rkMat.getUFEConnectedTexture(shSceneItem, "transmission")
+            if transmissionTexture:
+                attributes["transmissionTexture"] = transmissionTexture
+                attributes["transmission"]        = 1.0
+            else:
+                attributes["transmission"] = rkMat.getUFEAttribute(shSceneItem, "transmission").get()
+            
+            # Volumetric Matrial
+            thicknessTexture = rkMat.getUFEConnectedTexture(shSceneItem, "thickness")
+            if thicknessTexture:
+                attributes["thicknessTexture"] = thicknessTexture
+                attributes["thickness"]        = 1.0
+            else:
+                thk = rkMat.getUFEAttribute(shSceneItem, "thickness").get()
+                if thk > 0.0:
+                    attributes["thickness"] = thk
+                    
+            thkVal = attributes.get("thickness", 0.0)
+            if thkVal > 0.0:
+                attributes["attenuationDistance"] = rkMat.getUFEAttribute(shSceneItem, "attenuation_distance").get()
+                atCol = rkMat.getUFEAttribute(shSceneItem, "attenuation_color").get()
+                attributes["attenuationColor"] = self.getSFColor(atCol.r(), atCol.g(), atCol.b())
+
+            #Clearcoat Material
+            ccTexture = rkMat.getUFEConnectedTexture(shSceneItem, "clearcoat")
+            if ccTexture:
+                attributes["clearcoatTexture"] = ccTexture
+                attributes["clearcoat"] = 1.0
+            else:
+                ccVal = rkMat.getUFEAttribute(shSceneItem, "clearcoat").get()
+                if ccVal > 0.0:
+                    attributes["clearcoat"] = ccVal
+            
+            ccrTexture = rkMat.getUFEConnectedTexture(shSceneItem, "clearcoat_roughness")
+            if ccrTexture:
+                attributes["clearcoatRoughnessTexture"] = ccrTexture
+                attributes["clearcoatRoughness"] = 1.0
+            else:
+                ccrVal = rkMat.getUFEAttribute(shSceneItem, "clearcoat_roughness").get()
+                if ccrVal > 0.0:
+                    attributes["clearcoatRoughness"] = ccrVal
+            
+            ccnTexture = rkMat.getUFEConnectedTexture(shSceneItem, "clearcoat_normal")
+            if ccnTexture:
+                attributes["clearcoatNormalTexture"] = ccnTexture
+
+            attributes["indexOfRefraction"] = rkMat.getUFEAttribute(shSceneItem, "ior").get()
+
+            shnrTexture = rkMat.getUFEConnectedTexture(shSceneItem, "sheen_roughness")
+            if shnrTexture:
+                attributes["sheenRoughnessTexture"] = shnrTexture
+                attributes["sheenRoughness"] = 1.0
+            else:
+                shnrVal = rkMat.getUFEAttribute(shSceneItem, "sheen_roughness").get()
+                if shnrVal > 0.0:
+                    attributes["sheenRoughness"] = shnrVal
+            
+            shncTexture = rkMat.getUFEConnectedTexture(shSceneItem, "sheen_color")
+            if shncTexture:
+                attributes["sheenColorTexture"] = shncTexture
+                attributes["sheenColor"] = (1.0, 1.0, 1.0)
+            else:
+                shncVal = rkMat.getUFEAttribute(shSceneItem, "sheen_color").get()
+                attributes["sheenColor"] = self.getSFColor(shncVal.r(), shncVal.g(), shncVal.b())
+            
+            iridTexture = rkMat.getUFEConnectedTexture(shSceneItem, "iridescence")
+            if iridTexture:
+                attributes["iridescenceTexture"] = iridTexture
+                attributes["iridescence"] = 1.0
+            else:
+                iridVal = rkMat.getUFEAttribute(shSceneItem, "iridescence").get()
+                if iridVal > 0.0:
+                    attributes["iridescence"] = shnrVal
+            
+            attributes["iridescenceIndexOfRefraction"] = rkMat.getUFEAttribute(shSceneItem, "iridescence_ior").get()
+
+            irthTexture = rkMat.getUFEConnectedTexture(shSceneItem, "iridescence_thickness")
+            if irthTexture:
+                attributes["iridescenceThicknessTexture"] = irthTexture
+                attributes["iridescenceThicknessMinimum"] = 100
+                attributes["iridescenceThicknessMaximum"] = 400
+            else:
+                ikValue = rkMat.getUFEAttribute(shSceneItem, "iridescence_thickness").get()
+                attributes["iridescenceThicknessMinimum"] = ikValue
+                attributes["iridescenceThicknessMaximum"] = ikValue
+            
+            # For X_ITE and CGE
+            self.setMatX_PhysicalMaterialEXT(attributes, physMat, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+
+
+    def processMatX_open_pbr(    self, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM):
+        # Collect basic PhysicalMaterial node information
+        attributes = {}
+        
+        # baseColor / baseTexture
+        baseColorTexture = rkMat.getUFEConnectedTexture(shSceneItem, "base_color")
+        if baseColorTexture:
+            attributes["baseTexture"] = baseColorTexture
+        else:
+            baseColorAttr = rkMat.getUFEAttribute(shSceneItem, "base_color")
+            bcv = baseColorAttr.get()
+            attributes["baseColor"] = self.getSFColor(bcv.r(), bcv.g(), bcv.b())
+        
+        metalTexture = rkMat.getUFEConnectedTexture(shSceneItem, "base_metalness")
+        if metalTexture:
+            attributes["metallic"] = 1.0
+        else:
+            attributes["metallic"] = rkMat.getUFEAttribute(shSceneItem, "base_metalness").get()
+            
+        roughTexture = rkMat.getUFEConnectedTexture(shSceneItem, "specular_roughness")
+        if roughTexture:
+            attributes["roughness"] = 1.0
+        else:
+            attributes["roughness"] = rkMat.getUFEAttribute(shSceneItem, "specular_roughness").get()
+        
+        if metalTexture:
+            attributes["metallicRoughnessTexture"] = metalTexture
+        elif roughTexture:
+            attributes["metallicRoughnessTexture"] = roughTexture
+            
+        occlusionTexture = rkMat.getUFEConnectedTexture(shSceneItem, "base_weight")
+        if occlusionTexture:
+            attributes["occlusionTexture"]  = occlusionTexture
+            attributes["occlusionStrength"] = 1.0
+        else:
+            attributes["occlusionStrength"] = rkMat.getUFEAttribute(shSceneItem, "base_weight").get()
+            occlusionTexture2 = rkMat.getUFEConnectedTexture(shSceneItem, "specular_weight")
+            if occlusionTexture2:
+                attributes["occlusionTexture"]  = occlusionTexture2
+        
+        if not occlusionTexture2:
+            attributes["specularWeight"] = rkMat.getUFEAttribute(shSceneItem, "specular_weight").get()
+                
+        emissiveColorTexture =  rkMat.getUFEConnectedTexture(shSceneItem, "emission_color")
+        if emissiveColorTexture:
+            attributes["emissiveTexture"] = emissiveColorTexture
+            attributes["emissiveColor"]   = (1.0, 1.0, 1.0)
+        
+        # Get normalStrength / normalTexture
+        normalScaleAttr = rkMat.getUFEAttribute(shSceneItem, "geometry_normal", connected=True)
+        if normalScaleAttr:
+            scaleItem = ufe.Hierarchy.createItem(normalScaleAttr.src.path)
+            scaleAttr = rkMat.getUFEAttribute(scaleItem, "scale")
+            if not scaleAttr:
+                scaleAttr = rkMat.getUFEAttribute(scaleItem, "bump_height")
+            if scaleAttr:
+                attributes["normalScale"] = scaleAttr.get()
+                
+            normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "bump_map")
+            if not normalTexture:
+                normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "height")
+            if not normalTexture:
+                normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "in")
+            if normalTexture:
+                attributes["normalTexture"] = normalTexture
+
+        # Get basic specular information
+        specularColorTexture = rkMat.getUFEConnectedTexture(shSceneItem, "specular_color")
+        if specularColorTexture:
+            attributes["specularColorTexture"] = specularColorTexture
+            try:
+                iPath = rkMat.getMatXAttribute(specularColorTexture, "file", grasp=True)
+                img = aom.MImage()
+                img.readFromFile(iPath)
+                if img.depth() == 4:
+                    attributes["specularTexture"] = specularColorTexture
+            except:
+                pass
+        else:
+            specularColorAttr = rkMat.getUFEAttribute(shSceneItem, "specular_color")
+            spc = specularColorAttr.get()
+            attributes["specularColor"] = self.getSFColor(spc.r(), spc.g(), spc.b())
+            
+        trspAttr = rkMat.getUFEAttribute(shSceneItem, "geometry_opacity")
+        attributes["transparency"] = 1 - trspAttr.get()
+
+        if isX3DOM:
+            # For X3DOM
+            self.setMatX_PhysicalMaterialX3DOM(attributes, physMat, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+        else:
+            ###################################################################################
+            ###################################################################################
+            # Collect Up PhysicalMaterial X_ITE Material Extensions for PhysicalMaterialEXT
+            #
+ 
+            attributes["emissiveStrength"] =  rkMat.getUFEAttribute(shSceneItem, "emission_luminance").get()
+            
+            tWeight = rkMat.getUFEAttribute(shSceneItem, "transmission_weight" ).get()
+            sWeight = rkMat.getUFEAttribute(shSceneItem, "subsurface_weight"   ).get()
+            isTWall = rkMat.getUFEAttribute(shSceneItem, "geometry_thin_walled").get()
+            
+            if tWeight != 0.0:
+                attributes["transparency"] = 0.0
+                attributes["transmission"] = tWeight
+
+                transmissionTexture = rkMat.getUFEConnectedTexture(shSceneItem, "transmission_color")
+                if transmissionTexture:
+                    attributes["transmissionTexture"] = transmissionTexture
+                    attributes["diffuseTransmissionColor"] = (1.0, 1.0, 1.0)
+                else:
+                    trCol = rkMat.getUFEAttribute(shSceneItem, "transmission_color").get()
+                    attributes["diffuseTransmissionColor"] = self.getSFColor(trCol.r(), trCol.g(), trCol.b())
+            if isTWall == True:
+                attributes["diffuseTransmission"] = sWeight
+                diffuseTransmissionTexture = rkMat.getUFEConnectedTexture(shSceneItem, "subsurface_color")
+                if diffuseTransmissionTexture:
+                    attributes["diffuseTransmissionTexture"] = diffuseTransmissionTexture
+                else:
+                    dtc  = attributes.get("diffuseTransmissionColor", (1.0, 1.0, 1.0))
+                    dtc2 = rkMat.getUFEAttribute(shSceneItem, "subsurface_color").get()
+                    attributes["diffuseTransmissionColor"] = (dtc[0] * dtc2.r(), dtc[1] * dtc2.g(), dtc[2] * dtc2.b())
+            else:
+            
+                # Volumetric Material
+                myThickness = 1.0
+                thicknessTexture = rkMat.getUFEConnectedTexture(shSceneItem, "transmission_depth")
+                if thicknessTexture:
+                    attributes["thicknessTexture"] = thicknessTexture
+                else:
+                    myThickness = rkMat.getUFEAttribute(shSceneItem, "transmission_depth").get()
+
+                vmThickness = tWeight ## More like water
+                if sWeight > tWeight:
+                    vmThickness = sWeight ## More like skin/wax
+                    
+                attributes["thickness"] = vmThickness * myThickness
+                
+                ac  = rkMat.getUFEAttribute(shSceneItem, "subsurface_radius_scale").get()
+                bc  = attributes.get("diffuseTransmissionColor", (1.0, 1.0, 1.0))
+                bcc = attributes.get("baseColor", (1.0, 1.0, 1.0))
+                
+                attributes["baseColor"] = self.getSFColor( (bcc[0] * (1.0 - sWeight)) + (bc[0] * sWeight), (bcc[1] * (1.0 - sWeight)) + (bc[1] * sWeight), (bcc[2] * (1.0 - sWeight)) + (bc[2] * sWeight) )
+
+                attributes["attenuationDistance"] = rkMat.getUFEAttribute(shSceneItem, "subsurface_radius").get()
+                attributes["attenuationColor"   ] = self.getSFColor(ac.r(), ac.g(), ac.b())
+                
+                tsc = rkMat.getUFEAttribute(shSceneItem, "transmission_scatter").get()
+                attributes["scatterAnisotropy"  ] = rkMat.getUFEAttribute(shSceneItem, "transmission_scatter_anisotropy").get()
+                attributes["multiscatterColor"  ] = self.getSFColor(tsc.r(), tsc.g(), tsc.b())
+                
+                noScaleDisp = rkMat.getUFEAttribute(shSceneItem, "transmission_dispersion_abbe_number").get()
+                attributes["dispersion"         ] = noScaleDisp * rkMat.getUFEAttribute(shSceneItem, "transmission_dispersion_scale").get()
+            
+            #Specular Stuff - already done
+            attributes["indexOfRefraction"] = rkMat.getUFEAttribute(shSceneItem, "specular_ior").get()
+            aniso = rkMat.getUFEAttribute(shSceneItem, "specular_roughness_anisotropy").get()
+            if aniso > 0.0:
+                attributes["anisotropyStrength"] = aniso
+                anisotropyTexture = rkMat.getUFEConnectedTexture(shSceneItem, "geometry_tangent")
+                if anisotropyTexture:
+                    attributes["anisotropyTexture"] = anisotropyTexture
+            
+            #Clearcoat Material
+            cWeight = rkMat.getUFEAttribute(shSceneItem, "coat_weight").get()
+            if cWeight > 0.0:
+                attributes["clearcoat"] = cWeight
+                clearcoatTexture = rkMat.getUFEConnectedTexture(shSceneItem, "clearcoat_color")
+                if clearcoatTexture:
+                    attributes["clearcoatTexture"] = clearcoatTexture
+                else:
+                    bc  = attributes.get("baseColor", (1.0, 1.0, 1.0))
+                    ccc = rkMat.getUFEAttribute(shSceneItem, "clearcoat_color").get()
+                    attributes["baseColor"] = self.getSFColor((bc[0] * (1 - cWeight)) + (ccc.r() * cWeight), (bc[1] * (1 - cWeight)) + (ccc.g() * cWeight), (bc[2] * (1 - cWeight)) + (ccc.b() * cWeight))
+                    
+                ccrTexture = rkMat.getUFEConnectedTexture(shSceneItem, "clearcoat_roughness")
+                if ccrTexture:
+                    attributes["clearcoatRoughnessTexture"] = ccrTexture
+                    attributes["clearcoatRoughness"] = 1.0
+                else:
+                    attributes["clearcoatRoughness"] = rkMat.getUFEAttribute(shSceneItem, "clearcoat_roughness").get()
+                
+                ccnTexture = rkMat.getUFEConnectedTexture(shSceneItem, "clearcoat_normal")
+                if ccnTexture:
+                    attributes["clearcoatNormalTexture"] = ccnTexture
+
+            #Sheen Material
+            fWeight = rkMat.getUFEAttribute(shSceneItem, "fuzz_weight").get()
+            if fWeight> 0.0:
+                shncTexture = rkMat.getUFEConnectedTexture(shSceneItem, "fuzz_color")
+                if shncTexture:
+                    attributes["sheenColorTexture"] = shncTexture
+                    attributes["sheenColor"] = (1.0 * fWeight, 1.0 * fWeight, 1.0 * fWeight)
+                else:
+                    shncVal = rkMat.getUFEAttribute(shSceneItem, "fuzz_color").get()
+                    attributes["sheenColor"] = self.getSFColor(shncVal.r() * fWeight, shncVal.g() * fWeight, shncVal.b() * fWeight)
+
+                shnrTexture = rkMat.getUFEConnectedTexture(shSceneItem, "fuzz_roughness")
+                if shnrTexture:
+                    attributes["sheenRoughnessTexture"] = shnrTexture
+                    attributes["sheenRoughness"] = 1.0 * fWeight
+                else:
+                    shnrVal = rkMat.getUFEAttribute(shSceneItem, "fuzz_roughness").get()
+                    attributes["sheenRoughness"] = shnrVal * fWeight
+            
+            iridescenceTexture = rkMat.getUFEConnectedTexture(shSceneItem, "thin_film_weight")
+            iridWeight    = 1.0
+            iridThickness = 1.0
+            hasIrid = False
+            
+            if iridescenceTexture:
+                hasIrid = True
+            else:
+                iridWeight = rkMat.getUFEAttribute(shSceneItem, "thin_film_weight").get()
+            
+            iridescenceThicknessTexture = rkMat.getUFEConnectedTexture(shSceneItem, "thin_film_thickness")
+            if iridescenceThicknessTexture:
+                hasIrid = True
+            else:
+                iridThickness = rkMat.getUFEAttribute(shSceneItem, "thin_film_thickness").get()
+                
+            if iridWeight * iridThickness > 0.0:
+                hasIrid = True
+                
+            if hasIrid == True:
+                if iridescenceTexture:
+                    attributes["iridescenceTexture"] = iridescenceTexture
+                if iridescenceThicknessTexture:
+                    attributes["iridescenceThicknessTexture"] = iridescenceThicknessTexture
+                    
+                attributes["iridescence"] = iridWeight
+                attributes["iridescenceThicknessMinimum" ] = iridThickness * 1000
+                attributes["iridescenceThicknessMaximum" ] = iridThickness * 1000
+                attributes["iridescenceIndexOfRefraction"] = rkMat.getUFEAttribute(shSceneItem, "thin_film_ior").get()
+            
+            # For X_ITE and CGE
+            self.setMatX_PhysicalMaterialEXT(attributes, physMat, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+
+
+    def processMatX_stnd_pbr(    self, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM):
+        # Collect basic PhysicalMaterial node information
+        attributes = {}
+        
+        baseColorTexture = rkMat.getUFEConnectedTexture(shSceneItem, "base_color")
+        if baseColorTexture:
+            attributes["baseTexture"] = baseColorTexture
+        else:
+            baseColorAttr = rkMat.getUFEAttribute(shSceneItem, "base_color")
+            bcv = baseColorAttr.get()
+            attributes["baseColor"] = self.getSFColor(bcv.r(), bcv.g(), bcv.b())
+        
+        metalTexture = rkMat.getUFEConnectedTexture(shSceneItem, "metalness")
+        if metalTexture:
+            attributes["metallic"] = 1.0
+        else:
+            attributes["metallic"] = rkMat.getUFEAttribute(shSceneItem, "metalness").get()
+            
+        roughTexture = rkMat.getUFEConnectedTexture(shSceneItem, "specular_roughness")
+        if roughTexture:
+            attributes["roughness"] = 1.0
+        else:
+            cRough = rkMat.getUFEAttribute(shSceneItem, "specular_roughness").get()
+            if isX3DOM == False:
+                cRough = cRough + rkMat.getUFEAttribute(shSceneItem, "transmission_extra_roughness").get()
+            if cRough > 1.0:
+                cRough = 1.0
+            attributes["roughness"] = cRough
+        
+        if metalTexture:
+            attributes["metallicRoughnessTexture"] = metalTexture
+        elif roughTexture:
+            attributes["metallicRoughnessTexture"] = roughTexture
+            
+        occlusionTexture = rkMat.getUFEConnectedTexture(shSceneItem, "base")
+        if occlusionTexture:
+            attributes["occlusionTexture"]  = occlusionTexture
+            attributes["occlusionStrength"] = 1.0
+        else:
+            attributes["occlusionStrength"] = rkMat.getUFEAttribute(shSceneItem, "base").get()
+            occlusionTexture2 = rkMat.getUFEConnectedTexture(shSceneItem, "specular")
+            if occlusionTexture2:
+                attributes["occlusionTexture"]  = occlusionTexture2
+        
+        if not occlusionTexture2:
+            attributes["specularWeight"] = rkMat.getUFEAttribute(shSceneItem, "specular").get()
+                
+        emissiveColorTexture =  rkMat.getUFEConnectedTexture(shSceneItem, "emission_color")
+        if emissiveColorTexture:
+            attributes["emissiveTexture"] = emissiveColorTexture
+            attributes["emissiveColor"]   = (1.0, 1.0, 1.0)
+        
+        # Get normalStrength / normalTexture
+        normalScaleAttr = rkMat.getUFEAttribute(shSceneItem, "normal", connected=True)
+        if normalScaleAttr:
+            scaleItem = ufe.Hierarchy.createItem(normalScaleAttr.src.path)
+            scaleAttr = rkMat.getUFEAttribute(scaleItem, "scale")
+            if not scaleAttr:
+                scaleAttr = rkMat.getUFEAttribute(scaleItem, "bump_height")
+            if scaleAttr:
+                attributes["normalScale"] = scaleAttr.get()
+                
+            normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "bump_map")
+            if not normalTexture:
+                normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "height")
+            if not normalTexture:
+                normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "in")
+            if normalTexture:
+                attributes["normalTexture"] = normalTexture
+
+        # Get basic specular information
+        specularColorTexture = rkMat.getUFEConnectedTexture(shSceneItem, "specular_color")
+        if specularColorTexture:
+            attributes["specularColorTexture"] = specularColorTexture
+            try:
+                iPath = rkMat.getMatXAttribute(specularColorTexture, "file", grasp=True)
+                img = aom.MImage()
+                img.readFromFile(iPath)
+                if img.depth() == 4:
+                    attributes["specularTexture"] = specularColorTexture
+            except:
+                pass
+        else:
+            specularColorAttr = rkMat.getUFEAttribute(shSceneItem, "specular_color")
+            spc = specularColorAttr.get()
+            attributes["specularColor"] = self.getSFColor(spc.r(), spc.g(), spc.b())
+            
+        trspAttr = rkMat.getUFEAttribute(shSceneItem, "geometry_opacity")
+        attributes["transparency"] = 1 - trspAttr.get()
+
+        if isX3DOM:
+            # For X3DOM
+            self.setMatX_PhysicalMaterialX3DOM(attributes, physMat, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+        else:
+            ###################################################################################
+            ###################################################################################
+            # Collect Up PhysicalMaterial X_ITE Material Extensions for PhysicalMaterialEXT
+            #
+ 
+            attributes["emissiveStrength"] =  rkMat.getUFEAttribute(shSceneItem, "emission").get()
+            
+            tWeight = rkMat.getUFEAttribute(shSceneItem, "transmission").get()
+            sWeight = rkMat.getUFEAttribute(shSceneItem, "subsurface"  ).get()
+            isTWall = rkMat.getUFEAttribute(shSceneItem, "thin_walled" ).get()
+            
+            if tWeight != 0.0:
+                attributes["transparency"] = 0.0
+                attributes["transmission"] = tWeight
+
+                transmissionTexture = rkMat.getUFEConnectedTexture(shSceneItem, "transmission_color")
+                if transmissionTexture:
+                    attributes["transmissionTexture"] = transmissionTexture
+                    attributes["diffuseTransmissionColor"] = (1.0, 1.0, 1.0)
+                else:
+                    trCol = rkMat.getUFEAttribute(shSceneItem, "transmission_color").get()
+                    attributes["diffuseTransmissionColor"] = self.getSFColor(trCol.r(), trCol.g(), trCol.b())
+            if isTWall == True:
+                attributes["diffuseTransmission"] = sWeight
+                diffuseTransmissionTexture = rkMat.getUFEConnectedTexture(shSceneItem, "subsurface_color")
+                if diffuseTransmissionTexture:
+                    attributes["diffuseTransmissionTexture"] = diffuseTransmissionTexture
+                else:
+                    dtc  = attributes.get("diffuseTransmissionColor", (1.0, 1.0, 1.0))
+                    dtc2 = rkMat.getUFEAttribute(shSceneItem, "subsurface_color").get()
+                    attributes["diffuseTransmissionColor"] = (dtc[0] * dtc2.r(), dtc[1] * dtc2.g(), dtc[2] * dtc2.b())
+            else:
+            
+                # Volumetric Material
+                myThickness = 1.0
+                thicknessTexture = rkMat.getUFEConnectedTexture(shSceneItem, "transmission_depth")
+                if thicknessTexture:
+                    attributes["thicknessTexture"] = thicknessTexture
+                else:
+                    myThickness = rkMat.getUFEAttribute(shSceneItem, "transmission_depth").get()
+
+                vmThickness = tWeight ## More like water
+                if sWeight > tWeight:
+                    vmThickness = sWeight ## More like skin/wax
+                    
+                attributes["thickness"] = vmThickness * myThickness
+                
+                ac  = rkMat.getUFEAttribute(shSceneItem, "subsurface_radius").get()
+                bc  = attributes.get("diffuseTransmissionColor", (1.0, 1.0, 1.0))
+                bcc = attributes.get("baseColor", (1.0, 1.0, 1.0))
+                
+                attributes["baseColor"] = self.getSFColor( (bcc[0] * (1.0 - sWeight)) + (bc[0] * sWeight), (bcc[1] * (1.0 - sWeight)) + (bc[1] * sWeight), (bcc[2] * (1.0 - sWeight)) + (bc[2] * sWeight) )
+
+                attributes["attenuationDistance"] = rkMat.getUFEAttribute(shSceneItem, "subsurface_scale").get()
+                attributes["attenuationColor"   ] = self.getSFColor(ac.r(), ac.g(), ac.b())
+                
+                tsc = rkMat.getUFEAttribute(shSceneItem, "transmission_scatter").get()
+                attributes["scatterAnisotropy"  ] = rkMat.getUFEAttribute(shSceneItem, "transmission_scatter_anisotropy").get()
+                attributes["multiscatterColor"  ] = self.getSFColor(tsc.r(), tsc.g(), tsc.b())
+                
+                attributes["dispersion"         ] = rkMat.getUFEAttribute(shSceneItem, "transmission_dispersion").get()
+            
+            #Specular Stuff - already done
+            attributes["indexOfRefraction"] = rkMat.getUFEAttribute(shSceneItem, "specular_IOR").get()
+            aniso = rkMat.getUFEAttribute(shSceneItem, "specular_anisotropy").get()
+            if aniso > 0.0:
+                attributes["anisotropyStrength"] = aniso
+                attributes["rotation"]           = rkMat.getUFEAttribute(shSceneItem, "specular_rotation").get()
+                anisotropyTexture = rkMat.getUFEConnectedTexture(shSceneItem, "tangent")
+                if anisotropyTexture:
+                    attributes["anisotropyTexture"] = anisotropyTexture
+            
+            #Clearcoat Material
+            cWeight = rkMat.getUFEAttribute(shSceneItem, "coat").get()
+            if cWeight > 0.0:
+                attributes["clearcoat"] = cWeight
+                clearcoatTexture = rkMat.getUFEConnectedTexture(shSceneItem, "coat_color")
+                if clearcoatTexture:
+                    attributes["clearcoatTexture"] = clearcoatTexture
+                else:
+                    bc  = attributes.get("baseColor", (1.0, 1.0, 1.0))
+                    ccc = rkMat.getUFEAttribute(shSceneItem, "coat_color").get()
+                    attributes["baseColor"] = self.getSFColor((bc[0] * (1 - cWeight)) + (ccc.r() * cWeight), (bc[1] * (1 - cWeight)) + (ccc.g() * cWeight), (bc[2] * (1 - cWeight)) + (ccc.b() * cWeight))
+                    
+                ccrTexture = rkMat.getUFEConnectedTexture(shSceneItem, "coat_roughness")
+                if ccrTexture:
+                    attributes["clearcoatRoughnessTexture"] = ccrTexture
+                    attributes["clearcoatRoughness"] = 1.0
+                else:
+                    attributes["clearcoatRoughness"] = rkMat.getUFEAttribute(shSceneItem, "coat_roughness").get()
+                
+                ccnTexture = rkMat.getUFEConnectedTexture(shSceneItem, "coat_normal")
+                if ccnTexture:
+                    attributes["clearcoatNormalTexture"] = ccnTexture
+
+            #Sheen Material
+            shWeight = rkMat.getUFEAttribute(shSceneItem, "sheen").get()
+            if shWeight> 0.0:
+                shncTexture = rkMat.getUFEConnectedTexture(shSceneItem, "sheen_color")
+                if shncTexture:
+                    attributes["sheenColorTexture"] = shncTexture
+                    attributes["sheenColor"] = (1.0 * shWeight, 1.0 * shWeight, 1.0 * shWeight)
+                else:
+                    shncVal = rkMat.getUFEAttribute(shSceneItem, "sheen_color").get()
+                    attributes["sheenColor"] = self.getSFColor(shncVal.r() * shWeight, shncVal.g() * shWeight, shncVal.b() * shWeight)
+
+                shnrTexture = rkMat.getUFEConnectedTexture(shSceneItem, "sheen_roughness")
+                if shnrTexture:
+                    attributes["sheenRoughnessTexture"] = shnrTexture
+                    attributes["sheenRoughness"] = 1.0 * shWeight
+                else:
+                    shnrVal = rkMat.getUFEAttribute(shSceneItem, "fuzz_roughness").get()
+                    attributes["sheenRoughness"] = shnrVal * shWeight
+            
+            #iridescenceTexture = rkMat.getUFEConnectedTexture(shSceneItem, "thin_film_weight")
+            iridWeight    = 1.0
+            iridThickness = 1.0
+            hasIrid = False
+            
+            iridescenceThicknessTexture = rkMat.getUFEConnectedTexture(shSceneItem, "thin_film_thickness")
+            if iridescenceThicknessTexture:
+                hasIrid = True
+            else:
+                iridThickness = rkMat.getUFEAttribute(shSceneItem, "thin_film_thickness").get()
+                
+            if iridWeight * iridThickness > 0.0:
+                hasIrid = True
+                
+            if hasIrid == True:
+                if iridescenceThicknessTexture:
+                    attributes["iridescenceThicknessTexture"] = iridescenceThicknessTexture
+                    
+                attributes["iridescence"] = iridWeight
+                attributes["iridescenceThicknessMinimum" ] = iridThickness * 1000
+                attributes["iridescenceThicknessMaximum" ] = iridThickness * 1000
+                attributes["iridescenceIndexOfRefraction"] = rkMat.getUFEAttribute(shSceneItem, "thin_film_IOR").get()
+            
+            # For X_ITE and CGE
+            self.setMatX_PhysicalMaterialEXT(attributes, physMat, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+
+
+    def addTextureToAppearance(self,x3dAppearance, ufeTextureNodes, uvSetNames, textureTransforms, ignoreTT):
+        # base
+        # emissive
+        # specular
+        # reflected - not used
+        
+        if len(ufeTextureNodes) > 1:
+            mtBna = self.trv.processBasicNodeAddition(attParent, "texture", "MultiTexture", attParent.DEF)
+            if mtBna[0] == False:
+                #textureItem, x3dAppearance, x3dParent, x3dField, uvSetNames, textureTransforms, ignoreTT, isX3DOM
+                for texture in ufeTextureNodes:
+                    ignoreTT = self.processMatXTexture(texture[1], x3dAppearance, mtBna[1], "texture", uvSetNames, textureTransforms, ignoreTT, True)
+                    
+                for i in range(len(ufeTextureNodes)):
+                    pass
+                    
+        elif len(ufeTextureNodes) == 1:
+                ignoreTT = self.processMatXTexture(texture[1], x3dAppearance, x3dAppearance, "texture", uvSetNames, textureTransforms, ignoreTT, True)
+            
+    
+    def processMatX_maya_lambert(self, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM):
+        attributes = {}
+        
+        appTexture = []
+        
+        dv             = rkMat.getUFEAttribute(shSceneItem, "diffuse").get()
+        diffuseTexture = rkMat.getUFEConnectedTexture(shSceneItem, "color")
+        if diffuseTexture:
+            if  isX3DOM == False:
+                attributes["diffuseTexture"] = diffuseTexture
+            else:
+                appTexture.append(("base", diffuseTexture))
+            attributes["diffuseColor"      ] = self.getSFColor(1.0 * dv, 1.0 * dv, 1.0 * dv)
+        else:
+            dc = rkMat.getUFEAttribute(shSceneItem, "color").get()
+            attributes["diffuseColor"    ] = self.getSFColor(dc.r() * dv, dc.g() * dv, dc.b() * dv)
+
+        tpc  = rkMat.getUFEAttribute(shSceneItem, "transparency").get()
+        tpca = (tpc.r() + tpc.g() + tpc.b()) / 3
+        if tpca > 1.0:
+            tpca = 1.0
+
+        attributes["transparency"    ] = tpca
+        attributes["ambientIntensity"] = 0.0
+        attributes["shininess"       ] = 0.0
+        
+        emissiveTexture = rkMat.getUFEConnectedTexture(shSceneItem, "incandescence")
+        if emissiveTexture:
+            if isX3DOM == False:
+                attributes["emissiveTexture"] = emissiveTexture
+                attributes["emissiveColor"] = self.getSFColor(1.0, 1.0, 1.0)
+            else:
+                appTexture.append(("emissive", emissiveTexture))
+        else:
+            ec = rkMat.getUFEAttribute(shSceneItem, "incandescence").get()
+            attributes["emissiveColor"    ] = self.getSFColor(ec.r(), ec.g(), ec.b())
+        
+        if isX3DOM == False:
+            # Get normalStrength / normalTexture
+            normalScaleAttr = rkMat.getUFEAttribute(shSceneItem, "normalCamera", connected=True)
+            if normalScaleAttr:
+                scaleItem = ufe.Hierarchy.createItem(normalScaleAttr.src.path)
+                scaleAttr = rkMat.getUFEAttribute(scaleItem, "scale")
+                if not scaleAttr:
+                    scaleAttr = rkMat.getUFEAttribute(scaleItem, "bump_height")
+                if scaleAttr:
+                    attributes["normalScale"] = scaleAttr.get()
+                    
+                normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "bump_map")
+                if not normalTexture:
+                    normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "height")
+                if not normalTexture:
+                    normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "in")
+                if normalTexture:
+                    attributes["normalTexture"] = normalTexture
+
+        if len(appTexture) > 0:
+            self.addTextureToAppearance(x3dAppearance, appTexture, uvSetNames, textureTransforms, ignoreTT)
+
+        self.setMatX_Material(attributes, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+        
+
+    def processMatX_ai_lambert(self, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM):
+        attributes = {}
+        
+        appTexture = []
+        
+        diffuseTexture =  rkMat.getUFEConnectedTexture(shSceneItem, "Kd_color")
+        if diffuseTexture:
+            if  isX3DOM == False:
+                attributes["diffuseTexture"] = diffuseTexture
+            else:
+                appTexture.append(("base", diffuseTexture))
+            attributes["diffuseColor"      ] = (1.0, 1.0, 1.0)
+        else:
+            kdc = rkMat.getUFEAttribute(shSceneItem, "Kd_color").get()
+            attributes["diffuseColor"    ] = self.getSFColor(kdc.r(), kdc.g(), kdc.b())
+
+        attributes["ambientIntensity"] = 0.0
+        attributes["shininess"       ] = 0.0
+        
+        opc  = rkMat.getUFEAttribute(shSceneItem, "opacity").get()
+        opca = (opc.r() + opc.g() + opc.b()) / 3
+        if opca > 1.0:
+            opca = 1.0
+        attributes["transparency"] = 1 - opca
+        
+        if isX3DOM == False:
+            # Get normalStrength / normalTexture
+            normalScaleAttr = rkMat.getUFEAttribute(shSceneItem, "normal", connected=True)
+            if normalScaleAttr:
+                scaleItem = ufe.Hierarchy.createItem(normalScaleAttr.src.path)
+                scaleAttr = rkMat.getUFEAttribute(scaleItem, "scale")
+                if not scaleAttr:
+                    scaleAttr = rkMat.getUFEAttribute(scaleItem, "bump_height")
+                if scaleAttr:
+                    attributes["normalScale"] = scaleAttr.get()
+                    
+                normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "bump_map")
+                if not normalTexture:
+                    normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "height")
+                if not normalTexture:
+                    normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "in")
+                if normalTexture:
+                    attributes["normalTexture"] = normalTexture
+
+        if len(appTexture) > 0:
+            self.addTextureToAppearance(x3dAppearance, appTexture, uvSetNames, textureTransforms, ignoreTT)
+
+        self.setMatX_Material(attributes, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+
+
+    def processMatX_maya_phong(self, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM):
+        attributes = {}
+        
+        appTexture = []
+        
+        dv             = rkMat.getUFEAttribute(shSceneItem, "diffuse").get()
+        diffuseTexture = rkMat.getUFEConnectedTexture(shSceneItem, "color")
+        if diffuseTexture:
+            if  isX3DOM == False:
+                attributes["diffuseTexture"] = diffuseTexture
+            else:
+                appTexture.append(("base", diffuseTexture))
+            attributes["diffuseColor"      ] = self.getSFColor(1.0 * dv, 1.0 * dv, 1.0 * dv)
+        else:
+            dc = rkMat.getUFEAttribute(shSceneItem, "color").get()
+            attributes["diffuseColor"    ] = self.getSFColor(dc.r() * dv, dc.g() * dv, dc.b() * dv)
+
+        tpc  = rkMat.getUFEAttribute(shSceneItem, "transparency").get()
+        tpca = (tpc.r() + tpc.g() + tpc.b()) / 3
+        if tpca > 1.0:
+            tpca = 1.0
+
+        attributes["transparency"    ] = tpca
+        
+        cosPwr =  rkMat.getUFEAttribute(shSceneItem, "cosinePower")
+        
+        # TODO shininess Texture
+        attributes["shininess"       ] = np.log2(cosPwr) / 7
+        
+        ref =  rkMat.getUFEAttribute(shSceneItem, "reflectivity")
+        specularTexture = rkMat.getUFEConnectedTexture(shSceneItem, "specularColor")
+        
+        if specularTexture:
+            if isX3DOM == False:
+                attributes["specularTexture"] = specularTexture
+                attributes["specularColor"] = self.getSFColor(1.0 * ref, 1.0 * ref, 1.0 * ref)
+            else:
+                appTexture.append(("specular", specularTexture))
+        else:
+            ec = rkMat.getUFEAttribute(shSceneItem, "specularColor").get()
+            attributes["specularColor"    ] = self.getSFColor(ec.r() * ref, ec.g() * ref, ec.b() * ref)
+
+        emissiveTexture = rkMat.getUFEConnectedTexture(shSceneItem, "incandescence")
+        if emissiveTexture:
+            if isX3DOM == False:
+                attributes["emissiveTexture"] = emissiveTexture
+                attributes["emissiveColor"] = self.getSFColor(1.0, 1.0, 1.0)
+            else:
+                appTexture.append(("emissive", emissiveTexture))
+        else:
+            ec = rkMat.getUFEAttribute(shSceneItem, "incandescence").get()
+            attributes["emissiveColor"    ] = self.getSFColor(ec.r(), ec.g(), ec.b())
+        
+        ect = attributes.get("emissiveColor", (0.0, 0.0, 0.0))
+        
+        attributes["ambientIntensity"] = (ect[0] + ect[1] + ect[2]) / 3
+        
+            
+        #reflectedTexture = rkMat.getUFEConnectedTexture(shSceneItem, "reflectedColor")
+        #if reflectedTexture:
+        #    if isX3DOM == False:
+        #        attributes["specularTexture"] = reflectedTexture
+        #    else:
+        #        appTexture.append(("reflected", reflectedTexture))        
+        
+        if isX3DOM == False:
+            # Get normalStrength / normalTexture
+            normalScaleAttr = rkMat.getUFEAttribute(shSceneItem, "normalCamera", connected=True)
+            if normalScaleAttr:
+                scaleItem = ufe.Hierarchy.createItem(normalScaleAttr.src.path)
+                scaleAttr = rkMat.getUFEAttribute(scaleItem, "scale")
+                if not scaleAttr:
+                    scaleAttr = rkMat.getUFEAttribute(scaleItem, "bump_height")
+                if scaleAttr:
+                    attributes["normalScale"] = scaleAttr.get()
+                    
+                normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "bump_map")
+                if not normalTexture:
+                    normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "height")
+                if not normalTexture:
+                    normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "in")
+                if normalTexture:
+                    attributes["normalTexture"] = normalTexture
+
+        if len(appTexture) > 0:
+            self.addTextureToAppearance(x3dAppearance, appTexture, uvSetNames, textureTransforms, ignoreTT)
+
+        self.setMatX_Material(attributes, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+
+
+    def processMatX_maya_blinn(self, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM):
+        attributes = {}
+        
+        appTexture = []
+        
+        dv             = rkMat.getUFEAttribute(shSceneItem, "diffuse").get()
+        diffuseTexture = rkMat.getUFEConnectedTexture(shSceneItem, "color")
+        if diffuseTexture:
+            if  isX3DOM == False:
+                attributes["diffuseTexture"] = diffuseTexture
+            else:
+                appTexture.append(("base", diffuseTexture))
+            attributes["diffuseColor"      ] = self.getSFColor(1.0 * dv, 1.0 * dv, 1.0 * dv)
+        else:
+            dc = rkMat.getUFEAttribute(shSceneItem, "color").get()
+            attributes["diffuseColor"    ] = self.getSFColor(dc.r() * dv, dc.g() * dv, dc.b() * dv)
+
+        tpc  = rkMat.getUFEAttribute(shSceneItem, "transparency").get()
+        tpca = (tpc.r() + tpc.g() + tpc.b()) / 3
+        if tpca > 1.0:
+            tpca = 1.0
+
+        attributes["transparency"    ] = tpca
+        
+        eccent =  rkMat.getUFEAttribute(shSceneItem, "eccentricity")
+        
+        # TODO shininess Texture
+        attributes["shininess"       ] = 1 - eccent
+        
+        ref  = rkMat.getUFEAttribute(shSceneItem, "reflectivity")
+        spro = rkMat.getUFEAttribute(shSceneItem, "specularRollOff")
+        ref  = ref * spro
+        specularTexture = rkMat.getUFEConnectedTexture(shSceneItem, "specularColor")
+        if specularTexture:
+            if isX3DOM == False:
+                attributes["specularTexture"] = specularTexture
+                attributes["specularColor"] = self.getSFColor(1.0 * ref, 1.0 * ref, 1.0 * ref)
+            else:
+                appTexture.append(("specular", specularTexture))
+        else:
+            ec = rkMat.getUFEAttribute(shSceneItem, "specularColor").get()
+            attributes["specularColor"    ] = self.getSFColor(ec.r() * ref, ec.g() * ref, ec.b() * ref)
+            
+        emissiveTexture = rkMat.getUFEConnectedTexture(shSceneItem, "incandescence")
+        if emissiveTexture:
+            if isX3DOM == False:
+                attributes["emissiveTexture"] = emissiveTexture
+                attributes["emissiveColor"] = self.getSFColor(1.0, 1.0, 1.0)
+            else:
+                appTexture.append(("emissive", emissiveTexture))
+        else:
+            ec = rkMat.getUFEAttribute(shSceneItem, "incandescence").get()
+            attributes["emissiveColor"    ] = self.getSFColor(ec.r(), ec.g(), ec.b())
+        
+        ect = attributes.get("emissiveColor", (0.0, 0.0, 0.0))
+        
+        attributes["ambientIntensity"] = ((0.2126 * ect[0]) + (0.2126 * ect[1]) + (0.2126 * ect[2])) / 3
+        
+        #reflectedTexture = rkMat.getUFEConnectedTexture(shSceneItem, "reflectedColor")
+        #if reflectedTexture:
+        #    if isX3DOM == False:
+        #        attributes["specularTexture"] = reflectedTexture
+        #    else:
+        #        appTexture.append(("reflected", reflectedTexture))        
+        
+        if isX3DOM == False:
+            # Get normalStrength / normalTexture
+            normalScaleAttr = rkMat.getUFEAttribute(shSceneItem, "normalCamera", connected=True)
+            if normalScaleAttr:
+                scaleItem = ufe.Hierarchy.createItem(normalScaleAttr.src.path)
+                scaleAttr = rkMat.getUFEAttribute(scaleItem, "scale")
+                if not scaleAttr:
+                    scaleAttr = rkMat.getUFEAttribute(scaleItem, "bump_height")
+                if scaleAttr:
+                    attributes["normalScale"] = scaleAttr.get()
+                    
+                normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "bump_map")
+                if not normalTexture:
+                    normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "height")
+                if not normalTexture:
+                    normalTexture = rkMat.getUFEConnectedTexture(scaleItem, "in")
+                if normalTexture:
+                    attributes["normalTexture"] = normalTexture
+
+        if len(appTexture) > 0:
+            self.addTextureToAppearance(x3dAppearance, appTexture, uvSetNames, textureTransforms, ignoreTT)
+
+        self.setMatX_Material(attributes, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM)
+
+
+    def setMatX_Material(self, attributes, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM):
+        matBna = self.trv.processBasicNodeAddition(x3dAppearance, cField, "Material", matXSS.name())
+        if matBna[0] == False:
+            ambientTexture = attributes.get("ambientTexture", None)
+            if ambientTexture:
+                ignoreTT = self.processMatXTexture(ambientTexture, x3dAppearance, material, "ambientTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                material.ambientIntensity = 1.0
+            else:
+                material.ambientIntensity = attributes.get("ambientIntensity", 0.2)
+
+            diffuseTexture = attributes.get("diffuseTexture", None)
+            if diffuseTexture:
+                ignoreTT = self.processMatXTexture(diffuseTexture, x3dAppearance, material, "diffuseTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                material.diffuseColor = (1.0, 1.0, 1.0)
+            else:
+                material.diffuseColor = attributes.get("diffuseColor",  (0.8, 0.8, 0.8))
+
+            emissiveTexture = attributes.get("emissiveTexture", None)
+            if emissiveTexture:
+                ignoreTT = self.processMatXTexture(emissiveTexture, x3dAppearance, material, "emissiveTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                material.emissiveColor = (1.0, 1.0, 1.0)
+            else:
+                material.emissiveColor = attributes.get("emissiveColor", (0.0, 0.0, 0.0))
+
+            normalTexture = attributes.get("normalTexture", None)
+            if normalTexture:
+                ignoreTT = self.processMatXTexture(normalTexture, x3dAppearance, material, "normalTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                physMat.normalScale = attributes.get("normalScale", 1.0)
+
+            occlusionTexture = attributes.get("occlusionTexture", None)
+            if occlusionTexture:
+                ignoreTT = self.processMatXTexture(occlusionTexture, x3dAppearance, material, "occlusionTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                material.occlusionStrength = 1.0
+            else:
+                material.occlusionStrength = attributes.get("occlusionStrength",  1.0)
+
+            shininessTexture = attributes.get("shininessTexture", None)
+            if shininessTexture:
+                ignoreTT = self.processMatXTexture(shininessTexture, x3dAppearance, material, "shininessTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                material.shininess = 1.0
+            else:
+                material.shininess = attributes.get("shininess", 0.2)
+
+            specularTexture = attributes.get("specularTexture", None)
+            if specularTexture:
+                ignoreTT = self.processMatXTexture(specularTexture, x3dAppearance, material, "specularTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                material.specularColor = (1.0, 1.0, 1.0)
+            else:
+                material.specularColor = attributes.get("specularColor", (0.0, 0.0, 0.0))
+
+            material.transparency = attributes.get("transparency", 0.0)
+
+
+
+    def setMatX_PhysicalMaterialEXT(self, attributes, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM):
+        matBna = self.trv.processBasicNodeAddition(x3dAppearance, cField, "PhysicalMaterialEXT", matXSS.name())
+        if matBna[0] == False:
+            physMat = matBna[1]
+            
+            x3dAppearance.alphaCutoff = attributes.get("alphaCutoff", 0.5)
+            x3dAppearance.alphaMode   = rkMat.getAlphaMode(attributes["alphaMode"])
+            
+            physMat.baseColor = attributes.get("baseColor", (1.0, 1.0, 1.0))
+           
+            baseTexture = attributes.get("baseTexture", None)
+            if baseTexture:
+                ignoreTT = self.processMatXTexture(baseTexture, x3dAppearance, physMat, "baseTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+            
+            physMat.emissiveColor = attribues.get("emissiveColor", (0.0, 0.0, 0.0))
+
+            emissiveTexture = attributes.get("emissiveTexture", None)
+            if emissiveTexture:
+                ignoreTT = self.processMatXTexture(emissiveTexture, x3dAppearance, physMat, "emissiveTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                physMat.emissiveColor = (1.0, 1.0, 1.0)
+
+            normalTexture = attributes.get("normalTexture", None)
+            if normalTexture:
+                ignoreTT = self.processMatXTexture(normalTexture, x3dAppearance, physMat, "normalTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                physMat.normalScale = attributes.get("normalScale", 1.0)
+
+            metallicRoughnessTexture = attributes.get("metallicRoughnessTexture", None)
+            if metallicRoughnessTexture:
+                ignoreTT = self.processMatXTexture(metallicRoughnessTexture, x3dAppearance, physMat, "metallicRoughnessTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+
+            physMat.metallic = attributes.get("metallic", 1.0)
+                
+            physMat.roughness = attributes.get("roughness", 1.0)
+
+            occlusionTexture  = attributes.get("occlusionTexture", None)
+            if occlusionTexture:
+                ignoreTT = self.processMatXTexture(occlusionTexture, x3dAppearance, physMat, "occlusionTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+            
+            physMat.occlusionStrength = attributes.get("occlusionStrength", 1.0)
+            
+            physMat.transparency = attributes.get("transparency", 0.0)
+            
+            # X_ITE Material Extensions
+            emissiveStrength = attributes.get("emissiveStrength", False)
+            if emissiveStrength:
+                esBna = self.trv.processBasicNodeAddition(physMat, "extensions", "EmissiveStrengthMaterialExtension", physMat.DEF + "_ESME")
+                if esBna[0] == False:
+                    esBna[1].emissiveStrength = emissiveStrength
+            
+            transmissionWeight = attributes.get("transmission", 0.0)
+            if transmissionWeight > 0.0:
+                trBna = self.trv.processBasicNodeAddition(physMat, "extensions", "TransmissionMaterialExtension", physMat.DEF + "_TRME")
+                if trBna[0] == False:
+                    trBna[1].transmission = transmissionWeight
+                    transmissionTexture   = attributes.get("transmissionTexture", None)
+                    if transmissionTexture:
+                        ignoreTT = self.processMatXTexture(transmissionTexture, x3dAppearance, trBna[1], "transmissionTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+
+            diffuseTransmission = attributes.get("diffuseTransmission", 0.0)
+            if diffuseTransmission > 0.0:
+                dtBna = self.trv.processBasicNodeAddition(physMat, "extensions", "DiffuseTransmissionMaterialExtension", physMat.DEF + "_DTME")
+                if dtBna[0] == False:
+                    dtBna[1].diffuseTransmission    = diffuseTransmission
+                    diffuseTransmissionColorTexture = attributes.get("diffuseTransmissionColorTexture", None)
+                    diffuseTransmissionTexture      = attributes.get("diffuseTransmissionTexture",      None)
+                    if diffuseTransmissionColorTexture:
+                        ignoreTT = self.processMatXTexture(diffuseTransmissionColorTexture, x3dAppearance, dtBna[1], "diffuseTransmissionColorTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                    if diffuseTransmissionTexture:
+                        ignoreTT = self.processMatXTexture(diffuseTransmissionTexture,      x3dAppearance, dtBna[1], "diffuseTransmissionTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                        #try:
+                        #    iPath = rkMat.getMatXAttribute(diffuseTransmissionColorTexture, "file", grasp=True)
+                        #    img = aom.MImage()
+                        #    img.readFromFile(iPath)
+                        #    if img.depth() == 4:
+                        #        ignoreTT = self.processMatXTexture(diffuseTransmissionColorTexture, x3dAppearance, dtBna[1], "diffuseTransmissionTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                        #except:
+                        #    pass
+                        
+            #Volume Stuff
+            thickness = attributes.get("thickness", 0.0)
+            if thickness > 0.0:
+                vmBna = self.trv.processBasicNodeAddition(physMat, "extensions", "VolumeMaterialExtension", physMat.DEF + "_VLME")
+                if vmBna[0] == False:
+                    vmBna[1].thickness = thickness
+                    vmBna[1].attenuationDistance = attributes.get("attenuationDistance",      1000000)
+                    vmBna[1].attenuationColor    = attributes.get("attenuationColor", (1.0, 1.0, 1.0))
+                    thicknessTexture = attributes.get("thicknessTexture", None)
+                    if thicknessTexture:
+                        ignoreTT = self.processMatXTexture(thicknessTexture, x3dAppearance, trBna[1], "thicknessTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                        
+            scatterAnisotropy = attributes.get("scatterAnisotropy", None)
+            if scatterAnisotropy:
+                multiscatterColor = attributes.get("multiscatterColor", (0.0, 0.0, 0.0))
+                vmsBna = self.trv.processBasicNodeAddition(physMat, "extensions", "VolumeScatterMaterialExtension", physMat.DEF + "_VSME")
+                if vmsBna[0] == False:
+                    vmsBna[1].scatterAnisotropy = scatterAnisotropy
+                    vmsBna[1].multiscatterColor = multiscatterColor
+                    
+            dispersion = attributes.get("dispersion", None)
+            if dispersion:
+                dmBna = self.trv.processBasicNodeAddition(physMat, "extensions", "DispersionMaterialExtension", physMat.DEF + "_DSPME")
+                if dmBna[0] == False:
+                    #noScaleDisp = 20/cmds.getAttr(material.name() + ".transmissionDispersionAbbeNumber")
+                    #dmBna[1].dispersion = noScaleDisp * cmds.getAttr(material.name() + ".transmissionDispersionScale")
+                    dmBna[1].dispersion = dispersion
+                    
+            specular = attributes.get("specularWeight", 0.0)
+            if specular > 0.0:
+                spcBna = self.trv.processBasicNodeAddition(physMat, "extensions", "SpecularMaterialExtension", physMat.DEF + "_SpecME")
+                if spcBna[0] == False:
+                    spcBna[1].specular         = specular
+                    spcBna[1].specularStrength = attributes.get("specularStrength",      1.0)
+                    specularTexture            = attributes.get("specularTexture",      None)
+                    specularColorTexture       = attributes.get("specularColorTexture", None)
+                    if specularTexture:
+                        ignoreTT = self.processMatXTexture(specularTexture,      x3dAppearance, spcBna[1], "specularTexture",      uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                    if specularColorTexture:
+                        ignoreTT = self.processMatXTexture(specularColorTexture, x3dAppearance, spcBna[1], "specularColorTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+
+            iorBna = self.trv.processBasicNodeAddition(physMat, "extensions", "IORMaterialExtension", physMat.DEF + "_IORME")
+            if iorBna[0] == False:
+                iorBna[1].indexOfRefraction = attributes.get("indexOfRefraction", 1.5)
+
+            anisotropy = attributes.get("anisotropy", 0.0)
+            if anisotropy > 0.0:
+                aniBna = self.trv.processBasicNodeAddition(physMat, "extensions", "AnisotropyMaterialExtension", physMat.DEF + "_AniME")
+                if aniBna[0] == False:
+                    aniBna[1].anisotropyStrength = anisotropy
+                    aniBna[1].anisotropyRotation = attributes.get("anisotropyRotation", 0.0)
+                    anisotropyTexture = attributes.get("anisotropyTexture", None)
+                    if anisotropyTexture:
+                        ignoreTT = self.processMatXTexture(anisotropyTexture, x3dAppearance, spcBna[1], "anisotropyTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+
+            clearcoat = attributes.get("clearcoat", 0.0)
+            if clearcoat > 0.0:
+                coaBna = self.trv.processBasicNodeAddition(physMat, "extensions", "ClearcoatMaterialExtension", physMat.DEF + "_CoatME")
+                if coaBna[0] == False:
+                    coaBna[1].clearcoat = clearcoat
+                    coaBna[1].clearcoatRoughness = attributes.get("clearcoatRoughness",         0.0)
+                    clearcoatTexture             = attributes.get("clearcoatTexture",          None)
+                    clearcoatRoughnessTexture    = attributes.get("clearcoatRoughnessTexture", None)
+                    clearcoatNormalTexture       = attributes.get("clearcoatNormalTexture",    None)
+                    if clearcoatTexture:
+                        ignoreTT = self.processMatXTexture(clearcoatTexture,          x3dAppearance, coaBna[1], "clearcoatTexture",          uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                    if clearcoatRoughnessTexture:
+                        ignoreTT = self.processMatXTexture(clearcoatRoughnessTexture, x3dAppearance, coaBna[1], "clearcoatRoughnessTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                    if clearcoatNormalTexture:
+                        ignoreTT = self.processMatXTexture(clearcoatNormalTexture,    x3dAppearance, coaBna[1], "clearcoatNormalTexture",    uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+
+            sheenColor = attributes.get("sheenColor", None)
+            if sheenColor:
+                shnBna = self.trv.processBasicNodeAddition(physMat, "extensions", "SheenMaterialExtension", physMat.DEF + "_SheenME")
+                if shnBna[0] == False:
+                    shnBna[1].sheenColor     = sheenColor
+                    shnBna[1].sheenRoughness = attributes.get("sheenRoughness",         1.0)
+                    sheenColorTexture        = attributes.get("sheenColorTexture",     None)
+                    sheenRoughnessTexture    = attributes.get("sheenRoughnessTexture", None)
+                    if sheenColorTexture:
+                        ignoreTT = self.processMatXTexture(sheenColorTexture,     x3dAppearance, shnBna[1], "sheenColorTexture",     uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                    if sheenRoughnessTexture:
+                        ignoreTT = self.processMatXTexture(sheenRoughnessTexture, x3dAppearance, shnBna[1], "sheenRoughnessTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+
+            iridescence = attributes.get("iridescence", 0.0)
+            if iridescence > 0.0:
+                iriBna = self.trv.processBasicNodeAddition(physMat, "extensions", "IridescenceMaterialExtension", physMat.DEF + "_IridME") 
+                if iriBna[0] == False:
+                    iriBna[1].iridescence                  = iridescence
+                    iriBna[1].iridescenceIndexOfRefraction = attributes.get("iridescenceIndexOfRefraction", 1.3)
+                    iriBna[1].iridescenceThicknessMinimum  = attributes.get("iridescenceThicknessMinimum",  100)
+                    iriBna[1].iridescenceThicknessMaximum  = attributes.get("iridescenceThicknessMaximum",  400)
+                    iridescenceTexture                     = attributes.get("iridescenceTexture",          None)
+                    iridescenceThicknessTexture            = attributes.get("iridescenceThicknessTexture", None)
+                    if iridescenceTexture:
+                        ignoreTT = self.processMatXTexture(iridescenceTexture,          x3dAppearance, iriBna[1], "iridescenceTexture",          uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                    if iridescenceThicknessTexture:
+                        ignoreTT = self.processMatXTexture(iridescenceThicknessTexture, x3dAppearance, iriBna[1], "iridescenceThicknessTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+
+
+    def setMatX_PhysicalMaterialX3DOM(self, attributes, matXSS, x3dAppearance, uvSetNames, cField, textureTransforms, ignoreTT, surfacePath, smSceneItem, shSceneItem, isX3DOM):
+        # For X3DOM
+        matBna = self.trv.processBasicNodeAddition(x3dAppearance, cField, "PhysicalMaterial_X3DOM", matXSS.name())
+        if matBna[0] == False:
+            physMat = matBna[1]
+            
+            physMat.alphaCutoff = attributes.get("alphaCutoff", 0.5)
+            physMat.alphaMode   = rkMat.getAlphaMode(attributes["alphaMode"])
+            
+            baseColor = attributes.get("baseColor", (1.0, 1.0, 1.0))
+            physMat.baseColorFactor = (baseColor[0], baseColor[1], baseColor[2], 1.0)
+
+            baseTexture = attributes.get("baseTexture", None)
+            if baseTexture:
+                ignoreTT = self.processMatXTexture(baseTexture, x3dAppearance, physMat, "baseColorTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+            
+            mv = attributes.get("metallic", 0.0)
+            physMat.diffuseColor  = attributes.get("diffuseColor", (0.8, 0.8, 0.8))
+            physMat.diffuseFactor = (mv, mv, mv, 1.0)
+            
+            physMat.shininess     = attributes.get("shininess", 0.2)
+
+            emissiveTexture = attributes.get("emissiveTexture", None)
+            if emissiveTexture:
+                physMat.emissiveColor = (1.0, 1.0, 1.0)
+                ignoreTT = self.processMatXTexture(emissiveTexture, x3dAppearance, physMat, "emissiveTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+            else:
+                physMat.emissiveColor = attributes.get("emissiveColor", (0.0, 0.0, 0.0))
+            physMat.emissiveFactor = (1.0, 1.0, 1.0)
+
+            normalTexture = attributes.get("normalTexture", None)
+            if normalTexture:
+                ignoreTT = self.processMatXTexture(normalTexture, x3dAppearance, physMat, "normalTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                physMat.normalScale = attributes.get("normalScale", 1.0)
+
+            physMat.metallicFactor  = mv
+            physMat.roughnessFactor = attributes.get("roughness", 1.0)
+
+            metallicRoughnessTexture = attributes.get("metallicRoughnessTexture", None)
+            if metallicRoughnessTexture:
+                ignoreTT = self.processMatXTexture(metallicRoughnessTexture, x3dAppearance, physMat, "roughnessMetallicTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+            else:
+                occlusionTexture = attributes.get("occlusionTexture", None)
+                if occlusionTexture:
+                    ignoreTT = self.processMatXTexture(occlusionTexture, x3dAppearance, physMat, "occlusionTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+            
+            physMat.specularColor = attributes.get("specularColor", (0.0, 0.0, 0.0))
+            
+            specularColorTexture = attributes.get("specularColorTexture", None)
+            if specularColorTexture:
+                ignoreTT = self.processMatXTexture(specularColorTexture, x3dAppearance, physMat, "specularGlossinessTexture", uvSetNames, textureTransforms, ignoreTT, isX3DOM)
+                physMat.specularColor = (1.0, 1.0, 1.0)
+
+            sw = attributes.get("specularWeight", 1.0)
+            physMat.specularFactor = self.getSFColor(sw, sw, sw)
+
+            physMat.transparency = attributes.get("transparency", 0.0)
+
+
+    def processMaterialX_X3DShaderSet(  self, matXSS, x3dAppearance, uvSetNames, cField):
         ##############################################################
         # Prep for MaterialX document and GLSL I/O
+        #
+        # TODO - Implement processMatXTexture()
+        #
         ##############################################################
 
         # Setup Shader Export Paths
@@ -3358,7 +4798,7 @@ class RKOrganizer():
         rkMat.getShaderFieldTags(fTags, x3dFields, x3dFieldValues, surfComp)
         
         # Add a PackagedShader using the MaterialX shader document
-        pShader = self.trv.processBasicNodeAddition(matXSS, x3dAppearance, cField, "PackagedShader", matXSS.name() + "_PkSdr")
+        pShader = self.trv.processBasicNodeAddition(x3dAppearance, cField, "PackagedShader", matXSS.name() + "_PkSdr")
         if pShader[0] == False:
             shader = pShader[1]
             
@@ -3402,7 +4842,7 @@ class RKOrganizer():
                 nodeField = getattr(shader, "field")
                 nodeField.append(newField)
         
-        cShader = self.trv.processBasicNodeAddition(matXSS, x3dAppearance, cField, "ComposedShader", matXSS.name() + "_CpSdr")
+        cShader = self.trv.processBasicNodeAddition(x3dAppearance, cField, "ComposedShader", matXSS.name() + "_CpSdr")
         if cShader[0] == False:
             shader = cShader[1]
             
@@ -3410,7 +4850,7 @@ class RKOrganizer():
             shader.language = "GLSL"
             
             # Setup the FRAGMENT ShaderPart
-            fragPart = self.trv.processBasicNodeAddition(None, shader, "parts", "ShaderPart", matXSS.name() + "_CpSdr_Frag")
+            fragPart = self.trv.processBasicNodeAddition(shader, "parts", "ShaderPart", matXSS.name() + "_CpSdr_Frag")
             if fragPart[0] == False:
                 frag = fragPart[1]
 
@@ -3422,7 +4862,7 @@ class RKOrganizer():
                 frag.type = "FRAGMENT"
 
             # Setup the VERTEX ShadePart
-            vertPart = self.trv.processBasicNodeAddition(None, shader, "parts", "ShaderPart", matXSS.name() + "_CpSdr_Vert")
+            vertPart = self.trv.processBasicNodeAddition(shader, "parts", "ShaderPart", matXSS.name() + "_CpSdr_Vert")
             if vertPart[0] == False:
                 vert = verPart[1]
 
@@ -3463,20 +4903,17 @@ class RKOrganizer():
 
                 nodeField = getattr(shader, "field")
                 nodeField.append(newField)
-                
-        return x3dAppearance.shaders
 
 
-    def processUSDPreview_PhysicalMaterial(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
-        pMat = self.trv.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterialExt", material.name()) # marker
+    def processUSDPreview_PhysicalMaterial(self, matchedSets, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
+        pMat = self.trv.processBasicNodeAddition(x3dAppearance, cField, "PhysicalMaterialExt", material.name()) # marker
         if pMat[0] == False:
             physMat = pMat[1]
 
+            ignoreTT          = False
+            textureTransforms = []
+
             colorStore = {}
-            mro        = {}
-            mroStore   = {}
-            mroTexture = {}
-            
             usePrev = 3
             rkMat.getAdvBaseColorAndOcclusionTextures(material, colorStore, usePrev)
 
@@ -3484,11 +4921,9 @@ class RKOrganizer():
             # Get BaseTexture
             baseTexture = colorStore.get("baseTexture", False)
             if baseTexture:
-                mTextureNodes.append(baseTexture)
-                mTextureFields.append("baseTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
-
+                #mappingName = matchedSets.get(baseTexture.name(), "")
+                #self.processTexture(baseTexture, physMat, "baseTexture", mappingName, textureTransforms)
+                ignoreTT = self.processTexture(baseTexture, x3dAppearance, physMat, "baseTexture", matchedSets, textureTransforms, ignoreTT)
             else:
                 bc = cmds.getAttr(material.name() + ".diffuseColor")[0]
                 physMat.baseColor = self.getSFColor(bc[0], bc[1], bc[2])
@@ -3498,11 +4933,7 @@ class RKOrganizer():
             emissConn = material.findPlug("emissiveColor", True)
             emsTexture = self.findTextureFromPlug(emissConn)
             if emsTexture:
-                mTextureNodes.append(emsTexture)
-                mTextureFields.append("emissiveTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
-                
+                ignoreTT = self.processTexture(emsTexture, x3dAppearance, physMat, "emissiveTexture", matchedSets, textureTransforms, ignoreTT)
                 physMat.emissiveColor = self.getSFColor(1.0, 1.0, 1.0)
             else:
                 eColor = cmds.getAttr(material.name() + ".emissiveColor")[0]
@@ -3513,30 +4944,9 @@ class RKOrganizer():
             normConn    = material.findPlug("normal", True)
             normTexture = self.findTextureFromPlug(normConn)
             if normTexture:
-                mTextureNodes.append(normTexture)
-                mTextureFields.append("normalTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
+                ignoreTT = self.processTexture(normTexture, x3dAppearance, physMat, "normalTexture", matchedSets, textureTransforms, ignoreTT)
             
-            metalRoughSame = False
-            occlIsSame     = False
-            hasOccl        = False
-            hasMetal       = False
-            hasRough       = False
-            rName = ""
-            oName = ""
-            mName = ""
 
-            #####################################################
-            # PBR Occlusion
-            occlTexture = colorStore.get("occlusionTexture", None)
-            if ocllTexture:
-                mroStore["occlusionTexture"] = occlTexture.object()
-                oName = oTex.name()
-                hasOccl = True
-            else:
-                physMat.occlusionStrength = cmds.getAttr(material.name() + ".occlusion")
-                
             #####################################################
             # Transparency
             x3dAppearance.alphaMode = "MASK"
@@ -3549,12 +4959,13 @@ class RKOrganizer():
             # Decide whether to process with Specular Workflow
             isSpcw = cmds.getAttr(material.name() + ".useSpecularWorkflow")
             metallic = 1.0
+            metalTexture   = None
             
             if isSpcw == True:
                 metallic = 0.0
                 #####################################################################
                 # Get SpecularColor values
-                spcBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "SpecularMaterialExtension", physMat.DEF + "_SpecME")
+                spcBna = self.trv.processBasicNodeAddition(physMat, "extensions", "SpecularMaterialExtension", physMat.DEF + "_SpecME")
                 if spcBna[0] == False:
                     spcBna[1].specular = 1.0
                     
@@ -3566,16 +4977,8 @@ class RKOrganizer():
                         img = aom.MImage()
                         img.readFromFile(iPath)
                         if img.depth() == 4:
-                            mTextureNodes.append(specTexture)
-                            mTextureFields.append("specularTexture")
-                            mTextureParents.append(spcBna[1])
-                            retPlace2d.append(None)
-                        
-                        mTextureNodes.append(specTexture)
-                        mTextureFields.append("specularColorTexture")
-                        mTextureParents.append(spcBna[1])
-                        retPlace2d.append(None)
-                        
+                            ignoreTT = self.processTexture(specTexture, x3dAppearance, spcBna[1], "specularTexture", matchedSets, textureTransforms, ignoreTT)
+                        ignoreTT = self.processTexture(specTexture, x3dAppearance, spcBna[1], "specularColorTexture", matchedSets, textureTransforms, ignoreTT)
                 physMat.metallic = metallic
                 
             else:
@@ -3583,17 +4986,13 @@ class RKOrganizer():
                 # Get Metallic values
                 metalConn    = material.findPlug("metallic", True)
                 metalTexture = self.findTextureFromPlug(metalConn)
-                if metalTexture:
-                    mroStore ["metallicTexture" ] = metalTexture.object()
-                    mName = metalTexture.name()
-                    hasMetal = True
-                else:
+                if not metalTexture:
                     metallic = cmds.getAttr(material.name() + ".metallic")
                 physMat.metallic = metallic
                     
                 #####################################################################
                 # Get IOR values
-                iorBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "IORMaterialExtension", physMat.DEF + "_IORME")
+                iorBna = self.trv.processBasicNodeAddition(physMat, "extensions", "IORMaterialExtension", physMat.DEF + "_IORME")
                 if iorBna[0] == False:
                     iorBna[1].indexOfRefraction = cmds.getAttr(material.name() + ".ior")
 
@@ -3601,105 +5000,29 @@ class RKOrganizer():
             # Get Roughness values
             roughConn    = material.findPlug("roughness", True)
             roughTexture = self.findTextureFromPlug(roughConn)
-            if roughTexture:
-                mroStore ["roughnessTexture" ] = roughTexture.object()
-                rName = roughTexture.name()
-                hasRough = True
             
-            #####################################################################
-            # Evaluate for reuse of texture nodes
-            if mName == rName and mName != "":
-                metalRoughSame = True
-            if oName == rName and oName != "":
-                occlIsSame = True
-            #####################################################################
+            # Assumes that the metalTexture and the roughTexture nodes ar the same kTexture2d node
+            if metalTexture:
+                ignoreTT = self.processTexture(metalTexture, x3dAppearance, physMat, "metallicRoughnessTexture", matchedSets, textureTransforms, ignoreTT)
+            elif roughTexture:
+                ignoreTT = self.processTexture(roughTexture, x3dAppearance, physMat, "metallicRoughnessTexture", matchedSets, textureTransforms, ignoreTT)
 
-            ####################################################
+            #####################################################
             # PBR Occlusion
-            oTex = mroStore.get("occlusionTexture", False)
-            if oTex:
-                occImage = aom.MImage()
-                occImage.readFromTextureNode(oTex, aom.MImage.kFloat)
-                mro["red"] = occImage
-                mroTexture["textTrans"] = rkMat.getTextureTransform(oTex)
-
-            ####################################################
-            # PBR Roughness
-            rTex = mroStore.get("roughnessTexture", False)
-            if rTex:
-                metImage = aom.MImage()
-                metImage.readFromTextureNode(rTex, aom.MImage.kFloat)
-                mro["green"] = metImage
-                mroTexture["textTrans"] = rkMat.getTextureTransform(rTex)
-            
-            ####################################################
-            # PBR Metallic
-            mTex = mroStore.get("metallicTexture", False)
-            if mTex:
-                metImage = aom.MImage()
-                metImage.readFromTextureNode(mTex, aom.MImage.kFloat)
-                mro["blue"] = metImage
-                mroTexture["textTrans"] = rkMat.getTextureTransform(mTex)
-            
-            ####################################################
-            # PBR Create Metallic-Roughness and Occlusion Maps
-            hasTexNode = False
-            if (occlIsSame != True and hasOccl == True and hasRough == True and hasMetal == False) or (metalRoughSame != True and hasMetal == True and hasRough == True):
-                mroImage    = rkMat.generateMROImage(mro, 0)
-                print("made it past MRO")
-                mroDEF      = material.name() + "_MROTexture"
-                mroDirPath  = cmds.workspace(query=True, rootDirectory=True)
-                mroDirPath  += "/sourceimages"
-                os.makedirs(mroDirPath, exist_ok=True)
-
-                if cmds.objExists(mroDEF) == False:
-                    mroDEF  = cmds.createNode('file', n=mroDEF)
-                    
-                mroFullPath = mroDirPath + "/" + mroDEF + ".png"
-                mroImage.writeToFile(mroFullPath, '.png')
-                cmds.setAtt(mroDEF + ".fileTextureName", mroFullPath, type="string")
-
-                tTrans = mroTexture.get("textTrans", False)
-                if tTrans:
-                    rkMat.connectTextureTransformToTexture(tTrans.name(), mroDEF)
-
-                nfList = aom.MSelectionList()
-                nfList.add(mroDEF)
-                texNode = aom.MFnDependencyNode(nfList.getDependNode(0))
-                hasTexNode = True
-            
-            if hasOccl == True:
-                mTextureFields.append("occlusionTexture")
-                mTextureParents.appends(physMat)
-                retPlace2d.append(None)
-
-                if occlIsSame == True:# Assumes hasMetal == True:
-                    mTextureNodes.append(roughTexture)
-                elif hasTexNode == True:
-                    mTextureNodes.append(texNode)
+            occlTexture = colorStore.get("occlusionTexture", None)
+            if occlTexture:
+                ignoreTT = self.processTexture(occlTexture, x3dAppearance, physMat, "occluisionTexture", matchedSets, textureTransforms, ignoreTT)
+            else:
+                physMat.occlusionStrength = cmds.getAttr(material.name() + ".occlusion")
                 
-            if hasMetal == True or hasRough == True:
-                mTextureFields.append("metallicRoughnessTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
-                
-                if metalRoughSame == True:# Assumes hasMetal == True
-                    mTextureNodes.append(metalTexture)
-                elif hasTexNode == True:                                         ###
-                    mTextureNodes.append(texNode)                                ###
-            ########################################################################
-
             ####################################################
             # Clearcoat    
-            coaBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "ClearcoatMaterialExtension", physMat.DEF + "_CoatME")
+            coaBna = self.trv.processBasicNodeAddition(physMat, "extensions", "ClearcoatMaterialExtension", physMat.DEF + "_CoatME")
             if coaBna[0] == False:
                 coatConn = material.findPlug("clearcoat")
                 coatTexture = self.findTextureFromPlug(coatConn)
                 if coatTexture:
-                    mTextureNodes.append(coatTexture)
-                    mTextureFields.append("clearcoatTexture")
-                    mTextureParents.append(coaBna[1])
-                    retPlace2d.append(None)
+                    ignoreTT = self.processTexture(coatTexture, x3dAppearance, coaBna[1], "clearcoatTexture", matchedSets, textureTransforms, ignoreTT)
                     coaBna[1].clearcoat = 1.0
                 else:
                     coaBna[1].clearcoat = cmds.getAttr(material.name() + ".clearcoat")
@@ -3707,29 +5030,27 @@ class RKOrganizer():
                 cRouConn = material.findPlug("clearcoatRoughness")
                 cRouTexture = self.findTextureFromPlug(cRouConn)
                 if cRouTexture:
-                    mTextureNodes.append(cRouTexture)
-                    mTextureFields.append("clearcoatRoughnessTexture")
-                    mTextureParents.append(coaBna[1])
-                    retPlace2d.append(None)
+                    ignoreTT = self.processTexture(cRouTexture, x3dAppearance, coaBna[1], "clearcoatRoughnessTexture", matchedSets, textureTransforms, ignoreTT)
                     coaBna[1].roughness = 1.0
                 else:
                     coaBna[1].roughness = cmds.getAttr(material.name() + ".clearcoatRoughness")
             
-            return physMat
-            
-        else:
-            return None
+            # Check for GeneratedCubeMapTexture
+            if ignoreTT == True:
+                x3dAppearance.material = None
+            else:
+                rkMat.attachTextureTransforms(self.trv, self.rkint, textureTransforms, x3dAppearance)
 
 
-    def processBlinn_PhysicalMaterial(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
-        pMat = self.trv.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterial", material.name())
+    def processBlinn_PhysicalMaterial(self, matchedSets, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
+        pMat = self.trv.processBasicNodeAddition(x3dAppearance, cField, "PhysicalMaterial", material.name())
         if pMat[0] == False:
             physMat = pMat[1]
             
+            ignoreTT          = False
+            textureTransforms = []
+
             colorStore = {}
-            mro        = {}
-            mroStore   = {}
-            mroTexture = {}
 
             rkMat.getLegacyBaseColorAndOcclusionTextures(material, colorStore)
 
@@ -3738,10 +5059,7 @@ class RKOrganizer():
             diffuse = cmds.getAttr(material.name() + ".diffuse")
             baseTexture = colorStore.get("baseTexture", False)
             if baseTexture:
-                mTextureNodes.append(baseTexture)
-                mTextureFields.append("baseTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
+                ignoreTT = self.processTexture(baseTexture, x3dAppearance, physMat, "baseTexture", matchedSets, textureTransforms, ignoreTT)
                 physMat.baseColor = (diffuse, diffuse, diffuse)
                 hasBaseTexture = True
             else:
@@ -3753,11 +5071,7 @@ class RKOrganizer():
             emissConn = material.findPlug("incandescence", True)
             emsTexture = self.findTextureFromPlug(emissConn)
             if emsTexture:
-                mTextureNodes.append(emsTexture)
-                mTextureFields.append("emissiveTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
-                
+                ignoreTT = self.processTexture(emsTexture, x3dAppearance, physMat, "emissiveTexture", matchedSets, textureTransforms, ignoreTT)
                 physMat.emissiveColor = self.getSFColor(1.0, 1.0, 1.0)
             else:
                 eColor = cmds.getAttr(material.name() + ".incandescence")[0]
@@ -3768,10 +5082,7 @@ class RKOrganizer():
             normConn    = material.findPlug("normalCamera", True)
             normTexture = self.findTextureFromPlug(normConn)
             if normTexture:
-                mTextureNodes.append(normTexture)
-                mTextureFields.append("normalTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
+                ignoreTT = self.processTexture(normTexture, x3dAppearance, physMat, "normalTexture", matchedSets, textureTransforms, ignoreTT)
             
             normAdj = self.findNormScaleNode(normConn)
             if normAdj:
@@ -3785,22 +5096,11 @@ class RKOrganizer():
                     physMat.normalScale = nsValue
             
             #####################################################
-            # PBR Occlusion
-            hasOccl = False
-            oTex = colorStore.get("occlusionTexture", None)
-            if oTex:
-                mroStore["occlusionTexture"] = oTex.object()
-                hasOccl = True
-            
-            #####################################################
             # PBR Metallic
-            hasMetal = False
             metalConn     = material.findPlug("reflectivity", True)
             metalTexture = self.findTextureFromPlug(metalConn)
-            if metalTexture1:
-                mroStore["metallicTexture"] = metalTexture
+            if metalTexture:
                 physMat.metallic = 1.0
-                hasMetal = True
             else:
                 spColor      = cmds.getAttr(material.name() + ".specularColor")[0]
                 reflectivity = cmds.getAttr(material.name() + ".reflectivity")
@@ -3817,20 +5117,26 @@ class RKOrganizer():
 
             #####################################################
             # PBR Roughness
-            hasRough = False
-            roughAttrName = "eccentricity"
-            
             roughConn    = material.findPlug("eccentricity", True)
             roughTexture = self.findTextureFromPlug(roughConn)
             if roughTexture:
-                mroStore["roughnessTexture"] = roughTexture
                 physMat.roughness = 1.0
-                hasRough = True
             else:
                 physMat.roughness = cmds.getAttr(material.name() + ".eccentricity")
                 # Because of Antialiasing issues
                 if physMat.roughness == 0.0:
                     physMat.roughness = 0.001
+                    
+            if metalTexture:
+                ignoreTT = self.processTexture(metalTexture, x3dAppearance, physMat, "metallicRoughnessTexture", matchedSets, textureTransforms, ignoreTT)
+            elif roughTexture:
+                ignoreTT = self.processTexture(roughTexture, x3dAppearance, physMat, "metallicRoughnessTexture", matchedSets, textureTransforms, ignoreTT)
+            
+            #####################################################
+            # PBR Occlusion
+            oTex = colorStore.get("occlusionTexture", None)
+            if oTex:
+                ignoreTT = self.processTexture(oTex, x3dAppearance, physMat, "occlusionTexture", matchedSets, textureTransforms, ignoreTT)
             
             # Occlusion Strength
             physMat.occlusionStrength = cmds.getAttr(material.name() + ".specularRollOff")
@@ -3839,104 +5145,23 @@ class RKOrganizer():
             transp = cmds.getAttr(material.name() + ".transparency")[0]
             t = (transp[0] + transp[1] + transp[2]) / 3
             physMat.transparency = t
-
-            # Check if Matel, Roughness, and Occlusions are all the same file node
-            metalRoughSame = False
-            occlIsSame = False
-            if hasMetal == True and hasRough == True:
-                if metalTexture.name() == roughnessTexture.name():
-                    metalRoughSame = True
-                    if hasOccl == True:
-                        if metalTexture.name() == occlTexture.name():
-                            occlIsSame = True
-
-            ##############################################
-            # Collect MRO textures
-            oTex = mroStore.get("occlusionTexture", False)
-            if oTex:
-                occImage = aom.MImage()
-                occImage.readFromTextureNode(oTex, aom.MImage.kFloat)
-                mro["red"] = occImage
-                mroTexture["textTrans"] = rkMat.getTextureTransform(oTex)
-                
-            mTex = mroStore.get("metallicTexture", False)
-            if mTex:
-                metImage = aom.MImage()
-                metImage.readFromTextureNode(mTex, aom.MImage.kFloat)
-                mro["blue"] = metImage
-                mroTexture["textTrans"] = rkMat.getTextureTransform(mTex)
-
-            rTex = mroStore.get("roughnessTexture", False)
-            if rTex:
-                metImage = aom.MImage()
-                metImage.readFromTextureNode(rTex, aom.MImage.kFloat)
-                mro["green"] = metImage
-                mroTexture["textTrans"] = rkMat.getTextureTransform(rTex)
-
-            ####################################################
-            # PBR Create Metallic-Roughness and Occlusion Maps
-            #
-            hasTexNode = False
-            if (metalRoughSame == False and (hasMetal == True or hasRough == True)) or (occlIsSame == False and hasOccl == True):
-                mroImage    = rkMat.generateMROImage(mro, 0)
-                print("made it past MRO")
-                mroDEF      = material.name() + "_MROTexture"
-                mroDirPath  = cmds.workspace(query=True, rootDirectory=True)
-                mroDirPath  += "/sourceimages"
-                os.makedirs(mroDirPath, exist_ok=True)
-
-                if cmds.objExists(mroDEF) == False:
-                    mroDEF  = cmds.createNode('file', n=mroDEF)
-                    
-                mroFullPath = mroDirPath + "/" + mroDEF + ".png"
-                mroImage.writeToFile(mroFullPath, '.png')
-                cmds.setAtt(mroDEF + ".fileTextureName", mroFullPath, type="string")
-
-                tTrans = mroTexture.get("textTrans", False)
-                if tTrans:
-                    rkMat.connectTextureTransformToTexture(tTrans.name(), mroDEF)
-
-                nfList = aom.MSelectionList()
-                nfList.add(mroDEF)
-                texNode = aom.MFnDependencyNode(nfList.getDependNode(0))
-                hasTexNode = True
             
-            if hasOccl == True:
-                mTextureFields.append("occlusionTexture")
-                mTextureParents.appends(physMat)
-                retPlace2d.append(None)
-
-                if occlIsSame == True:# Assumes hasMetal == True:
-                    mTextureNodes.append(metalTexture)
-                elif hasTexNode == True:
-                    mTextureNodes.append(texNode)
-                
-            if hasMetal == True or hasRough == True:
-                mTextureFields.append("metallicRoughnessTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
-                
-                if metalRoughSame == True:# Assumes hasMetal == True
-                    mTextureNodes.append(metalTexture)
-                elif hasTexNode == True:                                         ###
-                    mTextureNodes.append(texNode)                                ###
-            ########################################################################
-            
-            return physMat
-            
-        else:
-            return None
+            # Check for GeneratedCubeMapTexture
+            if ignoreTT == True:
+                x3dAppearance.material = None
+            else:
+                rkMat.attachTextureTransforms(self.trv, self.rkint, textureTransforms, x3dAppearance)
 
 
-    def processStandard_PhysicalMaterial(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
-        pMat = self.trv.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterialExt", material.name())
+    def processStandard_PhysicalMaterial(self, matchedSets, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
+        pMat = self.trv.processBasicNodeAddition(x3dAppearance, cField, "PhysicalMaterialExt", material.name())
         if pMat[0] == False:
             physMat = pMat[1]
 
+            ignoreTT          = False
+            textureTransforms = []
+
             colorStore = {}
-            mro        = {}
-            mroStore   = {}
-            mroTexture = {}
             
             stand = 0
             rkMat.getAdvBaseColorAndOcclusionTextures(material, colorStore, stand)
@@ -3945,10 +5170,7 @@ class RKOrganizer():
             # Get BaseTexture
             baseTexture = colorStore.get("baseTexture", False)
             if baseTexture:
-                mTextureNodes.append(baseTexture)
-                mTextureFields.append("baseTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
+                ignoreTT = self.processTexture(baseTexture, x3dAppearance, physMat, "baseTexture", matchedSets, textureTransforms, ignoreTT)
 
             bc = cmds.getAttr(material.name() + ".baseColor")[0]
             physMat.baseColor = self.getSFColor(bc[0], bc[1], bc[2])
@@ -3958,19 +5180,14 @@ class RKOrganizer():
             emissConn    = material.findPlug("emissionColor", True)
             emissTexture = self.findTextureFromPlug(emissConn)
             if emissTexture:
-                mTextureNodes.append(emissTexture)
-                mTextureFields.append("emissiveTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
-                
+                ignoreTT = self.processTexture(emissTexture, x3dAppearance, physMat, "emissiveTexture", matchedSets, textureTransforms, ignoreTT)
                 physMat.emissiveColor = self.getSFColor(1.0, 1.0, 1.0)
-
             else:
                 ec = cmds.getAttr(material.name() + ".emissionColor")[0]
                 physMat.emissiveColor = self.getSFColor(ec[0], ec[1], ec[2])
 
             # Only Materaial Extension Used
-            esBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "EmissiveStrengthMaterialExtension", physMat.DEF + "_ESME")
+            esBna = self.trv.processBasicNodeAddition(physMat, "extensions", "EmissiveStrengthMaterialExtension", physMat.DEF + "_ESME")
             if esBna[0] == False:
                 esBna[1].emissiveStrength = cmds.getAttr(material.name() + ".emission")
             
@@ -3979,10 +5196,7 @@ class RKOrganizer():
             normConn = material.findPlug("normalCamera", True)
             normTex = self.findTextureFromPlug(normConn)
             if normTex:
-                mTextureNodes.append(normTex)
-                mTextureFields.append("normalTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
+                ignoreTT = self.processTexture(normTex, x3dAppearance, physMat, "normalTexture", matchedSets, textureTransforms, ignoreTT)
             
             normAdj = self.findNormScaleNode(normConn)
             if normAdj:
@@ -4003,39 +5217,21 @@ class RKOrganizer():
             metalRoughSame = False
             occlIsSame     = False
 
-            hasMetal = False
             metalConn    = material.findPlug("metalness", True)
             metalTexture = self.findTextureFromPlug(metalConn)
-            if metalTexture:
-                hasMetal = True
             
             roughConn    = material.findPlug("specularRoughness", True)
             roughTexture = self.findTextureFromPlug(roughConn)
-            if roughTexture:
-                hasRough = True
-                    
+            
+            if metalTexture:
+                ignoreTT = self.processTexture(metalTexture, x3dAppearance, physMat, "metallicRoughnessTexture", matchedSets, textureTransforms, ignoreTT)
+            elif roughTexture:
+                ignoreTT = self.processTexture(roughTexture, x3dAppearance, physMat, "metallicRoughnessTexture", matchedSets, textureTransforms, ignoreTT)
+                
             occlTexture = colorStore.get("occlusionTexture", False)
             if occlTexture:
-                hasOccl = True
+                ignoreTT = self.processTexture(occlTexture, x3dAppearance, physMat, "occlusionTexture", matchedSets, textureTransforms, ignoreTT)
             
-            if hasMetal == True and hasRough == True:
-                if metalTexture.name() == roughnessTexture.name():
-                    metalRoughSame = True
-                    if hasOccl == True:
-                        if metalTexture.name() == occlTexture.name():              ###
-                            occlIsSame = True                                      ###
-            ##########################################################################
-
-            # Get Metallic Texture
-            if hasMetal == True:
-                mroStore ["metallicTexture" ] = metalTexture.object()
-                
-            if hasRough == True and metalRoughSame == False:
-                mroStore ["roughnessTexture"] = roughTexture.object()
-
-            if hasOccl == True and occlIsSame == False:
-                mroStore ["occlusionTexture"] = occlTexture.object()
-
             ####################################################
             # PBR Occlusion
             oTex = mroStore.get("occlusionTexture", False)
@@ -4047,77 +5243,16 @@ class RKOrganizer():
 
             ####################################################
             # PBR Roughness
-            rTex = mroStore.get("roughnessTexture", False)
-            if rTex:
-                metImage = aom.MImage()
-                metImage.readFromTextureNode(rTex, aom.MImage.kFloat)
-                mro["green"] = metImage
-                mroTexture["textTrans"] = rkMat.getTextureTransform(rTex)
-            else:
+            if not roughTexture:
                 physMat.roughness = cmds.getAttr(material.name() + ".specularRoughness")
-                # For Antialiasing Issues
-                if physMat.roughness == 0.0:
-                    physMatroughness = 0.001
+
+            # For Antialiasing Issues
+            if physMat.roughness == 0.0:
+                physMatroughness = 0.001
             
-            ####################################################
-            # PBR Metallic
-            mTex = mroStore.get("metallicTexture", False)
-            if mTex:
-                metImage = aom.MImage()
-                metImage.readFromTextureNode(mTex, aom.MImage.kFloat)
-                mro["blue"] = metImage
-                mroTexture["textTrans"] = rkMat.getTextureTransform(mTex)
-            else:
+            if not metalTexture:
                 physMat.metallic = cmds.getAttr(material.name() + ".metalness")
             
-            ####################################################
-            # PBR Create Metallic-Roughness and Occlusion Maps
-            #
-            hasTexNode = False
-            if (metalRoughSame == False and (hasMetal == True or hasRough == True)) or (occlIsSame == False and hasOccl == True):
-                mroImage    = rkMat.generateMROImage(mro, 0)
-                print("made it past MRO")
-                mroDEF      = material.name() + "_MROTexture"
-                mroDirPath  = cmds.workspace(query=True, rootDirectory=True)
-                mroDirPath  += "/sourceimages"
-                os.makedirs(mroDirPath, exist_ok=True)
-
-                if cmds.objExists(mroDEF) == False:
-                    mroDEF  = cmds.createNode('file', n=mroDEF)
-                    
-                mroFullPath = mroDirPath + "/" + mroDEF + ".png"
-                mroImage.writeToFile(mroFullPath, '.png')
-                cmds.setAtt(mroDEF + ".fileTextureName", mroFullPath, type="string")
-
-                tTrans = mroTexture.get("textTrans", False)
-                if tTrans:
-                    rkMat.connectTextureTransformToTexture(tTrans.name(), mroDEF)
-
-                nfList = aom.MSelectionList()
-                nfList.add(mroDEF)
-                texNode = aom.MFnDependencyNode(nfList.getDependNode(0))
-                hasTexNode = True
-            
-            if hasOccl == True:
-                mTextureFields.append("occlusionTexture")
-                mTextureParents.appends(physMat)
-                retPlace2d.append(None)
-
-                if occlIsSame == True:# Assumes hasMetal == True:
-                    mTextureNodes.append(metalTexture)
-                elif hasTexNode == True:
-                    mTextureNodes.append(texNode)
-                
-            if hasMetal == True or hasRough == True:
-                mTextureFields.append("metallicRoughnessTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
-                
-                if metalRoughSame == True:# Assumes hasMetal == True
-                    mTextureNodes.append(metalTexture)
-                elif hasTexNode == True:                                         ###
-                    mTextureNodes.append(texNode)                                ###
-            ########################################################################
             
             #####################################################################
             # Ignore Transmission Info to set Transparency
@@ -4125,21 +5260,23 @@ class RKOrganizer():
             opAvg  = (opVals[0] + opVals[1] + opVals[2]) / 3
             physMat.transparency = 1 - opAvg
             
-            return physMat
-        else:
-            return None
+            # Check for GeneratedCubeMapTexture
+            if ignoreTT == True:
+                x3dAppearance.material = None
+            else:
+                rkMat.attachTextureTransforms(self.trv, self.rkint, textureTransforms, x3dAppearance)
 
 
     # Assumes that the ShaderFX interface is not used.
-    def processStingrayPBS_PhysicalMaterial(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
-        pMat = self.trv.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterialExt", material.name())
+    def processStingrayPBS_PhysicalMaterial(self, matchedSets, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
+        pMat = self.trv.processBasicNodeAddition(x3dAppearance, cField, "PhysicalMaterialExt", material.name())
         if pMat[0] == False:
             physMat = pMat[1]
 
+            ignoreTT          = False
+            textureTransforms = []
+            
             colorStore = {}
-            mro        = {}
-            mroStore   = {}
-            mroTexture = {}
             
             stingray = 4
             rkMat.getAdvBaseColorAndOcclusionTextures(material, colorStore, stingray)
@@ -4148,10 +5285,7 @@ class RKOrganizer():
             # Get BaseTexture
             baseTexture = colorStore.get("baseTexture", False)
             if baseTexture:
-                mTextureNodes.append(baseTexture)
-                mTextureFields.append("baseTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
+                ignoreTT = self.processTexture(baseTexture, x3dAppearance, physMat, "baseTexture", matchedSets, textureTransforms, ignoreTT)
 
             bc = cmds.getAttr(material.name() + ".baseColor")[0]
             physMat.baseColor = self.getSFColor(bc[0], bc[1], bc[2])
@@ -4170,19 +5304,14 @@ class RKOrganizer():
             emissConn    = material.findPlug("TEX_emissive_map", True)
             emissTexture = self.findTextureFromPlug(emissConn)
             if emissTexture:
-                mTextureNodes.append(emissTexture)
-                mTextureFields.append("emissiveTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
-                
+                ignoreTT = self.processTexture(emissTexture, x3dAppearance, physMat, "emissiveTexture", matchedSets, textureTransforms, ignoreTT)
                 physMat.emissiveColor = self.getSFColor(1.0, 1.0, 1.0)
-
             else:
                 ec = cmds.getAttr(material.name() + ".emissive")[0]
                 physMat.emissiveColor = self.getSFColor(ec[0], ec[1], ec[2])
 
             # Only Materaial Extension Used
-            esBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "EmissiveStrengthMaterialExtension", physMat.DEF + "_ESME")
+            esBna = self.trv.processBasicNodeAddition(physMat, "extensions", "EmissiveStrengthMaterialExtension", physMat.DEF + "_ESME")
             if esBna[0] == False:
                 esBna[1].emissiveStrength = cmds.getAttr(material.name() + ".emissiveIntensity")
             
@@ -4191,156 +5320,49 @@ class RKOrganizer():
             normConn = material.findPlug("TEX_normal_map", True)
             normTex = self.findTextureFromPlug(normConn)
             if normTex:
-                mTextureNodes.append(normTex)
-                mTextureFields.append("normalTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
+                ignoreTT = self.processTexture(normTexture, x3dAppearance, physMat, "normalTexture", matchedSets, textureTransforms, ignoreTT)
 
             #####################################################################
             # Analyze for existing shared Metallic, Roughness, Occlusion texture:
             #
-            hasMetal = False
-            hasRough = False
-            hasOccl  = False
-            metalRoughSame = False
-            occlIsSame     = False
-
-            hasMetal = False
             metalConn    = material.findPlug("TEX_metallic_map", True)
             metalTexture = self.findTextureFromPlug(metalConn)
-            if metalTexture:
-                hasMetal = True
             
             roughConn    = material.findPlug("TEX_roughness_map", True)
             roughTexture = self.findTextureFromPlug(roughConn)
-            if roughTexture:
-                hasRough = True
                     
+            if metalTexture:
+                ignoreTT = self.processTexture(metalTexture, x3dAppearance, physMat, "metallicRoughnessTexture", matchedSets, textureTransforms, ignoreTT)
+            elif roughTexture:
+                ignoreTT = self.processTexture(roughTexture, x3dAppearance, physMat, "metallicRoughnessTexture", matchedSets, textureTransforms, ignoreTT)
+                
             occlTexture = colorStore.get("occlusionTexture", False)
             if occlTexture:
-                hasOccl = True
-            
-            if hasMetal == True and hasRough == True:
-                if metalTexture.name() == roughnessTexture.name():
-                    metalRoughSame = True
-                    if hasOccl == True:
-                        if metalTexture.name() == occlTexture.name():              ###
-                            occlIsSame = True                                      ###
-            ##########################################################################
+                ignoreTT = self.processTexture(occlTexture, x3dAppearance, physMat, "occlusionTexture", matchedSets, textureTransforms, ignoreTT)
 
-            # Get Metallic Texture
-            if hasMetal == True:
-                mroStore ["metallicTexture" ] = metalTexture.object()
-                
-            if hasRough == True and metalRoughSame == False:
-                mroStore ["roughnessTexture"] = roughTexture.object()
-
-            if hasOccl == True and occlIsSame == False:
-                mroStore ["occlusionTexture"] = occlTexture.object()
-
-            ####################################################
-            # PBR Occlusion
-            oTex = mroStore.get("occlusionTexture", False)
-            if oTex:
-                occImage = aom.MImage()
-                occImage.readFromTextureNode(oTex, aom.MImage.kFloat)
-                mro["red"] = occImage
-                mroTexture["textTrans"] = rkMat.getTextureTransform(oTex)
-
-            ####################################################
-            # PBR Roughness
-            rTex = mroStore.get("roughnessTexture", False)
-            if rTex:
-                metImage = aom.MImage()
-                metImage.readFromTextureNode(rTex, aom.MImage.kFloat)
-                mro["green"] = metImage
-                mroTexture["textTrans"] = rkMat.getTextureTransform(rTex)
-            
-            ####################################################
-            # PBR Metallic
-            mTex = mroStore.get("metallicTexture", False)
-            if mTex:
-                metImage = aom.MImage()
-                metImage.readFromTextureNode(mTex, aom.MImage.kFloat)
-                mro["blue"] = metImage
-                mroTexture["textTrans"] = rkMat.getTextureTransform(mTex)
-            
-            ####################################################
-            # PBR Create Metallic-Roughness and Occlusion Maps
-            #
-            hasTexNode = False
-            if (metalRoughSame == False and (hasMetal == True or hasRough == True)) or (occlIsSame == False and hasOccl == True):
-                mroImage    = rkMat.generateMROImage(mro, 0)
-                print("made it past MRO")
-                mroDEF      = material.name() + "_MROTexture"
-                mroDirPath  = cmds.workspace(query=True, rootDirectory=True)
-                mroDirPath  += "/sourceimages"
-                os.makedirs(mroDirPath, exist_ok=True)
-
-                if cmds.objExists(mroDEF) == False:
-                    mroDEF  = cmds.createNode('file', n=mroDEF)
-                    
-                mroFullPath = mroDirPath + "/" + mroDEF + ".png"
-                mroImage.writeToFile(mroFullPath, '.png')
-                cmds.setAtt(mroDEF + ".fileTextureName", mroFullPath, type="string")
-
-                tTrans = mroTexture.get("textTrans", False)
-                if tTrans:
-                    rkMat.connectTextureTransformToTexture(tTrans.name(), mroDEF)
-
-                nfList = aom.MSelectionList()
-                nfList.add(mroDEF)
-                texNode = aom.MFnDependencyNode(nfList.getDependNode(0))
-                hasTexNode = True
-            
-            if hasOccl == True:
-                mTextureFields.append("occlusionTexture")
-                mTextureParents.appends(physMat)
-                retPlace2d.append(None)
-
-                if occlIsSame == True:# Assumes hasMetal == True:
-                    mTextureNodes.append(metalTexture)
-                elif hasTexNode == True:
-                    mTextureNodes.append(texNode)
-                
-            if hasMetal == True or hasRough == True:
-                mTextureFields.append("metallicRoughnessTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
-                
-                if metalRoughSame == True:# Assumes hasMetal == True
-                    mTextureNodes.append(metalTexture)
-                elif hasTexNode == True:                                         ###
-                    mTextureNodes.append(texNode)                                ###
-            ########################################################################
-            
-            return physMat
-        else:
-            return None
+            # Check for GeneratedCubeMapTexture
+            if ignoreTT == True:
+                x3dAppearance.material = None
+            else:
+                rkMat.attachTextureTransforms(self.trv, self.rkint, textureTransforms, x3dAppearance)
 
 
-    def processOpenPBRSurface(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
-        pMat = self.trv.processBasicNodeAddition(material, x3dAppearance, cField, "PhysicalMaterialExt", material.name())
+    def processOpenPBRSurface(self, matchedSets, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
+        pMat = self.trv.processBasicNodeAddition(x3dAppearance, cField, "PhysicalMaterialExt", material.name())
         if pMat[0] == False:
-            physMat = pMat[1]
+            physMat           = pMat[1]
+            
+            ignoreTT          = False
+            textureTransforms = []
 
             colorStore = {}
-            mro        = {}
-            mroTemp    = {}
-            mroStore   = {}
-            mroTexture = {}
-            
             openPBR = 2
             rkMat.getAdvBaseColorAndOcclusionTextures(material, colorStore, openPBR)
 
             # Get BaseTexture
             baseTexture = colorStore.get("baseTexture", False)
             if baseTexture:
-                mTextureNodes.append(baseTexture)
-                mTextureFields.append("baseTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
-
+                ignoreTT = self.processTexture(baseTexture, x3dAppearance, physMat, "baseTexture", matchedSets, textureTransforms, ignoreTT)
             else:
                 bc = cmds.getAttr(material.name() + ".baseColor")[0]
                 physMat.baseColor = self.getSFColor(bc[0], bc[1], bc[2])
@@ -4349,18 +5371,13 @@ class RKOrganizer():
             emissConn    = material.findPlug("emissionColor", True)
             emissTexture = self.findTextureFromPlug(emissConn)
             if emissTexture:
-                mTextureNodes.append(emissTexture)
-                mTextureFields.append("emissiveTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
-                
+                ignoreTT = self.processTexture(emissTexture, x3dAppearance, physMat, "emissiveTexture", matchedSets, textureTransforms, ignoreTT)
                 physMat.emissiveColor = self.getSFColor(1.0, 1.0, 1.0)
-
             else:
                 ec = cmds.getAttr(material.name() + ".emissionColor")[0]
                 physMat.emissiveColor = self.getSFColor(ec[0], ec[1], ec[2])
 
-            esBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "EmissiveStrengthMaterialExtension", physMat.DEF + "_ESME")
+            esBna = self.trv.processBasicNodeAddition(physMat, "extensions", "EmissiveStrengthMaterialExtension", physMat.DEF + "_ESME")
             if esBna[0] == False:
                 luminance = float(cmds.getAttr(material.name() + ".emissionLuminance"))
                 esBna[1].emissiveStrength = luminance / 1000.0
@@ -4376,55 +5393,43 @@ class RKOrganizer():
                 physMat.transparency = 1 - opacity # This is always 0.0 since we are using the TransmissionMaterialExtension
             else:
                 # TransmissionMaterialExtension
-                trBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "TransmissionMaterialExtension", physMat.DEF + "_TRME")
+                trBna = self.trv.processBasicNodeAddition(physMat, "extensions", "TransmissionMaterialExtension", physMat.DEF + "_TRME")
                 if trBna[0] == False:
                     trBna[1].transmission = cmds.getAttr(material.name() + ".transmissionWeight")
                     #The Transmission value is stored in the R channel of the Transmission texture.
                     transConn    = material.findPlug("transmissionColor", True)
                     transTexture = self.findTextureFromPlug(transConn)
                     if transTexture:
-                        mTextureNodes.append(transTexture)
-                        mTextureFields.append("transmissionTexture")
-                        mTextureParents.append(trBna[1])
-                        retPlace2d.append(None)
+                        ignoreTT = self.processTexture(transTexture, x3dAppearance, trBna[1], "transmissionTexture", matchedSets, textureTransforms, ignoreTT)
                         hasTrTexture = True
                         
             if isTWall == True:
-                dtBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "DiffuseTransmissionMaterialExtension", physMat.DEF + "_DTME")
+                dtBna = self.trv.processBasicNodeAddition(physMat, "extensions", "DiffuseTransmissionMaterialExtension", physMat.DEF + "_DTME")
                 if dtBna[0] == False:
                     dtBna[1].diffuseTransmission = cmds.getAttr(material.name() + ".subsurfaceWeight")
                     subsConn = material.findPlug("subsurfaceColor")
                     subsTexture = self.findTextureFromPlug(subsConn)
                     if subsTexture:
-                        mTextureNodes.append(subsTexture)
-                        mTextureFields.append("diffuseTransmissionColorTexture")
-                        mTextureParents.append(subsBna[1])
-                        retPlace2d.append(None)
+                        ignoreTT = self.processTexture(subsTexture, x3dAppearance, dtBna[1], "diffuseTransmissionColorTexture", matchedSets, textureTransforms, ignoreTT)
                         
                         try:
                             iPath = cmds.getAttr(subsTexture.name() + ".fileTextureName")
                             img = aom.MImage()
                             img.readFromFile(iPath)
                             if img.depth() == 4:
-                                mTextureNodes.append(subsTexture)
-                                mTextureFields.append("diffuseTransmissionTexture")
-                                mTextureParents.append(spcBna[1])
-                                retPlace2d.append(None)
+                                ignoreTT = self.processTexture(subsTexture, x3dAppearance, dtBna[1], "diffuseTransmissionTexture", matchedSets, textureTransforms, ignoreTT)
                         except:
                             pass
             else:
                 # VolumeMaterialExtension
-                vmBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "VolumeMaterialExtension", physMat.DEF + "_VLME")
+                vmBna = self.trv.processBasicNodeAddition(physMat, "extensions", "VolumeMaterialExtension", physMat.DEF + "_VLME")
                 if vmBna[0] == False:
                     #The Thickness value is stored in the G channel of the Transmission texture.
                     myThickness = 1.0
                     thickConn    = material.findPlug("transmissionDepth", True)
                     thickTexture = self.findTextureFromPlug(thickConn)
                     if thickTexture:
-                        mTextureNodes.append(thickTexture)
-                        mTextureFields.append("thicknessTexture")
-                        mTextureParents.append(vmBna[1])
-                        retPlace2d.append(None)
+                        ignoreTT = self.processTexture(thickTexture, x3dAppearance, vmBna[1], "thicknessTexture", matchedSets, textureTransforms, ignoreTT)
                     else:
                         myThickness = cmds.getAttr(material.name() + ".transmissionDepth")
 
@@ -4449,13 +5454,13 @@ class RKOrganizer():
                         vmBna[1].attenuationDistance = cmds.getAttr(material.name() + ".subsurfaceRadius")
                         
                 # VolumeScatterMaterialExtension
-                vmsBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "VolumeScatterMaterialExtension", physMat.DEF + "_VSME")
+                vmsBna = self.trv.processBasicNodeAddition(physMat, "extensions", "VolumeScatterMaterialExtension", physMat.DEF + "_VSME")
                 if vmsBna[0] == False:
                     vmsBna[1].multiscatterColor = cmds.getAttr(material.name() + ".transmissionScatter")[0]
                     vmsBna[1].scatterAnisotropy = cmds.getAttr(material.name() + ".transmissionScatterAnisotropy")
 
                 # DispersionMaterialExtension
-                dmBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "DispersionMaterialExtension", physMat.DEF + "_DSPME")
+                dmBna = self.trv.processBasicNodeAddition(physMat, "extensions", "DispersionMaterialExtension", physMat.DEF + "_DSPME")
                 if dmBna[0] == False:
                     noScaleDisp = 20/cmds.getAttr(material.name() + ".transmissionDispersionAbbeNumber")
                     dmBna[1].dispersion = noScaleDisp * cmds.getAttr(material.name() + ".transmissionDispersionScale")
@@ -4466,10 +5471,7 @@ class RKOrganizer():
             normConn = material.findPlug("normalCamera", True)
             normTex = self.findTextureFromPlug(normConn)
             if normTex:
-                mTextureNodes.append(normTex)
-                mTextureFields.append("normalTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
+                ignoreTT = self.processTexture(normTex, x3dAppearance, physMat, "normalTexture", matchedSets, textureTransforms, ignoreTT)
             
             normAdj = self.findNormScaleNode(normConn)
             if normAdj:
@@ -4484,115 +5486,63 @@ class RKOrganizer():
             #####################################################################
             # Analyze for existing shared Metallic, Roughness, Occlusion texture:
             #
-            hasMetal = False
-            hasRough = False
-            hasOccl  = False
-            metalRoughSame = False
-            occlIsSame     = False
-            isUSDSpecularWorkflow = False
-
-            hasMetal = False
+            hasRough     = False
             metalConn    = material.findPlug("baseMetalness", True)
             metalTexture = self.findTextureFromPlug(metalConn)
-            if metalTexture:
-                hasMetal = True
             
             roughConn    = material.findPlug("specularRoughness", True)
             roughTexture = self.findTextureFromPlug(roughConn)
             if roughTexture:
                 hasRough = True
-                    
+
+            if metalTexture:
+                ignoreTT = self.processTexture(metalTexture, x3dAppearance, physMat, "metallicRoughnessTexture", matchedSets, textureTransforms, ignoreTT)
+            elif roughTexture:
+                ignoreTT = self.processTexture(roughTexture, x3dAppearance, physMat, "metallicRoughnessTexture", matchedSets, textureTransforms, ignoreTT)
+
             occlTexture = colorStore.get("occlusionTexture", False)
             if occlTexture:
-                hasOccl = True
+                ignoreTT = self.processTexture(occlTexture, x3dAppearance, physMat, "occlusionTexture", matchedSets, textureTransforms, ignoreTT)
 
-            if hasMetal == True and hasRough == True:
-                if metalTexture.name() == roughTexture.name():
-                    metalRoughSame = True
-                    if hasOccl == True:
-                        if metalTexture.name() == occlTexture.name():              ###
-                            occlIsSame = True                                      ###
-            ##########################################################################
-
-            # Get Metallic Texture
-            if hasMetal == True and metalRoughSame == False:
-                mroStore ["metallicTexture"] = metalTexture.object()
-                
-            if hasRough == True and metalRoughSame == False:
-                mroStore ["roughnessTexture"] = roughTexture.object()
-
-            if hasOccl == True and occlIsSame == False:
-                mroStore ["occlusionTexture"] = occlTexture.object()
-
-            ####################################################
-            # PBR Occlusion
-            oTex = mroStore.get("occlusionTexture", False)
-            if oTex:
-                occImage = aom.MImage()
-                occImage.readFromTextureNode(oTex, aom.MImage.kFloat)
-                mro["red"] = occImage
-                mroTemp["red"] = aom.MFnDependencyNode(oTex)
-                mroTexture["textTrans"] = rkMat.getTextureTransform(oTex)
-            
-            ####################################################
-            # PBR Metallic
-            mTex = mroStore.get("metallicTexture", False)
-            if mTex:
-                metImage = aom.MImage()
-                metImage.readFromTextureNode(mTex, aom.MImage.kFloat)
-                mro["blue"] = metImage
-                mroTemp["blue"] = aom.MFnDependencyNode(mTex)
-                mroTexture["textTrans"] = rkMat.getTextureTransform(mTex)
-            
             #######################################################################
             # Evaluate metallic and Specular Values
-            if hasMetal == False:
+            if not metalTexture:
                 physMat.metallic = cmds.getAttr(material.name() + ".baseMetalness")
                 
-            spcBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "SpecularMaterialExtension", physMat.DEF + "_SpecME")
+            spcBna = self.trv.processBasicNodeAddition(physMat, "extensions", "SpecularMaterialExtension", physMat.DEF + "_SpecME")
             if spcBna[0] == False:
                 spcBna[1].specular = cmds.getAttr(material.name() + ".specularWeight")
                 
                 specConn = material.findPlug("specularColor", True)
                 specTexture = self.findTextureFromPlug(specConn)
                 if specTexture:
-                    mTextureNodes.append(specTexture)
-                    mTextureFields.append("specularColorTexture")
-                    mTextureParents.append(spcBna[1])
-                    retPlace2d.append(None)
-                    
+                    ignoreTT = self.processTexture(specTexture, x3dAppearance, spcBna[1], "specularColorTexture", matchedSets, textureTransforms, ignoreTT)
                     try:
                         iPath = cmds.getAttr(specTexture.name() + ".fileTextureName")
                         img = aom.MImage()
                         img.readFromFile(iPath)
                         if img.depth() == 4:
-                            mTextureNodes.append(specTexture)
-                            mTextureFields.append("specularTexture")
-                            mTextureParents.append(spcBna[1])
-                            retPlace2d.append(None)
+                            ignoreTT = self.processTexture(specTexture, x3dAppearance, spcBna[1], "specularTexture", matchedSets, textureTransforms, ignoreTT)
                     except:
                         pass
                 else:
                     spCol = cmds.getAttr(material.name() + ".specularColor")[0]
                     spcBna[1].specularColor = self.getSFColor(spCol[0], spCol[1], spCol[2])
             
-            iorBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "IORMaterialExtension", physMat.DEF + "_IORME")
+            iorBna = self.trv.processBasicNodeAddition(physMat, "extensions", "IORMaterialExtension", physMat.DEF + "_IORME")
             if iorBna[0] == False:
                 iorBna[1].indexOfRefraction = cmds.getAttr(material.name() + ".specularIOR")
                 
             aniso = cmds.getAttr(material.name() + ".specularRoughnessAnisotropy")
             if aniso > 0.0:
-                aniBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "AnisotropyMaterialExtension", physMat.DEF + "_AniME")
+                aniBna = self.trv.processBasicNodeAddition(physMat, "extensions", "AnisotropyMaterialExtension", physMat.DEF + "_AniME")
                 if aniBna[0] == False:
                     aniBna[1].anisotropyStrength = aniso
                     if cmds.objExists(material.name() + ".tangentUCamera"):
                         tangConn = material.findPlug("tangentUCamera")
                         tangTexture = self.findTextureFromPlug(tangConn)
                         if tangTexture:
-                            mTextureNodes.append(tangTexture)
-                            mTextureFields.append("anisotropyTexture")
-                            mTextureParents.append(aniBna[1])
-                            retPlace2d.append(None)
+                            ignoreTT = self.processTexture(tangTexture, x3dAppearance, aniBna[1], "anisotropyTexture", matchedSets, textureTransforms, ignoreTT)
                     elif cmds.objExists(material.name() + ".specularAnisotropyRotation"):
                         aniBna[1].rotation = cmds.getAttr(material.name()  + ".specularAnisotropyRotation")
             
@@ -4600,23 +5550,17 @@ class RKOrganizer():
             # Clearcoat    
             coatWeight = cmds.getAttr(material.name() + ".coatWeight")
             if coatWeight > 0.0:
-                coaBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "ClearcoatMaterialExtension", physMat.DEF + "_CoatME")
+                coaBna = self.trv.processBasicNodeAddition(physMat, "extensions", "ClearcoatMaterialExtension", physMat.DEF + "_CoatME")
                 if coaBna[0] == False:
                     coaBna[1].clearcoat = coatWeight
                     coatConn = material.findPlug("coatColor")
                     coatTexture = self.findTextureFromPlug(coatConn)
                     if coatTexture:
-                        mTextureNodes.append(coatTexture)
-                        mTextureFields.append("clearcoatTexture")
-                        mTextureParents.append(coaBna[1])
-                        retPlace2d.append(None)
+                        ignoreTT = self.processTexture(coatTexture, x3dAppearance, coaBna[1], "clearcoatTexture", matchedSets, textureTransforms, ignoreTT)
                     cRouConn = material.findPlug("coatRoughness")
                     cRouTexture = self.findTextureFromPlug(cRouConn)
                     if cRouTexture:
-                        mTextureNodes.append(cRouTexture)
-                        mTextureFields.append("clearcoatRoughnessTexture")
-                        mTextureParents.append(coaBna[1])
-                        retPlace2d.append(None)
+                        ignoreTT = self.processTexture(cRouTexture, x3dAppearance, coaBna[1], "clearcoatRoughnessTexture", matchedSets, textureTransforms, ignoreTT)
                     else:
                         coaBna[1].roughness = cmds.getAttr(material.name() + ".coatRoughness")
                     
@@ -4624,24 +5568,18 @@ class RKOrganizer():
                     cNorConn = material.findPlug("geometryCoatNormal", True)
                     cNorTexture = self.findTextureFromPlug(cNorConn)
                     if cNorTexture:
-                        mTextureNodes.append(cNorTexture)
-                        mTextureFields.append("clearcoatNormalTexture")
-                        mTextureParents.append(coaBna[1])
-                        retPlace2d.append(None)
+                        ignoreTT = self.processTexture(cNorTexture, x3dAppearance, coaBna[1], "clearcoatNormalTexture", matchedSets, textureTransforms, ignoreTT)
                             
             ######################################################################
             # Fuzz / Sheen Weight
             fuzz = cmds.getAttr(material.name() + ".fuzzWeight")
             if fuzz > 0.0:
-                fuzBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "SheenMaterialExtension", physMat.DEF + "_SheenME")
+                fuzBna = self.trv.processBasicNodeAddition(physMat, "extensions", "SheenMaterialExtension", physMat.DEF + "_SheenME")
                 if fuzBna[0] == False:
                     fColConn = material.findPlug("fuzzColor", True)
                     fColTexture = self.findTextureFromPlug(fColConn)
                     if fColTexture:
-                        mTextureNodes.append(fColTexture)
-                        mTextureFields.append("sheenColorTexture")
-                        mTextureParents.append(fuzBna[1])
-                        retPlace2d.append(None)
+                        ignoreTT = self.processTexture(fColTexture, x3dAppearance, fuzBna[1], "sheenColorTexture", matchedSets, textureTransforms, ignoreTT)
                     else:
                         fCol = cmds.getAttr(material.name() + ".fuzzColor")[0]
                         fuzBna[1].sheenColor = self.getSFColor(fCol[0] * fuzz, fCol[1] * fuzz, fCol[2] * fuzz)
@@ -4649,10 +5587,7 @@ class RKOrganizer():
                     fRouConn = material.findPlug("fuzzRoughness", True)
                     fRouTexture = self.findTextureFromPlug(fRouConn)
                     if fRouTexture:
-                        mTextureNodes.append(fRouTexture)
-                        mTextureFields.append("sheenRoughnessTexture")
-                        mTextureParents.append(fuzBna[1])
-                        retPlace2d.append(None)
+                        ignoreTT = self.processTexture(fRouTexture, x3dAppearance, fuzBna[1], "sheenRoughnessTexture", matchedSets, textureTransforms, ignoreTT)
                     else:
                         fuzBna[1].sheenRoughenss = cmds.getAttr(material.name() + ".fuzzRoughness")
                         
@@ -4660,17 +5595,13 @@ class RKOrganizer():
                     
             ##############################################################
             # Thickness / Iridescence
-            iridConn = material.findPlug("thinFilmWeight", True)
-            iridTexture = self.findTextureFromPlug(iridConn)
-            iridWeight = 1.0
+            iridConn      = material.findPlug("thinFilmWeight", True)
+            iridTexture   = self.findTextureFromPlug(iridConn)
+            iridWeight    = 1.0
             iridThickness = 1.0
             hasIrid = False
             if iridTexture:
                 hasIrid = True
-                mTextureNodes.append(iridTexture)
-                mTextureFields.append("iridescenceTexture")
-                mTextureParents.append(fuzBna[1])
-                retPlace2d.append(None)
             else:
                 iridWeight = cmds.getAttr(material.name() + ".thinFilmWeight")
                 
@@ -4678,10 +5609,6 @@ class RKOrganizer():
             iThkTexture = self.findTextureFromPlug(iThkConn)
             if iThkTexture:
                 hasIrid = True
-                mTextureNodes.append(iThkTexture)
-                mTextureFields.append("iridescenceThicknessTexture")
-                mTextureParents.append(fuzBna[1])
-                retPlace2d.append(None)
             else:
                 iridThickness = cmds.getAttr(material.name() + ".thinFilmThickness")
             
@@ -4689,83 +5616,16 @@ class RKOrganizer():
                 hasIrid = True
                 
             if hasIrid == True:
-                iriBna = self.trv.processBasicNodeAddition(None, physMat, "extensions", "IridescenceMaterialExtension", physMat.DEF + "_IridME") 
+                iriBna = self.trv.processBasicNodeAddition(physMat, "extensions", "IridescenceMaterialExtension", physMat.DEF + "_IridME") 
                 if iriBna[0] == False:
                     if iridTexture:
-                        mTextureNodes.append(iridTexture)
-                        mTextureFields.append("iridescenceTexture")
-                        mTextureParents.append(iriBna[1])
-                        retPlace2d.append(None)
+                        ignoreTT = self.processTexture(iridTexture, x3dAppearance, iriBna[1], "iridescenceTexture", matchedSets, textureTransforms, ignoreTT)
                     if iThkTexture:
-                        mTextureNodes.append(iThkTexture)
-                        mTextureFields.append("iridescenceThicknessTexture")
-                        mTextureParents.append(iriBna[1])
-                        retPlace2d.append(None)
+                        ignoreTT = self.processTexture(iThkTexture, x3dAppearance, iriBna[1], "iridescenceTexture", matchedSets, textureTransforms, ignoreTT)
                     iriBna[1].iridescence = iridWeight
-                    iriBna[1].iridescenceThicknessMinimum = iridThickness
-                    iriBna[1].iridescenceThicknessMaximum = iridThickness
-                    
-            ####################################################
-            # PBR Roughness
-            rTex = mroStore.get("roughnessTexture", False)
-            if rTex:
-                rouImage = aom.MImage()
-                rouImage.readFromTextureNode(rTex, aom.MImage.kFloat)
-                mro["green"] = rouImage
-                mroTemp["green"] = aom.MFnDependencyNode(rTex)
-                mroTexture["textTrans"] = rkMat.getTextureTransform(rTex)
-                
-            ####################################################
-            # PBR Create Metallic-Roughness and Occlusion Maps
-            #
-            hasTexNode = False
-            if (metalRoughSame == False and (hasMetal == True or hasRough == True)) or (occlIsSame == False and hasOccl == True):
-                #mroImage    = rkMat.generateMROImage(mro, 0)
-                if len(mroTemp) > 0:
-                    mroImage = rkMat.generateMRO_Stable(mroTemp)
-                    print("made it past MRO")
-
-                    mroDEF      = material.name() + "_MROTexture"
-                    mroDirPath  = cmds.workspace(query=True, rootDirectory=True)
-                    mroDirPath  += "/sourceimages"
-                    os.makedirs(mroDirPath, exist_ok=True)
-
-                    if cmds.objExists(mroDEF) == False:
-                        mroDEF  = cmds.createNode('file', n=mroDEF)
-                        
-                    mroFullPath = mroDirPath + "/" + mroDEF + ".png"
-                    mroImage.writeToFile(mroFullPath, '.png')
-                    cmds.setAttr(mroDEF + ".fileTextureName", mroFullPath, type="string")
-
-                    tTrans = mroTexture.get("textTrans", False)
-                    if tTrans:
-                        rkMat.connectTextureTransformToTexture(tTrans.name(), mroDEF)
-
-                    nfList = aom.MSelectionList()
-                    nfList.add(mroDEF)
-                    texNode = aom.MFnDependencyNode(nfList.getDependNode(0))
-                    hasTexNode = True
-            
-            if hasOccl == True:
-                mTextureFields.append("occlusionTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
-
-                if occlIsSame == True:# Assumes hasMetal == True:
-                    mTextureNodes.append(metalTexture)
-                elif hasTexNode == True:
-                    mTextureNodes.append(texNode)
-                
-            if hasMetal == True or hasRough == True:
-                mTextureFields.append("metallicRoughnessTexture")
-                mTextureParents.append(physMat)
-                retPlace2d.append(None)
-                
-                if metalRoughSame == True:# Assumes hasMetal == True
-                    mTextureNodes.append(metalTexture)
-                elif hasTexNode == True:                                         ###
-                    mTextureNodes.append(texNode)                                ###
-            ########################################################################
+                    iriBna[1].iridescenceThicknessMinimum  = iridThickness * 1000
+                    iriBna[1].iridescenceThicknessMaximum  = iridThickness * 1000
+                    iriBna[1].iridescenceIndexOfRefraction = cmd.getAttr(material.name() + ".thinFilmIOR")
 
             ##########################################################
             # Set PBR Roughness value.
@@ -4777,16 +5637,21 @@ class RKOrganizer():
             # To avoid Aliasing problems.
             if physMat.roughness == 0.0:
                 physMat.roughness = 0.001
+
+            # Check for GeneratedCubeMapTexture
+            if ignoreTT == True:
+                x3dAppearance.material = None
+            else:
+                rkMat.attachTextureTransforms(self.trv, self.rkint, textureTransforms, x3dAppearance)
         
-            return physMat
-        
-        else:
-            return None
 
 
-    def processUnlit_Material(self, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
-        unlitMat = self.trv.processBasicNodeAddition(material, x3dAppearance, cField, "UnlitMaterial", material.name())
+    def processUnlit_Material(self, matchedSets, material, x3dAppearance, mappings, mTextureNodes, mTextureFields, mTextureParents, retPlace2d, cField):
+        unlitMat = self.trv.processBasicNodeAddition(x3dAppearance, cField, "UnlitMaterial", material.name())
         if unlitMat[0] == False:
+            ignoreTT          = False
+            textureTransforms = []
+            
             unlMat = 0 # aiFlat material
             if material.typeName == "surfaceShader":
                 unlMat = 1
@@ -4794,13 +5659,10 @@ class RKOrganizer():
             emissAttr = "outColor"
             if unlMat < 1: emissAttr = "color"
             
-            emissConn    = material.findPlug(emissAttr, True)
-            emsTex = self.findTextureFromPlug(emissConn)
-            if emsText:
-                mTextureNodes.append(emsTex)
-                mTextureFields.append("emissiveTexture")
-                mTextureParents.append(unlitMat[1])
-                retPlace2d.append(None)
+            emissConn = material.findPlug(emissAttr, True)
+            emsTex    = self.findTextureFromPlug(emissConn)
+            if emsTex:
+                ignoreTT = self.processTexture(emsTex, x3dAppearance, unlitMat[1], "emissiveTexture", matchedSets, textureTransforms, ignoreTT)
                 
                 unlitMat[1].emissiveColor = self.getSFColor(1.0, 1.0, 1.0)
             else:
@@ -4812,10 +5674,7 @@ class RKOrganizer():
 
                 normTex = self.findTextureFromPlug(normConn)
                 if normTex:
-                    mTextureNodes.append(aom.MFnDependencyNode(norTex))
-                    mTextureFields.append("normalTexture")
-                    mTextureParents.append(unlitMat[1])
-                    retPlace2d.append(None)
+                    ignoreTT = self.processTexture(normText, x3dAppearance, unlitMat[1], "normalTexture", matchedSets, textureTransforms, ignoreTT)
                     
                 normAdj = self.findNormScaleNode(normConn)
                 if normAdj:
@@ -4831,9 +5690,11 @@ class RKOrganizer():
                 transp = mcmds.getAttr(material.name() + ".outTransparency")[0]
                 unlitMat[1].transparency = (transp[0] + transp[1] + transp[2]) / 3
                 
-            return unlitMat[1]
-        else:
-            return None
+            # Check for GeneratedCubeMapTexture
+            if ignoreTT == True:
+                x3dAppearance.material = None
+            else:
+                rkMat.attachTextureTransforms(self.trv, self.rkint, textureTransforms, x3dAppearance)
 
     
     # Assumes that the function has been passed a 'Connected' plug)
@@ -4945,8 +5806,9 @@ class RKOrganizer():
         print("Node Info")
         print(matNode.name())
         print(matNode.typeName)
-        
-        usedUVSets, texNodes = self.getUsedUVSetsAndTexturesInOrder(mesh, shader)
+
+        uvSetNames = myMesh.getUVSetNames()
+        usedUVSets, texNodes = self.getUsedUVSetsAndTexturesInOrder(mesh, shader, uvSetNames)
         
         mapInt  = 0
         mapStr  = '{"shaderName":"' + depNode.name() + '",'
@@ -5421,6 +6283,8 @@ class RKOrganizer():
 
         depNode = aom.MFnDependencyNode(shaders[index])
 
+        myUVSetNames = myMesh.getUVSetNames()
+        
         mapJSON = myMesh.findPlug("x3dTextureMappings", False).asString()
         meshTMaps = json.loads(mapJSON)
         allMaps = meshTMaps['shadingEngines']
@@ -5437,7 +6301,7 @@ class RKOrganizer():
             if index > 1:
                 geomName = geomName + "_" + str(index)
                 
-            bna = self.trv.processBasicNodeAddition(myMesh, x3dParentNode, cField, nodeType, geomName, myMesh.name())
+            bna = self.trv.processBasicNodeAddition(x3dParentNode, cField, nodeType, geomName, myMesh.name())
             if bna[0] == False:
                 # TODO: Future code for implementing 'attrib'
 
@@ -5445,7 +6309,7 @@ class RKOrganizer():
                 
                 #### use gsharedCoord if this is a mesh in an HAnimHumanoid
                 if gsharedCoord != "":
-                    coordbna = self.trv.processBasicNodeAddition(myMesh, bna[1], "coord", "Coordinate", gsharedCoord)
+                    coordbna = self.trv.processBasicNodeAddition(bna[1], "coord", "Coordinate", gsharedCoord)
 
                     # Using the MItMeshPolygon Iterator and the propoper sub-component
                     # this secion of the code builds the array of MFInt32 field of IndexedFaceSet
@@ -5464,7 +6328,7 @@ class RKOrganizer():
                     vertIdxList = []
                     
                     geoNameCoord = nodeName + "_Coord"
-                    coordbna = self.trv.processBasicNodeAddition(myMesh, bna[1], "coord", "Coordinate", geoNameCoord)
+                    coordbna = self.trv.processBasicNodeAddition(bna[1], "coord", "Coordinate", geoNameCoord)
                     if coordbna[0] == False:
                         # TODO: Metadata processing
                         
@@ -5588,7 +6452,7 @@ class RKOrganizer():
                     bna[1].normalPerVertex = False
                     self.processForNormalNode(myMesh, mIter, nodeName, "Normal", bna[1], npv=False, idx=index, nOffset=gnOffset, sharedNormal=gsharedNormal)
 
-                ### faceIDs and mappings and uvSetName
+                ### faceIDs and mappings and Marker#uvSetName
                 if mappings != None:
                    
                     mapLen = len(mappings['mappings'])
@@ -5596,10 +6460,10 @@ class RKOrganizer():
                     
                     mtxHasBeen = True
                     if mapLen > 1:
-                        bnaTXC = self.trv.processBasicNodeAddition(myMesh, bna[1], "texCoord", "MultiTextureCoordinate", geomName + "_MTC_" + str(index))
+                        bnaTXC = self.trv.processBasicNodeAddition(bna[1], "texCoord", "MultiTextureCoordinate", geomName + "_MTC_" + str(index))
                         mtxHasBeen = bnaTXC[0]
                     elif x3dApp.texture:
-                        bnaTXC = self.trv.processBasicNodeAddition(myMesh, bna[1], "texCoord", "MultiTextureCoordinate", geomName + "_MTC_" + str(index))
+                        bnaTXC = self.trv.processBasicNodeAddition(bna[1], "texCoord", "MultiTextureCoordinate", geomName + "_MTC_" + str(index))
                         mtxHasBeen = bnaTXC[0]
 
                     # Write out TextureCoordinate nodes
@@ -5674,13 +6538,13 @@ class RKOrganizer():
                             txcParent = bnaTXC[1]
                             
                             if x3dApp.texture:
-                                genTC = self.trv.processBasicNodeAddition(myMesh, txcParent, "texCoord", "TextureCoordinateGenerator", geomName + "_GenTC")
+                                genTC = self.trv.processBasicNodeAddition(txcParent, "texCoord", "TextureCoordinateGenerator", geomName + "_GenTC")
                                 if genTC[0] == False:
                                     genTC[1].mode = "SPHERE-REFLECT-LOCAL"
                             
                         for n in range(mapLen):#allMeshMappings
                             item = mappings['mappings'][n]
-                            txc = self.trv.processBasicNodeAddition(myMesh, txcParent, "texCoord", "TextureCoordinate", geomName + "_TC_" + str(index) + "_" + str(n))
+                            txc = self.trv.processBasicNodeAddition(txcParent, "texCoord", "TextureCoordinate", geomName + "_TC_" + str(index) + "_" + str(n))
                             if txc[0] == False:
                                 for ptx in texCoords[n]:
                                     txc[1].point.append(ptx)
@@ -5741,7 +6605,7 @@ class RKOrganizer():
         tIndex = (mIndex)
         x3dParent.colorIndex = tIndex
         
-        bna = self.trv.processBasicNodeAddition(myMesh, x3dParent, cField, nodeType, colorNodeName)
+        bna = self.trv.processBasicNodeAddition(x3dParent, cField, nodeType, colorNodeName)
         if bna[0] == False:
             # TODO: Future code for implementing 'metadata'
             
@@ -5758,7 +6622,7 @@ class RKOrganizer():
         fCount = 0
 
         if sharedNormal != "":
-            bna = self.trv.processBasicNodeAddition(myMesh, x3dParent, cField, "Normal", sharedNormal)
+            bna = self.trv.processBasicNodeAddition(x3dParent, cField, "Normal", sharedNormal)
 
             ################################
             #msList = aom.MSelectionList()
@@ -5807,7 +6671,7 @@ class RKOrganizer():
             #    mIter.next()
             
         else:
-            bna = self.trv.processBasicNodeAddition(myMesh, x3dParent, cField, "Normal", normalNodeName)
+            bna = self.trv.processBasicNodeAddition(x3dParent, cField, "Normal", normalNodeName)
             if bna[0] == False:
                 # TODO: Future code for implementing 'metadata'
                 
@@ -5837,8 +6701,30 @@ class RKOrganizer():
                 #bna[1].vector = mNormal
             
     
-    def getUsedUVSetsAndTexturesInOrder(self, myMesh, shader):
-        uvSetNames = myMesh.getUVSetNames()
+    def getUsedUVSetDictionary(self, myMesh, shader):
+        sortByTexture = {}
+        uvSetNames    = myMesh.getUVSetNames()
+        
+        textureList = self.gatherShaderTextures(shader) #getShaderTexturesInOrder(shader)
+        print("TextureList: " + str(len(textureList)))
+        
+        for i in range(len(uvSetNames)):
+            print("My UV Set Names: " + uvSetNames[i])
+            print("My mesh name: " + myMesh.name())
+            assocTexObj = myMesh.getAssociatedUVSetTextures(uvSetNames[i])
+            
+            for j in range(len(assocTexObj)):
+                texDep = aom.MFnDependencyNode(assocTexObj[j])
+                print("Assoc Text Obj - texDep: " + texDep.name())
+                
+                for k in range(len(textureList)):
+                    if texDep.name() == textureList[k].name():
+                        sortByTexture[texDep] = uvSetNames[i]
+
+        return sortByTexture
+
+
+    def getUsedUVSetsAndTexturesInOrder(self, myMesh, shader, uvSetNames):
         hasTex = False
         
         usedUVSets = []
@@ -5872,7 +6758,6 @@ class RKOrganizer():
         return (usedUVSets, texNodes)
 
 
-
     def gatherShaderTextures(self, shader):
         textureList = []
         
@@ -5900,7 +6785,6 @@ class RKOrganizer():
             matIter.next()
         
         return textureList
-
 
 
     #################################################################
@@ -6023,9 +6907,120 @@ class RKOrganizer():
         #    - height (map)      - used for displacement
         ##################################################
 
-    
+
+    def processTexture(self, textureNode, x3dAppearance, x3dParent, x3dField, matchedSets, textureTransforms, ignoreTT):
         
-    def processTexture(self, mApiType, mTextureNode, x3dParent, x3dField, getPlace2d=True):
+        if ignoreTT == True:
+            return ignoreTT
+            
+        relativeTexPath = self.rkImagePath
+        localTexWrite   = self.activePrjDir + "/" + relativeTexPath
+
+        nType = textureNode.typeName
+        if nType == "envChrome" or nType == "envCube" or nType == "envBall" or nType == "envSphere":
+            refBna = self.trv.processBasicNodeAddition(x3dAppearance, "texture", "GeneratedCubeMapTexture", textureNode.name())
+
+            return True
+            
+        textureMappingField = x3dField + "Mapping"
+        mapName             = matchedSets.get(textureNode.name(), "")
+        setattr(x3dParent, textureMappingField, mapName)
+
+        tt = self.getPlace2dFromMayaTexture(textureNode)
+        if tt:
+            textureTransforms.append((tt, mapName))
+
+        x3dNodeType = "PixelTexture"
+        
+        if textureNode.typeName == "file":
+            if  self.rkFileTexType == 0 or self.rkFileTexType == 1:
+                x3dNodeType = "ImageTexture"
+                x3dURIData  = ""
+
+                x3dTexture = self.trv.processBasicNodeAddition(x3dParent, x3dField, x3dNodeType, textureNode.name())
+                if x3dTexture[0] == False:
+                    filePath = textureNode.findPlug("fileTextureName", False).asString()
+                    fileName = self.rkint.getFileName(filePath)
+                    fileExt  = os.path.splitext(fileName)[1]
+                    fileName = os.path.splitext(fileName)[0]
+                
+                    if   self.rkFileTexFormat == 1:
+                        fileName = fileName + ".png"
+                        relativeTexPath = relativeTexPath + fileName
+                        localTexWrite   = localTexWrite   + fileName
+                        
+                        self.rkint.fileFormatConvert(filePath, localTexWrite, 'png')
+                        
+                    elif self.rkFileTexFormat == 2:
+                        fileName = fileName + ".jpg"
+                        relativeTexPath = relativeTexPath + fileName
+                        localTexWrite   = localTexWrite   + fileName
+                        
+                        self.rkint.fileFormatConvert(filePath, localTexWrite, 'jpg')
+                        
+                    else:
+                        fileName = fileName + fileExt
+                        relativeTexPath = relativeTexPath + fileName
+
+                        if self.rkConsolidate == True:
+                            localTexWrite   = localTexWrite   + fileName
+                            movePath = self.imageMoveDir + "/" + fileName
+                            self.rkint.copyFile(filePath, movePath)
+                        else:
+                            localTexWrite = filePath
+
+                    # If the with DataURI option is selected, convert contents of movie file to a DataURI string.
+                    if self.rkFileTexType == 1:
+                        print("Printing LocalTexWrite:\n" + localTexWrite )
+                        x3dURIData = self.rkint.media2uri(localTexWrite)
+                        x3dTexture[1].url.append(x3dURIData)
+                    else:
+                        print(x3dTexture[1])
+                        x3dTexture[1].url.append(fileName       )
+                        x3dTexture[1].url.append(relativeTexPath)
+                if tt:
+                    x3dTexture[1].repeatS = tt.findPlug("wrapU", False).asBool()
+                    x3dTexture[1].repeatT = tt.findPlug("wrapV", False).asBool()
+    
+        elif mTextureNode.typeName == "movie":
+            x3dNodeType = "MovieTexture"
+            x3dURIData  = ""
+            
+            x3dTexture = self.trv.processBasicNodeAddition(x3dParent, x3dField, x3dNodeType, mTextureNode.name())
+            if x3dTexture[0] == False:
+                filePath = mTextureNode.findPlug("fileTextureName", False).asString()
+                fileName = self.rkint.getFileName(filePath)
+                fileExt  = os.path.splitext(fileName)[1]
+                fileName = os.path.splitext(fileName)[0]
+                        
+                fileName        = fileName + fileExt
+                relativeTexPath = relativeTexPath + fileName
+                
+                #if self.rkMovTexWrite == True:#
+                if  self.rkConsolidate == True:#
+                    localTexWrite = localTexWrite + fileName
+                    movePath = self.imageMoveDir + "/" + fileName
+                    self.rkint.copyFile(filePath, movePath)
+                else:
+                    localTexWrite = filePath
+
+                # If the with DataURI option is selected, convert contents of movie file to a DataURI string.
+                #if self.rkMovieAsURI == True:
+                if self.rkMovieTexType == True:
+                    x3dURIData = self.rkint.media2uri(localTexWrite)
+                    x3dTexture[1].url.append(x3dURIData)
+                else:
+                    x3dTexture[1].url.append(fileName)
+                    x3dTexture[1].url.append(relativeTexPath)
+                    
+                if tt:
+                    x3dTexture[1].repeatS = tt.findPlug("wrapU", False).asBool()
+                    x3dTexture[1].repeatT = tt.findPlug("wrapV", False).asBool()
+
+        return False
+
+
+    def processTextureOld(self, mApiType, mTextureNode, x3dParent, x3dField, getPlace2d=True):
         
         relativeTexPath = self.rkImagePath
         localTexWrite   = self.activePrjDir + "/" + relativeTexPath
@@ -6041,7 +7036,7 @@ class RKOrganizer():
                     x3dNodeType = "ImageTexture"
                     x3dURIData  = ""
 
-                    x3dTexture = self.trv.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
+                    x3dTexture = self.trv.processBasicNodeAddition(x3dParent, x3dField, x3dNodeType, mTextureNode.name())
                     if x3dTexture[0] == False:
                         filePath = mTextureNode.findPlug("fileTextureName", False).asString()
                         fileName = self.rkint.getFileName(filePath)
@@ -6089,7 +7084,7 @@ class RKOrganizer():
 
                 else:
                     x3dNodeType = "PixelTexture"
-                    x3dTexture = self.trv.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
+                    x3dTexture = self.trv.processBasicNodeAddition(x3dParent, x3dField, x3dNodeType, mTextureNode.name())
                     if x3dTexture[0] == False:
                         print("PixelTexture One - Around 2725")
                         x3dTexture[1].image = self.rkint.image2pixel(mTextureNode.findPlug("fileTextureName", False).asString())
@@ -6102,7 +7097,7 @@ class RKOrganizer():
                 x3dNodeType = "MovieTexture"
                 x3dURIData  = ""
                 
-                x3dTexture = self.trv.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
+                x3dTexture = self.trv.processBasicNodeAddition(x3dParent, x3dField, x3dNodeType, mTextureNode.name())
                 if x3dTexture[0] == False:
                     filePath = mTextureNode.findPlug("fileTextureName", False).asString()
                     fileName = self.rkint.getFileName(filePath)
@@ -6224,7 +7219,7 @@ class RKOrganizer():
                     if self.rkProcTextureFormat == 1:#self.rkProcTexNode == 1
                         x3dURIData = self.rkint.media2uri(localTexWrite)
                         
-                    x3dTexture = self.trv.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
+                    x3dTexture = self.trv.processBasicNodeAddition(x3dParent, x3dField, x3dNodeType, mTextureNode.name())
                     if x3dTexture[0] == False:
                         if x3dURIData == "":
                             x3dTexture[1].url.append(procFileName   )
@@ -6239,7 +7234,7 @@ class RKOrganizer():
 
                 else:
                     x3dNodeType = "PixelTexture"
-                    x3dTexture = self.trv.processBasicNodeAddition(mTextureNode, x3dParent, x3dField, x3dNodeType)
+                    x3dTexture = self.trv.processBasicNodeAddition(x3dParent, x3dField, x3dNodeType, mTextureNode.name())
                     if x3dTexture[0] == False:
                         print("PixelTexture One - Around 2910")
                         localTTexWrite = self.imageMoveDir + "/" + mTextureNode.name() + ".tif"
@@ -6290,8 +7285,92 @@ class RKOrganizer():
                 x3dTexture[1].repeatS = mPlace2d.findPlug("wrapU", False).asBool()
                 x3dTexture[1].repeatT = mPlace2d.findPlug("wrapV", False).asBool()
         
-                
         return mPlace2d
+
+
+    def processMatXTexture(self, textureItem, x3dAppearance, x3dParent, x3dField, uvSetNames, textureTransforms, ignoreTT, isX3DOM):
+        relativeTexPath = self.rkImagePath
+        localTexWrite   = self.activePrjDir + "/" + relativeTexPath
+        
+        x3dNodeType = "ImageTexture"
+        filePath  = rkMat.getMatXAttribute(textureItem, "file", grasp=True).get()
+        
+        if isinstance(filePath, str):
+            fileParts = filePath.split('.')
+            fileExt   = fileParts[len(fileParts)-1]
+            if fileExt == "m3u8" or fileExt == "ts" or fileExt == "m4s" or fileExt == "mov" or fileExt == "qt" or fileExt == "webm" or fileExt == "mp4" or fileExt == "m4v" or fileExt == "mkv" or fileExt == "avi" or fileExt == "ogv" or fileExt == "ogg":
+                x3dNodeType = "MovieTexture"
+
+        ttItem = None
+        if not isX3DOM:
+            # Get UFE Connection to MaterialX place2d node
+            ttConn = rkMat.getUFEAttribute(textureItem, "texcoord", connected=True)
+            if ttConn:
+                # Get place2d SceneItem
+                ttItem = ufe.Hierarchy.createItem(ttConn.src.path)
+                
+                # Get UFE Connection to MaterialX TextureCoordinate
+                tcConn = rkMat.getUFEAttribute(ttItem, "texcoord", connected=True)
+                if tcConn:
+                    # Get Texture Map SceneItem
+                    texCoord = ufe.Hierarchy.createItem(tcConn.src.path)
+                    
+                    # Get Mesh Texture Map Index
+                    mapIdx   = rkMat.getUFEAttribute(texCoord, "index")
+                    textureTransforms.append( (ttItem, uvSetNames[mapIdx.get()]) )
+                else:
+                    textureTransforms.append( (ttItem, uvSetNames[0]) )
+        
+        x3dURIData  = ""
+        x3dTexture = self.trv.processBasicNodeAddition(x3dParent, x3dField, x3dNodeType, textureItem.nodeName())
+        if x3dTexture[0] == False:
+            fileName = self.rkint.getFileName(filePath)
+            fileExt  = os.path.splitext(fileName)[1]
+            fileName = os.path.splitext(fileName)[0]
+        
+            if   x3dNodeType == "ImageTexture" and self.rkFileTexFormat == 1:
+                fileName = fileName + "png"
+                relativeTexPath = relativeTexPath + fileName
+                localTexWrite   = localTexWrite   + fileName
+                
+                self.rkint.fileFormatConvert(filePath, localTexWrite, 'png')
+                
+            elif x3dNodeType == "ImageTexture" and self.rkFileTexFormat == 2:
+                fileName = fileName + ".jpg"
+                relativeTexPath = relativeTexPath + fileName
+                localTexWrite   = localTexWrite   + fileName
+                
+                self.rkint.fileFormatConvert(filePath, localTexWrite, 'jpg')
+                
+            else:
+                fileName = fileName + fileExt
+                relativeTexPath = relativeTexPath + fileName
+
+                if self.rkConsolidate == True:
+                    localTexWrite   = localTexWrite   + fileName
+                    movePath = self.imageMoveDir + "/" + fileName
+                    self.rkint.copyFile(filePath, movePath)
+                else:
+                    localTexWrite = filePath
+
+            # If the with DataURI option is selected, convert contents of movie file to a DataURI string.
+            if self.rkFileTexType == 1:
+                print("Printing LocalTexWrite:\n" + localTexWrite )
+                x3dURIData = self.rkint.media2uri(localTexWrite)
+                x3dTexture[1].url.append(x3dURIData)
+            else:
+                print(x3dTexture[1])
+                x3dTexture[1].url.append(fileName       )
+                x3dTexture[1].url.append(relativeTexPath)
+                
+        if "tiled" not in textureItem.nodeType():
+            x3dTexture[1].repeatS = False
+            x3dTexture[1].repeatT = False
+            
+        if ttItem:
+            return True
+        else:
+            return False
 
 
     def getTexturesFromLayeredTexture(self, mLayeredTexture):
@@ -6518,18 +7597,21 @@ class RKOrganizer():
         
 
     def findTextureFromPlug(self, texturePlug):
-        tIter = aom.MItDependencyGraph(texturePlug, aom.MItDependencyGraph.kUpstream, aom.MItDependencyGraph.kPlugLevel)
+        nodeNames = ["file", "movie", "envChrome", "envCube", "envBall", "envSphere"]
+        for nName in nodeNames:
+            tIter = aom.MItDependencyGraph(texturePlug, aom.MItDependencyGraph.kUpstream, aom.MItDependencyGraph.kPlugLevel)
 
-        while not tIter.isDone():
-            cNode = tIter.currentNode()
-            
-            # Check if the current node is a texture node
-            if cNode.hasFn(rkfn.kFileTexture) or cNode.hasFn(rkfn.kTexture2d):
-                return aom.MFnDependencyNode(cNode)  # Found a texture node 
+            while not tIter.isDone():
+                cNode = tIter.currentNode()
                 
-            tIter.next()
-                
-        return None #aom.MObject.kNullObj
+                depNode = aom.MFnDependencyNode(cNode)
+                # Check if the current node is a texture node
+                if depNode.typeName == nName:
+                    return depNode  # Found a texture node 
+                    
+                tIter.next()
+                    
+        return None
         
     def findAOMultiplier(self, texturePlug):
         mIter = aom.MItDependencyGraph(texturePlug, aom.MItDependencyGraph.kUpstream, aom.MItDependencyGraph.kPlugLevel)
