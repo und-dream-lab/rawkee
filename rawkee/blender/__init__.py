@@ -1,1 +1,1 @@
-import . RKTest
+from . import RKTest

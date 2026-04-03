@@ -468,35 +468,33 @@ class RKInterfaces():
     ################################################################################
     # get URLs for MaterialX and GLSL Files
     ################################################################################
-    def getShaderURLs(self, shaderPath, relativeDir, matXDocName, matXShader):
-        shaderFileName = self.getFileName(shaderPath)
-        
+    def getMaterialXDocURLs(self, matXExportPath, relativeDir, matXDocName, matXShader):
         urls = []
-
-        #isDataUri = cmds.optionVar( q='rkMtlx2Uri' )
-        #if isDataUri:
-        #    dataURI = self.media2uri(shaderPath)
-        #    if dataURI != "":
-        #        urls.append(dataURI)
-        #else:
-        #    urls.append(relativeDir + shaderFileName)
-        #    urls.append(shaderFileName)
-            
-            #isCons = cmds.optionVar( q='rkConsolidate' )
-            #if isCons:
-            #    self.copyFile(matXFullFilePath, localPath + matXFileName)
+        isDataUri = cmds.optionVar( q='rkMtlx2Uri' )
+        
         urls.append("meta://" + matXDocName + "#" + matXShader)
         
         return (isDataUri, urls)
-    
-    def getMaterialXDocURLs(self, matXExportPath, relativeDir, matXDocName, matXShader):
-        return self.getShaderURLs(matXExportPath, relativeDir, matXDocName, matXShader)
-    
-    def getFragURLs(self, fragPath, relativeDir):
-        return self.getShaderURLs(fragPath, relativeDir)
+
+
+    def getFragmentURLs(self, fragPath, relativeDir):
+        urls = []
+        isDataUri = cmds.optionVar( q='rkMtlx2Uri' )
         
-    def getVertURLs(self, vertPath, relativeDir):
-        return self.getShaderURLs(vertPath, relativeDir)
+        urls.append(fragPath)
+        urls.append(relativeDir + fragPath)
+        
+        return (isDataUri, urls)
+
+        
+    def getVertexURLs(self, vertPath, relativeDir):
+        urls = []
+        isDataUri = cmds.optionVar( q='rkMtlx2Uri' )
+        
+        urls.append(vertPath)
+        urls.append(relativeDir + vertPath)
+        
+        return (isDataUri, urls)
         
 
     ###########################################################################

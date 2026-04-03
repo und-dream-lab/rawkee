@@ -46,15 +46,94 @@ import maya.api.OpenMaya as aom
 from rawkee.maya import RKWeb3D
 
 #To geth other items from 'rawkee'
-from rawkee.maya.RKXScene   import RKXScene
-from rawkee.maya.RKXNodes   import RKXNode #notice the missing 's' - RKXNode is a test class
-from rawkee.maya.RKXSocket  import RKXSocket
-from rawkee.maya.RKGraphics import RKGraphicsView
+import rawkee.io.RKx3d as rkx
+from rawkee.editor.RKXScene   import RKXScene
+from rawkee.editor.RKXNodes   import RKXNode #notice the missing 's' - RKXNode is a test class
+from rawkee.editor.RKXSocket  import RKXSocket
+from rawkee.editor.RKGraphics   import RKGraphicsView
 
+# Needed to run a local server for X_ITE 14.1.0
+import http.server
+import threading
+from   functools import partial
 
 from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
 
 global rkWeb3D
+
+
+###########################################################################
+# Custom QTreeWidget that enables dragging X3D nodes into the node editor.
+###########################################################################
+class RKX3DTreeWidget(QTreeWidget):
+
+    MIME_TYPE = "application/x-rawkee-x3d-node"
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._node_registry = {}  # str(id(node)) -> rkx node object
+        self.setDragEnabled(True)
+        self.setDragDropMode(QAbstractItemView.DragOnly)
+        self.setSelectionMode(QAbstractItemView.SingleSelection)
+
+    def registerNode(self, node):
+        """Store node in registry and return its key string."""
+        key = str(id(node))
+        self._node_registry[key] = node
+        return key
+
+    def nodeForKey(self, key):
+        return self._node_registry.get(key)
+
+    def clearRegistry(self):
+        self._node_registry.clear()
+
+    def mimeData(self, items):
+        mime = QMimeData()
+        # Only drag items that carry a node key (ignore field-group items)
+        for item in items:
+            key = item.data(0, Qt.UserRole)
+            if key:
+                mime.setData(self.MIME_TYPE, key.encode('utf-8'))
+                break
+        return mime
+
+
+###########################################################################
+# RKGraphicsView subclass that accepts X3D node drops from the tree widget.
+###########################################################################
+class RKNodeEditorDropView(RKGraphicsView):
+
+    def __init__(self, grScene, tree_widget, parent=None):
+        super().__init__(grScene, parent)
+        self._tree_widget = tree_widget
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasFormat(RKX3DTreeWidget.MIME_TYPE):
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasFormat(RKX3DTreeWidget.MIME_TYPE):
+            event.acceptProposedAction()
+        else:
+            super().dragMoveEvent(event)
+
+    def dropEvent(self, event):
+        if event.mimeData().hasFormat(RKX3DTreeWidget.MIME_TYPE):
+            key = bytes(event.mimeData().data(RKX3DTreeWidget.MIME_TYPE)).decode('utf-8')
+            x3d_node = self._tree_widget.nodeForKey(key)
+            if x3d_node is not None:
+                scene_pos = self.mapToScene(event.pos())
+                parent_editor = self.parent()
+                if parent_editor and hasattr(parent_editor, 'addNodeFromX3D'):
+                    parent_editor.addNodeFromX3D(x3d_node, scene_pos)
+            event.acceptProposedAction()
+        else:
+            super().dropEvent(event)
+
 
 class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
     
@@ -66,7 +145,7 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         
     @classmethod
     def workspace_ui_script(cls):
-        return "from rawkee.maya.RKSceneEditor import RKSceneEditor\nrkSEWidget = RKSceneEditor()"
+        return "from rawkee.editor.RKSceneEditor import RKSceneEditor\nrkSEWidget = RKSceneEditor()"
         
     @classmethod
     def workplace_close_command(cls):
@@ -77,7 +156,7 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         super().__init__()
         
         self.setObjectName(self.OBJECT_NAME)
-        self.setWindowTitle("RawKee PE - X3D Interaction Editor - Now with MORE X_ITE-ment AND x3dom (Freedom)!")
+        self.setWindowTitle("RawKee PE - X3D Graph Editor (Scene and Interactions) with X_ITE Display - Under Development")
         self.setMinimumSize(600,400)
         
         self.node_editor_name = ""
@@ -95,7 +174,79 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         self.create_connections()
         
         self.rkWeb3D = None
+        self.bkHost  = None
+        self.httpd   = None
 
+
+    def setX3DScene(self, x3dScene):
+        """Populate the tree widget from an rkx.Scene object produced by maya2x3d()."""
+        self._x3dScene = x3dScene
+        self._build_scene_tree(x3dScene)
+
+    def _build_scene_tree(self, scene):
+        self.tree_widget.clearRegistry()
+        self.tree_widget.clear()
+        if scene is None:
+            return
+        for node in scene.children:
+            item = self._make_tree_item(node)
+            if item:
+                self.tree_widget.addTopLevelItem(item)
+
+    def _make_tree_item(self, node):
+        # Skip ROUTE statements — they are not displayed in the tree
+        if isinstance(node, rkx.ROUTE):
+            return None
+
+        # USE reference — shown read-only, not draggable
+        use_val = getattr(node, 'USE', '')
+        if use_val:
+            node_type = type(node).NAME()
+            return QTreeWidgetItem(["USE '{}' ({})".format(use_val, node_type)])
+
+        # Regular node — register it so it can be dragged into the node editor
+        node_type = type(node).NAME()
+        def_name  = getattr(node, 'DEF', '')
+        label = "{} DEF='{}'".format(node_type, def_name) if def_name else node_type
+        item  = QTreeWidgetItem([label])
+        item.setData(0, Qt.UserRole, self.tree_widget.registerNode(node))
+
+        # Recurse into child node fields using FIELD_DECLARATIONS
+        if hasattr(type(node), 'FIELD_DECLARATIONS'):
+            _SKIP = {'class_', 'id_', 'style_', 'IS'}
+            for decl in type(node).FIELD_DECLARATIONS():
+                field_name = decl[0]
+                if field_name in _SKIP:
+                    continue
+                # decl[2] is FieldType.<Type> — call it to get the type string
+                try:
+                    field_type = decl[2]()
+                except Exception:
+                    field_type = ''
+                if field_type not in ('SFNode', 'MFNode'):
+                    continue
+                try:
+                    value = getattr(node, field_name, None)
+                except Exception:
+                    continue
+                if value is None:
+                    continue
+                if isinstance(value, list):
+                    child_nodes = [v for v in value if hasattr(v, 'NAME')]
+                    if child_nodes:
+                        field_item = QTreeWidgetItem([field_name])
+                        for child_node in child_nodes:
+                            child_item = self._make_tree_item(child_node)
+                            if child_item:
+                                field_item.addChild(child_item)
+                        item.addChild(field_item)
+                elif hasattr(value, 'NAME'):
+                    field_item = QTreeWidgetItem([field_name])
+                    child_item = self._make_tree_item(value)
+                    if child_item:
+                        field_item.addChild(child_item)
+                    item.addChild(field_item)
+        return item
 
     def centerNodeEditor(self, qpoint=QPointF(0,0)):
         self.node_editor_widget.centerViewOn(qpoint)
@@ -116,7 +267,11 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         # the plugin unload, and thus the 'RawKee (X3D)' 
         # menu won't be removed from the MayaMainWindow
         # menubar.
+        if self.bkHost:
+            self.bkHost.stop()
+            self.bkHost  = None
         self.rkWeb3D = None
+
 
     def add_to_scene_editor_workspace_control(self):
         scene_editor_workspace_control = omui.MQtUtil.findControl(self.scene_editor_control_name())
@@ -127,15 +282,21 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
             omui.MQtUtil.addWidgetToMayaLayout(scene_editor_widget_ptr, scene_editor_workspace_control_ptr)
 
     def setURLPaths(self):
-        self.basePath = RKWeb3D.__file__.replace("\\", "/").rsplit("/", 1)[0]
+        module_name = self.__class__.__module__
+        self.basePath = sys.modules[module_name].__file__.replace("\\", "/").rsplit("/", 1)[0]
         
         ############################################################
         # Keep these for later use.
-        # self.x_itePath = self.basePath + "/public/index.html"
-        # self.x3domPath = self.basePath + "/auxilary/x3dom.html"
+        self.serverPath = self.basePath + "/x_ite/x_ite-14.1.0"
+        self.port = 8000
+
+        self.x_itePath  = "https://create3000.github.io/x_ite/playground/?play=false&fullSize=true"
+        #http://localhost:{self.port}"
+        #self.x_itePath  = "https://vr.csgrid.org/x_ite/index.html"
+
+        #self.bkHost = RKBackgroundHost(directory=self.serverPath, port=self.port)
+        #self.bkHost.start()
         
-        self.x_itePath = "https://vr.csgrid.org/x_ite/index.html"
-        self.x3domPath = "https://vr.csgrid.org/x3dom/index.html"
         
     def create_actions(self):
         #:menu_options.png
@@ -194,21 +355,18 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         #self.treePanelLabel.setMaximumHeight(20)
         #self.treePanelLabel.setMinimumHeight(20)
         
-        self.tree_widget = QTreeWidget()
+        self.tree_widget = RKX3DTreeWidget()
         self.tree_widget.setHeaderLabels(['X3D Scenegraph'])
         self.tree_widget.setMaximumWidth(400)
         self.tree_widget.setMinimumWidth(250)
-
-        child_item1 = QTreeWidgetItem(["Transform DEF='First'"])
-        child_item2 = QTreeWidgetItem(["children"])
-        child_item3 = QTreeWidgetItem(["Transform DEF='Second'"])
-        child_item1.addChild(child_item2)
-        child_item2.addChild(child_item3)        
-        self.tree_widget.addTopLevelItem(child_item1)
         
         #############################################
         # X3D Player Panel Widgets
         self.view = QWebEngineView()
+        print(self.view.page().profile().httpUserAgent())
+        
+        self.custom_page = RKCustomWebEnginePage(self.view)
+        self.view.setPage(self.custom_page)
 
         # Box that holds the WebGL X_ITE / X3DOM canvas and the player controls
         self.playerPanel   = QGroupBox()
@@ -224,8 +382,8 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         self.combo_box.setMinimumWidth(250)
         self.combo_box.setMinimumHeight(25)
         self.combo_box.setMaximumHeight(25)
-        self.combo_box.addItem("X_ITE - https://create3000.github.io/x_ite/")
-        self.combo_box.addItem("X3DOM - https://www.x3dom.org/")
+        self.combo_box.addItem("X_ITE - https://create3000.github.io/x_ite/playground/?play=false&fullSize=true")
+        #self.combo_box.addItem("X3DOM - https://www.x3dom.org/")
         
         ##############################################
         # Grabing the Maya Node Editor Panel
@@ -234,7 +392,7 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         ##### print(node_editor_panel)
         ##### node_editor_control = omui.MQtUtil.findControl(node_editor_panel)
         
-        self.node_editor_widget = RKCustomNodeEditor(parent=self)
+        self.node_editor_widget = RKCustomNodeEditor(self.tree_widget, parent=self)
         ##############################################
         # Creating a Tabbed Panel Widget to hold it all
         self.tab_widget = QTabWidget()
@@ -259,8 +417,8 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         plr_layout.addLayout(plrCtrl_layout)
         plr_layout.addWidget(self.view, stretch=1)
         
-        self.tab_widget.addTab(self.node_editor_widget, "X3D Node Editor")
-        self.tab_widget.addTab(self.playerPanel, "X3D Player - X_ITE/X3DOM")
+        self.tab_widget.addTab(self.node_editor_widget, "X3D Graph Editor")
+        self.tab_widget.addTab(self.playerPanel, "X3D Player - X_ITE")
         
         ######################################################
         # Top Level Layout                                   #
@@ -295,13 +453,60 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
             #####################################################
             # Keep for later use.
             # self.playerURL = QUrl.fromLocalFile(self.x_itePath)
-        elif index == 1:
-            self.playerURL = QUrl(self.x3domPath)
+        #elif index == 1:
+        #    self.playerURL = QUrl(self.x3domPath)
             #####################################################
             # Keep for later use.
             # self.playerURL = QUrl.fromLocalFile(self.x3domPath)
             
         self.view.load(self.playerURL)
+        
+    
+    def stopWebserver(self):
+        if self.httpd:
+            print("Shutting down server...")
+            # .shutdown() stops the serve_forever() loop
+            self.httpd.shutdown() 
+            # .server_close() closes the socket properly
+            self.httpd.server_close()
+
+
+class RKCustomWebEnginePage(QWebEnginePage):
+    """
+    A custom QWebEnginePage to capture and display console messages.
+    """
+    def javaScriptConsoleMessage(self, level, message, lineNumber, sourceId):
+        """
+        Overrides the method to print JavaScript console messages to the console.
+        """
+        # Format the output for clarity
+        level_str = "INFO"
+        if level == QWebEnginePage.JavaScriptConsoleMessageLevel.WarningMessageLevel:
+            level_str = "WARNING"
+        elif level == QWebEnginePage.JavaScriptConsoleMessageLevel.ErrorMessageLevel:
+            level_str = "ERROR"
+        
+        print(f"WEB_CONSOLE [{level_str}] {sourceId}:{lineNumber}: {message}")
+
+
+class RKBackgroundHost:
+    def __init__(self, directory=".", port=8000):
+        self.port = port
+        self.directory = directory
+        self.handler = partial(http.server.SimpleHTTPRequestHandler, directory=directory)
+        self.httpd = http.server.HTTPServer(("", port), self.handler)
+        self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
+
+    def start(self):
+        self.thread.start()
+        print(f"Server started at http://localhost:{self.port} (Root: {self.directory})")
+
+    def stop(self):
+        print("Shutting down server...")
+        self.httpd.shutdown() # Stops the serve_forever loop
+        self.httpd.server_close() # Releases the port
+        self.thread.join() # Ensures the thread has finished
+        print("Server stopped.")    
 
 
 #####################################################################
@@ -310,8 +515,9 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
 #####################################################################
 class RKCustomNodeEditor(QWidget):
     
-    def __init__(self, parent=None):
+    def __init__(self, tree_widget=None, parent=None):
         super().__init__(parent)
+        self._tree_widget = tree_widget
         
         #self.basePath = parent.basePath
         #self.stylesheet_filename = self.basePath + "/auxilary/rkNodeStyle.qss"
@@ -326,10 +532,11 @@ class RKCustomNodeEditor(QWidget):
 
         self.scene = RKXScene()
 
-        #Create Graphics View
-        self.view = RKGraphicsView(self.scene.grScene, self)
-        #self.view.setAlignment(Qt.AlignCenter)
-        #self.view.setAlignment(Qt.AlignTop)
+        # Use the drop-enabled view if a tree widget was provided
+        if self._tree_widget is not None:
+            self.view = RKNodeEditorDropView(self.scene.grScene, self._tree_widget, self)
+        else:
+            self.view = RKGraphicsView(self.scene.grScene, self)
         self.layout.addWidget(self.view)
         
         # Adding an RKXNode for Development / Testing purposes.
@@ -340,6 +547,28 @@ class RKCustomNodeEditor(QWidget):
         node3 = RKXNode(self.scene, "RawKeeNode 3", inputs=[1, 2, 3], outputs=[1])
         node3.setPos(600,0)
 
+    def addNodeFromX3D(self, x3d_node, scene_pos):
+        """Create an RKXNode in the editor canvas from a dropped rkx node object."""
+        node_type = type(x3d_node).NAME()
+        def_name  = getattr(x3d_node, 'DEF', '')
+        title = "{} DEF='{}'".format(node_type, def_name) if def_name else node_type
+
+        inputs  = []
+        outputs = []
+        if hasattr(type(x3d_node), 'FIELD_DECLARATIONS'):
+            for decl in type(x3d_node).FIELD_DECLARATIONS():
+                field_name = decl[0]
+                try:
+                    access_str = decl[3]()
+                except Exception:
+                    access_str = ''
+                if access_str in ('inputOnly', 'inputOutput'):
+                    inputs.append(field_name)
+                if access_str in ('outputOnly', 'inputOutput'):
+                    outputs.append(field_name)
+
+        new_node = RKXNode(self.scene, title, inputs=inputs, outputs=outputs)
+        new_node.setPos(scene_pos.x(), scene_pos.y())
 
     def centerViewOn(self, qpoint=QPointF(0,0)):
         self.view.centerOn(qpoint)

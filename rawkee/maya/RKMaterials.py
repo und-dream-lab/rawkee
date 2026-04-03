@@ -6,7 +6,10 @@ import ctypes            as ctp
 import numpy             as np
 import struct
 
+
 import ufe
+import usdUfe
+
 import MaterialX as mx
 import MaterialX.PyMaterialXGenShader as mx_gen
 import MaterialX.PyMaterialXGenGlsl as mx_glsl
@@ -403,14 +406,13 @@ def makeImagePathsRelative(matXDocPath, imagePath):
     pattern  = r'value="([^"]+)"'
     
     # 1. Read all lines from the file
-    with open(filename, 'r') as f:
+    with open(matXDocPath, 'r') as f:
         lines = f.readlines()
 
     # 2. Alter the lines in memory
     altered_lines = []
     for line in lines:
         # Example alteration: replace a specific word in each line
-        altered_lines.append(line)
         if 'type="filename"' in line:
             ovMatch = re.search(pattern, line)
             if ovMatch:
@@ -425,12 +427,12 @@ def makeImagePathsRelative(matXDocPath, imagePath):
             altered_lines.append(line)
 
     # 3. Write the altered content back to the same file, which overwrites it
-    with open(filename, 'w') as f:
+    with open(matXDocPath, 'w') as f:
         f.writelines(altered_lines)
 
 
 def getMatXSurfaceInfo(matXShaderName):
-    matXSurfacePath = cmds.getAttr(maXShaderName + ".ufePath")
+    matXSurfacePath = mcmds.getAttr(matXShaderName + ".ufePath")
     surfacePathString = ufe.PathString.path(matXSurfacePath)
     surfItem = ufe.Hierarchy.createItem(surfacePathString)
 
@@ -462,33 +464,116 @@ def getUFEAttribute(matXItem, attrName, asSource=False, connected=False):
 
     else:
         attrHandler = ufe.Attributes.attributes(matXItem)
-        itemAttr = attrHandler.attribute(attrName)
+        try:
+            itemAttr = attrHandler.attribute(attrName)
+            return itemAttr
+        except:
+            return None
 
+    return None
+
+
+def getUFESceneItemTextures(dstItem, dstPath, tlist, visitList):
+    hasVisited = visitList.get(str(dstPath), False)
+    if hasVisited == True:
+        return
+    
+    visitList[str(dstPath)] = True
+    cHandler = ufe.RunTimeMgr.instance().connectionHandler(dstPath.runTimeId())
+    conns    = cHandler.sourceConnections(dstItem).allConnections()
+    for conn in conns:
+        if dstPath == conn.dst.path:
+            ufeItem = ufe.Hierarchy.createItem(conn.src.path)
+            if "image" in ufeItem.nodeType().lower() or "usduvtexture" in ufeItem.nodeType().lower():
+                tlist.append(ufeItem)
+            else:
+                getUFESceneItemTextures(ufeItem, conn.src.path, tlist, visitList)
+
+
+def getUFEConnectedTextureCmpd(cmpdItem, attrName):
+    hcy = ufe.Hierarchy.hierarchy(cmpdItem)
+    for child in hcy.children():
+        nt = child.nodeType().lower()
+        if "image" in nt or "usduvtexture" in nt:
+            cHandler = ufe.RunTimeMgr.instance().connectionHandler(child.path().runTimeId())
+            conns    = cHandler.sourceConnections(child).allConnections()
+            for conn in conns:
+                if attrName in conn.src.name:
+                    return ufe.Hierarchy.createItem(conn.dst.path)
     return None
 
 
 def getUFEConnectedTexture(matXItem, attrName):
     connection = getUFEAttribute(matXItem, attrName, connected=True)
-    ufeItem = ufe.Hierarchy.createItem(connection.src.path)
-    
-    if "image" in ufeItem.nodeType().lower():
+    ufeItem    = None
+    try:
+        ufeItem = ufe.Hierarchy.createItem(connection.src.path)
+    except:
         return ufeItem
+    
+    if "image" in ufeItem.nodeType().lower() or "usduvtexture" in ufeItem.nodeType().lower():
+        print("found: " + ufeItem.nodeType().lower())
+        return ufeItem
+    else:
+        fConn = getUFEAttribute(ufeItem, "in", connected=True)
+        fUfeItem = None
+        try:
+            fUfeItem = ufe.Hierarchy.createItem(fConn.src.path)
+        except:
+            return fUfeItem
+        
+        if "image" in fUfeItem.nodeType().lower() or "usduvtexture" in ufeItem.nodeType().lower():
+            print("Found one level down: " + fUfeItem.nodeType().lower())
+            return fUfeItem
+        else:
+            print("not found: " + fUfeItem.nodeType().lower())
 
     return None
 
+
 def getMatXAttribute(matXItem, attrName, grasp=False):
-    itemAttr = None
+    itemAttr    = None
+    attrExists  = False
+    ufeItem     = matXItem
+    ufeAttrName = attrName
     
-    attrHandler = ufe.Attributes.attributes(matXItem)
+    attrHandler = ufe.Attributes.attributes(ufeItem)
     try:
-        itemAttr = attrHandler.attribute(attrName)
+        testAttr   = attrHandler.attribute(ufeAttrName)
+        attrExists = True
     except:
-        if grasp == True:
-            for name in attrHandler.attributeNames:
-                if attrName in name:
-                    return attrHandler.attribute(name)
+        attrExists = False
+    
+    if attrExists == False and grasp == True:
+        for name in attrHandler.attributeNames:
+            if ufeAttrName in name:
+                try:
+                    testAttr    = attrHandler.attribute(name)
+                    ufeAttrName = name
+                    attrExists  = True
+                except:
+                    attrExists  = False
+                    break
+    
+    if attrExists == True:
+        connection = getUFEAttribute(ufeItem, ufeAttrName, connected=True)
+        if connection:
+            ufeItem     = ufe.Hierarchy.createItem(connection.src.path)
+            ufeAttrName = connection.src.name
+
+        attrHandler = ufe.Attributes.attributes(ufeItem)
+        itemAttr    = attrHandler.attribute(ufeAttrName)
     
     return itemAttr
+
+
+def searchForUFETextures(matXShader, tlist):
+    surfItem = None
+    surfPath = None
+    
+    surfItem, surfPath = getMatXSurfaceInfo(matXShader.name())
+    visitList = {}
+    getUFESceneItemTextures(surfItem, surfPath, tlist, visitList)
 
 
 def getMatXCompoundItem(surfItem, surfPath, surfAttr):
@@ -512,9 +597,40 @@ def getMatXCompoundItem(surfItem, surfPath, surfAttr):
         return None
 
 
+def getTextureIndex(tIdx, dstItem, dstPath, visitList):
+    hasVisited = visitList.get(str(dstPath), False)
+    if hasVisited == True:
+        return
+    
+    visitList[str(dstPath)] = True
+    cHandler = ufe.RunTimeMgr.instance().connectionHandler(dstPath.runTimeId())
+    conns    = cHandler.sourceConnections(dstItem).allConnections()
+    for conn in conns:
+        if dstPath == conn.dst.path:
+            ufeItem = ufe.Hierarchy.createItem(conn.src.path)
+            if "nd_texcoord" in ufeItem.nodeType().lower():
+                try:
+                    idxAttr = getUFEAttribute(ufeItem, "index")
+                    tIdx = idxAttr.get()
+                    break
+                except:
+                    break
+            else:
+                getTextureIndex(tIdx, ufeItem, conn.src.path, visitList)
+
+
+def getMatXUVSetNames(uvMaps, tlist, uvSetNames):
+    for texture in tlist:
+        visitList = {}
+        tIdx = 0
+        getTextureIndex(tIdx, texture, texture.path(), visitList)
+        uvMaps[str(texture.path())] = uvSetNames[tIdx]
+
+
 def getX3DFieldsAndGLSLInjectionDefinitions(surfComp):
     hier = ufe.Hierarchy.hierarchy(surfComp)
     children = hier.children()
+    scPath = surfComp.path()
     
     defines   = {}
     x3dFields = {}
@@ -529,8 +645,8 @@ def getX3DFieldsAndGLSLInjectionDefinitions(surfComp):
                     srcName = cConn.src.name.removeprefix("inputs:")
                     dstCompare = child.nodeName() + "_" + dstName
 
-                    x3dFields[srcName] = dstCompare
-                    if dstCompare != srcName:
+                    x3dFields[srcName]   = dstCompare
+                    if dstCompare       != srcName:
                         defines[srcName] = dstCompare
 
     return defines, x3dFields
@@ -541,14 +657,14 @@ def getX3DShaderFieldNames(mayaMatXSSName):
     surfPath = None
     surfAttr = None
     
-    surfItem, surfPath = getMatXSurfaceItem(mayaMatXSSName)
+    surfItem, surfPath = getMatXSurfaceInfo(mayaMatXSSName)
     if surfItem:
         surfAttr = getMatXSurfaceAttr(surfItem)
     else:
         return None
     
     if surfAttr:
-        surfComp = getMatXCompoundItem(surfItem, surfPath, surfComp)
+        surfComp = getMatXCompoundItem(surfItem, surfPath, surfAttr)
     else:
         return None
         
@@ -560,14 +676,15 @@ def getX3DShaderFieldNames(mayaMatXSSName):
 
 
 def saveMaterialXDocuments(activePrj, matXPath, imagePath):
-    matXDocs = []
+    matXDocs  = []
+    aMatXDocs = []
     localPath = activePrj + "/" + matXPath
     
-    matXSS = cmds.ls(type='materialXStackShape')
+    matXSS = mcmds.ls(type='materialxStack')
     
     if matXSS:
         for mxss in matXSS:
-            matXdPath       = mcmds.ls(mass, long=True)[0]
+            matXdPath       = mcmds.ls(mxss, long=True)[0]
             stackPathString = ufe.PathString.path(matXdPath)
             stackItem       = ufe.Hierarchy.createItem(stackPathString)
             
@@ -580,22 +697,21 @@ def saveMaterialXDocuments(activePrj, matXPath, imagePath):
                     contextOps  = ufe.ContextOps.contextOps(docItem)
                     
                     document    = docItem.path().back()
-
-                    tempPath    = os.path.join(localPath, document + ".mtlx").replace("\\", "/")
-                    #baseDir     = os.path.dirname(tempPath)
-                    #fullPath    = os.path.join(baseDir, "temp_lookdevx.mtlx")
-                    #long_path   = str(Path(fullPath).resolve())
-                    #tempPath    = long_path.replace("\\", "/")
+                    tempPath    = os.path.join(localPath, str(document) + ".mtlx").replace("\\", "/")
+                    directory   = os.path.dirname(tempPath)
+                    os.makedirs(directory, exist_ok=True)
                     contextOps.doOp(['MxExportDocument', tempPath])
                     
                     makeImagePathsRelative(tempPath, imagePath)
                     
                     docDict = {}
-                    docDict["name"]    = document
-                    docDict["content"] = "./" + matXPath + document + ".mtlx"
-                    matXDoc.append(docDict)
+                    docDict["name"]    = str(document)
+                    docDict["content"] = matXPath + str(document) + ".mtlx"
+                    matXDocs.append(docDict)
+                    aMatXDocs.append(tempPath)
     
-    return matXDocs
+    print("Number of docs: " + str(len(matXDocs)))
+    return (matXDocs, aMatXDocs)
 
 
 def saveGLSLFiles(glslFragPath, glslVertPath, matXFilePaths, ufeShaderPath, defines, x3dFields):
@@ -605,14 +721,16 @@ def saveGLSLFiles(glslFragPath, glslVertPath, matXFilePaths, ufeShaderPath, defi
     matXDocName   = pathChop[1]
     searchDocFile = matXDocName + ".mtlx"
     matXShader    = pathChop[2]
+    matFile = None
     
     # Setup Library Loads
     doc = mx.createDocument()
     sPath = mx.FileSearchPath()
     
     for fPath in matXFilePaths:
-        if search in fPath:
+        if searchDocFile in fPath:
             sPath.append(fPath)
+            matFile = fPath
             break
 
     bPath = mx.getDefaultDataSearchPath()
@@ -624,71 +742,71 @@ def saveGLSLFiles(glslFragPath, glslVertPath, matXFilePaths, ufeShaderPath, defi
         libDoc = mx.createDocument()
         mx.loadLibraries([subfolder], sPath.asString(), libDoc)
         doc.importLibrary(libDoc)
-        
-    mx.readFromXmlFile(doc, matFile, sPath.asString())
+    
+    if matFile:
+        mx.readFromXmlFile(doc, matFile, sPath.asString())
 
-    materials = [n for n in doc.getNodes() if n.getCategory() == 'surfacematerial']
+        materials = [n for n in doc.getNodes() if n.getCategory() == 'surfacematerial']
 
-    if materials:
-        gen = mx_glsl.GlslShaderGenerator.create()
-        context = mx_gen.GenContext(gen)
-        
-        context.registerSourceCodeSearchPath(sPath)
-        
-        options = context.getOptions()
-        options.shaderInterfaceType = mx_gen.SHADER_INTERFACE_COMPLETE
-        
-        for material in materials:
-            shaderName = getattr(material, 'name', 'shader')
-            if shaderName == matXShader:
-                safeName   = mx.createValidName(shaderName)
-                
-                shader = gen.generate(safeName, material, context)
-                
-                # Write out GLSL VERTEX file
-                v_stage = getattr(mx_gen, 'VERTEX_STAGE', 'vertex')
-                vText   = shader.getSourceCode(v_stage)
-                vpubuni = shader.getStage('vertex').getUniformBlock('PublicUniforms')
-                for key, value in defines:
-                    for port in vpubuni:
-                        if value == port.getName():
-                            inject = "#define " + key + " " + value + "\n"
-                            vText  = inject + vText
-                            break
-                        
-                with open(glslVertPath, "w") as vfile:
-                    vfile.write(vText)
-                
-                # Write out GLSL FRAGMENT (pixel) file
-                p_stage = getattr(mx_gen, 'PIXEL_STAGE', 'pixel')
-                pText   = shader.getSourceCode(p_stage)
-                ppubuni = shader.getStage('pixel').getUniformBlock('PublicUniforms')
-                for key, value in defines:
-                    for port in ppubuni:
-                        if value == port.getName():
-                            inject = "#define " + key + " " + value + "\n"
-                            pText  = inject + pText
-                            break
-                            
-                with open(glslFragPath, "w") as pfile:
-                    pfile.write(pText)
+        if materials:
+            gen = mx_glsl.GlslShaderGenerator.create()
+            context = mx_gen.GenContext(gen)
+            
+            context.registerSourceCodeSearchPath(sPath)
+            
+            options = context.getOptions()
+            options.shaderInterfaceType = mx_gen.SHADER_INTERFACE_COMPLETE
+            
+            for material in materials:
+                shaderName = material.getName()
+                if shaderName == matXShader:
+                    safeName   = mx.createValidName(shaderName)
+                    shader     = gen.generate(safeName, material, context)
+                    
+                    # Write out GLSL VERTEX file
+                    v_stage = getattr(mx_gen, 'VERTEX_STAGE', 'vertex')
+                    vText   = shader.getSourceCode(v_stage)
+                    vpubuni = shader.getStage('vertex').getUniformBlock('PublicUniforms')
+                    for key, value in defines.items():
+                        for port in vpubuni:
+                            if value == port.getName():
+                                inject = "#define " + key + " " + value + "\n"
+                                vText  = inject + vText
+                                break
 
-                # Gather 3D Field Types from
-                for key, value in x3dFields:
-                    for port in vpubuni:
-                        if value == port.getName():
-                            x3dFieldTypes[key] = type_map.get(port.getType().getName(), "SFNode")
-                            break
+                    with open(glslVertPath, "w") as vfile:
+                        vfile.write(vText)
+                    
+                    # Write out GLSL FRAGMENT (pixel) file
+                    p_stage = getattr(mx_gen, 'PIXEL_STAGE', 'pixel')
+                    pText   = shader.getSourceCode(p_stage)
+                    ppubuni = shader.getStage('pixel').getUniformBlock('PublicUniforms')
+                    for key, value in defines.items():
+                        for port in ppubuni:
+                            if value == port.getName():
+                                inject = "#define " + key + " " + value + "\n"
+                                pText  = inject + pText
+                                break
+                                
+                    with open(glslFragPath, "w") as pfile:
+                        pfile.write(pText)
 
-                for key, value in x3dFields:
-                    for port in ppubuni:
-                        if value == port.getName():
-                            x3dFieldTypes[key] = type_map.get(port.getType().getName(), "SFNode")
-                            break
-                            
-                return x3dFieldTypes, matXDocName, matXShader
-        return None
-    return None
+                    # Gather 3D Field Types from
+                    for key, value in x3dFields.items():
+                        for port in vpubuni:
+                            if value == port.getName():
+                                x3dFieldTypes[key] = type_map.get(port.getType().getName(), "SFNode")
+                                break
+
+                    for key, value in x3dFields.items():
+                        for port in ppubuni:
+                            if value == port.getName():
+                                x3dFieldTypes[key] = type_map.get(port.getType().getName(), "SFNode")
+                                break
+                                
+                    return (x3dFieldTypes, matXDocName, matXShader)
+            return (x3dFieldTypes, matXDocName, matXShader)
+        return (x3dFieldTypes, matXDocName, matXShader)
                             
                             
 def getUFETextureNode(surfComp, nodeName):
@@ -700,16 +818,10 @@ def getUFETextureNode(surfComp, nodeName):
     
     return None
 
-# TODO
-def getMayaPlace2dFromUFETexture(textureItem):
-    mayaPlace2d = None
-    
-    return mayaPlace2d
-    
     
 #def extract_x3d_fields(file_path):
-def getShaderFieldTags(fTags, x3dFields, x3dFileTypes, surfComp):
-    for key, value in x3dFields:
+def getShaderFieldTags(fTags, x3dFields, x3dFieldValues, surfComp):
+    for key, value in x3dFields.items():
         childNode = x3dFields[key]
         cParts = childNode.split("_")
         cpLen = len(cParts)
@@ -935,52 +1047,91 @@ def getAdvBaseColorAndOcclusionTextures(material, colorStore, advMat):
 
 
 def attachMatXTextureTransforms(trv, rkint, textureTransforms, x3dAppearance):
-    ttLen = len(textureTransforms)
+    usedMapping = {}
+    
+    for tt in textureTransforms:
+        wasUsed = usedMapping.get(tt[1], None)
+        if wasUsed:
+            continue
+        else:
+            usedMapping[tt[1]] = tt[0]
+
+    ttLen = len(usedMapping)
     x3dParent = x3dAppearance
     
     if ttLen > 1:
-        mtt = trv.processBasicNodeAddition(x3dParent, "textureTransform", "MultiTextureTransform", "")
+        mtt = trv.processBasicNodeAddition(x3dParent, "textureTransform", "MultiTextureTransform")
         if mtt[0] == False:
             x3dParent = mtt[1]
     
     if ttLen > 0:
-        for tt in textureTransforms:
-            nodeName = tt[0].name()
+        for key in usedMapping:
+            ttt = usedMapping[key]
+                
+            nodeName = ttt.name()
             tTrans = trv.processBasicNodeAddition(x3dParent, "textureTransform", "TextureTransform", nodeName)
             if  tTrans[0] == False:
-                tTrans[1].mapping = tt[1]
+                tTrans[1].mapping = key
                 
-                tTrans[1].center      =                  getUFEAttribute(tt[0], "pivot" ).get()
-                tTrans[1].rotation    = rkint.getDeg2Rad(getUFEAttribute(tt[0], "rotate").get())
-                tTrans[1].translation =                  getUFEAttribute(tt[0], "offset").get()
-                tTrans[1].scale       =                  getUFEAttribute(tt[0], "scale" ).get()
+                #tTrans[1].center      =                  getUFEAttribute(tt[0], "pivot" ).get()
+                #tTrans[1].rotation    = rkint.getDeg2Rad(getUFEAttribute(tt[0], "rotate").get())
+                #tTrans[1].translation =                  getUFEAttribute(tt[0], "offset").get()
+                #tTrans[1].scale       =                  getUFEAttribute(tt[0], "scale" ).get()
+
+                try:
+                    tTrans[1].center      = getMatXAttribute(ttt, "pivot" ).get()
+                except:
+                    print(nodeName + ": TextureTransform set center field value failed")
+                try:
+                    tTrans[1].rotation    = rkint.getDeg2Rad(getMatXAttribute(ttt, "rotate").get())
+                except:
+                    print(nodeName + ": TextureTransform set rotation field value failed")
+                try:
+                    tTrans[1].translation = getMatXAttribute(ttt, "offset").get()
+                except:
+                    print(nodeName + ": TextureTransform set translation field value failed")
+                try:
+                    tTrans[1].scale       = getMatXAttribute(ttt, "scale" ).get()
+                except:
+                    print(nodeName + ": TextureTransform set scale field value failed")
     else:
         tTrans = trv.processBasicNodeAddition(x3dParent, "textureTransform", "TextureTransform", x3dParent.DEF + "_TT")
     
 
 def attachTextureTransforms(trv, rkint, textureTransforms, x3dAppearance):
-    ttLen = len(textureTransforms)
+    usedMapping = {}
+    
+    for tt in textureTransforms:
+        wasUsed = usedMapping.get(tt[1], None)
+        if wasUsed:
+            continue
+        else:
+            usedMapping[tt[1]] = tt[0]
+
+    ttLen = len(usedMapping)
     x3dParent = x3dAppearance
     
     if ttLen > 1:
-        mtt = trv.processBasicNodeAddition(x3dParent, "textureTransform", "MultiTextureTransform", "")
+        mtt = trv.processBasicNodeAddition(x3dParent, "textureTransform", "MultiTextureTransform")
         if mtt[0] == False:
             x3dParent = mtt[1]
 
     if ttLen > 0:
-        for tt in textureTransforms:
-            nodeName = tt[0].name()
+        for key in usedMapping:
+            ttt = usedMapping[key]
+            
+            nodeName = ttt.name()
             tTrans = trv.processBasicNodeAddition(x3dParent, "textureTransform", "TextureTransform", nodeName)
             if  tTrans[0] == False:
-                tTrans[1].mapping = tt[1]
+                tTrans[1].mapping = key
                 
-                tTrans[1].center      =                  cmds.getAttr(nodeName + ".offset"        )[0]
-                tTrans[1].rotation    = rkint.getDeg2Rad(cmds.getAttr(nodeName + ".rotateFrame"   ))
-                tTrans[1].translation =                  cmds.getAttr(nodeName + ".translateFrame")[0]
-                ru = cmds.getAttr(nodeName + ".repeatU")
-                cu = cmds.getAttr(nodeName + ".coverageU")
-                rv = cmds.getAttr(nodeName + ".repeatV")
-                cv = cmds.getAttr(nodeName + ".coverageV")
+                tTrans[1].center      =                  mcmds.getAttr(nodeName + ".offset"        )[0]
+                tTrans[1].rotation    = rkint.getDeg2Rad(mcmds.getAttr(nodeName + ".rotateFrame"   ))
+                tTrans[1].translation =                  mcmds.getAttr(nodeName + ".translateFrame")[0]
+                ru = mcmds.getAttr(nodeName + ".repeatU")
+                cu = mcmds.getAttr(nodeName + ".coverageU")
+                rv = mcmds.getAttr(nodeName + ".repeatV")
+                cv = mcmds.getAttr(nodeName + ".coverageV")
                 if ru <= 0.0:
                     ru = 0.0001
                 if rv <= 0.0:
@@ -999,7 +1150,8 @@ def getMatXSurfaceMaterialSceneItem(ufePath):
     ssItem = ufe.Hierarchy.createItem(ssPath)
     
     return ssItem
-    
+
+
 def getMatXSurfaceShaderSceneItem(smSceneItem, smPath):
     connection    = getUFEAttribute(smSceneItem, "surfaceshader", connected=True)
     surfaceshader = ufe.Hierarchy.createItem(connection.src.path)
