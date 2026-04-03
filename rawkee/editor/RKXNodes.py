@@ -1,6 +1,6 @@
-from rawkee.maya.RKXGraphicsNode  import RKXGraphicsNode 
-from rawkee.maya.RKXContentWidget import RKXContentWidget
-from rawkee.maya.RKXSocket        import *
+from rawkee.editor.RKXGraphicsNode  import RKXGraphicsNode 
+from rawkee.editor.RKXContentWidget import RKXContentWidget
+from rawkee.editor.RKXSocket        import *
 
 class RKXNode():
     def __init__(self, scene, title="Undefined Node", inputs=[], outputs=[]):

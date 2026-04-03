@@ -7,7 +7,7 @@ import os
 import copy
 
 from rawkee.maya import RKOrganizer
-from rawkee.maya import RKSceneEditor
+from rawkee.editor import RKSceneEditor
 from rawkee.maya.RKFOptsDialog import RKFOptsDialog
 from rawkee.maya import RKSceneLoaderJSON
 import rawkee.maya.nodes.sticker    as stk
@@ -160,9 +160,13 @@ class RKWeb3D():
         cmds.menuItem(divider=True)
         cmds.menuItem(divider=True, dividerLabel='RawKee Editors and Tools')
         cmds.menuItem(divider=True)
-        ### --- will be part of future release --- ### cmds.menuItem(label='X3D Interaction Editor',             command='maya.cmds.rkShowSceneEditor()'    )                # -command "showX3DIEditor";
-        cmds.menuItem(label='RawKee Character Animation Editor', command='maya.cmds.rkShowCharacterEditor()')
-        cmds.menuItem(label='RawKee Bind Pose Editor',           command='maya.cmds.rkShowBindPoseEditor()' )
+        cmds.menuItem(label='RawKee Character Animation Editor',    command='maya.cmds.rkShowCharacterEditor()')
+        cmds.menuItem(label='RawKee Bind Pose Editor',              command='maya.cmds.rkShowBindPoseEditor()' )
+        cmds.menuItem(label='Experimental Features', subMenu=True)
+        ### --- will be part of future release --- ### 
+        cmds.menuItem(label='MaterialXSurfaceShader Export Type Editor',  command='maya.cmds.rkShowMaterialXEditor()')
+        cmds.menuItem(label='X3D Graph Editor (Scene and Interactions) - Under Development', command='maya.cmds.rkShowSceneEditor()')
+        cmds.setParent(self.rkMenuName, menu=True)
         ### --- will be part of next release --- ### cmds.menuItem(label='X3D General Animation Editor')                  # -command "x3dAnimationEditor";
 
         cmds.menuItem(divider=True)
@@ -170,7 +174,8 @@ class RKWeb3D():
         cmds.menuItem(divider=True, dividerLabel='Get Compatible 3rd Party Character Tools')
         cmds.menuItem(divider=True)
         #cmds.menuItem(label="Antony Ward's Modular Rigging Tool (aRT)", command='maya.cmds.rkShowART()')
-        cmds.menuItem(label='Advanced Skeleton',                        command='maya.cmds.rkShowAdvSkel()')
+        cmds.menuItem(label='Advanced Skeleton', command='maya.cmds.rkShowAdvSkel()')
+        cmds.menuItem(label='mGear Framework'  , command='maya.cmds.rkShowmGear()'  )
 
         cmds.menuItem(divider=True)
         cmds.menuItem(divider=True)
@@ -302,11 +307,12 @@ class RKWeb3D():
         #x3dVersion  = "4.1"
         #x3dDoc = rkx3d.X3D(profile=profileType, version=x3dVersion)
         #x3dDoc.Scene = rkx3d.Scene()
-        eofScene = rko.trv.getSceneObeject()
-        background = rkx3d.Background()
+        eofScene = rko.trv.getSceneObject()
+        #background = rkx3d.Background()
         
         bkNode = rko.trv.processBasicNodeAddition(x3dDoc.Scene, "children", "Background", "DefaultBackground")
-        bkNode.skyColor = (0.2, 0.2, 0.2)
+        if bkNode[0] == False:
+            bkNode[1].skyColor[0] = (0.2, 0.2, 0.2)
 
         #############################################
         # Get File Path From QFileDialog File Chooser
@@ -393,11 +399,12 @@ class RKWeb3D():
         #x3dVersion  = "4.1"
         #x3dDoc = rkx3d.X3D(profile=profileType, version=x3dVersion)
         #x3dDoc.Scene = rkx3d.Scene()
-        eofScene = rko.trv.getSceneObeject()
-        background = rkx3d.Background()
+        eofScene = rko.trv.getSceneObject()
+        #background = rkx3d.Background()
         
         bkNode = rko.trv.processBasicNodeAddition(x3dDoc.Scene, "children", "Background", "DefaultBackground")
-        bkNode.skyColor = (0.2, 0.2, 0.2)
+        if bkNode[0] == False:
+            bkNode[1].skyColor[0] = (0.2, 0.2, 0.2)
 
         #############################################
         # Get File Path From QFileDialog File Chooser

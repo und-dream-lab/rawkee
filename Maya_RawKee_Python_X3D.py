@@ -10,12 +10,13 @@ from rawkee.maya.RKWeb3D import RKEstimateIPoseForASGS, RKEstimateAPoseForASGS, 
 from rawkee.maya.RKWeb3D import RKLoadIPoseForASGS,     RKLoadAPoseForASGS,     RKLoadTPoseForASGS
 from rawkee.maya.RKWeb3D import RKSaveIPoseForASGS,     RKSaveAPoseForASGS,     RKSaveTPoseForASGS
 from rawkee.maya.RKWeb3D import RKX3DAuxLoader
-from rawkee.maya.RKSceneEditor import *
+from rawkee.editor.RKSceneEditor import *
 from rawkee.maya.RKCharacterEditor import *
 from rawkee.maya.RKBindPoseEditor import *
 from rawkee.maya.RKCharacterAnimationClipEditor import *
 from rawkee.maya.RKHAnimHumanoidSetupEditor import *
 from rawkee.maya.RKmGearSetupEditor import *
+from rawkee.maya.RKMaterialXEditor import *
 
 # From Early 2000s C++ Registered Node IDs
 from rawkee.maya.nodes.x3dSound import X3DSound, X3DSoundDrawOverride
@@ -250,6 +251,20 @@ class RKShowAdvSkel(aom.MPxCommand):
         
     def doIt(self, args):
         webbrowser.open_new("https://animationstudios.com.au/")
+
+
+class RKShowmGear(aom.MPxCommand):
+    kPluginCmdName = "rkShowmGear"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowmGear()
+        
+    def doIt(self, args):
+        webbrowser.open_new("https://mgear-framework.com/")
 
 
 # Creating the MEL Command for showing the RawKee Help Wiki
@@ -792,6 +807,35 @@ class RKShowCharacterAnimationClipEditor(aom.MPxCommand):
             print("RKWeb3D is not set!")
 
 
+class RKShowMaterialXEditor(aom.MPxCommand):
+    kPluginCmdName = "rkShowMaterialXEditor"
+    
+    def __init__(self):
+        aom.MPxCommand.__init__(self)
+        
+    @staticmethod
+    def cmdCreator():
+        return RKShowMaterialXEditor()
+        
+    def doIt(self, args):
+        print("RawKee X3D - MaterialX Editor")
+        
+        global rkWeb3D
+        if rkWeb3D is not None:
+            materialXEditorControlName = RKMaterialXEditor.materialx_editor_control_name()
+        
+            if cmds.workspaceControl(materialXEditorControlName, exists=True):
+                #Must Close before Delete
+                cmds.workspaceControl(materialXEditorControlName, e=True, close=True, closeCommand=RKMaterialXEditor.workplace_close_command())
+                cmds.deleteUI(materialXEditorControlName)
+            
+            rkMTXEditor = RKMaterialXEditor()
+            rkMTXEditor.CBIDs = RKCallBackIDs
+            rkMTXEditor.show(dockable=True, uiScript=RKMaterialXEditor.workspace_ui_script())
+        else:
+            print("RKWeb3D is not set!")
+
+
 class RKShowHAnimHumanoidSetupEditor(aom.MPxCommand):
     kPluginCmdName = "rkShowHAnimHumanoidSetupEditor"
     
@@ -951,6 +995,7 @@ def runRawKeeInitializer(plugin):
         pluginFn.registerCommand(RKASRestoreClipBoard.kPluginCmdName, RKASRestoreClipBoard.cmdCreator)
         
         pluginFn.registerCommand(    RKShowAdvSkel.kPluginCmdName,      RKShowAdvSkel.cmdCreator)
+        pluginFn.registerCommand(      RKShowmGear.kPluginCmdName,        RKShowmGear.cmdCreator)
         pluginFn.registerCommand(        RKShowART.kPluginCmdName,          RKShowART.cmdCreator)
         pluginFn.registerCommand(      RKShowX3DOM.kPluginCmdName,        RKShowX3DOM.cmdCreator)
         pluginFn.registerCommand(        RKShowCGE.kPluginCmdName,          RKShowCGE.cmdCreator)
@@ -1011,6 +1056,13 @@ def runRawKeeInitializer(plugin):
             pluginFn.registerCommand(RKShowCharacterAnimationClipEditor.kPluginCmdName, RKShowCharacterAnimationClipEditor.cmdCreator)
         except Exception as e:
             sys.stderr.write("RKShowCharacterAnimationClipEditor - Failed to unregister a plugin command.\n")
+            print(f"Exception Type: {type(e).__name__}")
+            print(f"Exception Message: {e}")
+            
+        try:
+            pluginFn.registerCommand(RKShowMaterialXEditor.kPluginCmdName, RKShowMaterialXEditor.cmdCreator)
+        except Exception as e:
+            sys.stderr.write("RKShowMaterialXEditor - Failed to unregister a plugin command.\n")
             print(f"Exception Type: {type(e).__name__}")
             print(f"Exception Message: {e}")
 
@@ -1185,6 +1237,12 @@ def uninitializePlugin(plugin):
         print(f"Exception Type: {type(e).__name__}")
         print(f"Exception Message: {e}")
 
+    try:
+        pluginFn.deregisterCommand(RKShowMaterialXEditor.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowMaterialXEditor - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
 
     try:
         pluginFn.deregisterCommand(RKShowCharacterAnimationClipEditor.kPluginCmdName)
@@ -1469,14 +1527,21 @@ def uninitializePlugin(plugin):
     try:
         pluginFn.deregisterCommand(      RKShowART.kPluginCmdName)
     except Exception as e:
-        sys.stderr.write("RKShowX3DOM - Failed to unregister a plugin command.\n")
+        sys.stderr.write("RKShowART - Failed to unregister a plugin command.\n")
+        print(f"Exception Type: {type(e).__name__}")
+        print(f"Exception Message: {e}")
+
+    try:
+        pluginFn.deregisterCommand(      RKShowmGear.kPluginCmdName)
+    except Exception as e:
+        sys.stderr.write("RKShowmGear - Failed to unregister a plugin command.\n")
         print(f"Exception Type: {type(e).__name__}")
         print(f"Exception Message: {e}")
 
     try:
         pluginFn.deregisterCommand(      RKShowAdvSkel.kPluginCmdName)
     except Exception as e:
-        sys.stderr.write("RKShowX3DOM - Failed to unregister a plugin command.\n")
+        sys.stderr.write("RKShowAdvSkel - Failed to unregister a plugin command.\n")
         print(f"Exception Type: {type(e).__name__}")
         print(f"Exception Message: {e}")
 
@@ -1553,6 +1618,15 @@ def uninitializePlugin(plugin):
         #Must Close before Delete
         cmds.workspaceControl(mgearSetupEditorControlName, e=True, close=True, closeCommand=RKmGearSetupEditor.workplace_close_command())
         cmds.deleteUI(mgearSetupEditorControlName)
+    
+    
+    ########## MaterialX Editor ##################
+    materialXEditorControlName = RKMaterialXEditor.materialx_editor_control_name()
+
+    if cmds.workspaceControl(materialXEditorControlName, exists=True):
+        #Must Close before Delete
+        cmds.workspaceControl(materialXEditorControlName, e=True, close=True, closeCommand=RKMaterialXEditor.workplace_close_command())
+        cmds.deleteUI(materialXEditorControlName)
     
     
     ########## Character Animation Clip Editor ##################
