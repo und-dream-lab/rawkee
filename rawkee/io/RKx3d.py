@@ -59508,6 +59508,7 @@ class SpecularMaterialExtension(_X3DMaterialExtensionNode):
         ('specularColor', (1.0, 1.0, 1.0), FieldType.SFColor, AccessType.inputOutput, 'SpecularMaterialExtension'),
         ('specularColorTextureMapping', '', FieldType.SFString, AccessType.inputOutput, 'SpecularMaterialExtension'),
         ('specularColorTexture', None, FieldType.SFNode, AccessType.inputOutput, 'SpecularMaterialExtension'),
+        ('specualrStrength', 1.0, FieldType.SFFloat, AccessType.inputOutput, 'SpecularMaterialExtension'),
         ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
         ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
         ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
@@ -59522,6 +59523,7 @@ class SpecularMaterialExtension(_X3DMaterialExtensionNode):
         specularColor=(1.0, 1.0, 1.0),#Scatter
         specularColorTextureMapping="",
         specularColorTexture=None,
+        specularStrength=1.0,
         DEF='',
         USE='',
         IS=None,
@@ -59537,6 +59539,7 @@ class SpecularMaterialExtension(_X3DMaterialExtensionNode):
         self.specularColor   = specularColor
         self.specularColorTextureMapping = specularColorTextureMapping
         self.specularColorTexture = specularColorTexture
+        self.specularStrength = specularStrength
         self.id_ = id_
         self.style_ = style_
     @property # getter - - - - - - - - - -
@@ -59609,6 +59612,17 @@ class SpecularMaterialExtension(_X3DMaterialExtensionNode):
             # print(flush=True)
             raise X3DTypeError(str(specularColorTexture) + ' does not match required node type (_X3DSingleTextureNode,ProtoInstance) and is invalid')
         self.__specularColorTexture = specularColorTexture
+    @property # getter - - - - - - - - - -
+    def specularStrength(self):
+        """The specularStrength  - NA -  PhysicalMaterial nodes."""
+        return self.__specularStrength
+    @specularStrength.setter
+    def specularStrength(self, specularStrength):
+        if  specularStrength is None:
+            specularStrength = 1.0 # default
+        assertValidSFFloat(specularStrength)
+        assertNonNegative('specularStrength', specularStrength)
+        self.__specularStrength = specularStrength
     @property # getter - - - - - - - - - -
     def id_(self):
         """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """

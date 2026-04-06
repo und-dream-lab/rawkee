@@ -1,2 +1,3 @@
-from . import RKx3d
+from . import RKLoadSceneFromFile
 from . import RKSceneTraversal
+from . import RKx3d

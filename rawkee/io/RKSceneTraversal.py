@@ -72,8 +72,11 @@ class RKSceneTraversal():
         self.cadInterchange = {'Core':1,                'Networking':2,             'Grouping':1,               'Rendering':4,
                             'Shape':2,                  'Lighting':1,               'Texturing':2,              'Navigation':3,
                             'Shaders':1,                'CADGeometry':2}
+        
+        # 1
+        self.core = {'Core':1}
                             
-        self.profiles = {"Full":self.full, "Immersive":self.immersive, "Interactive":self.interactive, "MPG4Interactive":self.mp4Interactive, "Interchange":self.interchange, "CADInterchange":self.cadInterchange}
+        self.profiles = {"Full":self.full, "Immersive":self.immersive, "Interactive":self.interactive, "MPG4Interactive":self.mp4Interactive, "Interchange":self.interchange, "CADInterchange":self.cadInterchange, "Core":self.core}
 
         
     # Function that writes to disk.
@@ -134,12 +137,16 @@ class RKSceneTraversal():
         for key, value in nDict.items():
             if key == "rkWeightsData":
                 print("Debug: " + node.DEF + ", " + key)
+                
+            #if nType == "field":
+            #    print("Debug2: " + key)
+                
             keyp = key.split('_')
             if   keyp[1] == "X3DNode":
-                if   keyp[3] == "DEF" and node.DEF != None:
+                if   keyp[3] == "DEF" and node.DEF != "":
                     sFieldsList.append("DEF")
                     
-                elif keyp[3] == "USE" and node.USE != None:
+                elif keyp[3] == "USE" and node.USE != "":
                     sFieldsList.append("USE")
                     
                 elif keyp[3] == "metadata": #and pastMeta == False:
@@ -211,7 +218,13 @@ class RKSceneTraversal():
 
     def processSortedNode(self, nType, node, sFieldList, mFieldList, sNodeList, mNodeList, isMulti, addComma, cField):
         
-        if sFieldList[0] == "USE":
+        runUSE = False
+        if hasattr(node, "USE"):
+            if node.USE != '':
+                runUSE = True
+        
+        if runUSE == True:
+        #if len(sFieldList) > 0 and sFieldList[0] == "USE":
             self.processUsed(nType, node, isMulti, addComma, cField)
         else:
             if   self.enc == encx:
@@ -260,15 +273,22 @@ class RKSceneTraversal():
 
 
     def processFieldAsClassic(self, node, sFieldList, mFieldList, isMulti):
-        fieldText = "field " + node.type + " " + node.name
+        fieldText = "field " + node.accessType + " " + node.type + " " + node.name
         if node.type == "SFNode":
-            self.itabs()
-            self.writePrefix("children")
-            self.processNode(node.children[0], False, False)
-            self.dtabs()
-            
-        elif node.type == "MFNode": # TODO Implement Later for Script, ExternProto, and Proto nodes
-            pass
+            self.writePrefix(fieldText)
+            if len(node.children) > 0:
+                self.processNode(node.children[0], False, False)
+            else:
+                self.writeRemaining("")
+        elif node.type == "MFNode":
+            fieldText = fieldText + "["
+            self.writeLine(fieldText)
+            if len(node.children) > 0:
+                self.itabs()
+                for child in node.children:
+                    self.processNode(child, True, False)
+                self.dtabs()
+                self.writeLine("]")
             
         else:
             fieldText = fieldText + " " + node.value
@@ -356,7 +376,7 @@ class RKSceneTraversal():
             elif isinstance(values[0], bool):
                 tvLen = len(values)
                 for vIdx in range(tvLen):
-                    if value[vIdx] == True:
+                    if values[vIdx] == True:
                         sValue = sValue + 'TRUE'
                     else:
                         sValue = sValue + 'FALSE'
@@ -392,16 +412,18 @@ class RKSceneTraversal():
             mField = mNodeList[nIdx]
             mList = getattr(node, mField)
             
-            vValue = mField + ' ['
-            self.writeLine(vValue)
-            self.itabs()
+            if mField != "field":
+                vValue = mField + ' ['
+                self.writeLine(vValue)
+                self.itabs()
                         
             vLen = len(mList)
             for vIdx in range(vLen):
                 mNode = mList[vIdx]
                 self.processNode(mNode, True, False)
-            self.dtabs()
-            self.writeLine(']')
+            if mField != "field":
+                self.dtabs()
+                self.writeLine(']')
         
         self.dtabs()
         self.writeLine("}")
@@ -642,29 +664,26 @@ class RKSceneTraversal():
     # TODO Change update Function to handle fields for Script, ExternProto, and Proto nodes
     def processFieldAsXML(self, node, sFieldList, mNodeList):
         fieldText = "<field name='" + node.name + "' type='" + node.type + "' accessType='" + node.accessType
-        if fieldType == "SFNode":
-            fieldText += " containderField='fields'>"
+        if node.type == "SFNode":
+            fieldText += ">"
             self.writeLine(fieldText)
             self.itabs()
-            self.processNode(node.children[0], False, False, cField="children")
+            for child in node.children:
+                self.processNode(child, False, False)
             self.dtabs()
             self.writeLine("</field>")
             
-        elif fieldType == "MFNode": # TODO Implement Later for Script, ExternProto, and Proto nodes
-            #fieldText += ">"
-            #self.writeLine(fieldText)
-            #self.itabs()
-
-            #for field in mNodeList:
-            #    fList = getattr(node, field)
-            #    for fNode in fList:
-            #        self.processNode(fNode, True, False, cField=field)
-            #self.dtabs()
-            #self.writeLine("</field>")
-            pass
+        elif node.type == "MFNode":
+            fieldText += ">"
+            self.writeLine(fieldText)
+            self.itabs()
+            for child in node.children:
+                self.processNode(child, True, False)
+            self.dtabs()
+            self.writeLine("</field>")
             
         else:
-            fieldText += " value='" + node.value + "' containderField='fields'/>"
+            fieldText += " value='" + node.value + "'/>"
             self.writeLine(fieldText)
         
 
@@ -795,15 +814,16 @@ class RKSceneTraversal():
     # TODO Change update Function to handle fields for Script, ExternProto, and Proto nodes
     def processFieldAsHTML(self, node, sFieldList, mNodeList):
         fieldText = "<field name='" + node.name + "' type='" + node.type + "' accessType='" + node.accessType
-        if fieldType == "SFNode":
-            fieldText += " containderField='fields'>"
+        if node.type == "SFNode" or node.type == "MFNode":
+            fieldText += ">"
             self.writeLine(fieldText)
             self.itabs()
-            self.processNode(node.children[0], False, False, cField="children")
+            for child in node.children:
+                self.processNode(child, False, False)
             self.dtabs()
             self.writeLine("</field>")
             
-        elif fieldType == "MFNode": # TODO Implement Later for Script, ExternProto, and Proto nodes
+        #elif node.type == "MFNode": # TODO Implement Later for Script, ExternProto, and Proto nodes
             #fieldText += ">"
             #self.writeLine(fieldText)
             #self.itabs()
@@ -817,7 +837,7 @@ class RKSceneTraversal():
             pass
             
         else:
-            fieldText += " value='" + node.value + "' containderField='fields'></field>"
+            fieldText += " value='" + node.value + "'></field>"
             self.writeLine(fieldText)
 
 
@@ -827,7 +847,7 @@ class RKSceneTraversal():
             return
 
         if nType == "field":
-            self.processFieldAsHTML()
+            self.processFieldAsHTML(node, sFieldList, mNodeList)
             return
             
         cap = ">"
@@ -961,7 +981,8 @@ class RKSceneTraversal():
             self.itabs()
             self.writeLine("<head>")
             self.itabs()
-            for key, value in self.profDict:
+            for key in self.profDict:
+                value = self.profDict[key]
                 self.writeLine("<component name='" + key + "' level='" + str(value) + "'/>")
             for meta in self.metatags:
                 self.writeLine("<meta name='" + meta["name"] + "' content='" + meta["content"] + "'/>")
@@ -975,7 +996,8 @@ class RKSceneTraversal():
             self.writeLine('PROFILE ' + self.profileType)
             if len(self.profDict) > 0:
                 self.writeLine('')
-                for key, value in self.profDict:
+                for key in self.profDict:
+                    value = self.profDict[key]
                     self.writeLine('COMPONENT ' + key + ' : ' + str(value))
             if len(self.metatags) > 0:
                 self.writeLine('')
@@ -1065,7 +1087,8 @@ class RKSceneTraversal():
             self.itabs()
             self.writeLine("<head>")
             self.itabs()
-            for key, value in self.profDict:
+            for key in self.profDict:
+                value = self.profDict[key]
                 self.writeLine("<component name='" + key + "' level='" + str(value) + "'></component>")
             for meta in self.metatags:
                 self.writeLine("<meta name='" + meta["name"] + "' content='" + meta["content"] + "'></meta>")
@@ -1138,7 +1161,7 @@ class RKSceneTraversal():
     def processBasicNodeAddition(self, x3dParentNode, x3dFieldName, x3dType, nodeName=""):
         nodeTuple = instantiateNodeFromString(x3dType)
         
-        tNode = nodeTuple[0]
+        tNode    = nodeTuple[0]
         x3dComps = nodeTuple[1]
 
         if tNode:
@@ -1146,12 +1169,19 @@ class RKSceneTraversal():
             # attribute.
             hasBeen = False
             
-            if nodeName != "":
+            if nodeName == "" or nodeName == None:
+                tNode.DEF = ''
+                tNode.USE = ''
+            elif not nodeName:
+                tNode.DEF = ''
+                tNode.USE = ''
+            else:
                 hasBeen = self.checkIfHasBeen(nodeName) #checkIfHasBeen
             
                 # If has been created already, assign the "nodeName" value to the 
                 # X3D node's USE attribute and leave the DEF attribute as None.
                 if hasBeen == True:
+                    tNode.DEF = ''
                     tNode.USE = nodeName
             
                 # However, if the node has not been previously created, set the 
@@ -1160,6 +1190,7 @@ class RKSceneTraversal():
                 # "setHasBeen()" method.
                 else:
                     tNode.DEF = nodeName
+                    tNode.USE = ""
                     self.setAsHasBeen(nodeName, tNode)
                 
             # Now it is time to add the new node to the X3D Scene. First 
@@ -1258,18 +1289,19 @@ class RKSceneTraversal():
     def adjustProfileAndComponents(self, pcDict):
         
         for key in pcDict:
-            pdVal = self.profDict.get(key, 0)
-            pcVal = pcDict[key]
+            pcVal = int(pcDict[key])
+            pdVal = int(self.profDict.get(key, 0))
             
             if pcVal > pdVal:
                 self.profDict[key] = pcVal
 
                 
     def evaluateForCore(self):
+        cnt = self.countComponents(1, self.core)
         self.profileType = "Core"
 
-        for key in self.profDict:
-            self.compDict[key] = self.profDict[key]
+        #for key in self.profDict:
+        #    self.compDict[key] = self.profDict[key]
 
 
     def evaluateForCADInterchange(self):
@@ -1303,7 +1335,7 @@ class RKSceneTraversal():
         cnt = self.countComponents(16, self.interactive)
                 
         if cnt == 16:
-            self.rkio.trv.profileType = "Interactive"
+            self.profileType = "Interactive"
         else:
             self.evaluateForMP4Interactive()
         
@@ -1347,9 +1379,10 @@ class RKSceneTraversal():
     def setAdditionalComponents(self):
         cProf = self.profiles[self.profileType]
         keepDict = {}
-        for key, value in self.profDict:
+        for key in self.profDict:
+            value = self.profDict[key]
             cValue = cProf.get(key, 0)
-            if cValue != value:
-                keepDict[key] = cValue
+            if value > cValue:
+                keepDict[key] = value
                 
         self.profDict = keepDict

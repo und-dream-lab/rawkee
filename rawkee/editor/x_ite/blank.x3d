@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE X3D PUBLIC "ISO//Web3D//DTD X3D 4.1//EN" "https://www.web3d.org/specifications/x3d-4.1.dtd">
+<X3D profile='Interchange' version='4.1' xmlns:xsd='http://www.w3.org/2001/XMLSchema-instance' xsd:noNamespaceSchemaLocation='https://www.web3d.org/specifications/x3d-4.1.xsd'>
+  <head>
+    <meta name='creator' content='Aaron Bergstrom'/>
+    <meta name='created' content='Tue, 24 Feb 2026 20:55:41 GMT'/>
+    <meta name='modified' content='Mon, 23 Mar 2026 04:26:19 GMT'/>
+    <meta name='generator' content='Sunrize X3D Editor V2.0.10, https://create3000.github.io/sunrize/'/>
+  </head>
+  <Scene/>
+</X3D>
