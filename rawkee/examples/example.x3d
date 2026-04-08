@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE X3D PUBLIC "ISO//Web3D//DTD X3D 4.1//EN" "https://www.web3d.org/specifications/x3d-4.1.dtd">
+<X3D profile='Core' version='4.1' xmlns:xsd='http://www.w3.org/2001/XMLSchema-instance' xsd:noNamespaceSchemaLocation='https://www.web3d.org/specifications/x3d-4.1.xsd'>
+	<head>
+		<component name='Core' level='1'/>
+		<component name='Grouping' level='1'/>
+		<component name='Rendering' level='1'/>
+		<component name='Texturing' level='1'/>
+		<component name='Shape' level='4'/>
+		<component name='Geometry3D' level='1'/>
+		<component name='Lighting' level='4'/>
+		<component name='Navigation' level='2'/>
+		<component name='EnvironmentalSensor' level='2'/>
+	</head>
+	<Scene>
+		<Transform DEF='myTransform' translation='-5.0 0.0 0.0' containerField='children'>
+			<Shape DEF='shapeOne' containerField='children'>
+				<Appearance DEF='appOne' containerField='appearance'>
+					<Material DEF='red' diffuseColor='1.0 0.0 0.0' containerField='material'/>
+				</Appearance>
+				<Sphere DEF='myBall' containerField='geometry'/>
+			</Shape>
+		</Transform>
+		<Transform DEF='otherTransform' translation='5.0 0.0 0.0' containerField='children'>
+			<Shape DEF='shapeTwo' containerField='children'>
+				<Appearance DEF='appTwo' containerField='appearance'>
+					<Material DEF='green' diffuseColor='0.0 1.0 0.0' containerField='material'/>
+				</Appearance>
+				<Sphere USE='myBall' containerField='geometry'/>
+			</Shape>
+		</Transform>
+		<Transform DEF='myTransform2' translation='0.0 5.0 0.0' containerField='children'>
+			<Shape USE='shapeOne' containerField='children'/>
+		</Transform>
+		<Transform DEF='otherTransform2' translation='0.0 -5.0 0.0' containerField='children'>
+			<Shape USE='shapeTwo' containerField='children'/>
+		</Transform>
+		<Viewpoint DEF='mainView' position='0.0 0.0 20.0' containerField='children'/>
+		<DirectionalLight DEF='dirLight' direction='-1.0 0.0 -1.0' containerField='children'/>
+		<NavigationInfo DEF='navInfo' headlight='false' containerField='children'/>
+	</Scene>
+</X3D>
