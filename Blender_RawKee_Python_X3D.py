@@ -38,11 +38,10 @@ def menu_func_export(self, context):
 def register():
     bpy.utils.register_class(X3D_DropDownMenu)
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
-    #RKWeb3DBlender.register()
+
 def unregister():
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
     bpy.utils.unregister_class(X3D_DropDownMenu)
-    #RKWeb3DBlender.unregister()
 
 if __name__ == "__main__":
      register()
