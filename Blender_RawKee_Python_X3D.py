@@ -32,12 +32,15 @@ import bpy
 from rawkee.blender.RKWeb3DBlender import *
 #Import etc.
 
-
+def menu_func_export(self, context):
+    self.layout.operator(X3D_DropDownMenu.bl_idname, text="RawKee X3D (.x3d)")
 
 def register():
     bpy.utils.register_class(X3D_DropDownMenu)
+    bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
     #RKWeb3DBlender.register()
 def unregister():
+    bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
     bpy.utils.unregister_class(X3D_DropDownMenu)
     #RKWeb3DBlender.unregister()
 
