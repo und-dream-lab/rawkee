@@ -1061,41 +1061,41 @@ def attachMatXTextureTransforms(trv, rkint, textureTransforms, x3dAppearance):
     
     if ttLen > 1:
         mtt = trv.processBasicNodeAddition(x3dParent, "textureTransform", "MultiTextureTransform")
-        if mtt[0] == False:
-            x3dParent = mtt[1]
+        if mtt:
+            x3dParent = mtt
     
     if ttLen > 0:
         for key in usedMapping:
             ttt = usedMapping[key]
                 
             nodeName = ttt.name()
-            tTrans = trv.processBasicNodeAddition(x3dParent, "textureTransform", "TextureTransform", nodeName)
-            if  tTrans[0] == False:
-                tTrans[1].mapping = key
+            textureTransform = trv.processBasicNodeAddition(x3dParent, "textureTransform", "TextureTransform", nodeName)
+            if  textureTransform:
+                textureTransform.mapping = key
                 
-                #tTrans[1].center      =                  getUFEAttribute(tt[0], "pivot" ).get()
-                #tTrans[1].rotation    = rkint.getDeg2Rad(getUFEAttribute(tt[0], "rotate").get())
-                #tTrans[1].translation =                  getUFEAttribute(tt[0], "offset").get()
-                #tTrans[1].scale       =                  getUFEAttribute(tt[0], "scale" ).get()
+                #textureTransform.center      =                  getUFEAttribute(tt[0], "pivot" ).get()
+                #textureTransform.rotation    = rkint.getDeg2Rad(getUFEAttribute(tt[0], "rotate").get())
+                #textureTransform.translation =                  getUFEAttribute(tt[0], "offset").get()
+                #textureTransform.scale       =                  getUFEAttribute(tt[0], "scale" ).get()
 
                 try:
-                    tTrans[1].center      = getMatXAttribute(ttt, "pivot" ).get()
+                    textureTransform.center      = getMatXAttribute(ttt, "pivot" ).get()
                 except:
                     print(nodeName + ": TextureTransform set center field value failed")
                 try:
-                    tTrans[1].rotation    = rkint.getDeg2Rad(getMatXAttribute(ttt, "rotate").get())
+                    textureTransform.rotation    = rkint.getDeg2Rad(getMatXAttribute(ttt, "rotate").get())
                 except:
                     print(nodeName + ": TextureTransform set rotation field value failed")
                 try:
-                    tTrans[1].translation = getMatXAttribute(ttt, "offset").get()
+                    textureTransform.translation = getMatXAttribute(ttt, "offset").get()
                 except:
                     print(nodeName + ": TextureTransform set translation field value failed")
                 try:
-                    tTrans[1].scale       = getMatXAttribute(ttt, "scale" ).get()
+                    textureTransform.scale       = getMatXAttribute(ttt, "scale" ).get()
                 except:
                     print(nodeName + ": TextureTransform set scale field value failed")
     else:
-        tTrans = trv.processBasicNodeAddition(x3dParent, "textureTransform", "TextureTransform", x3dParent.DEF + "_TT")
+        textureTransform = trv.processBasicNodeAddition(x3dParent, "textureTransform", "TextureTransform", x3dParent.DEF + "_TT")
     
 
 def attachTextureTransforms(trv, rkint, textureTransforms, x3dAppearance):
@@ -1113,21 +1113,21 @@ def attachTextureTransforms(trv, rkint, textureTransforms, x3dAppearance):
     
     if ttLen > 1:
         mtt = trv.processBasicNodeAddition(x3dParent, "textureTransform", "MultiTextureTransform")
-        if mtt[0] == False:
-            x3dParent = mtt[1]
+        if mtt:
+            x3dParent = mtt
 
     if ttLen > 0:
         for key in usedMapping:
             ttt = usedMapping[key]
             
             nodeName = ttt.name()
-            tTrans = trv.processBasicNodeAddition(x3dParent, "textureTransform", "TextureTransform", nodeName)
-            if  tTrans[0] == False:
-                tTrans[1].mapping = key
+            textureTransform = trv.processBasicNodeAddition(x3dParent, "textureTransform", "TextureTransform", nodeName)
+            if  textureTransform:
+                textureTransform.mapping = key
                 
-                tTrans[1].center      =                  mcmds.getAttr(nodeName + ".offset"        )[0]
-                tTrans[1].rotation    = rkint.getDeg2Rad(mcmds.getAttr(nodeName + ".rotateFrame"   ))
-                tTrans[1].translation =                  mcmds.getAttr(nodeName + ".translateFrame")[0]
+                textureTransform.center      =                  mcmds.getAttr(nodeName + ".offset"        )[0]
+                textureTransform.rotation    = rkint.getDeg2Rad(mcmds.getAttr(nodeName + ".rotateFrame"   ))
+                textureTransform.translation =                  mcmds.getAttr(nodeName + ".translateFrame")[0]
                 ru = mcmds.getAttr(nodeName + ".repeatU")
                 cu = mcmds.getAttr(nodeName + ".coverageU")
                 rv = mcmds.getAttr(nodeName + ".repeatV")
@@ -1140,9 +1140,9 @@ def attachTextureTransforms(trv, rkint, textureTransforms, x3dAppearance):
                     cu = 0.0001
                 if cv <= 0.0:
                     cv = 0.0001
-                tTrans[1].scale = (ru/cu, rv/cv)
+                textureTransform.scale = (ru/cu, rv/cv)
     else:
-        tTrans = trv.processBasicNodeAddition(x3dParent, "textureTransform", "TextureTransform", x3dParent.DEF + "_TT")
+        textureTransform = trv.processBasicNodeAddition(x3dParent, "textureTransform", "TextureTransform", x3dParent.DEF + "_TT")
 
 
 def getMatXSurfaceMaterialSceneItem(ufePath):

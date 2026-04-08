@@ -311,8 +311,8 @@ class RKWeb3D():
         #background = rkx3d.Background()
         
         bkNode = rko.trv.processBasicNodeAddition(x3dDoc.Scene, "children", "Background", "DefaultBackground")
-        if bkNode[0] == False:
-            bkNode[1].skyColor[0] = (0.2, 0.2, 0.2)
+        if bkNode:
+            bkNode.skyColor[0] = (0.2, 0.2, 0.2)
 
         #############################################
         # Get File Path From QFileDialog File Chooser
@@ -403,8 +403,8 @@ class RKWeb3D():
         #background = rkx3d.Background()
         
         bkNode = rko.trv.processBasicNodeAddition(x3dDoc.Scene, "children", "Background", "DefaultBackground")
-        if bkNode[0] == False:
-            bkNode[1].skyColor[0] = (0.2, 0.2, 0.2)
+        if bkNode:
+            bkNode.skyColor[0] = (0.2, 0.2, 0.2)
 
         #############################################
         # Get File Path From QFileDialog File Chooser
