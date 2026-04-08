@@ -1150,6 +1150,17 @@ class RKSceneTraversal():
         return foundNode
     
 
+    def getGeneratedX3DAsUsed(self, namedDEF):
+        foundNode = self.generatedX3D.get(namedDEF, None)
+        if foundNode:
+            usedNode, x3dComps = instantiateNodeFromString(foundNode.NAME())
+            usedNode.DEF = ''
+            usedNode.USE = namedDEF
+            return usedNode
+        else:
+            return None
+    
+
     def checkIfHasBeen(self, nodeName):
         hasBeenExported = self.haveBeenNodes.get(nodeName, False)
             
