@@ -13,7 +13,7 @@
 		<component name='EnvironmentalSensor' level='2'/>
 	</head>
 	<Scene>
-		<Transform DEF='myTransform' translation='-5.0 0.0 0.0' containerField='children'>
+		<Transform DEF='myTransform' translation='-3.0 0.0 0.0' containerField='children'>
 			<Shape DEF='shapeOne' containerField='children'>
 				<Appearance DEF='appOne' containerField='appearance'>
 					<Material DEF='red' diffuseColor='1.0 0.0 0.0' containerField='material'/>

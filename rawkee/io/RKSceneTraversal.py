@@ -1224,10 +1224,15 @@ class RKSceneTraversal():
             # And then also return the new node so if it does need values 
             # assigned to it's other attributes, the section of the code that
             # called this metod can do so.
-            return [hasBeen, tNode]
+            #return [hasBeen, tNode]
+            if hasBeen == True:
+                return None
+            else:
+                return tNode
         
         else:
-            return[True, tNode]
+            #return[True, tNode]
+            return None
 
 
     ####################################################################
