@@ -26,6 +26,8 @@ bl_info = {
     # so the relevtive imports will work  
     #I have not tested it yet. will do later - Thomaz Diaz 
 
+import bpy
+
 #Plugin Blender GUI 
 from rawkee.blender.RKWeb3DBlender import *
 #Import etc.
@@ -33,9 +35,11 @@ from rawkee.blender.RKWeb3DBlender import *
 
 
 def register():
-    RKWeb3DBlender.register()
+    bpy.utils.register_class()
+    #RKWeb3DBlender.register()
 def unregister():
-    RKWeb3DBlender.unregister()
+    bpy.utils.unregister_class()
+    #RKWeb3DBlender.unregister()
 
 if __name__ == "__main__":
      register()
