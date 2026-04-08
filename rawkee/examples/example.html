@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset='utf-8'>
+		<script type='text/javascript' src='https://www.x3dom.org/download/dev/x3dom-full.js'></script>
+		<link rel='stylesheet' type='text/css' href='https://www.x3dom.org/download/x3dom.css'></link>
+	</head>
+	<body style='background-color:gray;'>
+		<div style='width: 600px; height: 600px;'>
+			<X3D>
+				<head>
+					<component name='Core' level='1'></component>
+					<component name='Grouping' level='1'></component>
+					<component name='Rendering' level='1'></component>
+					<component name='Texturing' level='1'></component>
+					<component name='Shape' level='4'></component>
+					<component name='Geometry3D' level='1'></component>
+					<component name='Lighting' level='4'></component>
+					<component name='Navigation' level='2'></component>
+					<component name='EnvironmentalSensor' level='2'></component>
+				</head>
+				<Scene>
+					<Transform DEF='myTransform' translation='-5.0 0.0 0.0' containerField='children'>
+						<Shape DEF='shapeOne' containerField='children'>
+							<Appearance DEF='appOne' containerField='appearance'>
+								<Material DEF='red' diffuseColor='1.0 0.0 0.0' containerField='material'>
+								</Material>
+							</Appearance>
+							<Sphere DEF='myBall' containerField='geometry'>
+							</Sphere>
+						</Shape>
+					</Transform>
+					<Transform DEF='otherTransform' translation='5.0 0.0 0.0' containerField='children'>
+						<Shape DEF='shapeTwo' containerField='children'>
+							<Appearance DEF='appTwo' containerField='appearance'>
+								<Material DEF='green' diffuseColor='0.0 1.0 0.0' containerField='material'>
+								</Material>
+							</Appearance>
+							<Sphere USE='myBall' containerField='geometry'></Sphere>
+						</Shape>
+					</Transform>
+					<Transform DEF='myTransform2' translation='0.0 5.0 0.0' containerField='children'>
+						<Shape USE='shapeOne' containerField='children'></Shape>
+					</Transform>
+					<Transform DEF='otherTransform2' translation='0.0 -5.0 0.0' containerField='children'>
+						<Shape USE='shapeTwo' containerField='children'></Shape>
+					</Transform>
+					<Viewpoint DEF='mainView' position='0.0 0.0 20.0' containerField='children'>
+					</Viewpoint>
+					<DirectionalLight DEF='dirLight' direction='-1.0 0.0 -1.0' containerField='children'>
+					</DirectionalLight>
+					<NavigationInfo DEF='navInfo' headlight='false' containerField='children'>
+					</NavigationInfo>
+				</Scene>
+			</X3D>
+		</div>
+	</body>
+</html>

@@ -1055,9 +1055,9 @@ class RKSceneTraversal():
                         self.writeLine('"@level": ' + str(values[p]))
                         self.dtabs()
                         if p < pdLen - 1:
-                            self.writeRemaining('},')
+                            self.writeLine('},')
                         else:
-                            self.writeRemaining('}')
+                            self.writeLine('}')
                     self.dtabs()
                     self.writeLine(']')
                     
@@ -1158,8 +1158,8 @@ class RKSceneTraversal():
 
     ######################################################################################################################
     #   Basic Node Functions
-    def processBasicNodeAddition(self, x3dParentNode, x3dFieldName, x3dType, nodeName=""):
-        nodeTuple = instantiateNodeFromString(x3dType)
+    def processBasicNodeAddition(self, x3dParentNode, x3dFieldName, x3dNodeType, nodeName=""):
+        nodeTuple = instantiateNodeFromString(x3dNodeType)
         
         tNode    = nodeTuple[0]
         x3dComps = nodeTuple[1]

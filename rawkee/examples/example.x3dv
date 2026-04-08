@@ -1,0 +1,63 @@
+#X3D 4.1 utf8
+PROFILE Core
+
+COMPONENT Core : 1
+COMPONENT Grouping : 1
+COMPONENT Rendering : 1
+COMPONENT Texturing : 1
+COMPONENT Shape : 4
+COMPONENT Geometry3D : 1
+COMPONENT Lighting : 4
+COMPONENT Navigation : 2
+COMPONENT EnvironmentalSensor : 2
+
+DEF myTransform Transform {
+	translation -5.0 0.0 0.0
+	children [
+		DEF shapeOne Shape {
+			appearance DEF appOne Appearance {
+				material DEF red Material {
+					diffuseColor 1.0 0.0 0.0
+				}
+			}
+			geometry DEF myBall Sphere {
+			}
+		}
+	]
+}
+DEF otherTransform Transform {
+	translation 5.0 0.0 0.0
+	children [
+		DEF shapeTwo Shape {
+			appearance DEF appTwo Appearance {
+				material DEF green Material {
+					diffuseColor 0.0 1.0 0.0
+				}
+			}
+			geometry USE myBall
+		}
+	]
+}
+DEF myTransform2 Transform {
+	translation 0.0 5.0 0.0
+	children [
+		USE shapeOne
+	]
+}
+DEF otherTransform2 Transform {
+	translation 0.0 -5.0 0.0
+	children [
+		USE shapeTwo
+	]
+}
+DEF mainView Viewpoint {
+	position 0.0 0.0 20.0
+}
+DEF dirLight DirectionalLight {
+	direction -1.0 0.0 -1.0
+}
+DEF navInfo NavigationInfo {
+	headlight FALSE
+}
+
+#End of File
