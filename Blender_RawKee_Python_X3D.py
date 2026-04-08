@@ -35,10 +35,10 @@ from rawkee.blender.RKWeb3DBlender import *
 
 
 def register():
-    bpy.utils.register_class()
+    bpy.utils.register_class(X3D_DropDownMenu)
     #RKWeb3DBlender.register()
 def unregister():
-    bpy.utils.unregister_class()
+    bpy.utils.unregister_class(X3D_DropDownMenu)
     #RKWeb3DBlender.unregister()
 
 if __name__ == "__main__":
