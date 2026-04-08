@@ -12,6 +12,8 @@ File Status:
 """
 #Adding the RawKee (.X3D) Export option to the File>Export Dropdown menu in Blender, where the other export options are listed.
 
+import bpy
+
 class X3D_DropDownMenu(bpy.types.Operator):
     bl_idname = "RawKeeBlender.ExportDropDownMenu"
     bl_label = "RawKee X3D (.x3d)"
@@ -22,26 +24,3 @@ class X3D_DropDownMenu(bpy.types.Operator):
         #¿task to open the export menu, or to export on the current settings? TBD Later.
 
         return {'FINISHED'}
-
-#Blender Adds to Menu Layout
-    #def menu_func_import(self, context):
-    #    self.layout.operator(X3D_DropDownMenu.bl_idname, text="RawKee X3D (.x3d)")
-    # ^ not worrying about imports at the moment, but will readd the import dropdown option later.
-
-def menu_func_export(self, context):
-    self.layout.operator(X3D_DropDownMenu.bl_idname, text="RawKee X3D (.x3d)")
-
-#Blender Register and Unregister (adds properties and or menu items)
-def register():
-    bpy.utils.register_class(X3D_DropDownMenu)
-
-    #bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
-    bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
-    # 
-def unregister():
-    #
-    #bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
-    bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
-    bpy.utils.unregister_class(X3D_DropDownMenu)  
-if __name__ == "__main__":
-     register()
