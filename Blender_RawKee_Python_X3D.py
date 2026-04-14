@@ -14,6 +14,7 @@ File Status:
         Learn about the Blender Node Scene Graph
 """
 #Blender Plugin Information 
+
 bl_info = {
     "name" : "Blender RawKee X3D Export Plugin",
     "author" : "UND Dream Lab, etc...", 
