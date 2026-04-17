@@ -260,6 +260,9 @@ class RKOrganizer():
         self.rkAudioClipType  = cmds.optionVar(q='rkAudioClipType' )
         self.rkProcTexFormat  = cmds.optionVar(q='rkProcTexFormat' )
         self.rkFileTexFormat  = cmds.optionVar(q='rkFileTexFormat' )
+        self.rkIsTriangles    = cmds.optionVar(q='rkIsTriangles'   )
+        self.rkFDecimalLimit  = cmds.optionVar(q='rkFDecimalLimit' )
+        self.rkExportTangents = cmds.optionVar(q='rkExportTangents')
 
         self.rkNormalOpts  = cmds.optionVar(q='rkNormalOpts' )
         self.rkCreaseAngle = cmds.optionVar(q='rkCreaseAngle')
@@ -287,6 +290,7 @@ class RKOrganizer():
         self.exEncoding = exEncoding
         
         self.loadRawKeeOptions()
+        self.trv.setDecimalPlaces(self.rkFDecimalLimit)
 
         self.checkSubDirs(fullPath)
         
@@ -805,7 +809,7 @@ class RKOrganizer():
                             x3dNode.keyValue.append((readPlug.child(0).asFloat(), readPlug.child(1).asFloat()))
                             
                         ############################################
-                        # Mesh / Shape - Coordinate/Normal/Tanget
+                        # Mesh / Shape - Coordinate/Normal/Tangent
                         # Geometry Cashing
                         ############################################
                         elif mayaAttr == "outMesh" and modifier == "coord":
@@ -1465,6 +1469,13 @@ class RKOrganizer():
             # sName might be equial to "".
             sno, sName = self.getSkinNormalNode(humanoid, sm, normalName=hName)
             
+            # Get Tangent vector index offset and Skin Tangent node name.
+            sto = []
+            tName = ""
+            if (self.rkNormalOpts == 1 or self.rkNormalOpts == 4) and self.rkExportTangents == True:
+                sto, tName = self.getSkinTangentNode(humanoid, sm, tangentName=hName)
+            #sto, tName = self.getSkinTangentNode(humanoid, sm, tangentName=hName)
+            
             # Adds X3D Shape nodes to 'skin' field of the humanoid. Assumes 
             # that mesh is point values are in world coordinates.
             smLen = len(sm)
@@ -1473,7 +1484,10 @@ class RKOrganizer():
                 # This is needed if the sno length is zero so as not to throw an out-of-bounds error on the list.
                 if snLen == 0:
                     sno.append(snLen)
-                self.processMayaMesh(humanoid.DEF, aom.MFnDagNode(sm[i].object()), "skin", wio[i], sno[i], cName, sName, isAvatar=True)
+                if tName != "":
+                    sto.append(None)
+                
+                self.processMayaMesh(humanoid.DEF, aom.MFnDagNode(sm[i].object()), "skin", wio[i], sno[i], sto[i], cName, sName, tName, isAvatar=True)
             
             # Section where we add HAnimMotion, or other timing nodes (aka TimeSensor, AudioClip, and MovieTexture)
             nonMotionRKAPNodes = []
@@ -1819,6 +1833,89 @@ class RKOrganizer():
             mIter.next()
 
 
+    def getSkinTangentNode(self, x3dParent, skm, tangentName="humanoid"):
+        sto = []
+        tName = tangentName + "_Tangent"
+        tangent = self.trv.processBasicNodeAddition(x3dParent, "skinTangent", "Tangent", tName)
+        
+        if tangent:
+            for sm in skm:
+                offset = 0
+                uvSetName = ''
+                try:
+                    uvSetName = sm.getUVSetNames()[0]
+                except:
+                    pass
+                
+                tans = sm.getTangents( uvSet=uvSetName) # returns MFloatVectorArray
+                bins = sm.getBinormals(uvSet=uvSetName) # returns MFloatVectorArray
+                mIter = aom.MItMeshPolygon(aom.MDagPath.getAPathTo(sm.object()))
+                if self.rkIsTriangles == True:
+                    ttans = []
+                    tbins = []
+                    tnors = []
+                    
+                    tIter = aom.MItMeshFaceVertex(aom.MDagPath.getAPathTo(sm.object()))
+                    while not mIter.isDone():
+                        mptsa, mia = mIter.getTriangles()
+                        while tIter.faceId() < mIter.index():
+                            tIter.next()
+                        mia = self.getLocalVertexIds(mia, mIter, tIter)
+                        for i in len(mia):
+                            ti = mIter.tangentIndex(mia[i])
+                            ttans.append(tans[ti])
+                            tbins.append(bins[ti])
+                            tnors.append(mIter.getNormal(mia[i]))
+                        mIter.next()
+                    
+                    for i in len(ttans):
+                        t = ttans[i]
+                        b = tbins[i]
+                        n = tnors[i]
+                        
+                        handedness = (t ^ b) * n
+                        w = 1
+                        if handedness < 0:
+                            w -1
+                        tangent.vector.append(t.x, t.y, t.z, w)
+                        offset += 1
+                else:
+                    while not mIter.isDone():
+                        for i in range(mIter.polygonVertexCount()):
+                            tIdx = myMesh.getTangentId(mIter.index(), mIter.vertexIndex(i))
+                            t = aom.MFloatVector(tans[tIdx])
+                            b = aom.MFloatVector(bins[tIdx])
+                            n = aom.MFloatVector(mIter.getNormal(i))
+
+                            # Handedness is the sign of the triple product; '^' is cross product, '*' is dot product
+                            handedness = (t ^ b) * n
+                            
+                            w = 1
+                            if handedness < 0:
+                                w = -1
+                                
+                            tangent.vector.append((t.x, t.y, t.z, w))
+                            offset += 1
+                        mIter.next()
+
+                stoLen = len(sto)
+                if stolen > 0:
+                    offset = offset + sto[stoLen-1]
+            sto.append(offset)
+
+        # Need to shift the Tangent offset over, because index 0 should have a
+        # value of 0
+        tNum = len(sto)
+        last = 0
+        for nIdx in range(tNum):
+            tLast = sno[nIdx]
+            sno[nIdx] = last
+            last = tLast
+            
+        return sto, tName
+
+
+    # TODO: calculate Tangents
     def getSkinNormalNode(self, x3dParent, skm, normalName="humanoid"):
         sno = []
         nName = normalName
@@ -1826,43 +1923,47 @@ class RKOrganizer():
         if self.rkNormalOpts > 0 and len(skm) > 0:
             nName = nName + "_Normal"
             normalbna = self.trv.processBasicNodeAddition(x3dParent, "skinNormal", "Normal", nName)
+            if normalbna:
+                for sm in skm:
+                    offset = 0
+                    #Normal Per Vertex is True
+                    if self.rkNormalOpts == 1 or self.rkNormalOpts == 4:
+                        if self.rkIsTriangles == True:
+                            mpIter = aom.MItMeshPolygon(aom.MDagPath.getAPathTo(sm.object()))
+                            while not mpIter.isDone():
+                                mptsa, mia = mpIter.getTriangles(space=sType)
+                                for i in mia:
+                                    n = sm.getFaceVertexNormal(mpIter.index(), i)
+                                    normalbna.vector.append((n.x, n.y, n.z))
+                                    offset += 1
+                                mpIter.next()
+                        else:
+                            smIter = aom.MItMeshPolygon(aom.MDagPath.getAPathTo(sm.object()))
+                            while not smIter.isDone():
+                                pvc = smIter.polygonVertexCount()
+                                for i in range(pvc):
+                                    n = smIter.getNormal(i)
+                                    normalbna.vector.append((n.x, n.y, n.z))
+                                    offset += 1
+                                wmIter.next()
+                    #Normal Per Vertex is False
+                    elif self.rkNormalOpts == 2 or self.rkNormalOpts == 5:
+                        if self.rkIsTriangles == True:
+                            smIter = aom.MItMeshPolygon(aom.MDagPath.getAPathTo(sm.object()))
+                            while not smIter.isDone():
+                                fn = smIter.getPolygonNormal(sm.index())
+                                nt = smIter.numTriangles()
+                                for i in range(nt):
+                                    normalbna.vector.append((fn.x, fn.y, fn.z))
+                                    offset += 1
+                                mIter.next()
+                        else:
+                            for i in range(sm.numPolygons):
+                                pn = sm.getPolygonNormal(i)
+                                normalbna.vector.append((pn.x, pn.y, pn.z))
+                                offset += 1
 
-            for sm in skm:
-                interSM = self.getIntermediateMesh(sm)
-                
                 slen = len(sno)
-                offset = 0
-
-                na = interSM.getNormals()
-                if self.rkNormalOpts == 1 or self.rkNormalOpts == 4:
-                    for n in na:
-                        if normalbna:
-                            normalbna.vector.append((n.x, n.y, n.z))
-                            offset += 1
-                elif self.rkNormalOpts == 2 or self.rkNormalOpts == 5:
-                    for i in range(interSM.numPolygons):
-                        pn = interSM.getPolygonNormal(i)
-                        if normalbna:
-                            normalbna.vector.append((pn.x, pn.y, pn.z))
-                            offset += 1
-
-                #while not mIter.isDone():
-                #    #Normals Per Vertex
-                #    if self.rkNormalOpts == 1 or self.rkNormalOpts == 4:
-                #        tns = mIter.getNormals()
-                #        for tn in tns:
-                #            if normalbna:
-                #                normalbna.vector.append((tn.x, tn.y, tn.z))
-                #            offset += 1
-                #    
-                #    #Normals Per Face
-                #    elif self.rkNormalOpts == 2 or self.rkNormalOpts == 5:
-                #        tn = mIter.getNormal(aom.MSpace.kObject)
-                #        if normalbna:
-                #            normalbna.vector.append((tn.x, tn.y, tn.z))
-                #        offset += 1
-                #        
-                #    mIter.next()
                 if slen > 0:
                     offset = offset + sno[slen-1]
                 sno.append(offset)
@@ -1889,23 +1990,30 @@ class RKOrganizer():
             cName = cName + "_Coord"
             coordbna = self.trv.processBasicNodeAddition(x3dParent, "skinCoord", "Coordinate", cName)
             for sm in skm:
-                ###########################################################################
-                # 
-                # Add code to grabe the original mesh intermediate object
-                # 
-                ###########################################################################
-                interSM = self.getIntermediateMesh(sm)
-
                 # Multiplier to translate mesh verticies into character/avatar Model Space
                 sType=aom.MSpace.kWorld
                 if wssm == aom.MMatrix():
                     sType = aom.MSpace.kObject
                 else:
                     inList = aom.MSelectionList()
-                    inList.add(interSM.name())
+                    inList.add(sm.name())
                     wssm = inList.getDagPath(0).inclusiveMatrix() * wssm.inverse()
                 
-                points = interSM.getFloatPoints(space=sType)
+                points = sm.getFloatPoints(space=sType)
+                
+                ###################################################################
+                # If exporting character geometry as an IndexedTriangleSet then
+                # collect per triangle vertices info.
+                ###################################################################
+                if self.rkIsTriangles == True:
+                    points.clear()
+                    
+                    mpIter = aom.MItMeshPolygon(aom.MDagPath.getAPathTo(sm.object()))
+                    while not mpIter.isDone():
+                        mptsa, mia = mpIter.getTriangles(space=sType)
+                        points += aom.MFloatPointArray(mptsa) 
+                        mpIter.next()
+                        
                 wlen = len(wio)
                 offset = 0
                 for point in points:
@@ -1963,6 +2071,14 @@ class RKOrganizer():
         smlist.add(mNode.name())
         mpath = smlist.getDagPath(0)
         compIDs   = [m for m in range(mNode.numVertices)]
+        if self.rkIsTriangles == True:
+            compIDs.clear()
+            mpIter = aom.MItMeshPolygon(aom.MDagPath.getAPathTo(mNode.object()))
+            while not mpIter.isDone():
+                mptsa, mia = mpIter.getTriangles(space=sType)
+                compIDs += list(mia)
+                mpIter.next()
+        compLen = len(compIDs)
         singleFn  = aom.MFnSingleIndexedComponent()
         shapeComp = singleFn.create(aom.MFn.kMeshVertComponent)
         singleFn.addElements(compIDs)
@@ -1978,8 +2094,10 @@ class RKOrganizer():
         ######################################################
         # Collect the weighting and joint influences for each
         # Vertex in the Mesh ndoe.
-        rkWeightSort = [[] for _ in range(mNode.numVertices)]
-        rkJointSort  = [[] for _ in range(mNode.numVertices)]
+        #rkWeightSort = [[] for _ in range(mNode.numVertices)]
+        #rkJointSort  = [[] for _ in range(mNode.numVertices)]
+        rkWeightSort = [[] for _ in range(compLen)]
+        rkJointSort  = [[] for _ in range(compLen)]
         
         for skc in skClusters:
             #wMethod     = skc.findPlug("skinningMethod", False).asInt()
@@ -1997,20 +2115,29 @@ class RKOrganizer():
                 
             wSort = [mWeights  [i:i + numInf] for i in range(0, len(mWeights), numInf)]
             
-            for wIdx in range(mNode.numVertices):
+#            for wIdx in range(mNode.numVertices):
+            for wIdx in range(compLen):
                 for fIdx in range(numInf):
                     rkWeightSort[wIdx].append(wSort[wIdx][fIdx])
                     rkJointSort[ wIdx].append(jNames[fIdx])
 
         x3dShape.rkWeightsData = rkWeightSort
         x3dShape.rkJointsData  = rkJointSort
-        
+
 
     def collectSkinWeightsForMesh(self, mNode, xjList, wio, mIdx):
         smlist = aom.MSelectionList()
         smlist.add(mNode.name())
         mpath = smlist.getDagPath(0)
         comp_ids   = [m for m in range(mNode.numVertices)]
+        if self.rkIsTriangles == True:
+            comp_ids.clear()
+            mpIter = aom.MItMeshPolygon(aom.MDagPath.getAPathTo(mNode.object()))
+            while not mpIter.isDone():
+                mptsa, mia = mpIter.getTriangles(space=sType)
+                comp_ids += list(mia)
+                mpIter.next()
+        compLen = len(comp_ids)
         single_fn  = aom.MFnSingleIndexedComponent()
         shape_comp = single_fn.create(aom.MFn.kMeshVertComponent)
         single_fn.addElements(comp_ids)
@@ -2029,16 +2156,12 @@ class RKOrganizer():
 
             meshWeights = []
             numInf      = 0
-            nVtx = mNode.numVertices
+            #nVtx = mNode.numVertices
+            nVtx = compLen
 
             if wMethod == 0:
                 meshWeights, numInf = skClusters[0].getWeights(     mpath, shape_comp)
             else:
-                #meshWeights         = skClusters[0].getBlendWeights(mpath, shape_comp)
-                #numInf = len(dPaths)
-                #blendWeights         = skClusters[0].getBlendWeights(mpath, shape_comp)
-                #newWeights = [blendWeights[i] for i in range(len(blendWeights))]
-                #skClusters[0].setWeights(mpath, shape_comp, dPaths, newWeights, True) # Normalize set to False
                 meshWeights, numInf = skClusters[0].getWeights(     mpath, shape_comp)
 
             lWeights = []
@@ -2733,7 +2856,7 @@ class RKOrganizer():
         return (newDragPath, newDagNode)
         
     
-    def processMayaMesh(self, x3dParentDEF, dagNode, cField="children", cOffset=0, nOffset=0, sharedCoord="", sharedNormal="", isAvatar=False, adjustment=aom.MMatrix()):
+    def processMayaMesh(self, x3dParentDEF, dagNode, cField="children", cOffset=0, nOffset=0, tOffset=0, sharedCoord="", sharedNormal="", sharedTangent="", isAvatar=False, adjustment=aom.MMatrix()):
         supMeshName = dagNode.name()
         myMesh = aom.MFnMesh(dagNode.object())
         meshCollector = {}
@@ -2911,9 +3034,15 @@ class RKOrganizer():
 #                self.processForAppearance(myMesh, shaders[idx], meshComps[idx], sbna, cField="appearance", index=idx)
                 
                 if cField == "shapes":
-                    self.processForGeometry(  myMesh, x3dApp, shaders, meshComps, sbna[1], nodeName=shapeName, cField="geometry", nodeType="CGEIndexedFaceSet", index=idx, gcOffset=cOffset, gnOffset=nOffset, gsharedCoord=sharedCoord, gsharedNormal=sharedNormal, isAvatar=isAvatar, adjMatrix=adjustment)
+                    if self.rkIsTriangles == True:
+                        self.processForGeometry(  myMesh, x3dApp, shaders, meshComps, sbna, nodeName=shapeName, cField="geometry", nodeType="CGEIndexedTriangleSet", index=idx, gcOffset=cOffset, gnOffset=nOffset, gsharedCoord=sharedCoord, gsharedNormal=sharedNormal, gsharedTangent=sharedTangent, isAvatar=isAvatar, adjMatrix=adjustment)
+                    else:
+                        self.processForGeometry(  myMesh, x3dApp, shaders, meshComps, sbna, nodeName=shapeName, cField="geometry", nodeType="CGEIndexedFaceSet", index=idx, gcOffset=cOffset, gnOffset=nOffset, gsharedCoord=sharedCoord, gsharedNormal=sharedNormal, gsharedTangent=sharedTangent, isAvatar=isAvatar, adjMatrix=adjustment)
                 else:
-                    self.processForGeometry(  myMesh, x3dApp, shaders, meshComps, sbna[1], nodeName=shapeName, cField="geometry", nodeType="IndexedFaceSet", index=idx, gcOffset=cOffset, gnOffset=nOffset, gsharedCoord=sharedCoord, gsharedNormal=sharedNormal, isAvatar=isAvatar, adjMatrix=adjustment)
+                    if self.rkIsTriangles == True:
+                        self.processForGeometry(  myMesh, x3dApp, shaders, meshComps, sbna, nodeName=shapeName, cField="geometry", nodeType="IndexedTriangleSet", index=idx, gcOffset=cOffset, gnOffset=nOffset, gsharedCoord=sharedCoord, gsharedNormal=sharedNormal, gsharedTangent=sharedTangent, isAvatar=isAvatar, adjMatrix=adjustment)
+                    else:
+                        self.processForGeometry(  myMesh, x3dApp, shaders, meshComps, sbna, nodeName=shapeName, cField="geometry", nodeType="IndexedFaceSet", index=idx, gcOffset=cOffset, gnOffset=nOffset, gsharedCoord=sharedCoord, gsharedNormal=sharedNormal, gsharedTangent=sharedTangent, isAvatar=isAvatar, adjMatrix=adjustment)
             else:
                 print("Returned a None for: " + myMesh.name() + ", DEF-USE: " + shapeName + ", was USE - 1")
 
@@ -5502,7 +5631,7 @@ class RKOrganizer():
     # wmsm (World Mesh Space Matrix)
     # wssm (World Skin Space Matrix)
     # vMat (vertex Matrix) is the multiplier for character/avatar coordinate vertices
-    def processForGeometry(self, myMesh, x3dApp, shaders, meshComps, x3dParentNode, nodeName=None, cField="geometry", nodeType="IndexedFaceSet", index=0, gcOffset=0, gnOffset=0, gsharedCoord="", gsharedNormal="", isAvatar=False, adjMatrix=aom.MMatrix()):
+    def processForGeometry(self, myMesh, x3dApp, shaders, meshComps, x3dParentNode, nodeName=None, cField="geometry", nodeType="IndexedFaceSet", index=0, gcOffset=0, gnOffset=0, gtOffset=0, gsharedCoord="", gsharedNormal="", gsharedTangent="", isAvatar=False, adjMatrix=aom.MMatrix()):
         
         meshMP = 0
         if nodeName == None:
@@ -5512,14 +5641,18 @@ class RKOrganizer():
 
         myUVSetNames = myMesh.getUVSetNames()
         
-        if nodeType == "IndexedFaceSet" or nodeType == "CGEIndexedFaceSet":
+        if nodeType == "IndexedFaceSet" or nodeType == "CGEIndexedFaceSet" or nodeType == "IndexedTriangleSet" or nodeType == "CGEIndexedTriangleSet":
             msList = aom.MSelectionList()
             msList.add(myMesh.name())
             tDagPath = msList.getDagPath(0)
             
             mIter = aom.MItMeshPolygon(tDagPath, meshComps[index])
             
-            geomName = nodeName + "_IFS"
+            suffix = "_IFS"
+            if "IndexedTriangleSet" in nodeType:
+                suffix = "_ITS"
+                
+            geomName = nodeName + suffix
             if index > 1:
                 geomName = geomName + "_" + str(index)
                 
@@ -5533,15 +5666,29 @@ class RKOrganizer():
                 if gsharedCoord != "":
                     coordbna = self.trv.processBasicNodeAddition(bna, "coord", "Coordinate", gsharedCoord)
 
+                    mpIter = aom.MItMeshPolygon(aom.MDagPath.getAPathTo(myMesh.object()))
+                    vtxLen = 0
                     # Using the MItMeshPolygon Iterator and the propoper sub-component
                     # this secion of the code builds the array of MFInt32 field of IndexedFaceSet
                     while not mIter.isDone():
-                        #vertices = mIter.getVertices()
-                        nVerts = mIter.polygonVertexCount()
-                        for vIdx in range(nVerts):
-                            mIdx = mIter.vertexIndex(vIdx)
-                            bna.coordIndex.append(mIdx + gcOffset)
-                        bna.coordIndex.append(-1)
+                        #Exporting as an IndexedTriangleSet
+                        if self.rkIsTriangles:
+                            while mpIter.index() < mIter.index():
+                                vtx, vIndices = mpIter.getTriangles()
+                                vtxLen += len(vtx)
+                                mpIter.next()
+                            vtx, vIndices = mIter.getTriangles()
+                            for vIdx in vtx:
+                                bna.index.append(vtxLen + gcOffset)
+                                vtxLen += 1
+                            mpIter.next()
+                        #Exporting as an IndexedFaceSet
+                        else:
+                            nVerts = mIter.polygonVertexCount()
+                            for vIdx in range(nVerts):
+                                mIdx = mIter.vertexIndex(vIdx)
+                                bna.coordIndex.append(mIdx + gcOffset)
+                            bna.coordIndex.append(-1)
                         mIter.next()
                         
                 else:
@@ -5568,65 +5715,57 @@ class RKOrganizer():
                         meshList.add(myMesh.name())
                         newMesh = aom.MFnMesh(meshList.getDagPath(0))
                         
-                        #points = myMesh.getFloatPoints(sType)
                         points = newMesh.getFloatPoints(sType)
-                        #meshMP = len(points)
+
+                        ###################################################################
+                        # If exporting character geometry as an IndexedTriangleSet then
+                        # collect per triangle vertices info.
+                        ###################################################################
+                        mpIter = aom.MItMeshPolygon(aom.MDagPath.getAPathTo(myMesh.object()))
+                        if self.rkIsTriangles == True:
+                            points.clear()
+                            
+                            while not mpIter.isDone():
+                                mptsa, mia = mpIter.getTriangles(space=sType)
+                                points += aom.MFloatPointArray(mptsa) 
+                                mpIter.next()
+                        
                         for point in points:
                             point = point * aom.MFloatMatrix(adjMatrix)
                             coordbna.point.append((point.x, point.y, point.z))
                 
+                        mpIter.reset()
+                        vtxLen = 0
                         # Using the MItMeshPolygon Iterator and the propoper sub-component
                         # this secion of the code builds the array of MFInt32 field of IndexedFaceSet
                         while not mIter.isDone():
-                            #vertices = mIter.getVertices()
-                            nVerts = mIter.polygonVertexCount()
-                            for vIdx in range(nVerts):
-                                mIdx = mIter.vertexIndex(vIdx)
-                                vertIdxFound = False
-                                
-                                ##################################
-                                # Get a used vertex index list   #
-                                ##################################
-                                # for vil in vertIdxList:        #
-                                #     if mIdx == vil:            #
-                                #         vertIdxFound = True    #
-                                # if vertIdxFound == False:      #
-                                #     vertIdxList.append(mIdx)   #
-                                ##################################
-                                
-                                bna.coordIndex.append(mIdx)
-                            bna.coordIndex.append(-1)
+                            #Exporting as an IndexedTriangleSet
+                            if self.rkIsTriangles:
+                                while mpIter.index() < mIter.index():
+                                    vtx, vIndices = mpIter.getTriangles()
+                                    vtxLen += len(vtx)
+                                    mpIter.next()
+                                    
+                                vtx, vIndices = mIter.getTriangles()
+                                for vIdx in vtx:
+                                    bna.index.append(vtxLen)
+                                    vtxLen += 1
+                                    
+                                mpIter.next()
+                            #Exporting as an IndexedFaceSet
+                            else:
+                                nVerts = mIter.polygonVertexCount()
+                                for vIdx in range(nVerts):
+                                    mIdx = mIter.vertexIndex(vIdx)
+                                    bna.coordIndex.append(mIdx)
+                                bna.coordIndex.append(-1)
                             mIter.next()
-                    
-                    ###############################
-                    # Put list in order
-                    # vertIdxList.sort()
                     
                     ####################################################################################
                     # Compile node weighting information here for CGESkin node use.
-                    if nodeType == "CGEIndexedFaceSet":
+                    if "CGE" in nodeType:
                         self.collectCGESkinWeightsForMesh(newMesh, x3dParentNode)
-                    
-                #
-                #
-                #####
-                '''
-                    ciValue = 0
-                    points = myMesh.getFloatPoints()
-                    while not mIter.isDone():
-                        verts = mIter.getVertices()
-                        for vex in verts:
-                            mPoint = points[vex]
-                            coordbna.point.append((mPoint.x, mPoint.y, mPoint.z))
-                            bna.coordIndex.append(ciValue)
-                            ciValue += 1
-                        bna.coordIndex.append(-1)
-                        mIter.next()
-                '''
-                #####
-                #
-                #
-                    
+
                 ##### Add an X3DColorNode
                 # Code for Adding a Color/ColorRGBA Node to the 'color' field of the IFS
                 if   self.rkColorOpts == 0:
@@ -5647,10 +5786,10 @@ class RKOrganizer():
                 elif self.rkColorOpts == 3 :
                     # Color per Face Values
                     bna.colorPerVertex = False
-                    self.processForColorNode(myMesh, mIter, nodeName,     "Color", bna, cpv=False, idx=index)
+                    self.processForColorNode(myMesh, mIter, nodeName,     "Color", bna, cpv=bna.colorPerVertex, idx=index)
                 else:
                     bna.colorPerVertex = False
-                    self.processForColorNode(myMesh, mIter, nodeName, "ColorRGBA", bna, cpv=False, idx=index)
+                    self.processForColorNode(myMesh, mIter, nodeName, "ColorRGBA", bna, cpv=bna.colorPerVertex, idx=index)
                     
                 
                 ##### Set Crease Angle
@@ -5667,13 +5806,14 @@ class RKOrganizer():
                 if self.rkNormalOpts == 1 or self.rkNormalOpts == 4:
                     # Normals Per Vertex Values
                     bna.normalPerVertex = True
-                    self.processForNormalNode(myMesh, mIter, nodeName, "Normal", bna, idx=index, nOffset=gnOffset, sharedNormal=gsharedNormal)
+                    self.processForNormalNode(     myMesh, mIter, nodeName, "Normal",  bna, idx=index, nOffset=gnOffset, sharedNormal=gsharedNormal  )
+                    if self.rkExportTangents == True:
+                        self.processForTangentNode(myMesh, mIter, nodeName, "Tangent", bna, idx=index, tOffset=gtOffset, sharedTangent=gsharedTangent)
 
                 elif self.rkNormalOpts == 2 or self.rkNormalOpts == 5:
                     # Normals Per Face Values
                     bna.normalPerVertex = False
                     self.processForNormalNode(myMesh, mIter, nodeName, "Normal", bna, npv=False, idx=index, nOffset=gnOffset, sharedNormal=gsharedNormal)
-
 
                 self.processForTextureMaps(myMesh, bna, x3dApp, shaders[index], geomName, mIter, index)
 
@@ -5688,7 +5828,15 @@ class RKOrganizer():
                     
                 return
 
+        ##################################################################################################
         # If a TextureCoordinateGenerator was NOT created, then export all the texture maps for this mesh.
+        #
+        # TODO: Need a different function for IndexedTriangleSet
+        # TODO
+        # TODO
+        # TODO: self.rkIsTriangles 5775
+        ##################################################################################################
+        mfvIter = aom.MItMeshFaceVertex(aom.MDagPath.getAPathTo(myMesh.object()))
         mapDict = self.getUsedUVSetDictionary(myMesh, seObj)
         
         redux = {}
@@ -5704,7 +5852,10 @@ class RKOrganizer():
             tPolyVerts = 0
             mIter.reset()
             while not mIter.isDone():
-                tPolyVerts += mIter.polygonVertexCount()
+                if self.rkIsTriangles == True:
+                    tPolyVerts += len(mIter.getTriangles()[1])
+                else:
+                    tPolyVerts += mIter.polygonVertexCount()
                 mIter.next()
             
             texCoords = []
@@ -5717,21 +5868,41 @@ class RKOrganizer():
             idxCount = 0
             mIter.reset()
             while not mIter.isDone():
-                nVerts = mIter.polygonVertexCount()
+                nVerts  = mIter.polygonVertexCount()
+                indices = mIter.getTriangles()[1]
+                if self.rkIsTriangles == True:
+                    nVerts  = len(indices)
+                    while mfvIter.faceId() < mIter.index():
+                        mfvIter.next()
+                    newIdx = []
+                    for i in range(nVerts):
+                        newIdx.append(0)
+                    while mfvIter.faceId() == mIter.index():
+                        for i in range(nVerts):
+                            if mfvIter.vertexId() == indices[i]:
+                                newIdx[i] = mfvIter.faceVertexId()
+                        mfvIter.next()
+                    indices = newIdx
                 hasUV  = mIter.hasUVs()
                 
                 for vIdx in range(nVerts):#vertices:
                     mu = 0.0
                     mv = 0.0
                     
+                    lvIdx = vIdx
+                    if self.rkIsTriangles == True:
+                        lvIdx = indices[vIdx]
+                    
                     for t in range(len(myUVSetNames)):
                         if hasUV == True:
-                            mu,mv = mIter.getUV(vIdx, myUVSetNames[t])
+                            mu,mv = mIter.getUV(lvIdx, myUVSetNames[t])
                         texCoords[t][idxCount] = (mu, mv)
                     
-                    x3dGeometry.texCoordIndex.append(idxCount)
+                    if self.rkIsTriangles == False:
+                        x3dGeometry.texCoordIndex.append(idxCount)
                     idxCount += 1
-                x3dGeometry.texCoordIndex.append(-1)
+                if self.rkIsTriangles == False:
+                    x3dGeometry.texCoordIndex.append(-1)
                 mIter.next()
 
             if  len(myUVSetNames) == 1:
@@ -5752,155 +5923,210 @@ class RKOrganizer():
                             bnaMap.mapping = myUVSetNames[n]
 
 
-    def processForColorNode(self, myMesh, mIter, nodeName, nodeType, x3dParent, cpv=True, cField="color", idx=0):
-        colorNodeName = nodeName + "_" + nodeType + "_" + str(idx)
+    def getLocalVertexIds(self, mia, mIter, tIter):
+        newIdx = []
+        for i in len(mia):
+            newIdx.append(0)
+        while tIter.faceId() == mIter.index():
+            for i in range(len(mia)):
+                if tIter.vertexId() == mia[i]:
+                    newIdx[i] = tIter.faceVertexId()
+            tIter.next()
+        return newIdx
 
-        mColors = ()
-        mIndex = []
 
-        mIter.reset()
-        
-        fCount = 0
+    def setTriangleVertexColors(self, ca, mIter):
+        ca.clear()
+        tIter = aom.MItMeshFaceVertex(aom.MDagPath.getAPathTo(myMesh.object()))
         while not mIter.isDone():
-            vCount = mIter.polygonVertexCount()
-            colorList = []
-            
-            for idx in range(vCount):
-                if mIter.hasColor(idx) == False:
-                    return
-                else:
-                    c = mIter.getColor(idx)
-                    colorList.append(c)
-            
-            if cpv == True:
-                for c in colorList:
-                    if nodeType == "Color":
-                        mColors = mColors + (c.r, c.g, c.b)
-                    else:
-                        mColors = mColors + (c.r, c.g, c.b, c.a)
-                    mIndex.append(fCount)
-                    fCount += 1
-                mIndex.append(-1)
-            else:
-                sc = aom.MColor()
-                for c in colorList:
-                    vr = sc.r + c.r
-                    vg = sc.g + c.g
-                    vb = sc.b + c.b
-                    va = sc.a + c.a
-                    sc.setColor(vr, vg, vb, va)
-                tr = sc.r / vCount
-                tg = sc.g / vCount
-                tb = sc.b / vCount
-                ta = sc.a / vCount
-                if nodeType == "Color":
-                    mColors = mColors + (tr, tg, tb)
-                else:
-                    mColors = mColors + (tr, tg, tb, ta)
-                mIndex.append(fCount)
-                fCount += 1
-
+            if tIter.faceId() < mIter.index():
+                tIter.next()
+            mstpa, mia = mIter.getTriangles()
+            mia = self.getLocalVertexIds(mia, mIter, tIter)
+            for i in len(mia):
+                ca.append(myMesh.getColor(myMesh.getColorIndex(mIter.index(), mia[i])))
             mIter.next()
 
-        tIndex = (mIndex)
-        x3dParent.colorIndex = tIndex
-        
+
+    def processForColorNode(self, myMesh, mIter, nodeName, nodeType, x3dParent, cpv=True, cField="color", idx=0):
+        colorNodeName = nodeName + "_" + nodeType# + "_" + str(idx)
         bna = self.trv.processBasicNodeAddition(x3dParent, cField, nodeType, colorNodeName)
         if bna:
             # TODO: Future code for implementing 'metadata'
             
+            mColors = ()
+            if cpv == True:
+                ca = myMesh.getVertexColors(defaultUnsetColor=aom.MColor.kOpaqueBlack)
+                if self.rkIsTriangles == True:
+                    self.setTriangleVertexColors(ca, mIter)
+                for c in ca:
+                    if nodeType == "Color":
+                        mColors = mColors + self.getSFColor(c.r, c.g, c.b)
+                    else:
+                        mColors = mColors + self.getSFColorRGBA(c.r, c.g, c.b, c.a)
+            else:
+                mIter.reset()
+                while not mIter.isDone():
+                    c = mIter.getColor(colorSetName=None)
+                    if self.rkIsTriangles:
+                        for i in range(mIter.numTriangles()):
+                            if nodeType == "Color":
+                                mColors = mColors + self.getSFColor(c.r, c.g, c.b)
+                            else:
+                                mColors = mColors + self.getSFColorRGBA(c.r, c.g, c.b, c.a)
+                    else:
+                        if nodeType == "Color":
+                            mColors = mColors + self.getSFColor(c.r, c.g, c.b)
+                        else:
+                            mColors = mColors + self.getSFColorRGBA(c.r, c.g, c.b, c.a)
+                    mIter.next()
+
             # Assign color to the node.
             bna.color = mColors
-            
-        
-    def processForNormalNode(self, myMesh, mIter, nodeName, nodeType, x3dParent, npv=True, cField="normal", idx=0, nOffset=0, sharedNormal=""):
-        normalNodeName = nodeName + "_" + nodeType + "_" + str(idx)
 
-        #mNormal = []
-        #mIndex  = []
+
+    def processForTangentNode(self, myMesh, mIter, nodeName, nodeType, x3dParent, cField="tangent", idx=0, tOffset=0, sharedTangent=""):
+        tangentNodeName = nodeName + "_" + nodeType + "_" + str(idx)
+
         mIter.reset()
         fCount = 0
 
+        if sharedTangent != "":
+            tangent = self.trv.processBasicNodeAddition(x3dParent, cField, "Tangent", sharedNormal)
+        else:
+            tangent = self.trv.processBasicNodeAddition(x3dParent, cField, "Tangent", tangentNodeName)
+            if tangent:
+                # TODO: Future code for implementing 'metadata'
+
+                uvSetName = ''
+                try:
+                    uvSetName = myMesh.getUVSetNames()[0]
+                except:
+                    pass
+                
+                tans = myMesh.getTangents( uvSet=uvSetName) # returns MFloatVectorArray
+                bins = myMesh.getBinormals(uvSet=uvSetName) # returns MFloatVectorArray
+                if self.rkIsTriangles == True:
+                    ttans = []
+                    tbins = []
+                    tnors = []
+                    
+                    tIter = aom.MItMeshFaceVertex(aom.MDagPath.getAPathTo(myMesh.object()))
+                    while not mIter.isDone():
+                        mptsa, mia = mIter.getTriangles()
+                        while tIter.faceId() < mIter.index():
+                            tIter.next()
+                        mia = self.getLocalVertexIds(mia, mIter, tIter)
+                        for i in len(mia):
+                            ti = mIter.tangentIndex(mia[i])
+                            ttans.append(tans[ti])
+                            tbins.append(bins[ti])
+                            tnors.append(mIter.getNormal(mia[i]))
+                        mIter.next()
+                    
+                    for i in len(ttans):
+                        t = ttans[i]
+                        b = tbins[i]
+                        n = tnors[i]
+                        
+                        handedness = (t ^ b) * n
+                        w = 1
+                        if handedness < 0:
+                            w -1
+                        tangent.vector.append(t.x, t.y, t.z, w)
+                else:
+                    while not mIter.isDone():
+                        for i in range(mIter.polygonVertexCount()):
+                            tIdx = myMesh.getTangentId(mIter.index(), mIter.vertexIndex(i))
+                            t = aom.MFloatVector(tans[tIdx])
+                            b = aom.MFloatVector(bins[tIdx])
+                            n = aom.MFloatVector(mIter.getNormal(i))
+
+                            # Handedness is the sign of the triple product; '^' is cross product, '*' is dot product
+                            handedness = (t ^ b) * n
+                            
+                            w = 1
+                            if handedness < 0:
+                                w = -1
+                                
+                            tangent.vector.append((t.x, t.y, t.z, w))
+                        mIter.next()
+
+
+    def processForNormalNode(self, myMesh, mIter, nodeName, nodeType, x3dParent, npv=True, cField="normal", idx=0, nOffset=0, sharedNormal=""):
+        normalNodeName = nodeName + "_" + nodeType + "_" + str(idx)
+
+        mIter.reset()
+        fCount = nOffset
+        
+        polyData = []
+        wmIter = aom.MItMeshPolygon(aom.MDagPath.getAPathTo(myMesh.object()))
+        while not wmIter.isDone():
+            polyData.append((wmIter.index(), wmIter.polygonVertexCount()))
+            wmIter.next()
+
         if sharedNormal != "":
             bna = self.trv.processBasicNodeAddition(x3dParent, cField, "Normal", sharedNormal)
-
-            ################################
-            #msList = aom.MSelectionList()
-            #msList.add(myMesh.name())
-            #tDagPath = msList.getDagPath(0)
-            
-            #mIter = aom.MItMeshPolygon(tDagPath, meshComps[index])
-            ################################
-
-            #### old ######
-            #while not mIter.isDone():
-            #    if npv == True:
-            #        nVerts = mIter.polygonVertexCount()
-            #        for vIdx in range(nVerts):
-            #            nIdx = mIter.normalIndex(vIdx)
-            #            x3dParent.normalIndex.append(nIdx + nOffset)
-            #        x3dParent.normalIndex.append(-1)
-            #    else:
-            #        x3dParent.normalIndex.append(fCount + nOffset)
-            #        fCount += 1
-            #    mIter.next()
-            
-            while not mIter.isDone():
-                if npv == True:
-                    vertIDs = mIter.getVertices()
-                    vLen = len(vertIDs)
-                    for vIdx in range(vLen):
-                        x3dParent.normalIndex.append(mIter.normalIndex(vIdx) + nOffset)
-                    x3dParent.normalIndex.append(-1)
-                else:
-                    x3dParent.normalIndex.append(mIter.index() + nOffset)
-                    #x3dParent.normalIndex.append(fCount + nOffset)
-                    #fCount += 1
-                mIter.next()
-
-            #while not mIter.isDone():
-            #    if npv == True:
-            #        tns = mIter.getNormals()
-            #        for tn in tns:
-            #            x3dParent.normalIndex.append(fCount + nOffset)
-            #            fCount += 1
-            #        x3dParent.normalIndex.append(-1)
-            #    else:
-            #        x3dParent.normalIndex.append(fCount + nOffset)
-            #        fCount += 1
-            #    mIter.next()
-            
-        else:
-            bna = self.trv.processBasicNodeAddition(x3dParent, cField, "Normal", normalNodeName)
-            if bna:
-                # TODO: Future code for implementing 'metadata'
-                
+            if self.rkIsTriangles == False:
                 while not mIter.isDone():
                     if npv == True:
-                        tns = mIter.getNormals()
-                        for tn in tns:
-                            bna.vector.append((tn.x, tn.y, tn.z))
+                        pIdx = -1
+                        pCnt = 0
+                        while pIdx == -1:
+                            face = polyData.pop(0)
+                            if face[0] == mIter.index():
+                                pIdx = face[0]
+                                pCnt = face[1]
+                            else:
+                                fCount += face[1]
+
+                        for i in range(pCnt):
                             x3dParent.normalIndex.append(fCount)
                             fCount += 1
                         x3dParent.normalIndex.append(-1)
                     else:
-                        pn = myMesh.getPolygonNormal(mIter.index())
-                        bna.vector.append((pn.x, pn.y, pn.z))
-                        x3dParent.normalIndex.append(mIter.index())
-                        #x3dParent.normalIndex.append(fCount)
-                        #fCount += 1
-                        
-                        #fNormal = mIter.getNormal(aom.MSpace.kObject)
-                        #bna.vector.append((fNormal.x, fNormal.y, fNormal.z))
-                        #x3dParent.normalIndex.append(fCount)
-                        #fCount += 1
-                    
+                        x3dParent.normalIndex.append(mIter.index() + nOffset)
                     mIter.next()
+        else:
+            bna = self.trv.processBasicNodeAddition(x3dParent, cField, "Normal", normalNodeName)
+            if bna:
+                # TODO: Future code for implementing 'metadata'
 
-                # Assign MFVec3f to the node.
-                #bna.vector = mNormal
-            
-    
+                norIdx = 0
+                if self.rkIsTriangles == True:
+                    if npv == True:
+                        while not mIter.isDone():
+                            mptsa, mia = mIter.getTriangles()
+                            for i in mia:
+                                n = myMesh.getFaceVertexNormal(mIter.index(), i)
+                                bna.vector.append((n.x, n.y, n.z))
+                            mIter.next()
+                    else:
+                        while not mIter.isDone():
+                            fn = mIter.getNormal()
+                            nt = mIter.numTriangles()
+                            for i in range(nt):
+                                bna.vector.append((fn.x, fn.y, fn.z))
+                            mIter.next()
+                else:
+                    if npv == True:
+                        while not mIter.isDone():
+                            nors = mIter.getNormals()
+                            ln = len(nors)
+                            for i in range(ln):
+                                n = nors[i]
+                                bna.vector.append((n.x, n.y, n.z))
+                                x3dParent.normalIndex.append(norIdx)
+                                norIdx += 1
+                            x3dParent.normalIndex.append(-1)
+                            mIter.next()
+                    else:
+                        while not mIter.isDone():
+                            n = mIter.getNormal()
+                            bna.vector.append((n.x, n.y, n.z))
+                            mIter.next()
+
+
     def getUsedUVSetDictionary(self, myMesh, shader):
         sortByTexture = {}
         uvSetNames    = myMesh.getUVSetNames()

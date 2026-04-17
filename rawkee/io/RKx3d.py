@@ -28729,6 +28729,8 @@ class HAnimHumanoid(_X3DChildNode, _X3DBoundedObject):
         ('skinBindingNormals', None, FieldType.SFNode, AccessType.inputOutput, 'HAnimHumanoid'),
         ('skinCoord', None, FieldType.SFNode, AccessType.inputOutput, 'HAnimHumanoid'),
         ('skinNormal', None, FieldType.SFNode, AccessType.inputOutput, 'HAnimHumanoid'),
+        # Aaron Add-IN
+        ('skinTangent', None, FieldType.SFNode, AccessType.inputOutput, 'X3DTangentNode'),
         ('skeleton', [], FieldType.MFNode, AccessType.inputOutput, 'HAnimHumanoid'),
         ('joints', [], FieldType.MFNode, AccessType.inputOutput, 'HAnimHumanoid'),
         ('motions', [], FieldType.MFNode, AccessType.inputOutput, 'HAnimHumanoid'),
@@ -28767,6 +28769,7 @@ class HAnimHumanoid(_X3DChildNode, _X3DBoundedObject):
         skinBindingNormals=None,
         skinCoord=None,
         skinNormal=None,
+        skinTangent=None,
         skeleton=None,
         joints=None,
         motions=None,
@@ -28806,6 +28809,7 @@ class HAnimHumanoid(_X3DChildNode, _X3DBoundedObject):
         self.skinBindingNormals = skinBindingNormals
         self.skinCoord = skinCoord
         self.skinNormal = skinNormal
+        self.skinTangent = skinTangent
         self.skeleton = skeleton
         self.joints = joints
         self.motions = motions
@@ -29069,6 +29073,21 @@ class HAnimHumanoid(_X3DChildNode, _X3DBoundedObject):
             # print(flush=True)
             raise X3DTypeError(str(skinNormal) + ' does not match required node type (_X3DNormalNode,ProtoInstance) and is invalid')
         self.__skinNormal = skinNormal
+
+    @property # getter - - - - - - - - - -
+    def skinTangent(self):
+        """[X3DskinTangentNode] Single contained Tangent node that can specify tangents of the corresponding geometry."""
+        return self.__skinTangent
+    @skinTangent.setter
+    def skinTangent(self, skinTangent):
+        if  skinTangent is None:
+            skinTangent = None  # default
+        assertValidSFNode(skinTangent)
+        if not skinTangent is None and not isinstance(skinTangent,(_X3DTangentNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(skinTangent) + ' does not match required node type (_X3DTangentNode,ProtoInstance) and is invalid')
+        self.__skinTangent = skinTangent
+        
     @property # getter - - - - - - - - - -
     def skeleton(self):
         """[HAnimJoint|HAnimSite] List of top-level HAnimJoint and HAnimSite nodes that create the skeleton model."""
@@ -30783,6 +30802,8 @@ class IndexedFaceSet(_X3DComposedGeometryNode):
         ('coord', None, FieldType.SFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
         ('fogCoord', None, FieldType.SFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
         ('normal', None, FieldType.SFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
+        # Aaron Add-IN
+        ('tangent', None, FieldType.SFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
         ('texCoord', None, FieldType.SFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
         ('attrib', [], FieldType.MFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
         ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
@@ -30807,6 +30828,7 @@ class IndexedFaceSet(_X3DComposedGeometryNode):
         coord=None,
         fogCoord=None,
         normal=None,
+        tangent=None,
         texCoord=None,
         attrib=None,
         DEF='',
@@ -30832,6 +30854,7 @@ class IndexedFaceSet(_X3DComposedGeometryNode):
         self.coord = coord
         self.fogCoord = fogCoord
         self.normal = normal
+        self.tangent = tangent
         self.texCoord = texCoord
         self.attrib = attrib
         self.id_ = id_
@@ -30997,6 +31020,21 @@ class IndexedFaceSet(_X3DComposedGeometryNode):
             # print(flush=True)
             raise X3DTypeError(str(normal) + ' does not match required node type (_X3DNormalNode,ProtoInstance) and is invalid')
         self.__normal = normal
+
+    @property # getter - - - - - - - - - -
+    def tangent(self):
+        """[X3DTangentNode] Single contained Tangent node that can specify tangents of the corresponding geometry."""
+        return self.__tangent
+    @tangent.setter
+    def tangent(self, tangent):
+        if  tangent is None:
+            tangent = None  # default
+        assertValidSFNode(tangent)
+        if not tangent is None and not isinstance(tangent,(_X3DTangentNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(tangent) + ' does not match required node type (_X3DTangentNode,ProtoInstance) and is invalid')
+        self.__tangent = tangent
+        
     @property # getter - - - - - - - - - -
     def texCoord(self):
         """[X3DTextureCoordinateNode] Single contained TextureCoordinate, TextureCoordinateGenerator or MultiTextureCoordinate node that can specify coordinates for texture mapping onto corresponding geometry."""
@@ -31726,6 +31764,8 @@ class IndexedTriangleSet(_X3DComposedGeometryNode):
         ('coord', None, FieldType.SFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
         ('fogCoord', None, FieldType.SFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
         ('normal', None, FieldType.SFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
+        # Aaron Add-in
+        ('tangent', None, FieldType.SFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
         ('texCoord', None, FieldType.SFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
         ('attrib', [], FieldType.MFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
         ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
@@ -31745,6 +31785,7 @@ class IndexedTriangleSet(_X3DComposedGeometryNode):
         coord=None,
         fogCoord=None,
         normal=None,
+        tangent=None,
         texCoord=None,
         attrib=None,
         DEF='',
@@ -31765,6 +31806,7 @@ class IndexedTriangleSet(_X3DComposedGeometryNode):
         self.coord = coord
         self.fogCoord = fogCoord
         self.normal = normal
+        self.tangent = tangent
         self.texCoord = texCoord
         self.attrib = attrib
         self.id_ = id_
@@ -31873,6 +31915,21 @@ class IndexedTriangleSet(_X3DComposedGeometryNode):
             # print(flush=True)
             raise X3DTypeError(str(normal) + ' does not match required node type (_X3DNormalNode,ProtoInstance) and is invalid')
         self.__normal = normal
+
+    @property # getter - - - - - - - - - -
+    def tangent(self):
+        """[X3DTangentNode] Single contained Tangent node that can specify tangents of the corresponding geometry."""
+        return self.__tangent
+    @tangent.setter
+    def tangent(self, tangent):
+        if  tangent is None:
+            tangent = None  # default
+        assertValidSFNode(tangent)
+        if not tangent is None and not isinstance(tangent,(_X3DTangentNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(tangent) + ' does not match required node type (_X3DTangentNode,ProtoInstance) and is invalid')
+        self.__tangent = tangent
+        
     @property # getter - - - - - - - - - -
     def texCoord(self):
         """[X3DTextureCoordinateNode] Single contained TextureCoordinate, TextureCoordinateGenerator or MultiTextureCoordinate node that can specify coordinates for texture mapping onto corresponding geometry."""
@@ -57342,7 +57399,112 @@ class WorldInfo(_X3DInfoNode):
         return self.IS or self.metadata
     # output function - - - - - - - - - -
 
+######################################
+# Tangent node - X3D 4.1
+######################################
+class _X3DTangentNode(_X3DGeometricPropertyNode):
+    """
+    IDK Tangent Stuff.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Abstract Type class. """
+        return '_X3DTangentNode'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'NA - Aaron does not have this infomration'
 
+
+class Tangent(_X3DTangentNode):
+    """
+    Tangent defines tangent vectors for use in rendering calculations.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'Tangent'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://www.web3d.org/specifications/X3Dv4Draft/ISO-IEC19775-1v4.1-CD/Part01/components/rendering.html#Tangent'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://www.web3d.org/specifications/X3Dv4Draft/ISO-IEC19775-1v4.1-CD/Part01/components/rendering.html#Tangent'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('vector', [], FieldType.MFVec4f, AccessType.inputOutput, 'Normal'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        vector=None,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode Normal __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.vector = vector
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def vector(self):
+        """set of unit-length normal vectors, corresponding to indexed polygons or vertices."""
+        return self.__vector
+    @vector.setter
+    def vector(self, vector):
+        if  vector is None:
+            vector = MFVec4f.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(MFVec4f.DEFAULT_VALUE()))
+        assertValidMFVec4f(vector)
+        assertGreaterThanEquals('vector', vector, -1)
+        assertLessThanEquals('vector', vector, 1)
+        self.__vector = vector
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.IS or self.metadata
+    # output function - - - - - - - - - -
+
+
+######################
+# Extended Nodes
+######################
 class CGESkin(_X3DChildNode):
     """
     Skin defines Castle Game Engine character.
@@ -57507,6 +57669,7 @@ class CGEIndexedFaceSet(_X3DComposedGeometryNode):
         ('coord',           None, FieldType.SFNode,   AccessType.inputOutput,    'X3DComposedGeometryNode'),
         ('fogCoord',        None, FieldType.SFNode,   AccessType.inputOutput,    'X3DComposedGeometryNode'),
         ('normal',          None, FieldType.SFNode,   AccessType.inputOutput,    'X3DComposedGeometryNode'),
+        ('tangent',         None, FieldType.SFNode,   AccessType.inputOutput,    'X3DComposedGeometryNode'),
         ('texCoord',        None, FieldType.SFNode,   AccessType.inputOutput,    'X3DComposedGeometryNode'),
         ('attrib',            [], FieldType.MFNode,   AccessType.inputOutput,    'X3DComposedGeometryNode'),
         ('skinJoints0',       [], FieldType.MFInt32,  AccessType.initializeOnly, 'IndexedFaceSet'),
@@ -57535,6 +57698,7 @@ class CGEIndexedFaceSet(_X3DComposedGeometryNode):
         coord=None,
         fogCoord=None,
         normal=None,
+        tangent=None,
         texCoord=None,
         attrib=None,
         skinJoints0=None,
@@ -57557,6 +57721,7 @@ class CGEIndexedFaceSet(_X3DComposedGeometryNode):
         self.coord = coord
         self.fogCoord = fogCoord
         self.normal = normal
+        self.tangent = tangent
         self.texCoord = texCoord
         self.attrib = attrib
         self.id_ = id_
@@ -57727,6 +57892,21 @@ class CGEIndexedFaceSet(_X3DComposedGeometryNode):
             # print(flush=True)
             raise X3DTypeError(str(normal) + ' does not match required node type (_X3DNormalNode,ProtoInstance) and is invalid')
         self.__normal = normal
+
+    @property # getter - - - - - - - - - -
+    def tangent(self):
+        """[X3DTangentNode] Single contained Tangent node that can specify tangents of the corresponding geometry."""
+        return self.__tangent
+    @tangent.setter
+    def tangent(self, tangent):
+        if  tangent is None:
+            tangent = None  # default
+        assertValidSFNode(tangent)
+        if not tangent is None and not isinstance(tangent,(_X3DTangentNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(tangent) + ' does not match required node type (_X3DTangentNode,ProtoInstance) and is invalid')
+        self.__tangent = tangent
+
     @property # getter - - - - - - - - - -
     def texCoord(self):
         """[X3DTextureCoordinateNode] Single contained TextureCoordinate, TextureCoordinateGenerator or MultiTextureCoordinate node that can specify coordinates for texture mapping onto corresponding geometry."""
@@ -57815,7 +57995,7 @@ class CGEIndexedFaceSet(_X3DComposedGeometryNode):
     def skinWeights1(self):
         """[0,1.0) coordIndex indices provide the order in which coordinates are applied to construct each polygon face."""
         return self.__skinWeights1
-    @skinWeights0.setter
+    @skinWeights1.setter
     def skinWeights1(self, skinWeights1):
         if  skinWeights1 is None:
             skinWeights1 = MFVec4f.DEFAULT_VALUE()
@@ -57828,8 +58008,320 @@ class CGEIndexedFaceSet(_X3DComposedGeometryNode):
     # hasChild() function - - - - - - - - - -
     def hasChild(self):
         """ Whether or not this node has any child node or statement """
-        return self.color or self.coord or self.fogCoord or self.IS or self.metadata or self.normal or self.texCoord or (len(self.attrib) > 0)
+        return self.color or self.coord or self.fogCoord or self.IS or self.metadata or self.normal or self.tangent or self.texCoord or (len(self.attrib) > 0)
 
+
+class CGEIndexedTriangleSet(_X3DComposedGeometryNode):
+    """
+    IndexedTriangleSet is a geometry node containing a Coordinate|CoordinateDouble node, and can also contain Color|ColorRGBA, Normal and TextureCoordinate nodes.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'IndexedTriangleSet'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://www.web3d.org/specifications/X3Dv4/ISO-IEC19775-1v4-IS/Part01/components/rendering.html#IndexedTriangleSet'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://www.web3d.org/x3d/tooltips/X3dTooltips.html#IndexedTriangleSet'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('ccw', True, FieldType.SFBool, AccessType.initializeOnly, 'X3DComposedGeometryNode'),
+        ('colorPerVertex', True, FieldType.SFBool, AccessType.initializeOnly, 'X3DComposedGeometryNode'),
+        ('index', [], FieldType.MFInt32, AccessType.initializeOnly, 'IndexedTriangleSet'),
+        ('normalPerVertex', True, FieldType.SFBool, AccessType.initializeOnly, 'X3DComposedGeometryNode'),
+        ('solid', True, FieldType.SFBool, AccessType.initializeOnly, 'X3DComposedGeometryNode'),
+        ('color', None, FieldType.SFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
+        ('coord', None, FieldType.SFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
+        ('fogCoord', None, FieldType.SFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
+        ('normal', None, FieldType.SFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
+        # Aaron Add-in
+        ('tangent', None, FieldType.SFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
+        ('texCoord', None, FieldType.SFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
+        ('attrib', [], FieldType.MFNode, AccessType.inputOutput, 'X3DComposedGeometryNode'),
+        ('skinJoints0',       [], FieldType.MFInt32,  AccessType.initializeOnly, 'IndexedFaceSet'),
+        ('skinJoints1',       [], FieldType.MFInt32,  AccessType.initializeOnly, 'IndexedFaceSet'),
+        ('skinWeights0',      [], FieldType.MFVec4f,  AccessType.initializeOnly, 'IndexedFaceSet'),
+        ('skinWeights1',      [], FieldType.MFVec4f,  AccessType.initializeOnly, 'IndexedFaceSet'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        ccw=True,
+        colorPerVertex=True,
+        index=None,
+        normalPerVertex=True,
+        solid=True,
+        color=None,
+        coord=None,
+        fogCoord=None,
+        normal=None,
+        tangent=None,
+        texCoord=None,
+        attrib=None,
+        skinJoints0=None,
+        skinJoints1=None,
+        skinWeights0=None,
+        skinWeights1=None,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode IndexedTriangleSet __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.ccw = ccw
+        self.colorPerVertex = colorPerVertex
+        self.index = index
+        self.normalPerVertex = normalPerVertex
+        self.solid = solid
+        self.color = color
+        self.coord = coord
+        self.fogCoord = fogCoord
+        self.normal = normal
+        self.tangent = tangent
+        self.texCoord = texCoord
+        self.attrib = attrib
+        self.skinJoints0 = skinJoints0
+        self.skinJoints1 = skinJoints1
+        self.skinWeights0 = skinWeights0
+        self.skinWeights1 = skinWeights1
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def ccw(self):
+        """ccw defines clockwise/counterclockwise ordering of vertex coordinates, which in turn defines front/back orientation of polygon normals according to Right-Hand Rule (RHR)."""
+        return self.__ccw
+    @ccw.setter
+    def ccw(self, ccw):
+        if  ccw is None:
+            ccw = True  # default
+        assertValidSFBool(ccw)
+        self.__ccw = ccw
+    @property # getter - - - - - - - - - -
+    def colorPerVertex(self):
+        """Whether Color|ColorRGBA values are applied to each point vertex (true) or to each polygon face (false)."""
+        return self.__colorPerVertex
+    @colorPerVertex.setter
+    def colorPerVertex(self, colorPerVertex):
+        if  colorPerVertex is None:
+            colorPerVertex = True  # default
+        assertValidSFBool(colorPerVertex)
+        self.__colorPerVertex = colorPerVertex
+    @property # getter - - - - - - - - - -
+    def index(self):
+        """[0,+infinity) index list specifies triangles by connecting Coordinate vertices."""
+        return self.__index
+    @index.setter
+    def index(self, index):
+        if  index is None:
+            index = MFInt32.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(MFInt32.DEFAULT_VALUE()))
+        assertValidMFInt32(index)
+        assertNonNegative('index', index)
+        self.__index = index
+    @property # getter - - - - - - - - - -
+    def normalPerVertex(self):
+        """Whether Normal node vector values are applied to each point vertex (true) or to each polygon face (false)."""
+        return self.__normalPerVertex
+    @normalPerVertex.setter
+    def normalPerVertex(self, normalPerVertex):
+        if  normalPerVertex is None:
+            normalPerVertex = True  # default
+        assertValidSFBool(normalPerVertex)
+        self.__normalPerVertex = normalPerVertex
+    @property # getter - - - - - - - - - -
+    def solid(self):
+        """Setting solid true means draw only one side of polygons (backface culling on), setting solid false means draw both sides of polygons (backface culling off)."""
+        return self.__solid
+    @solid.setter
+    def solid(self, solid):
+        if  solid is None:
+            solid = True  # default
+        assertValidSFBool(solid)
+        self.__solid = solid
+    @property # getter - - - - - - - - - -
+    def color(self):
+        """[X3DColorNode] Single contained Color or ColorRGBA node that can specify color values applied to corresponding vertices according to colorIndex and colorPerVertex fields."""
+        return self.__color
+    @color.setter
+    def color(self, color):
+        if  color is None:
+            color = None  # default
+        assertValidSFNode(color)
+        if not color is None and not isinstance(color,(_X3DColorNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(color) + ' does not match required node type (_X3DColorNode,ProtoInstance) and is invalid')
+        self.__color = color
+    @property # getter - - - - - - - - - -
+    def coord(self):
+        """[X3DCoordinateNode] Single contained Coordinate or CoordinateDouble node that can specify a list of vertex values."""
+        return self.__coord
+    @coord.setter
+    def coord(self, coord):
+        if  coord is None:
+            coord = None  # default
+        assertValidSFNode(coord)
+        if not coord is None and not isinstance(coord,(_X3DCoordinateNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(coord) + ' does not match required node type (_X3DCoordinateNode,ProtoInstance) and is invalid')
+        self.__coord = coord
+    @property # getter - - - - - - - - - -
+    def fogCoord(self):
+        """[FogCoordinate] Single contained FogCoordinate node that can specify depth parameters for fog in corresponding geometry."""
+        return self.__fogCoord
+    @fogCoord.setter
+    def fogCoord(self, fogCoord):
+        if  fogCoord is None:
+            fogCoord = None  # default
+        assertValidSFNode(fogCoord)
+        if not fogCoord is None and not isinstance(fogCoord,(FogCoordinate,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(fogCoord) + ' does not match required node type (FogCoordinate,ProtoInstance) and is invalid')
+        self.__fogCoord = fogCoord
+    @property # getter - - - - - - - - - -
+    def normal(self):
+        """[X3DNormalNode] Single contained Normal node that can specify perpendicular vectors for corresponding vertices to support rendering computations, applied according to the normalPerVertex field."""
+        return self.__normal
+    @normal.setter
+    def normal(self, normal):
+        if  normal is None:
+            normal = None  # default
+        assertValidSFNode(normal)
+        if not normal is None and not isinstance(normal,(_X3DNormalNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(normal) + ' does not match required node type (_X3DNormalNode,ProtoInstance) and is invalid')
+        self.__normal = normal
+
+    @property # getter - - - - - - - - - -
+    def tangent(self):
+        """[X3DTangentNode] Single contained Tangent node that can specify tangents of the corresponding geometry."""
+        return self.__tangent
+    @tangent.setter
+    def tangent(self, tangent):
+        if  tangent is None:
+            tangent = None  # default
+        assertValidSFNode(tangent)
+        if not tangent is None and not isinstance(tangent,(_X3DTangentNode,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(tangent) + ' does not match required node type (_X3DTangentNode,ProtoInstance) and is invalid')
+        self.__tangent = tangent
+        
+    @property # getter - - - - - - - - - -
+    def texCoord(self):
+        """[X3DTextureCoordinateNode] Single contained TextureCoordinate, TextureCoordinateGenerator or MultiTextureCoordinate node that can specify coordinates for texture mapping onto corresponding geometry."""
+        return self.__texCoord
+    @texCoord.setter
+    def texCoord(self, texCoord):
+        if  texCoord is None:
+            texCoord = None  # default
+        assertValidSFNode(texCoord)
+        if not texCoord is None and not isinstance(texCoord,(_X3DSingleTextureCoordinateNode,MultiTextureCoordinate,ProtoInstance)):
+            # print(flush=True)
+            raise X3DTypeError(str(texCoord) + ' does not match required node type (_X3DSingleTextureCoordinateNode,MultiTextureCoordinate,ProtoInstance) and is invalid')
+        self.__texCoord = texCoord
+    @property # getter - - - - - - - - - -
+    def attrib(self):
+        """[X3DVertexAttributeNode] Single contained FloatVertexAttribute node that can specify list of per-vertex attribute information for programmable shaders."""
+        return self.__attrib
+    @attrib.setter
+    def attrib(self, attrib):
+        if  attrib is None:
+            attrib = MFNode.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(MFNode.DEFAULT_VALUE()))
+        assertValidMFNode(attrib)
+        self.__attrib = attrib
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+
+    @property # getter - - - - - - - - - -
+    def skinJoints0(self):
+        """[0,+infinity) coordIndex indices provide the order in which coordinates are applied to construct each polygon face."""
+        return self.__skinJoints0
+    @skinJoints0.setter
+    def skinJoints0(self, skinJoints0):
+        if  skinJoints0 is None:
+            skinJoints0 = MFInt32.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(MFInt32.DEFAULT_VALUE()))
+        assertValidMFInt32(skinJoints0)
+        assertGreaterThanEquals('skinJoints0', skinJoints0, 0)
+        self.__skinJoints0 = skinJoints0
+    @property # getter - - - - - - - - - -
+    def skinJoints1(self):
+        """[0,+infinity) coordIndex indices provide the order in which coordinates are applied to construct each polygon face."""
+        return self.__skinJoints1
+    @skinJoints1.setter
+    def skinJoints1(self, skinJoints1):
+        if  skinJoints1 is None:
+            skinJoints1 = MFInt32.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(MFInt32.DEFAULT_VALUE()))
+        assertValidMFInt32(skinJoints1)
+        assertGreaterThanEquals('skinJoints1', skinJoints1, 0)
+        self.__skinJoints1 = skinJoints1
+    @property # getter - - - - - - - - - -
+    def skinWeights0(self):
+        """[0,1.0) coordIndex indices provide the order in which coordinates are applied to construct each polygon face."""
+        return self.__skinWeights0
+    @skinWeights0.setter
+    def skinWeights0(self, skinWeights0):
+        if  skinWeights0 is None:
+            skinWeights0 = MFVec4f.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(MFInt32.DEFAULT_VALUE()))
+        assertValidMFVec4f(skinWeights0)
+        assertGreaterThanEquals('skinWeights0', skinWeights0, 0.0)
+        assertLessThanEquals('skinWeights0', skinWeights0, 1.0)
+        self.__skinWeights0 = skinWeights0
+    @property # getter - - - - - - - - - -
+    def skinWeights1(self):
+        """[0,1.0) coordIndex indices provide the order in which coordinates are applied to construct each polygon face."""
+        return self.__skinWeights1
+    @skinWeights1.setter
+    def skinWeights1(self, skinWeights1):
+        if  skinWeights1 is None:
+            skinWeights1 = MFVec4f.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(MFInt32.DEFAULT_VALUE()))
+        assertValidMFVec4f(skinWeights1)
+        assertGreaterThanEquals('skinWeights1', skinWeights1, 0.0)
+        assertLessThanEquals('skinWeights1', skinWeights1, 1.0)
+        self.__skinWeights1 = skinWeights1
+
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.color or self.coord or self.fogCoord or self.IS or self.metadata or self.normal or self.tangent or self.texCoord or (len(self.attrib) > 0)
+    # output function - - - - - - - - - -
 
 class _X3DMaterialExtensionNode(_X3DNode):
     """
@@ -60409,14 +60901,15 @@ def instantiateNodeFromString(x3dType):
         'CADLayer':(CADLayer(), {'CADGeometry':2, 'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
         'CADPart':(CADPart(), {'CADGeometry':2, 'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
         'CartoonVolumeStyle':(CartoonVolumeStyle(), {'Core':1, 'Grouping':1, 'VolumeRendering':3, 'Rendering':1, 'Shape':1}),
-        'CGEIndexedFaceSet':(CGEIndexedFaceSet(), {'CastleEngine':1, 'Core':1, 'Geometry3D':3, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing':1}), # Castle Game Engine - character skeleton custom node
-        'CGESkin':(CGESkin(),                     {'CastleEngine':1, 'Core':1, 'Geometry3D':3, 'Grouping':1, 'HAnim':1, 'Navigation':2, 'Rendering':1, 'Shape':1, 'Texturing':1}), # Castle Game Engine - character skeleton custom node
+        'CGEIndexedFaceSet':(CGEIndexedFaceSet(),      {'CastleEngine':1, 'Core':1, 'Geometry3D':3, 'Grouping':1, 'Rendering':5, 'Shape':1, 'Texturing':1}), # Castle Game Engine - character skeleton custom node
+        'CGESkin':(CGESkin(),                          {'CastleEngine':1, 'Core':1, 'Geometry3D':3, 'Grouping':1, 'HAnim':1, 'Navigation':2, 'Rendering':1, 'Shape':1, 'Texturing':1}), # Castle Game Engine - character skeleton custom node
+        'IndexedTriangleSet':(CGEIndexedTriangleSet(), {'CastleEngine':1, 'Core':1, 'Grouping':1, 'Rendering':5}),
         'ChannelMerger':(ChannelMerger(), {'Core':1, 'Sound':2, 'Time':1}),
         'ChannelSelector':(ChannelSelector(), {'Core':1, 'Sound':2, 'Time':1}),
         'ChannelSplitter':(ChannelSplitter(), {'Core':1, 'Sound':2, 'Time':1}),
         'Circle2D':(Circle2D(), {'Core':1, 'Geometry2D':2, 'Grouping':1, 'Rendering':1, 'Shape':1}),
         'ClearcoatMaterialExtension':(ClearcoatMaterialExtension(), {'X_ITE':1}), # X_ITE - glTF extension
-        'ClipPlane':(ClipPlane(), {'Core':1, 'Grouping':1, 'Rendering':4}),
+        'ClipPlane':(ClipPlane(), {'Core':1, 'Grouping':1, 'Rendering':5}),
         'CollidableOffset':(CollidableOffset(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Shape':1, 'RigidBodyPhysics':1}),
         'CollidableShape':(CollidableShape(), {'Core':1, 'Geometry3D':1, 'Grouping':1, 'Shape':1, 'RigidBodyPhysics':1}),
         'Collision':(Collision(), {'Core':1, 'EnvironmentalSensor':2, 'Grouping':1, 'Navigation':2, 'Shape':1}),
@@ -60489,7 +60982,7 @@ def instantiateNodeFromString(x3dType):
         'Group':(Group(), {'Core':1,'Grouping':1}),
         ####################################### H
         'HAnimDisplacer':(HAnimDisplacer(), {'Core':1, 'Geometry3D':2, 'Grouping':1, 'Shape':1, 'Texturing':1, 'Navigation':2, 'HAnim':3}),
-        'HAnimHumanoid':(HAnimHumanoid(), {'Core':1, 'Geometry3D':2, 'Grouping':1, 'Shape':1, 'Texturing':1, 'Navigation':2, 'HAnim':3}),
+        'HAnimHumanoid':(HAnimHumanoid(), {'Core':1, 'Geometry3D':2, 'Grouping':1, 'Shape':1, 'Texturing':1, 'Navigation':2, 'HAnim':3, 'Rendering':5}),
         'HAnimJoint':(HAnimJoint(), {'Core':1, 'Geometry3D':2, 'Grouping':1, 'Shape':1, 'Texturing':1, 'Navigation':2, 'HAnim':3}),
         'HAnimMotion':(HAnimMotion(), {'Core':1, 'Geometry3D':2, 'Grouping':1, 'Shape':1, 'Texturing':1, 'Navigation':2, 'HAnim':3}),
         'HAnimSegment':(HAnimSegment(), {'Core':1, 'Geometry3D':2, 'Grouping':1, 'Shape':1, 'Texturing':1, 'Navigation':2, 'HAnim':3}),
@@ -60498,11 +60991,11 @@ def instantiateNodeFromString(x3dType):
         'ImageCubeMapTexture':(ImageCubeMapTexture(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'CubeMapTexturing':2, 'Texturing':1}),
         'ImageTexture':(ImageTexture(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing':1}),
         'ImageTexture3D':(ImageTexture3D(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Texturing3D':2, 'Texturing':1}),
-        'IndexedFaceSet':(IndexedFaceSet(), {'Core':1, 'Geometry3D':3, 'Grouping':1, 'Rendering':1, 'Shape':1}),
+        'IndexedFaceSet':(IndexedFaceSet(), {'Core':1, 'Geometry3D':3, 'Grouping':1, 'Rendering':5, 'Shape':1}),
         'IndexedLineSet':(IndexedLineSet(), {'Core':1, 'Grouping':1, 'Rendering':2}),
         'IndexedQuadSet':(IndexedQuadSet(), {'CADGeometry':1, 'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
         'IndexedTriangleFanSet':(IndexedTriangleFanSet(), {'Core':1, 'Grouping':1, 'Rendering':3}),
-        'IndexedTriangleSet':(IndexedTriangleSet(), {'Core':1, 'Grouping':1, 'Rendering':3}),
+        'IndexedTriangleSet':(IndexedTriangleSet(), {'Core':1, 'Grouping':1, 'Rendering':5}),
         'IndexedTriangleStripSet':(IndexedTriangleStripSet(), {'Core':1, 'Grouping':1, 'Rendering':3}),
         'Inline':(Inline,{'Core':1, 'Grouping':1, 'Shape':2, 'Lighting':3, 'Networking':4}),
         'IntegerSequencer':(IntegerSequencer(), {'Core':1, 'Grouping':1, 'EventUtilities':1}),
@@ -60634,6 +61127,7 @@ def instantiateNodeFromString(x3dType):
         'SurfaceEmitter':(SurfaceEmitter(), {'Core':1, 'Grouping':1, 'ParticleSystems':2, 'Rendering':1, 'Shape':1, 'Texturing':1}),
         'Switch':(Switch(), {'Core':1,'Grouping':2}),
         ####################################### T
+        'Tangent':(Tangent(), {'Core':1, 'Grouping':1, 'Rendering':5}),
         'TexCoordChaser2D':(TexCoordChaser2D(), {'Core':1, 'Grouping':1, 'Followers':1, 'Rendering':1, 'Shape':1}),
         'TexCoordDamper2D':(TexCoordDamper2D(), {'Core':1, 'Grouping':1, 'Followers':1, 'Rendering':1, 'Shape':1}),
         'Text':(Text(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'Text':1}),

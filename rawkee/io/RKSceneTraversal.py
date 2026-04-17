@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 from rawkee.io.RKx3d import *
 from typing import Final
 
@@ -18,6 +19,9 @@ class RKSceneTraversal():
         self.tabs = 0
         self.iofile = None
         self.enc = encx
+        
+        self.decimalLimit  = 16
+        self.decimalPlaces = 16
 
         self.profileType = "Core"
         self.x3dVersion  = "4.1"
@@ -951,24 +955,33 @@ class RKSceneTraversal():
                 
 
     def writePrefix(self, prefix):
+        newPrefix = prefix
+        if self.decimalPlaces < self.decimalLimit:
+            newPrefix = self.truncate_floats_in_string(prefix, self.decimalPlaces)
         myline = ''
         
         for t in range(self.tabs):
             myline += '\t'
-        myline += prefix
+        myline += newPrefix
         myline += ' '
         
         self.iofile.write(myline)
 
     def writeRemaining(self, outline):
-        self.iofile.write(outline + "\n")
+        newOutline = outline
+        if self.decimalPlaces < self.decimalLimit:
+            newOutline = self.truncate_floats_in_string(outline, self.decimalPlaces)
+        self.iofile.write(newOutline + "\n")
 
     def writeLine(self, outline):
+        newOutline = outline
+        if self.decimalPlaces < self.decimalLimit:
+            newOutline = self.truncate_floats_in_string(outline, self.decimalPlaces)
         myline = ''
         
         for t in range(self.tabs):
             myline += '\t'
-        myline += outline
+        myline += newOutline
         myline += '\n'
         
         self.iofile.write(myline)
@@ -1402,3 +1415,34 @@ class RKSceneTraversal():
                 keepDict[key] = value
                 
         self.profDict = keepDict
+
+
+    def truncate_floats_in_string(self, text: str, decimals: int) -> str:
+        """
+        Replaces all float values in `text` with versions rounded to `decimals`
+        decimal places. The result always has at least one decimal digit. Trailing
+        zeros are stripped, but if all decimal digits are zero the result shows
+        exactly one zero after the decimal point.
+
+        Args:
+            text:     The input string potentially containing float literals.
+            decimals: Maximum number of decimal places (clamped to a minimum of 1).
+        """
+        decimals = max(1, decimals)
+        
+        return re.sub(r"-?\d+\.\d+", lambda match: self._replace_float(match, decimals), text)
+
+
+    def _replace_float(self, match: re.Match, decimals: int) -> str:
+        rounded = round(float(match.group()), decimals)
+        formatted = f"{rounded:.{decimals}f}"
+        stripped = formatted.rstrip("0")
+        if stripped.endswith("."):
+            stripped += "0"
+        return stripped
+
+
+    def setDecimalPlaces(self, value):
+        if value < self.decimalLimit:
+            self.decimalPlaces = value
+
