@@ -1347,7 +1347,7 @@
           <number>10</number>
          </property>
          <property name="leftMargin">
-          <number>110</number>
+          <number>90</number>
          </property>
          <property name="rightMargin">
           <number>10</number>
@@ -1356,18 +1356,18 @@
           <widget class="QLabel" name="label_2">
            <property name="minimumSize">
             <size>
-             <width>170</width>
+             <width>190</width>
              <height>24</height>
             </size>
            </property>
            <property name="maximumSize">
             <size>
-             <width>170</width>
+             <width>190</width>
              <height>24</height>
             </size>
            </property>
            <property name="text">
-            <string>Mesh Based Normal Options:</string>
+            <string>Mesh Based Normal and Tangent Options:</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -1395,12 +1395,12 @@
            </item>
            <item>
             <property name="text">
-             <string>Use Per Vertex Info and Set Crease Angle</string>
+             <string>Use Per Vertex Info and Crease Angle</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>Use Per Polygon Info and Set Crease Angle</string>
+             <string>Use Per Polygon Info and Crease Angle</string>
             </property>
            </item>
            <item>

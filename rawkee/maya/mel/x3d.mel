@@ -214,6 +214,30 @@ global proc setDefRKOptVars()
     
     //---------------------------------------------
     ///////////////////////////////////////////////
+    // boolean export tangents
+    if(`optionVar -exists "rkExportTangents"`){
+    }
+    else{
+        optionVar -iv rkExportTangents 0;
+    }
+    
+    ///////////////////////////////////////////////
+    // Float decimal place limit
+    if(`optionVar -exists "rkFDecimalLimit"`){
+    }
+    else{
+        optionVar -iv rkFDecimalLimit 16;
+    }
+    
+    ///////////////////////////////////////////////
+    // Export Geometry as IndexedTriangleSet
+    if(`optionVar -exists "rkIsTriangles"`){
+    }
+    else{
+        optionVar -iv rkIsTriangles 0;
+    }
+    
+    ///////////////////////////////////////////////
     // Export MaterialX XML Contents as Metadata Nodes
     if(`optionVar -exists "rkExportMtlxInfo"`){
     }
