@@ -74,7 +74,7 @@ class RKSubPanel2(bpy.types.Panel):
 
 #X3D General Animation Editor
 class RKSubPanel3(bpy.types.Panel):
-    bl_label = "X3D Character and Animation Editor"
+    bl_label = "X3D General Editor"
     bl_idname = "PT_RAWKEE_Sub_Panel3"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
