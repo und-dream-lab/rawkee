@@ -2,13 +2,19 @@
 File Author: 
     UND Dream Lab, Thomaz Diaz, etc...
 Description: 
-    This file is ment to be the GUI setup for the Blender Version of the RawKee X3D Export Plugin with exicution
+    This file is ment to be the GUI setup for the Blender Version of the RawKee X3D Export Plugin with execution
 File Status:
     (In Development)
 """
+#Imports
+#-------------------------------------
+import bpy
+
+#-------------------------------------
 
 
-#Blender Plugin Information 
+
+
 bl_info = {
     "name" : "BlenderRawKeeX3DExport",
     "author" : "UND Dream Lab, etc...", 
@@ -20,10 +26,14 @@ bl_info = {
     #"doc_url" : "https://github.com/und-dream-lab/rawkee/blob/main/README.md", #Github Read Me File for now.
     "category" : "Import-Export", #only Export for now,
 }
-#Blender Imports
-import bpy
-#from rawkee.io.RKSceneTraversal import *
-#blender imrpots of the root so it can be multi files. 
+
+
+
+
+
+
+
+#blender imports of the root so it can be multi files. 
 #-------------------------------------
 #menu panel UI. (RKWeb3D) (no functionality added yet.)
 class RKMainPanel(bpy.types.Panel):
@@ -92,7 +102,7 @@ class X3D_FileDropDown(bpy.types.Operator):
 
 #process when the export is executed.
     def execute(self,context):
-        #empty runing from a diffren file, <-------------------- Left off here.
+        #empty runing from a diffrent file, <-------------------- Left off here.
 
         return {'FINISHED'}
     
@@ -125,3 +135,7 @@ def unregister():
     bpy.utils.unregister_class(RKSubPanel2)
     bpy.utils.unregister_class(RKSubPanel3)
     #-------------------------------------
+
+
+    if __name__ == "__main__":
+     register()
