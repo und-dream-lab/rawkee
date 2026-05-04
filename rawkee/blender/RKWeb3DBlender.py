@@ -2,25 +2,126 @@
 File Author: 
     UND Dream Lab, Thomaz Diaz, etc...
 Description: 
-    This file is ment to be the GUI setup for the Blender Version of the RawKee X3D Export Plugin
-    Current name RKWeb3DBlender.py but can be changed later. Current name was set to avoid confustion with editing the Maya RKWeb3D (RKWeb3D.py), 
-    for the Maya GUI Version of the RawKee X3D Export Plugin.
+    This file is ment to be the GUI setup for the Blender Version of the RawKee X3D Export Plugin with exicution
 File Status:
     (In Development)
-    Tasks: work on the GUI for the Blender Version of RawKee X3D Export Plugin.
-    & self note: make it similar to the maya layout for easy of use for users who are acotomed to the maya version, if possible. -Thomaz Diaz
 """
-#Adding the RawKee (.X3D) Export option to the File>Export Dropdown menu in Blender, where the other export options are listed.
 
+
+#Blender Plugin Information 
+bl_info = {
+    "name" : "BlenderRawKeeX3DExport",
+    "author" : "UND Dream Lab, etc...", 
+    "version" : (0, 0, 2),
+    "blender" : (5, 0, 1),
+    "location" : "File > Import-Export",
+    "description" : "Rawkee X3D export plugin for Blender",
+    #"warnings" : "This is Plugin is Under Development", #Warning this is still under Development
+    #"doc_url" : "https://github.com/und-dream-lab/rawkee/blob/main/README.md", #Github Read Me File for now.
+    "category" : "Import-Export", #only Export for now,
+}
+#Blender Imports
 import bpy
+#from rawkee.io.RKSceneTraversal import *
+#blender imrpots of the root so it can be multi files. 
+#-------------------------------------
+#menu panel UI. (RKWeb3D) (no functionality added yet.)
+class RKMainPanel(bpy.types.Panel):
+    bl_label = "RawKee (.X3D)"
+    bl_idname = "RAWKEE_PT_MainPanel"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'RawKee (.X3D)'
 
-class X3D_DropDownMenu(bpy.types.Operator):
-    bl_idname = "RawKeeBlender.ExportDropDownMenu"
+    #draws the contents of the side bar panal.
+    def draw(self, context):
+        layout = self.layout
+        rowPanel = layout.row() #short cut to make rows.
+
+#X3D Interaction Editor
+class RKSubPanel1(bpy.types.Panel):
+    bl_label = "X3D Interaction Editor"
+    bl_idname = "RAWKEE_PT_SubPanel1"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'RawKee (.X3D)'
+    bl_parent_id = 'RAWKEE_PT_MainPanel'
+
+    def draw(self,context):
+        layout = self.layout
+        rowPanel = layout.row()
+
+        rowPanel.label(text = 'controls/pop-up windows here')
+
+#X3D Character and Animation Editor
+class RKSubPanel2(bpy.types.Panel):
+    bl_label = "X3D Character and Animation Editor"
+    bl_idname = "RAWKEE_PT_SubPanel2"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'RawKee (.X3D)'
+    bl_parent_id = 'RAWKEE_PT_MainPanel'
+
+    def draw(self,context):
+        layout = self.layout
+        rowPanel = layout.row()
+
+        rowPanel.label(text = 'controls/pop-up windows here')
+
+#X3D General Animation Editor
+class RKSubPanel3(bpy.types.Panel):
+    bl_label = "X3D General Editor"
+    bl_idname = "RAWKEE_PT_SubPanel3"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'RawKee (.X3D)'
+    bl_parent_id = 'RAWKEE_PT_MainPanel'
+
+    def draw(self,context):
+        layout = self.layout
+        rowPanel = layout.row()
+
+        rowPanel.label(text = 'controls/pop-up windows here')
+
+#-------------------------------------
+#File>Export dropdown UI. (RKWeb3D) (no functionality added yet.)
+class X3D_FileDropDown(bpy.types.Operator):
+    bl_idname = "export.x3d"
     bl_label = "RawKee X3D (.x3d)"
     bl_description = "Exports scene as X3D file"
 
+#process when the export is executed.
     def execute(self,context):
-        #Nothing is happening here at the moment.    <===== left off here, - Thomaz Diaz
-        #¿task to open the export menu, or to export on the current settings? TBD Later.
+        #empty runing from a diffren file, <-------------------- Left off here.
 
         return {'FINISHED'}
+    
+
+def menu_func_export(self, context):
+    self.layout.operator(X3D_FileDropDown.bl_idname, text="RawKee X3D (.x3d)")
+
+
+#-------------------------------------
+def register():
+    bpy.utils.register_class(X3D_FileDropDown)
+    bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
+    #-------------------------------------
+    bpy.utils.register_class(RKMainPanel)
+
+    bpy.utils.register_class(RKSubPanel1)
+    bpy.utils.register_class(RKSubPanel2)
+    bpy.utils.register_class(RKSubPanel3)
+    #-------------------------------------
+    
+
+
+def unregister():
+    bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
+    bpy.utils.unregister_class(X3D_FileDropDown)  
+    #-------------------------------------
+    bpy.utils.unregister_class(RKMainPanel)
+
+    bpy.utils.unregister_class(RKSubPanel1)
+    bpy.utils.unregister_class(RKSubPanel2)
+    bpy.utils.unregister_class(RKSubPanel3)
+    #-------------------------------------

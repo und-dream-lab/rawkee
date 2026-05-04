@@ -8,10 +8,7 @@ Description:
 
     & Also at the moment adds the export drop down in the File>Export & UI panel
 
-File Status:
-    (In Development)
-    Tasks: work on the geometry for now, and worry about materials, textures, and animation later.
-        Learn about the Blender Node Scene Graph
+    
 """
 #Blender Plugin Information 
 bl_info = {
