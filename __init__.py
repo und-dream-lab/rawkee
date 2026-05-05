@@ -7,7 +7,10 @@ Description:
 Addon Status:
     (In Development) Tasks: work on the geometry for now, and worry about materials, textures, and animation later.
         Learn about the Blender Node Scene Graph
+        Notes: files mut be ziped and the init's in lower folders recommed to be empty so blender can load the add on,
+        Also the UI for the export setting in blender are not complet, tryed to makr them the most simmiler to maya but i do not hav maya, and do not need the ui controls yet.
 """
+
 bl_info = {
     "name" : "BlenderRawKeeX3DExport",
     "author" : "UND Dream Lab, etc...", 
@@ -21,23 +24,24 @@ bl_info = {
 }
 #Imports
 #-------------------------------------
-from . rawkee.blender import RKWeb3DBlender #imports the rawkee folder and the blender folder inside of it to the RKWeb3DBlender script for the UI.
+from . rawkee.blender import RKWeb3DBlenderUI #imports the rawkee folder and the blender folder inside of it to the RKWeb3DBlender script for the UI.
 
 #-------------------------------------
+'''
 import sys
 import importlib
 if "RKWeb3DBlender" in locals():
     importlib.reload(RKWeb3DBlender)
     print("reloaded")
-
+'''
 
 
 #Blender register & unregister for the Imports.
 #-------------------------------------
 def register():
-    RKWeb3DBlender.register()
+    RKWeb3DBlenderUI.register()
 def unregister():
-    RKWeb3DBlender.unregister()
+    RKWeb3DBlenderUI.unregister()
 #-------------------------------------
 
 

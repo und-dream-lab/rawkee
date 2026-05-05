@@ -87,10 +87,8 @@ class X3D_FileDropDown(bpy.types.Operator):
 
         return {'FINISHED'}
     
-
 def menu_func_export(self, context):
     self.layout.operator(X3D_FileDropDown.bl_idname, text="RawKee X3D (.x3d)")
-
 
 #-------------------------------------
 def register():

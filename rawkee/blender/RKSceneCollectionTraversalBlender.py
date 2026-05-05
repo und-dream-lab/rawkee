@@ -2,7 +2,7 @@
 File Author: 
     UND Dream Lab, Thomaz Diaz, etc...
 Description: 
-    This file is ment to travel throught the Scene collections get the names of all the collections and the items in the collecttions.
+    This file was used to experament how to travel throught the Scene collections get the names of all the items in the collecttions in blender. 
 File Status:
     (In Development)
 """
@@ -12,18 +12,27 @@ import bpy
 
 #-------------------------------------
 
-class sceneCollectionObjects:
+class sceneColleccionsObjects:
     pass
+    ''''
+    def getingSceneCollectionsObjects(self): #getting names, types, and locations
+        #check if there is anytthing in the Scene Collection. & if they are visible.
+
+        # pulls object data name, type, and location on the blender grpah. 
+        # do the same if the object has children.
+        # varabulies to store the data, (Colletioons(stores the Objects, and scene that can also sences that can store the objects), Objects(store the transformation, etc)& the meshs )
+
+        #self.scenesObjectsDict = {}
+        #depsgraph = bpy.context.evaluated_depsgraph_get()
 
     #experimenting
-    '''   
     def __init__(self):
         self.collections_data = {}
     
     def get_collection_objects(self, collection=None):
         """
         Traverse scene collections and extract object data with attributes.
-        
+    
         Args:
             collection: Blender collection to traverse (defaults to scene root)
         
@@ -42,15 +51,12 @@ class sceneCollectionObjects:
             'objects': {},
             'child_collections': {}
         }
-        
         # Process objects in this collection
         for obj in collection.objects:
             collection_info['objects'][obj.name] = self._get_object_attributes(obj)
-        
         # Process child collections recursively
         for child_collection in collection.children:
             collection_info['child_collections'][child_collection.name] = self._extract_collection_data(child_collection)
-        
         return collection_info
     
     def _get_object_attributes(self, obj):
@@ -104,14 +110,14 @@ class sceneCollectionObjects:
 
 #-------------------------------------  
 def register():
-    bpy.utils.register_class(sceneCollectionObjects)
+    bpy.utils.register_class(sceneColleccionsObjects)
 
     #-------------------------------------
     
 
 
 def unregister():
-    bpy.utils.unregister_class(sceneCollectionObjects)
+    bpy.utils.unregister_class(sceneColleccionsObjects)
 
     #-------------------------------------
 
