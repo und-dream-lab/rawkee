@@ -1,14 +1,15 @@
 """
 File Author: 
-    UND Dream Lab, Thomaz Diaz, etc...
+    Thomaz Diaz, UND Dream Lab, etc
 Description: 
-    This file is ment to be the starting file for the Blender Version of the RawKee X3D Export Plugin,
+    This file is a single file addon testing file. for Blender RawKee X3D Export Plugin,
     Contains the Plugin Information for Blender,
     and the file imports for running the plugin. 
-
     & Also at the moment adds the export drop down in the File>Export & UI panel
+
 File Status:
     (Testing file.)
+    (not ment to be the final add-on) -Thomas Diaz[12 Mayo, 2026]
     
 """
 #Blender Plugin Information 
@@ -25,8 +26,19 @@ bl_info = {
 }
 #Blender Imports
 import bpy
+#-------------------------------------generated code vvv
+import sys
+import os
 
-#blender imrpots of the root so it can be multi files. 
+# Add the parent directory to sys.path to allow importing rawkee package
+_addon_dir = os.path.dirname(__file__)
+if _addon_dir not in sys.path:
+    sys.path.insert(0, _addon_dir)
+#-------------------------------------
+
+
+
+#blender imports of the root so it can be multi files. 
 #-------------------------------------
 #menu panel UI. (RKWeb3D) (no functionality added yet.)
 class RKMainPanel(bpy.types.Panel):

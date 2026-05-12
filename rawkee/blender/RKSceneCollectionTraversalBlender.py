@@ -1,6 +1,6 @@
 """
 File Author: 
-    UND Dream Lab, Thomaz Diaz, etc...
+    Thomaz Diaz, UND Dream Lab
 Description: 
     This file was used to experament how to travel throught the Scene collections get the names of all the items in the collecttions in blender. 
 File Status:
