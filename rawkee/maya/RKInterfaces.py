@@ -25,7 +25,7 @@ import ffmpeg
 # Needed for WebP Images
 try:
     import PIL as pil
-except:
+except ImportError:
     pass
 
 import maya.api.OpenMaya as aom
