@@ -319,22 +319,21 @@ class RKOrganizer():
             parentDagPaths[i] = self.rootName
             self.traverseDownward(parentDagPaths[i], dagNodes[i])
             
-        self.collectInterpolatorData()
         
         ##########################################################
         # Needed for writing animation data at the end of the file
         # 
         # End of Export
         ##########################################################
-        cLen = len(eofScene.children)
-            
+        self.processRKAnimPacks()
+
+        cLen = len(self.eofScene.children)
         for i in range(cLen):
-            x3dScene.children.append(eofScene.children.pop(0))
-                
+            x3dScene.children.append(self.eofScene.children.pop(0))
         self.eofScene = None
             
-        # Reset Animations as best as possible.
-        
+        self.collectInterpolatorData()
+
         #cmds.currentTime(0)
         for bPose in self.bPoseStore:
             cmds.dagPose( bPose, restore=True )
@@ -727,15 +726,20 @@ class RKOrganizer():
                             
                             # Determin if this is an HAnimJoint node or a Skin Transform Node
                             isHAnim = False
-                            cPath = path
+                            cPath = aom.MDagPath(path)
                             while cPath.length() > 0:
-                                pObj = cPath.parent(0)
+                                cPath.pop()
+                                #pObj = cPath.parent(0)
+                                
             
-                                if pObj.isNull():
+                                #if pObj.isNull():
+                                #    break
+                                if cPath.length() == 0:
                                     break
 
                                 # Use an MFnDagNode to check the type of the parent
-                                pDag = aom.MFnDagNode(pObj)
+                                #pDag = aom.MFnDagNode(pObj)
+                                pDag = aom.MFnDagNode(cPath)
             
                                 # Check if the parent is a transform node
                                 if pDag.typeName != "joint":
@@ -1480,17 +1484,19 @@ class RKOrganizer():
             # that mesh is point values are in world coordinates.
             smLen = len(sm)
             snLen = len(sno)
+            stLen = len(sto)
+            print("SM Len: " + str(smLen) + ", SN Len: " + str(snLen) + ", ST Len: " + str(stLen))
             for i in range(smLen):
-                # This is needed if the sno length is zero so as not to throw an out-of-bounds error on the list.
+                # This is needed if the sno and/or sto length is zero so as not to throw an out-of-bounds error on the list.
                 if snLen == 0:
                     sno.append(snLen)
-                if tName != "":
-                    sto.append(None)
+                if stLen == 0:
+                    sto.append(stLen)
                 
                 self.processMayaMesh(humanoid.DEF, aom.MFnDagNode(sm[i].object()), "skin", wio[i], sno[i], sto[i], cName, sName, tName, isAvatar=True)
             
             # Section where we add HAnimMotion, or other timing nodes (aka TimeSensor, AudioClip, and MovieTexture)
-            nonMotionRKAPNodes = []
+            #nonMotionRKAPNodes = []
             for i in range(cNum):
                 dagChild = aom.MFnDagNode(dagNode.child(i))
                 if dagChild.typeName == "rkAnimPack":
@@ -1504,36 +1510,48 @@ class RKOrganizer():
                         
                     # If it's any other type of timing node, append to the non-Motion node list
                     # for later processing.
-                    elif apType == 1 or apType == 3 or apType == 4:
-                        nonMotionRKAPNodes.append(dagChild)
+                    #elif apType == 1 or apType == 3 or apType == 4:
+                    #    nonMotionRKAPNodes.append(dagChild)
             
-            if len(nonMotionRKAPNodes) > 0:
-                self.processRKAnimPacks(humanoid.DEF, nonMotionRKAPNodes, humanoid, "skin")
+#            if len(nonMotionRKAPNodes) > 0:
+#                self.processRKAnimPacks(humanoid.DEF, nonMotionRKAPNodes, humanoid, "skin")
 
 
-    def processRKAnimPacks(self, x3dParentDEF, rkAPNodes, x3dParent, x3dField):
-        parentNode = x3dParent
-        cField = x3dField
+    def processRKAnimPacks(self):#, rkAPNodes, x3dParent, x3dField):
+        #parentNode = x3dParent
+        #cField = x3dField
         
         ######################################################
         # Run this code to export Animation data 
         # at the end of the file is selected.
         ######################################################
-        parentNode = self.eofScene
-        cField = "children"
+        #parentNode = self.eofScene
+        #cField = "children"
+        
+        rkAPNodes = []
+        rkSel = aom.MSelectionList()
+        pkNames = cmds.ls(type="rkAnimPack", long=True)
+        if pkNames:
+            for pkn in pkNames:
+                rkSel.add(pkn)
+            for i in range(rkSel.length()):
+                rkAPNodes.append(aom.MFnDagNode(rkSel.getDagPath(i)))
             
-        bna = self.trv.processBasicNodeAddition(parentNode, cField, "Group", x3dParent.DEF + "_TimerGroup")
-        if bna:
+        #bna = self.trv.processBasicNodeAddition(parentNode, cField, "Group", x3dParent.DEF + "_TimerGroup")
+        #if bna:
             for apNode in rkAPNodes:
                 apType = cmds.getAttr(apNode.name() + ".mimickedType")
                 if apType == 1:
-                    self.processAudioClipNode(   apNode, bna, "children")
+                    #self.processAudioClipNode(   apNode, bna, "children")
+                    self.processAudioClipNode(   apNode, self.eofScene, "children")
                 elif apType == 3:
-                    self.processMovieTextureNode(apNode, bna, "children")
+                    #self.processMovieTextureNode(apNode, bna, "children")
+                    self.processMovieTextureNode(apNode, self.eofScene, "children")
                 elif apType == 4:
-                    self.processTimeSensorNode(  apNode, bna, "children")
+                    #self.processTimeSensorNode(  apNode, bna, "children")
+                    self.processTimeSensorNode(  apNode, self.eofScene, "children")
                     
-
+    '''
     def processSingleRKAnimPack(self, x3dParentDEF, apNode, x3dField="children"):
         x3dParent = self.getX3DParent(apNode, x3dParentDEF) 
         
@@ -1544,18 +1562,18 @@ class RKOrganizer():
             self.processMovieTextureNode(apNode, x3dParent, x3dField)
         elif apType == 4:
             self.processTimeSensorNode(  apNode, x3dParent, x3dField)
+    '''
 
-
-    def processAudioClipNode   (self, apNode, timerGroup, cField):
-        bna = self.trv.processBasicNodeAddition(timerGroup, cField, "AudioClip", apNode.name())
+    def processAudioClipNode   (self, apNode, x3dParent, cField):
+        bna = self.trv.processBasicNodeAddition(x3dParent, cField, "AudioClip", apNode.name())
 
         
-    def processMovieTextureNode(self, apNode, timerGroup, cField):
-        bna = self.trv.processBasicNodeAddition(timerGroup, cField, "MovieTexture", apNode.name())
+    def processMovieTextureNode(self, apNode, x3dParent, cField):
+        bna = self.trv.processBasicNodeAddition(x3dParent, cField, "MovieTexture", apNode.name())
 
     #Processing TimeSensor Node
-    def processTimeSensorNode   (self, apNode, timerGroup, cField):
-        bna = self.trv.processBasicNodeAddition(timerGroup, cField, "TimeSensor", apNode.name())
+    def processTimeSensorNode   (self, apNode, x3dParent, cField):
+        bna = self.trv.processBasicNodeAddition(x3dParent, cField, "TimeSensor", apNode.name())
         if bna:
             ##########################################
             # Store for later collection
@@ -1586,7 +1604,7 @@ class RKOrganizer():
             bna.cycleInterval = frameDistance / fps
             
             #To Be Removed later
-            cmds.setAttr(apNode.name() + ".cycleInterval", bna[1].cycleInterval)
+            cmds.setAttr(apNode.name() + ".cycleInterval", bna.cycleInterval)
             
             bna.description = cmds.getAttr(apNode.name() + ".description")
             bna.resumeTime  = cmds.getAttr(apNode.name() + ".resumeTime")
@@ -1615,7 +1633,7 @@ class RKOrganizer():
             ###### preFrame = cmds.currentTime(query=True)## --- ################
             for tExp in timerExpressions:
                 x3dNodeType = cmds.getAttr(tExp.name() + '.x3dInterpolatorType')
-                bni = self.trv.processBasicNodeAddition(timerGroup, cField, x3dNodeType, tExp.name())
+                bni = self.trv.processBasicNodeAddition(x3dParent, cField, x3dNodeType, tExp.name())
                 if bni:
                     ############################################################################
                     ###### cons   = cmds.listConnections(tExp.name(), p=True, s=True, et=True, sh=True)
@@ -1683,8 +1701,8 @@ class RKOrganizer():
                         if attrParts[1]   == "rotate":
                             setFieldValue += "rotation"
                             
-                    self.generateRoutes(bna.DEF, 'fraction_changed', bni.DEF,   'set_fraction', timerGroup, cField)
-                    self.generateRoutes(bni.DEF, 'value_changed',    attrParts[0], setFieldValue,  timerGroup, cField)
+                    self.generateRoutes(bna.DEF, 'fraction_changed', bni.DEF,     'set_fraction', x3dParent, cField)
+                    self.generateRoutes(bni.DEF, 'value_changed',    attrParts[0], setFieldValue, x3dParent, cField)
                     
             ###### cmds.currentTime(preFrame)
 
@@ -1901,16 +1919,16 @@ class RKOrganizer():
                 stoLen = len(sto)
                 if stolen > 0:
                     offset = offset + sto[stoLen-1]
-            sto.append(offset)
+                sto.append(offset)
 
-        # Need to shift the Tangent offset over, because index 0 should have a
-        # value of 0
-        tNum = len(sto)
-        last = 0
-        for nIdx in range(tNum):
-            tLast = sno[nIdx]
-            sno[nIdx] = last
-            last = tLast
+            # Need to shift the Tangent offset over, because index 0 should have a
+            # value of 0
+            tNum = len(sto)
+            last = 0
+            for nIdx in range(tNum):
+                tLast = sto[nIdx]
+                sto[nIdx] = last
+                last = tLast
             
         return sto, tName
 
@@ -1945,7 +1963,7 @@ class RKOrganizer():
                                     n = smIter.getNormal(i)
                                     normalbna.vector.append((n.x, n.y, n.z))
                                     offset += 1
-                                wmIter.next()
+                                smIter.next()
                     #Normal Per Vertex is False
                     elif self.rkNormalOpts == 2 or self.rkNormalOpts == 5:
                         if self.rkIsTriangles == True:
@@ -1963,19 +1981,19 @@ class RKOrganizer():
                                 normalbna.vector.append((pn.x, pn.y, pn.z))
                                 offset += 1
 
-                slen = len(sno)
-                if slen > 0:
-                    offset = offset + sno[slen-1]
-                sno.append(offset)
+                    slen = len(sno)
+                    if slen > 0:
+                        offset = offset + sno[slen-1]
+                    sno.append(offset)
             
-            # Need to shift the Noraml offset over, because index 0 should have a
-            # value of 0
-            n = len(sno)
-            last = 0
-            for nIdx in range(n):
-                tLast = sno[nIdx]
-                sno[nIdx] = last
-                last = tLast
+                # Need to shift the Noraml offset over, because index 0 should have a
+                # value of 0
+                n = len(sno)
+                last = 0
+                for nIdx in range(n):
+                    tLast = sno[nIdx]
+                    sno[nIdx] = last
+                    last = tLast
 
         return sno, nName
 
@@ -2234,7 +2252,7 @@ class RKOrganizer():
             #################################################t
             # Process CGESkin "shapes" field
             for mesh in allShapes:
-                #cgeShape = self.processMayaMesh(bna[1].DEF, mesh, cField="shapes", isAvatar=True, adjustment=skinSpaceMatrix)
+                #cgeShape = self.processMayaMesh(bna.DEF, mesh, cField="shapes", isAvatar=True, adjustment=skinSpaceMatrix)
                 #bLen = len(bna.shapes)
                 tmc = self.processMayaMesh(bna.DEF, mesh, cField="shapes", isAvatar=True, adjustment=skinSpaceMatrix)
                 for key in tmc:
@@ -2258,7 +2276,7 @@ class RKOrganizer():
                     print(f"Exception Type: {type(e).__name__}")
                     print(f"Exception Message: {e}")                            
 
-            self.populateCGEInverseBindMatrices(bna[1], allJoints, ssm=skinSpaceMatrix)
+            self.populateCGEInverseBindMatrices(bna, allJoints, ssm=skinSpaceMatrix)
 
 
     def populateCGEInverseBindMatrices(self, x3dSkin, allJoints, ssm=aom.MMatrix()):
@@ -2777,6 +2795,9 @@ class RKOrganizer():
             if cNode.typeName == "x3dSound"      and index == 0:
                 hasSound  = True
                 isLeaf    = True
+            # Ignore any transform that has an 'rkAnimPack' node as a child
+            if cNode.typeName == "rkAnimPack":
+                return
                 
         if hasCamera  == True:
             self.processX3DViewpoint(dagNode, x3dPF) #TODO fix the problem.
@@ -2813,8 +2834,8 @@ class RKOrganizer():
                 elif dagNode.typeName == "lodGroup":
                     self.processMayaLOD(x3dParentDEF, dagNode, cField)
                     
-                elif dagNode.typeName == "rkAnimPack":
-                    self.processSingleRKAnimPack(x3dParentDEF, dagNode, cField)
+                #elif dagNode.typeName == "rkAnimPack":
+                #    self.processSingleRKAnimPack(x3dParentDEF, dagNode, cField)
                     
                 elif dagNode.typeName == "joint":
                     if cmds.objExists("rkEPose"):
@@ -5455,7 +5476,7 @@ class RKOrganizer():
                         pass
                 else:
                     spCol = cmds.getAttr(material.name() + ".specularColor")[0]
-                    spcBna[1].specularColor = self.getSFColor(spCol[0], spCol[1], spCol[2])
+                    spcBna.specularColor = self.getSFColor(spCol[0], spCol[1], spCol[2])
             
             iorBna = self.trv.processBasicNodeAddition(physMat, "extensions", "IORMaterialExtension", physMat.DEF + "_IORME")
             if iorBna:
@@ -5655,7 +5676,7 @@ class RKOrganizer():
             geomName = nodeName + suffix
             if index > 1:
                 geomName = geomName + "_" + str(index)
-                
+            
             bna = self.trv.processBasicNodeAddition(x3dParentNode, cField, nodeType, geomName)
             if bna:
                 # TODO: Future code for implementing 'attrib'
