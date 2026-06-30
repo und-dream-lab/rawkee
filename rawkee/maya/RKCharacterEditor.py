@@ -457,7 +457,25 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         rotOrder = self.rotOrderValue
         self.changeSkeletonRotOrder("GameSkeletonRoot_M", rotOrder)
         
+
+    def removeNonJointNodes(self, jnode):
+        all_descendants = cmds.listRelatives(jnode, ad=True, fullPath=True) or []
+        to_delete = [node for node in all_descendants if cmds.nodeType(node) != 'joint']
+
+        revDev = cmds.listRelatives(jnode, ad=True) or []
+        allJoints = [node for node in revDev if cmds.nodeType(node) == 'joint']
+        allJoints.append(jnode)
         
+        if to_delete:
+            cmds.delete(to_delete)
+            
+        for j in allJoints:
+            try:
+                cmds.setAttr(j + '.liw', 0)
+            except:
+                pass
+
+
     #################################################
     # Generic Create Duplicate Skeleton
     #################################################
@@ -470,11 +488,17 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.duplicateRoot = ""
         
         rotOrder = self.rotOrderValue
-        
-        selectNames = cmds.ls(sl=True)
-        if selectNames == None:
+
+        selectNames = cmds.ls(sl=True, long=False)
+        selectPaths = cmds.ls(sl=True, long=True )
+        if not selectNames:
+            print("selectNames didn't exist.")
             return
-        self.sourceRoot = selectNames[0]
+        sourceName      = selectNames[0]
+        self.sourceRoot = selectPaths[0]
+        print(sourceName)
+        print(self.sourceRoot)
+        
         actualName = cmds.createNode('transform', ss=True, name='HAnimHumanoid')
         cmds.addAttr(actualName, longName='x3dGroupType', dataType='string', keyable=False)
         cmds.setAttr(actualName + '.x3dGroupType', "HAnimHumanoid", type='string', lock=True)
@@ -488,28 +512,37 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             print(f"Exception Message: {e}")                            
             print("Oops... Node Sticker Didn't work.")
 
-        newRootName = cmds.duplicate(self.sourceRoot, rr=True, rc=True)
-        cmds.parent(newRootName, actualName)
+        newRootName = cmds.duplicate(self.sourceRoot, rr=True, rc=False, ic=False, un=False, ilf=True, f=True)
         
-        self.changeSkeletonRotOrder(newRootName, rotOrder)
+        #self.removeNonJointNodes(newRootName[0])
+        cmds.parent(newRootName[0], actualName)
+        child = cmds.listRelatives(actualName, children=True, f=True)[0]
+        cmds.rename(child, sourceName)
+
+        self.duplicateRoot = cmds.listRelatives(actualName, children=True, f=True)[0]
+        print(self.duplicateRoot)
+        
+        self.changeSkeletonRotOrder(self.duplicateRoot, rotOrder)
         
         # Assign parentConstraints
-        self.duplicateRoot = newRootName[0]
         
-        jSel = om.MSelectionList()
-        jSel.add(self.sourceRoot)
-        jSel.add(self.duplicateRoot)
-        sRoot = om.MFnDagNode(jSel.getDagPath(0))
-        nRoot = om.MFnDagNode(jSel.getDagPath(1))
+        #jSel = om.MSelectionList()
+        #jSel.add(self.sourceRoot)
+        #jSel.add(self.duplicateRoot)
+        #sRoot = om.MFnDagNode(jSel.getDagPath(0))
+        #nRoot = om.MFnDagNode(jSel.getDagPath(1))
         
-        self.addHAnimConstraints(sRoot, nRoot)
+        #self.addHAnimConstraints(sRoot, nRoot)
         
 
     def addHAnimConstraints(self, sLeader, nFollower):
-        #cmds.parentConstraint(sLeader.name(), nFollower.name(), mo=True, st=["x","y","z"], w=1)
-        cmds.parentConstraint(sLeader.name(), nFollower.name(), mo=True, w=1)
-        for i in range(sLeader.childCount()):
-            self.addHAnimConstraints(om.MFnDagNode(sLeader.child(i)), om.MFnDagNode(nFollower.child(i)))
+        cmds.parentConstraint(sLeader, nFollower, mo=True, w=1)
+        sChildren = cmds.listRelatives(sLeader,   children=True, type="joint", f=True)
+        if sChildren:
+            nChildren = cmds.listRelatives(nFollower, children=True, type="joint", f=True)
+            if nChildren:
+                for i in range(len(sChildren)):
+                    self.addHAnimConstraints(sChildren[i], nChildren[i])
 
 
     #################################################
@@ -536,8 +569,8 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         
         # Transfer joint.translate values to joint.opm.translate
         self.flipTranslateToPMO(self.duplicateRoot)
-        mJoints = cmds.listRelatives(self.duplicateRoot, ad=True, type="joint")
-        if mJoints != None:
+        mJoints = cmds.listRelatives(self.duplicateRoot, ad=True, type="joint", f=True)
+        if mJoints:
             for mJoint in mJoints:
                 self.flipTranslateToPMO(mJoint)
         
@@ -551,13 +584,16 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
 
         
         # Assign new parentConstraints
-        jSel = om.MSelectionList()
-        jSel.add(self.sourceRoot)
-        jSel.add(self.duplicateRoot)
-        sRoot = om.MFnDagNode(jSel.getDagPath(0))
-        nRoot = om.MFnDagNode(jSel.getDagPath(1))
+        #jSel = om.MSelectionList()
+        #print(self.sourceRoot)
+        #print(self.duplicateRoot)
+        #jSel.add(self.sourceRoot)
+        #jSel.add(self.duplicateRoot)
+        #sRoot = om.MFnDagNode(jSel.getDagPath(0))
+        #nRoot = om.MFnDagNode(jSel.getDagPath(1))
         
-        self.addHAnimConstraints(sRoot, nRoot)
+        #self.addHAnimConstraints(sRoot, nRoot)
+        self.addHAnimConstraints(self.sourceRoot, self.duplicateRoot)
         
             
     def flipTranslateToPMO(self, nodeName):
@@ -565,17 +601,21 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         y = cmds.getAttr(nodeName + ".translateY")
         z = cmds.getAttr(nodeName + ".translateZ")
         
-        opm = []
         opm = cmds.getAttr(nodeName + ".offsetParentMatrix")
+        #print(opm)
+        #print(opm[0])
+        #print(f"Type: {type(res)}")
+        #print(f"Content: {res}")
         
-        opm[12] = opm[12] + x
-        opm[13] = opm[13] + y
-        opm[14] = opm[14] + z
-        cmds.setAttr(nodeName + ".offsetParentMatrix", opm, type="matrix")
+        if opm:
+            opm[12] = opm[12] + x
+            opm[13] = opm[13] + y
+            opm[14] = opm[14] + z
+            cmds.setAttr(nodeName + ".offsetParentMatrix", opm, type="matrix")
     
-        cmds.setAttr(nodeName + ".translateX", 0.0)
-        cmds.setAttr(nodeName + ".translateY", 0.0)
-        cmds.setAttr(nodeName + ".translateZ", 0.0)
+            cmds.setAttr(nodeName + ".translateX", 0.0)
+            cmds.setAttr(nodeName + ".translateY", 0.0)
+            cmds.setAttr(nodeName + ".translateZ", 0.0)
 
         
     def constraintRemover(self, dagNode, constraints):
@@ -599,6 +639,30 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         srDag = om.MFnDagNode(skelSel.getDagPath(0))
         skins = []
         self.collectBoundSkins(srDag, skins)
+        
+        '''
+        for skin in skins:
+            scs = cmds.ls(cmds.listHistory(skin.name()), type='skinCluster')
+            if scs:
+                for sc in scs:
+                    # Use the unbindKeepHistory flag (ubk)
+                    cmds.skinCluster(scs, edit=True, unbindKeepHistory=True)
+                    
+                rels = cmds.listRelatives(skin.name(), parent=True)#, fullPath=True)
+                if rels:
+                    pv=[0, 0, 0]
+                    cmds.parent(rels[0], world=True)
+                    cmds.xform(rels[0], pivots=pv, worldSpace=True)
+                    cmds.makeIdentity(rels[0], apply=True, t=True, r=True, s=True, n=False, pn=True, jo=True)
+                    
+                cmds.select(self.duplicateRoot)
+                cmds.select(cmds.listRelatives(self.duplicateRoot, allDescendents=True, type='joint', f=True), add=True)
+                cmds.select(skin.name(), add=True)
+
+                cmds.skinCluster(tsb=True)
+        
+        return
+        '''
         
         #Collect Skin Clusters
         skinClusters = []
@@ -645,26 +709,28 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         om.MGlobal.setActiveSelectionList(actList)
         
         #Unbined Meshes
-        cmds.DetachSkin(unbindAll=True, deleteHistroy=True)
+        #cmds.DetachSkin(unbindAll=True, deleteHistroy=True)
         
         #Make skins identity in worldspace.
         for skin in skins:
-            rels = cmds.listRelatives(skin.name(), parent=True, fullPath=True)
+            cmds.skinCluster(skin.name(), edit=True, unbind=True, ubk=True)
+            
+            rels = cmds.listRelatives(skin.name(), parent=True)#, fullPath=True)
             ##########################################################
             # Insert code to check if parent transform is keyed.
             # if it is, break connections.
-            connections = []
             connections = cmds.listConnections(rels[0], c=True, p=True)
             
-            cLen = len(connections)
-            cIter = 0
-            while cIter < cLen:
-                if "translate" in connections[cIter] or "rotate" in connections[cIter] or "scale" in connections[cIter]:
-                    try:
-                        cmds.disconnectAttr(connections[cIter+1], connections[cIter])
-                    except:
-                        print("disconnectAttr failed")
-                cIter += 2
+            if connections:
+                cLen = len(connections)
+                cIter = 0
+                while cIter < cLen:
+                    if "translate" in connections[cIter] or "rotate" in connections[cIter] or "scale" in connections[cIter]:
+                        try:
+                            cmds.disconnectAttr(connections[cIter+1], connections[cIter])
+                        except:
+                            print("disconnectAttr failed")
+                    cIter += 2
                 
             # Format the mesh within the transform properly
             pv=[0, 0, 0]
@@ -713,7 +779,9 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             
             skSel = om.MSelectionList()
             skSel.add(skins[i].fullPathName())
+
             skinCluster.setWeights(skSel.getDagPath(0), shape_comp, dpIndices, weights[i], normalize=False, returnOldWeights=False)
+            print("After\n")
 
 
     def bindSkinToSpecificInfluencers(self, skin, jointPaths):
@@ -778,9 +846,9 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
 
 
     def collectSkinClusterFromSkin(self, mNode, skinClusters):
-        smlist = om.MSelectionList()
-        smlist.add(mNode.name())
-        mpath = smlist.getDagPath(0)
+        #smlist = om.MSelectionList()
+        #smlist.add(mNode.name())
+        #mpath = smlist.getDagPath(0)
         
         skClusters = []
         scIter = om.MItDependencyGraph(mNode.object(), rkfn.kSkinClusterFilter, om.MItDependencyGraph.kUpstream, om.MItDependencyGraph.kBreadthFirst, om.MItDependencyGraph.kNodeLevel)
@@ -788,8 +856,11 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             skClusters.append(omAnim.MFnSkinCluster(scIter.currentNode()))
             scIter.next()
         
-        if len(skClusters) > 0:
-            skinClusters.append(skClusters[0])
+        #if len(skClusters) > 0:
+        #    skinClusters.append(skClusters[0])
+        for skc in skClusters:
+            print("Name: " + skc.name())
+            skinClusters.append(skc)
 
         
     def collectBoundSkins(self, joint, skins):
@@ -941,7 +1012,6 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
                 aName = cmds.createNode("rkAnimPack", n=tName, p=hName)
                 self.updateAnimPackAttributes( aName, "mimickedType", atSet)
                 self.populateAnimationPackages()
-
             elif atSet == 1 or atSet == 3 or atSet == 4:
                 aName = cmds.createNode("rkAnimPack", n=tName)
                 self.updateAnimPackAttributes( aName, "mimickedType", atSet)
@@ -2081,8 +2151,8 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         
     def changeSkeletonRotOrder(self, jointName, rotOrder):
         cmds.setAttr(jointName + ".rotateOrder", rotOrder)
-        children = cmds.listRelatives(jointName, children=True)
-        if children != None:
+        children = cmds.listRelatives(jointName, children=True, f=True)
+        if children:
             for child in children:
                 slist = om.MSelectionList()
                 slist.add(child)

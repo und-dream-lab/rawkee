@@ -9,6 +9,7 @@ import maya.cmds as cmds
 # authored scene, and then use the interaction editor to 
 # route X3D events within the scene.
 class RKAnimPack(aomui.MPxLocatorNode):
+#class RKAnimPack(aom.MPxNode):
     TYPE_NAME = "rkAnimPack"
     
     # This TYPE_ID was registered with Autodesk in 2024 for the 
