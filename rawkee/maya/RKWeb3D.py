@@ -26,7 +26,7 @@ try:
     from PySide2.QtWidgets import QPushButton
     from shiboken2         import wrapInstance
 
-except:
+except ImportError:
     from PySide6           import QtCore
     from PySide6           import QtWidgets
     from PySide6           import QtGui

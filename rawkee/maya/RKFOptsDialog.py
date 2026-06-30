@@ -7,7 +7,7 @@ try:
     from PySide2.QtWidgets import QAction
     from PySide2.QtWidgets import QMenu
     from PySide2.QtCore    import QUrl
-    from PySide2.QtQui     import QDesktopServices
+    from PySide2.QtGui     import QDesktopServices
 
     from PySide2.QtGui     import QIntValidator, QDoubleValidator
 
@@ -15,7 +15,7 @@ try:
 
     from shiboken2         import wrapInstance
 
-except:
+except ImportError:
     #Qt6
     from PySide6           import QtCore
     from PySide6           import QtWidgets

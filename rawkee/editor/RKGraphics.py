@@ -5,7 +5,7 @@ try:
 
     from PySide2.QtCore    import *
 
-except:
+except ImportError:
     #Qt6
     from PySide6.QtGui     import *
     from PySide6.QtWidgets import *

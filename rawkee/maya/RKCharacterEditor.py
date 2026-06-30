@@ -5,7 +5,7 @@ try:
     from PySide2.QtWebEngineWidgets import *
     from PySide2           import QtGui
     from PySide2.QtGui     import *
-    from PySide2           import QMenu
+    from PySide2.QtWidgets import QMenu
     from PySide2.QtWidgets import *
     from PySide2.QtWidgets import QGraphicsItem as rkgItem
     from PySide2.QtCore    import *
@@ -14,7 +14,7 @@ try:
     from shiboken2         import wrapInstance
     from shiboken2         import getCppPointer
 
-except:
+except ImportError:
     #Qt6
     from PySide6           import QtCore
     from PySide6           import QtWidgets
