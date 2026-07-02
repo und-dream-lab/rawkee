@@ -83,6 +83,33 @@ Some of the packages listed may require a pip install regarless of what the list
     c. Clicke the "Loaded" box to load RawKee, and then close the Plug-in Manager.<br>
 
 
+## Installing RawKee for Blender 5.x
+
+1. Clone the repository (same as the Maya steps above).
+
+2. Open Blender and switch to the **Text Editor** workspace.
+
+3. In the Text Editor header choose **Text > Open** and select
+   `blender_rawkee_install.py` from the cloned repo root.
+   > **Important:** use *Open* (not paste) so that `__file__` is defined
+   > and the installer can locate the repo automatically.
+
+4. Click **Run Script** (or press Alt+P).
+   The installer will:
+   - Copy the `rawkee` package to Blender's user `modules/` directory
+     (Blender adds this directory to `sys.path` automatically).
+   - Copy `Blender_RawKee_Python_X3D.py` to Blender's user `addons/`
+     directory.
+   - Enable the addon and save preferences.
+
+5. Restart Blender. The **RawKee (.X3D)** entry will appear under
+   **File > Export** and in the **N-panel** sidebar.
+
+> **Do not install by dragging only `Blender_RawKee_Python_X3D.py` into
+> Blender's Preferences.** That copies only the entry-point file and
+> leaves the `rawkee` package behind, which causes the
+> *"No module named 'rawkee'"* error.
+
 ## Contributing
 
 To make contributions to the project, follow these steps:

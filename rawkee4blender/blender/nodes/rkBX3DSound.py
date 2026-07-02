@@ -18,9 +18,7 @@ Registration     : Call register() / unregister() from the addon's register /
 import bpy
 import gpu
 import mathutils
-from bpy.props import (
-    FloatVectorProperty, FloatProperty, BoolProperty, StringProperty
-)
+from bpy.props import (FloatVectorProperty, FloatProperty, BoolProperty, StringProperty)
 from bpy.types import PropertyGroup
 from gpu_extras.batch import batch_for_shader
 
@@ -33,59 +31,36 @@ class RKX3DSoundProperties(PropertyGroup):
     """All X3D Sound-node fields stored on bpy.types.Object."""
 
     direction: FloatVectorProperty(
-        name="Direction",
-        description="Sound-emission direction vector (X3D Sound.direction)",
-        default=(0.0, 0.0, 1.0),
-        size=3,
-        subtype='DIRECTION',
+        name="Direction", 
+        description="Sound-emission direction vector (X3D Sound.direction)", default=(0.0, 0.0, 1.0), size=3, subtype='DIRECTION'
     )
     intensity: FloatProperty(
-        name="Intensity",
-        description="Overall gain factor (X3D Sound.intensity)",
-        default=1.0, min=0.0, max=1.0,
+        name="Intensity", description="Overall gain factor (X3D Sound.intensity)", default=1.0, min=0.0, max=1.0
     )
     location: FloatVectorProperty(
-        name="Location",
-        description="Sound source position offset (X3D Sound.location)",
-        default=(0.0, 0.0, 0.0),
-        size=3,
-        subtype='TRANSLATION',
+        name="Location", description="Sound source position offset (X3D Sound.location)", default=(0.0, 0.0, 0.0), size=3, subtype='TRANSLATION'
     )
     maxBack: FloatProperty(
-        name="Max Back",
-        description="Rear maximum attenuation radius (X3D Sound.maxBack)",
-        default=10.0, min=0.0,
+        name="Max Back", description="Rear maximum attenuation radius (X3D Sound.maxBack)", default=10.0, min=0.0
     )
     maxFront: FloatProperty(
-        name="Max Front",
-        description="Front maximum attenuation radius (X3D Sound.maxFront)",
-        default=10.0, min=0.0,
+        name="Max Front", description="Front maximum attenuation radius (X3D Sound.maxFront)", default=10.0, min=0.0
     )
     minBack: FloatProperty(
-        name="Min Back",
-        description="Rear minimum radius (X3D Sound.minBack)",
-        default=1.0, min=0.0,
+        name="Min Back", description="Rear minimum radius (X3D Sound.minBack)", default=1.0, min=0.0
     )
     minFront: FloatProperty(
-        name="Min Front",
-        description="Front minimum radius (X3D Sound.minFront)",
-        default=1.0, min=0.0,
+        name="Min Front", description="Front minimum radius (X3D Sound.minFront)", default=1.0, min=0.0
     )
     priority: FloatProperty(
-        name="Priority",
-        description="Rendering priority hint (X3D Sound.priority)",
-        default=0.0, min=0.0, max=1.0,
+        name="Priority", description="Rendering priority hint (X3D Sound.priority)", default=0.0, min=0.0, max=1.0
     )
     spatialize: BoolProperty(
-        name="Spatialize",
-        description="Enable 3-D spatialization (X3D Sound.spatialize)",
-        default=True,
+        name="Spatialize", description="Enable 3-D spatialization (X3D Sound.spatialize)", default=True
     )
     audio_url: StringProperty(
-        name="Audio URL",
-        description="Relative or absolute URL of the audio file for the child AudioClip",
-        default="",
-        subtype='FILE_PATH',
+        name="Audio URL", description="Relative or absolute URL of the audio file for the child AudioClip", default="",
+        subtype='FILE_PATH'
     )
 
 

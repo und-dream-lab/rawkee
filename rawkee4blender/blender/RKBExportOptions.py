@@ -15,9 +15,7 @@ Blender approach : A bpy.types.PropertyGroup (RKExportOptionsProperties) is
 
 import bpy
 import os
-from bpy.props import (
-    StringProperty, BoolProperty, IntProperty, FloatProperty, EnumProperty
-)
+from bpy.props import (StringProperty, BoolProperty, IntProperty, FloatProperty, EnumProperty)
 from bpy.types import PropertyGroup
 
 

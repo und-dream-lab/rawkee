@@ -43,7 +43,7 @@ import maya.cmds as cmds
 import maya.api.OpenMaya as aom
 
 #To get local file path for html file
-from rawkee.maya import RKWeb3D
+from rawkee4maya.maya import RKWeb3D #This needs to go at some point
 
 #To geth other items from 'rawkee'
 import rawkee.io.RKx3d as rkx

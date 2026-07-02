@@ -6,11 +6,11 @@ import maya.mel          as mel
 import os
 import copy
 
-from rawkee.maya import RKOrganizer
-from rawkee.editor import RKSceneEditor
-from rawkee.maya.RKFOptsDialog import RKFOptsDialog
-from rawkee.maya import RKSceneLoaderJSON
-import rawkee.maya.nodes.sticker    as stk
+from rawkee4maya.maya import RKOrganizer
+#from rawkee4maya.editor import RKSceneEditor
+from rawkee4maya.maya.RKFOptsDialog import RKFOptsDialog
+from rawkee4maya.maya import RKSceneLoaderJSON
+import rawkee4maya.maya.nodes.sticker    as stk
 
 
 try:

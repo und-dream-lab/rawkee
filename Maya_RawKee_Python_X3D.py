@@ -1,37 +1,37 @@
 import sys
 import os
 
-from rawkee.maya import RKWeb3D
-from rawkee.maya.RKWeb3D import RKAddSwitch, RKAddGroup, RKAddCollision, RKSetAsBillboard, RKAddX3DSound, RKTestIt
-from rawkee.maya.RKWeb3D import RKASBackupClipBoard, RKASRestoreClipBoard
-from rawkee.maya.RKWeb3D import RKSetAsHAnimHumanoid
-from rawkee.maya.RKWeb3D import RKTransferSkinASGS,     RKLoadDefPoseForHAnim,  RKAdvancedSkeleton
-from rawkee.maya.RKWeb3D import RKEstimateIPoseForASGS, RKEstimateAPoseForASGS, RKEstimateTPoseForASGS, RKSetASPoseForASGS, RKDefPoseForASGS
-from rawkee.maya.RKWeb3D import RKLoadIPoseForASGS,     RKLoadAPoseForASGS,     RKLoadTPoseForASGS
-from rawkee.maya.RKWeb3D import RKSaveIPoseForASGS,     RKSaveAPoseForASGS,     RKSaveTPoseForASGS
-from rawkee.maya.RKWeb3D import RKX3DAuxLoader
+from rawkee4maya.maya import RKWeb3D
+from rawkee4maya.maya.RKWeb3D import RKAddSwitch, RKAddGroup, RKAddCollision, RKSetAsBillboard, RKAddX3DSound, RKTestIt
+from rawkee4maya.maya.RKWeb3D import RKASBackupClipBoard, RKASRestoreClipBoard
+from rawkee4maya.maya.RKWeb3D import RKSetAsHAnimHumanoid
+from rawkee4maya.maya.RKWeb3D import RKTransferSkinASGS,     RKLoadDefPoseForHAnim,  RKAdvancedSkeleton
+from rawkee4maya.maya.RKWeb3D import RKEstimateIPoseForASGS, RKEstimateAPoseForASGS, RKEstimateTPoseForASGS, RKSetASPoseForASGS, RKDefPoseForASGS
+from rawkee4maya.maya.RKWeb3D import RKLoadIPoseForASGS,     RKLoadAPoseForASGS,     RKLoadTPoseForASGS
+from rawkee4maya.maya.RKWeb3D import RKSaveIPoseForASGS,     RKSaveAPoseForASGS,     RKSaveTPoseForASGS
+from rawkee4maya.maya.RKWeb3D import RKX3DAuxLoader
 from rawkee.editor.RKSceneEditor import *
-from rawkee.maya.RKCharacterEditor import *
-from rawkee.maya.RKBindPoseEditor import *
-from rawkee.maya.RKCharacterAnimationClipEditor import *
-from rawkee.maya.RKHAnimHumanoidSetupEditor import *
-from rawkee.maya.RKmGearSetupEditor import *
-from rawkee.maya.RKMaterialXEditor import *
+from rawkee4maya.maya.RKCharacterEditor import *
+from rawkee4maya.maya.RKBindPoseEditor import *
+from rawkee4maya.maya.RKCharacterAnimationClipEditor import *
+from rawkee4maya.maya.RKHAnimHumanoidSetupEditor import *
+from rawkee4maya.maya.RKmGearSetupEditor import *
+from rawkee4maya.maya.RKMaterialXEditor import *
 
 # From Early 2000s C++ Registered Node IDs
-from rawkee.maya.nodes.x3dSound import X3DSound, X3DSoundDrawOverride
+from rawkee4maya.maya.nodes.x3dSound import X3DSound, X3DSoundDrawOverride
 
 # From 2024 RawKee PE Registered Node IDSs
-from rawkee.maya.nodes.rkAnimPack import RKAnimPack
+from rawkee4maya.maya.nodes.rkAnimPack import RKAnimPack
 
-import rawkee.maya.nodes.sticker    as stk
+import rawkee4maya.maya.nodes.sticker    as stk
 
 
-#### from rawkee.nodes.X3D_Scene import X3D_Scene, RKPrimeX3DScene
-#### from rawkee.nodes.X3D_Transform import X3D_Transform
-#### from rawkee.nodes.X3D_Group import X3D_Group
-#from rawkee.nodes.x3dViewpointCamera import X3DViewpointCamera
-#from rawkee.RKUtils import *#setDefRKOptVars
+#### from rawkee4maya.nodes.X3D_Scene import X3D_Scene, RKPrimeX3DScene
+#### from rawkee4maya.nodes.X3D_Transform import X3D_Transform
+#### from rawkee4maya.nodes.X3D_Group import X3D_Group
+#from rawkee4maya.nodes.x3dViewpointCamera import X3DViewpointCamera
+#from rawkee4maya.RKUtils import *#setDefRKOptVars
 
 
 from maya import cmds as cmds
@@ -65,7 +65,7 @@ global RAWKEE_TITLE
 RAWKEE_VENDOR  = "UND DREAM Lab - https://github.com/und-dream-lab/rawkee/"
 RAWKEE_AUTHOR  = "Aaron Bergstrom"
 RAWKEE_MAJOR   = "2"
-RAWKEE_MINOR   = "0"
+RAWKEE_MINOR   = "1"
 RAWKEE_MICRO   = "0"
 RAWKEE_VERSION = RAWKEE_MAJOR + "." + RAWKEE_MINOR + "." + RAWKEE_MICRO
 RAWKEE_TITLE   = "RawKee X3D Exporter for Maya - Python Version: " + RAWKEE_VERSION
@@ -903,7 +903,8 @@ def runRawKeeInitializer(plugin):
     pluginFn = aom.MFnPlugin(plugin, RAWKEE_VENDOR, RAWKEE_VERSION)
  
     # RawKee Utility Functions required to be in MEL format such as functions related to AE Templates.
-    mel.eval('source "x3d.mel"')
+    RAWKEE_BASE = RKWeb3D.__file__.replace("\\", "/").rsplit("/", 1)[0]
+    mel.eval('source "' + RAWKEE_BASE + '/mel/x3d.mel"')
     
     # Check to see if the Advanced Skelton Scripts are installed, and if they are, 
     # source the main AS script.
@@ -1085,15 +1086,13 @@ def runRawKeeInitializer(plugin):
     except:
         sys.stderr.write("Failed to register a plugin command.\n")
 
-    # Function that sets the Maya global varaibles required by RawKee - Found in 'rawkee.maya.RKUtils'
+    # Function that sets the Maya global varaibles required by RawKee - Found in 'rawkee4maya.maya.RKUtils'
     mel.eval('setDefRKOptVars()')
 
-    # Create Menu System for RawKee 'rawkee.RKMenus'
+    # Create Menu System for RawKee 'rawkee4maya.RKMenus'
     global rkWeb3D
     rkWeb3D = RKWeb3D.RKWeb3D()
     rkWeb3D.pVersion = RAWKEE_TITLE
-    
-    RAWKEE_BASE = RKWeb3D.__file__.replace("\\", "/").rsplit("/", 1)[0]
     rkWeb3D.setMyStyleSheet(RAWKEE_BASE)
     
     ################################################################################

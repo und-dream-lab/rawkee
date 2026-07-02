@@ -9,13 +9,13 @@ import maya.api.OpenMayaAnim as aoma
 from   maya.api.OpenMaya import MFn as rkfn
 
 import ufe
-import rawkee.maya.RKufe as rkufe
+import rawkee4maya.maya.RKufe as rkufe
 
-from rawkee.maya.RKInterfaces   import RKInterfaces
+from rawkee4maya.maya.RKInterfaces   import RKInterfaces
 from rawkee.io.RKSceneTraversal import RKSceneTraversal
 
 # Pushed Material Export into RKMaterials.py
-import rawkee.maya.RKMaterials as rkMat
+import rawkee4maya.maya.RKMaterials as rkMat
 
 import numpy as np
 

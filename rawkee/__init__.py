@@ -1,25 +1,23 @@
-dcc=0 # Python
+dcc = 0  # standalone Python
 
 try:
     import maya.cmds
-    dcc=1 #Maya
+    dcc = 1  # Maya
 except ImportError:
     try:
         import bpy
-        dcc=2 #Blender
-        from . import blender
+        dcc = 2  # Blender
     except ImportError:
         pass
 
-if   dcc == 1:
-    from . import maya
+if dcc == 1:
     from . import editor
     from . import io
-    print("Is Maya - Plugin")
+    print("rawkee: Maya environment detected.")
 elif dcc == 2:
-    from . import blender
+    from . import io
+    print("rawkee: Blender environment detected.")
+else:
     from . import editor
     from . import io
-    print("Is Blender - AddOn")
-else:
-    print("Is neither mayapy or bpy, Plugin/AddOn - Failure to load.")
+    print("rawkee: Standalone Python environment detected.")
