@@ -32,7 +32,7 @@ bl_info = {
     }
 #Imports
 #-------------------------------------
-from .rawkee.blender import RKWeb3DBlenderUI #imports the rawkee folder and the blender folder inside of it to the RKWeb3DBlender script for the UI.
+from .rawkee4blender.blender import RKWeb3DBlenderUI #imports the rawkee folder and the blender folder inside of it to the RKWeb3DBlender script for the UI.
 
 #-------------------------------------
 

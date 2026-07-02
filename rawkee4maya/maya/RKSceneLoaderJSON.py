@@ -9,7 +9,7 @@ import maya.mel  as mel
 
 import maya.api.OpenMaya as aom
 import maya.api.OpenMayaAnim as aoma
-import rawkee.maya.nodes.sticker    as stk
+import rawkee4maya.maya.nodes.sticker    as stk
 
 from   maya.api.OpenMaya import MFn as rkfn
 

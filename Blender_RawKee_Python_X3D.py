@@ -1,8 +1,8 @@
-﻿"""
+"""
 File Author: Thomaz Diaz, UND Dream Lab
 Description: Blender RawKee PE X3D Export addon entry point.
              Contains bl_info and delegates all registration to
-             rawkee.blender.RKWeb3DBlenderUI.
+             rawkee4blender.blender.RKWeb3DBlenderUI.
 """
 
 import bpy
@@ -27,14 +27,28 @@ if _addon_dir not in sys.path:
     sys.path.insert(0, _addon_dir)
 
 
+class RawKeeAddonPreferences(bpy.types.AddonPreferences):
+    bl_idname = __name__
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column()
+        col.label(text="N-panel sidebar:  3D Viewport  →  press N  →  'RawKee (.X3D)' tab",
+                  icon='VIEW3D')
+        col.label(text="Export menu:  File  →  Export  →  'RawKee X3D (.x3d / .x3dv / .x3dj)'",
+                  icon='EXPORT')
+
+
 def register():
-    from rawkee.blender import RKWeb3DBlenderUI
+    bpy.utils.register_class(RawKeeAddonPreferences)
+    from rawkee4blender.blender import RKWeb3DBlenderUI
     RKWeb3DBlenderUI.register()
 
 
 def unregister():
-    from rawkee.blender import RKWeb3DBlenderUI
+    from rawkee4blender.blender import RKWeb3DBlenderUI
     RKWeb3DBlenderUI.unregister()
+    bpy.utils.unregister_class(RawKeeAddonPreferences)
 
 
 if __name__ == "__main__":

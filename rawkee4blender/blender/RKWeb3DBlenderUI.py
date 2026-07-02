@@ -1,4 +1,4 @@
-﻿"""
+"""
 RawKee Blender - Main UI wiring (RKWeb3D Blender equivalent).
 
 Maya equivalent  : rawkee/maya/RKWeb3D.py
@@ -18,17 +18,9 @@ from bpy_extras.io_utils import ExportHelper
 from bpy.props           import StringProperty, EnumProperty
 
 from rawkee.io.RKSceneTraversal        import RKSceneTraversal
-from rawkee.blender.RKOrganizerBlender import RKOrganizerBlender
-from rawkee.blender import (
-    RKBExportOptions,
-    RKBHAnimHumanoidSetupEditor,
-    RKBBindPoseEditor,
-    RKBCharacterEditor,
-    RKBCharacterAnimationClipEditor,
-    RKBRigifySetupEditor,
-    RKBMaterialXEditor,
-)
-from rawkee.blender.nodes import rkBX3DSound, rkBAnimPack
+from rawkee4blender.blender.RKOrganizerBlender import RKOrganizerBlender
+from rawkee4blender.blender import (RKBExportOptions, RKBHAnimHumanoidSetupEditor, RKBBindPoseEditor, RKBCharacterEditor, RKBCharacterAnimationClipEditor, RKBRigifySetupEditor, RKBMaterialXEditor)
+from rawkee4blender.blender.nodes import rkBX3DSound, rkBAnimPack
 
 
 # ---------------------------------------------------------------------------
@@ -260,16 +252,37 @@ _sub_modules = [
 
 
 def register():
-    for mod in _sub_modules:
-        mod.register()
     for cls in _own_classes:
         bpy.utils.register_class(cls)
+
+    for mod in _sub_modules:
+        try:
+            mod.register()
+        except Exception as exc:
+            import traceback
+            print(f"[RawKee] WARNING: could not register sub-module "
+                  f"'{getattr(mod, '__name__', mod)}': {exc}")
+            traceback.print_exc()
+
     bpy.types.TOPBAR_MT_file_export.append(_menu_export)
+    print("[RawKee] Addon registered. "
+          "In the 3D Viewport press N and select the 'RawKee (.X3D)' tab. "
+          "File > Export also has a 'RawKee X3D' entry.")
 
 
 def unregister():
     bpy.types.TOPBAR_MT_file_export.remove(_menu_export)
-    for cls in reversed(_own_classes):
-        bpy.utils.unregister_class(cls)
+
     for mod in reversed(_sub_modules):
-        mod.unregister()
+        try:
+            mod.unregister()
+        except Exception as exc:
+            print(f"[RawKee] WARNING: could not unregister sub-module "
+                  f"'{getattr(mod, '__name__', mod)}': {exc}")
+
+    for cls in reversed(_own_classes):
+        try:
+            bpy.utils.unregister_class(cls)
+        except Exception as exc:
+            print(f"[RawKee] WARNING: could not unregister class "
+                  f"'{cls.__name__}': {exc}")

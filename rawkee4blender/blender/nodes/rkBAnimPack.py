@@ -17,9 +17,7 @@ Registration     : Call register() / unregister() from the addon entry point.
 """
 
 import bpy
-from bpy.props import (
-    BoolProperty, IntProperty, FloatProperty, StringProperty, EnumProperty
-)
+from bpy.props import (BoolProperty, IntProperty, FloatProperty, StringProperty, EnumProperty)
 from bpy.types import PropertyGroup
 
 

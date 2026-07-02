@@ -146,6 +146,8 @@ class RKSceneTraversal():
             #    print("Debug2: " + key)
                 
             keyp = key.split('_')
+            if len(keyp) < 4:
+                continue
             if   keyp[1] == "X3DNode":
                 if   keyp[3] == "DEF" and node.DEF != "":
                     sFieldsList.append("DEF")
@@ -194,7 +196,7 @@ class RKSceneTraversal():
             # For some reason the '_Normal__vector' attribute doesn't show up as an instance of a list, eventhough it should.
             # So I added a one-off check for the vector attribute.
             if  isinstance(value, list): #or (keyp[1] == "Normal" and keyp[3] == "vector"):
-                if getattr(compNode,keyp[3]) != value:#len(value) > 0:
+                if len(value) > 0 and getattr(compNode,keyp[3]) != value:
                     if isinstance(value[0], (str, float, int, tuple, bool, type(None) ) ):
                         if value[0] != None:
                             mFieldsList.append(keyp[3])
@@ -367,7 +369,8 @@ class RKSceneTraversal():
             
             values = getattr(node, field)
             sValue = ""
-            
+            if not values:
+                continue
             if isinstance(values[0], tuple):
                 tvLen = len(values)
                 for vIdx in range(tvLen):
@@ -563,7 +566,8 @@ class RKSceneTraversal():
             
             values = getattr(node, field)
             sValue = ""
-            
+            if not values:
+                continue
             if isinstance(values[0], tuple):
                 tvLen = len(values)
                 for vIdx in range(tvLen):
@@ -750,6 +754,8 @@ class RKSceneTraversal():
             fieldLine = mFieldList[idx] + "='"
             values = getattr(node, mFieldList[idx])
             sValue = ""
+            if not values:
+                continue
             if   isinstance(values[0], tuple):
                 tvLen = len(values)
                 for vIdx in range(tvLen):
@@ -901,6 +907,8 @@ class RKSceneTraversal():
             fieldLine = mFieldList[idx] + "='"
             values = getattr(node, mFieldList[idx])
             sValue = ""
+            if not values:
+                continue
             if   isinstance(values[0], tuple):
                 tvLen = len(values)
                 for vIdx in range(tvLen):

@@ -49,6 +49,12 @@ _ZERO_VEC = (0.0, 0.0, 0.0)
 _ONE_VEC  = (1.0, 1.0, 1.0)
 _IDENTITY_ROT = (0.0, 0.0, 1.0, 0.0)
 
+# Camera correction matrix: R_x(-90°)
+# Calibration: Blender rotation R_x(+90°) is visually equivalent to the
+# default X3D Viewpoint orientation (0 0 1 0).  Therefore the correction
+# must satisfy  _CAM_CORR @ R_x(90°) = I  →  _CAM_CORR = R_x(-90°).
+_CAM_CORR = mathutils.Matrix(((1, 0, 0), (0, 0, 1), (0, -1, 0)))
+
 
 def _world_mat(obj):
     """Return the world matrix of obj converted to X3D (Y-up) space."""
@@ -232,6 +238,9 @@ class RKOrganizerBlender:
             c = world.color
             bkNode.skyColor[0] = (c.r, c.g, c.b)
 
+        # World environment texture → EnvironmentLight
+        self._process_world_environment(x3dScene, context)
+
         # Traverse scene collection hierarchy
         self._traverse_collection(x3dScene, context.scene.collection, context, is_root=True)
 
@@ -379,9 +388,13 @@ class RKOrganizerBlender:
     # -----------------------------------------------------------------------
 
     def _make_transform(self, x3dParent, obj, is_root):
-        """Create an X3D Transform from obj's matrix and return it."""
-        mat = _world_mat(obj) if is_root else obj.matrix_local
-        loc, rot, sca = _decompose(mat)
+        """Create an X3D Transform from obj's matrix, converted to X3D Y-up."""
+        # Use world matrix for root objects, local matrix for children
+        mat_blender = obj.matrix_world if is_root else obj.matrix_local
+        # Conjugate by _AX to convert Blender Z-up to X3D Y-up:
+        #   _AX @ M @ _AX_inv  preserves composition:  _b(A)@_b(B) == _b(A@B)
+        mat_x3d = _AX @ mat_blender @ _AX.inverted()
+        loc, rot, sca = _decompose(mat_x3d)
         defName = _safe_name(obj.name)
         tfm = self.trv.processBasicNodeAddition(
             x3dParent, "children", "Transform", defName
@@ -425,7 +438,10 @@ class RKOrganizerBlender:
             bm.free()
 
         mesh.calc_loop_triangles()
-        mesh.calc_normals_split()
+        # calc_normals_split() was removed in Blender 4.1; loop normals are
+        # always available on mesh.loops[i].normal in 4.1+.
+        if hasattr(mesh, 'calc_normals_split'):
+            mesh.calc_normals_split()
 
         # One Shape per material slot (or one if no materials)
         mats = mesh.materials if mesh.materials else [None]
@@ -459,8 +475,8 @@ class RKOrganizerBlender:
         if not poly_indices:
             return
 
-        # Vertices
-        verts = [(v.co.x, v.co.y, v.co.z) for v in mesh.vertices]
+        # Vertices – convert Blender Z-up (x,y,z) to X3D Y-up (x,z,−y)
+        verts = [(v.co.x, v.co.z, -v.co.y) for v in mesh.vertices]
 
         # Build coordIndex
         coordIndex = []
@@ -499,7 +515,8 @@ class RKOrganizerBlender:
                 poly = mesh.polygons[pi]
                 for li in range(poly.loop_start, poly.loop_start + poly.loop_total):
                     ln = mesh.loops[li].normal
-                    normal_vecs.append((ln.x, ln.y, ln.z))
+                    # Normals: same Z-up → Y-up remapping as vertex positions
+                    normal_vecs.append((ln.x, ln.z, -ln.y))
                     normalIndex.append(loop_idx)
                     loop_idx += 1
                 normalIndex.append(-1)
@@ -578,16 +595,24 @@ class RKOrganizerBlender:
                 pm.diffuseColor = (0.8, 0.8, 0.8)
             return
 
-        # Try to detect a Principled BSDF node
-        pbsdf = None
+        # Try to detect a Principled BSDF node, then fall back to the
+        # glTF Metallic Roughness node group (same PhysicalMaterial output).
+        pbsdf    = None
+        gltf_mr  = None
         if mat.use_nodes:
             for node in mat.node_tree.nodes:
                 if node.type == 'BSDF_PRINCIPLED':
                     pbsdf = node
-                    break
+                elif (node.type == 'GROUP'
+                      and node.node_tree is not None
+                      and node.node_tree.name == 'glTF Metallic Roughness'):
+                    gltf_mr = node
 
-        if pbsdf is not None:
-            self._build_physical_material(app, mat, pbsdf, app_name)
+        # Prefer Principled BSDF; fall back to glTF MR; then legacy Material.
+        shader_node = pbsdf or gltf_mr
+        if shader_node is not None:
+            self._build_physical_material(app, mat, shader_node, app_name,
+                                          is_gltf_mr=(pbsdf is None))
         else:
             # Fallback: use diffuse colour directly
             pm = self.trv.processBasicNodeAddition(
@@ -624,8 +649,9 @@ class RKOrganizerBlender:
         return None
 
 
-    def _build_physical_material(self, x3dApp, mat, pbsdf, base_name):
-        """Map Principled BSDF inputs to X3D PhysicalMaterial."""
+    def _build_physical_material(self, x3dApp, mat, pbsdf, base_name,
+                                   is_gltf_mr=False):
+        """Map Principled BSDF or glTF Metallic Roughness inputs to X3D PhysicalMaterial."""
         pm = self.trv.processBasicNodeAddition(
             x3dApp, "material", "PhysicalMaterial", base_name + "_PhysMat"
         )
@@ -640,54 +666,177 @@ class RKOrganizerBlender:
         # Metallic / roughness
         metal = self._get_pbsdf_input_value(pbsdf, "Metallic")
         if metal is not None:
-            pm.metalness = float(metal)
+            pm.metallic = float(metal)
 
         rough = self._get_pbsdf_input_value(pbsdf, "Roughness")
         if rough is not None:
-            pm.roughnessFactor = float(rough)
+            pm.roughness = float(rough)
 
-        # Emissive
-        em_sock = pbsdf.inputs.get("Emission")
-        em_str  = pbsdf.inputs.get("Emission Strength")
-        if em_sock and em_str:
-            ec = em_sock.default_value
-            es = float(em_str.default_value)
-            pm.emissiveColor = (ec[0] * es, ec[1] * es, ec[2] * es)
+        # Emissive — socket name differs between the two shader types:
+        #   Principled BSDF : "Emission" (color) + "Emission Strength" (float)
+        #   glTF MR group   : "Emissive" (color, strength already baked in)
+        if is_gltf_mr:
+            em_col = self._get_pbsdf_input_value(pbsdf, "Emissive")
+            if em_col:
+                pm.emissiveColor = (float(em_col[0]), float(em_col[1]), float(em_col[2]))
+        else:
+            em_sock = pbsdf.inputs.get("Emission")
+            em_str  = pbsdf.inputs.get("Emission Strength")
+            if em_sock and em_str:
+                ec = em_sock.default_value
+                es = float(em_str.default_value)
+                pm.emissiveColor = (ec[0] * es, ec[1] * es, ec[2] * es)
 
         # Transparency (alpha)
         alpha = self._get_pbsdf_input_value(pbsdf, "Alpha")
         if alpha is not None and float(alpha) < 0.999:
             pm.transparency = 1.0 - float(alpha)
 
-        # Base-color image texture
-        img_node = self._find_image_texture(mat.node_tree, "Base Color", pbsdf)
-        if img_node and img_node.image:
-            self._add_image_texture(x3dApp, img_node.image, base_name + "_BaseColorTex",
-                                    pm, is_base=True)
+        # ---- Textures ------------------------------------------------
+        # Diagnostics: print shader node inputs to Blender console
+        print(f"[RawKee] _build_physical_material: shader='{pbsdf.name}' "
+              f"type={pbsdf.type} is_gltf_mr={is_gltf_mr}")
+        for s in pbsdf.inputs:
+            linked = len(s.links) > 0
+            from_t = s.links[0].from_node.type if linked else 'none'
+            print(f"[RawKee]   socket '{s.name}': linked={linked} from_type={from_t}")
+
+        # Base color
+        img = self._find_image_texture(mat.node_tree, "Base Color", pbsdf)
+        print(f"[RawKee]   _find_image_texture('Base Color') -> {img}")
+        if img and img.image:
+            print(f"[RawKee]   image.name={img.image.name!r}  filepath={img.image.filepath!r}  packed={img.image.packed_file is not None}")
+            self._make_image_texture(pm, "baseTexture", img.image,
+                                     base_name + "_BaseTex")
+
+        # Metallic-roughness (try Metallic socket first, fall back to Roughness)
+        mr = (self._find_image_texture(mat.node_tree, "Metallic", pbsdf) or
+              self._find_image_texture(mat.node_tree, "Roughness", pbsdf))
+        if mr and mr.image:
+            self._make_image_texture(pm, "metallicRoughnessTexture", mr.image,
+                                     base_name + "_MRTex")
 
         # Normal map
-        norm_node = self._find_image_texture(mat.node_tree, "Normal", pbsdf)
-        if norm_node and norm_node.image:
-            pass   # TODO: NormalMapTexture / TextureTransform
+        nm = self._find_image_texture(mat.node_tree, "Normal", pbsdf)
+        if nm and nm.image:
+            self._make_image_texture(pm, "normalTexture", nm.image,
+                                     base_name + "_NormTex")
+
+        # Emissive texture
+        em_sock = "Emissive" if is_gltf_mr else "Emission"
+        em = self._find_image_texture(mat.node_tree, em_sock, pbsdf)
+        if em and em.image:
+            self._make_image_texture(pm, "emissiveTexture", em.image,
+                                     base_name + "_EmissTex")
+
+        # Occlusion texture
+        occ = self._find_image_texture(mat.node_tree, "Occlusion", pbsdf)
+        if occ and occ.image:
+            self._make_image_texture(pm, "occlusionTexture", occ.image,
+                                     base_name + "_OccTex")
 
 
-    def _add_image_texture(self, x3dApp, blender_image, def_name, pm, is_base=False):
-        """Add an ImageTexture node to the Appearance and set its URL."""
-        if not blender_image.filepath:
-            return
-        src_abs = bpy.path.abspath(blender_image.filepath)
-        if self.rkConsolidate:
-            url = self.rkImagePath.lstrip('/') + '/' + os.path.basename(src_abs)
-            base_dir = os.path.dirname(self.fullPath)
-            self._copy_texture(src_abs, base_dir)
+    def _make_image_texture(self, parent_node, field_name, blender_image, def_name,
+                             node_type='ImageTexture'):
+        """
+        Resolve/copy the image file and attach it as parent_node.<field_name>.
+        Handles both external files and images packed inside the .blend file.
+        node_type can be 'ImageTexture' or 'ImageCubeMapTexture'.
+        """
+        if not blender_image:
+            return None
+
+        src_abs = bpy.path.abspath(blender_image.filepath) if blender_image.filepath else ''
+
+        # Packed image: the file lives only inside the .blend — extract raw bytes.
+        if (not src_abs or not os.path.isfile(src_abs)) and blender_image.packed_file:
+            raw_name = os.path.basename(
+                blender_image.name.lstrip('/').lstrip('\\')
+            ) or blender_image.name
+            fname = raw_name
+            if not os.path.splitext(fname)[1]:
+                # Detect format from file magic bytes
+                data = blender_image.packed_file.data
+                if data[:4] == b'\x89PNG':
+                    fname += '.png'
+                elif data[:3] == b'\xff\xd8\xff':
+                    fname += '.jpg'
+                else:
+                    fname += '.png'
+            os.makedirs(self.imageMoveDir, exist_ok=True)
+            dst = os.path.join(self.imageMoveDir, fname)
+            try:
+                with open(dst, 'wb') as f:
+                    f.write(blender_image.packed_file.data)
+            except Exception as e:
+                print(f"RKOrganizerBlender: packed image extract failed '{fname}': {e}")
+                return None
+            url = self.rkImagePath.lstrip('/') + '/' + fname
+
+        elif not src_abs or not os.path.isfile(src_abs):
+            return None   # no file and not packed — nothing to export
+
+        elif self.rkConsolidate:
+            url = self._copy_texture(src_abs, os.path.dirname(self.fullPath))
+
         else:
-            url = bpy.path.abspath(blender_image.filepath)
+            url = src_abs
 
         tex = self.trv.processBasicNodeAddition(
-            x3dApp, "texture", "ImageTexture", def_name
+            parent_node, field_name, node_type, def_name
         )
         if tex:
             tex.url = [url]
+        return tex
+
+
+    def _add_image_texture(self, x3dApp, blender_image, def_name, pm, is_base=False):
+        """Legacy wrapper – adds base texture to the Appearance texture slot."""
+        self._make_image_texture(pm, "baseTexture", blender_image, def_name)
+
+
+    # -----------------------------------------------------------------------
+    #  World environment → EnvironmentLight
+    # -----------------------------------------------------------------------
+
+    def _process_world_environment(self, x3dScene, context):
+        """
+        If the Blender World uses an Environment Texture node, export it as
+        an X3D EnvironmentLight with ImageCubeMapTexture for specular and
+        diffuse slots (X_ITE accepts equirectangular images here).
+        """
+        world = context.scene.world
+        if not world or not world.use_nodes:
+            return
+
+        env_node = None
+        bg_node  = None
+        for node in world.node_tree.nodes:
+            if node.type == 'TEX_ENVIRONMENT':
+                env_node = node
+            elif node.type == 'BACKGROUND':
+                bg_node = node
+
+        if env_node is None or not env_node.image:
+            return
+
+        el = self.trv.processBasicNodeAddition(
+            x3dScene, "children", "EnvironmentLight", "WorldEnvironmentLight"
+        )
+        if el is None:
+            return
+
+        el.global_  = True
+        if bg_node:
+            strength = bg_node.inputs.get("Strength")
+            if strength is not None:
+                el.intensity = float(strength.default_value)
+
+        # Both specular and diffuse use the same equirectangular image
+        self._make_image_texture(el, "specularTexture", env_node.image,
+                                  "WorldEnvSpecTex", node_type='ImageCubeMapTexture')
+        self._make_image_texture(el, "diffuseTexture",  env_node.image,
+                                  "WorldEnvDiffTex",  node_type='ImageCubeMapTexture')
 
 
     # -----------------------------------------------------------------------
@@ -696,8 +845,9 @@ class RKOrganizerBlender:
 
     def _process_hanim_humanoid(self, x3dParent, arm_obj, context, is_root):
         """Export an armature tagged rk_hanim_humanoid=True as HAnimHumanoid."""
-        mat   = _world_mat(arm_obj) if is_root else arm_obj.matrix_local
-        loc, rot, sca = _decompose(mat)
+        mat_blender = arm_obj.matrix_world if is_root else arm_obj.matrix_local
+        mat_x3d = _AX @ mat_blender @ _AX.inverted()
+        loc, rot, sca = _decompose(mat_x3d)
         def_name = _safe_name(arm_obj.name)
 
         hh = self.trv.processBasicNodeAddition(
@@ -784,8 +934,9 @@ class RKOrganizerBlender:
 
     def _process_light(self, x3dParent, obj, context, is_root):
         light = obj.data
-        mat   = _world_mat(obj) if is_root else obj.matrix_local
-        loc, rot, sca = _decompose(mat)
+        mat_blender = obj.matrix_world if is_root else obj.matrix_local
+        mat_x3d = _AX @ mat_blender @ _AX.inverted()
+        loc, rot, sca = _decompose(mat_x3d)
         def_name = _safe_name(obj.name)
         col = light.color
 
@@ -838,8 +989,21 @@ class RKOrganizerBlender:
 
     def _process_camera(self, x3dParent, obj, context, is_root):
         cam = obj.data
-        mat = _world_mat(obj) if is_root else obj.matrix_local
-        loc, rot, sca = _decompose(mat)
+        mat = obj.matrix_world if is_root else obj.matrix_local
+
+        # Position: Blender (X, Y, Z) → X3D (X, Z, −Y)
+        t   = mat.to_translation()
+        loc = (t.x, t.z, -t.y)
+
+        # Orientation: pre-multiply Blender rotation by _CAM_CORR,
+        # then extract axis-angle for the X3D SFRotation field.
+        _, rot_q, _ = mat.decompose()
+        R_result    = _CAM_CORR @ rot_q.to_matrix()
+        ax, ang     = R_result.to_quaternion().to_axis_angle()
+        if ax.length < 1e-8:
+            ax  = mathutils.Vector((0.0, 0.0, 1.0))
+            ang = 0.0
+        rot = (ax.x, ax.y, ax.z, ang)
         def_name = _safe_name(obj.name)
 
         vp = self.trv.processBasicNodeAddition(
@@ -860,8 +1024,9 @@ class RKOrganizerBlender:
 
     def _process_speaker(self, x3dParent, obj, context, is_root):
         spkr = obj.data
-        mat  = _world_mat(obj) if is_root else obj.matrix_local
-        loc, rot, sca = _decompose(mat)
+        mat_blender = obj.matrix_world if is_root else obj.matrix_local
+        mat_x3d = _AX @ mat_blender @ _AX.inverted()
+        loc, rot, sca = _decompose(mat_x3d)
         def_name = _safe_name(obj.name)
 
         snd = self.trv.processBasicNodeAddition(
@@ -905,8 +1070,9 @@ class RKOrganizerBlender:
 
     def _process_x3d_sound(self, x3dParent, obj, context, is_root=False):
         """Export an EMPTY flagged rk_x3d_type='Sound' as a Sound node."""
-        mat = _world_mat(obj) if is_root else obj.matrix_local
-        loc, _, _ = _decompose(mat)
+        mat_blender = obj.matrix_world if is_root else obj.matrix_local
+        mat_x3d = _AX @ mat_blender @ _AX.inverted()
+        loc, _, _ = _decompose(mat_x3d)
         def_name  = _safe_name(obj.name)
         props     = obj.rk_x3d_sound
 

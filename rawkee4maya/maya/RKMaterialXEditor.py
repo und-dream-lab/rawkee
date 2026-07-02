@@ -49,7 +49,7 @@ class RKMaterialXEditor(MayaQWidgetDockableMixin, QWidget):
         
     @classmethod
     def workspace_ui_script(cls):
-        return "from rawkee.maya.RKMaterialXEditor import RKMaterialXEditor\nrkMXEWidget = RKMaterialXEditor()"
+        return "from rawkee4maya.maya.RKMaterialXEditor import RKMaterialXEditor\nrkMXEWidget = RKMaterialXEditor()"
         
     @classmethod
     def workplace_close_command(cls):
