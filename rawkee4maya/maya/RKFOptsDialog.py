@@ -205,6 +205,13 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.rkSunrizePrjDir = cmds.optionVar( q='rkSunrizePrjDir')
         self.rkPrjDir        = cmds.optionVar( q='rkPrjDir'       )
 
+        self.rkHDRtoPNG      = cmds.optionVar( q='rkHDRtoPNG'     )
+        self.rkHDRbit16PNG   = cmds.optionVar( q='rkHDRbit16PNG'  )
+        self.rkHDRExposure   = cmds.optionVar( q='rkHDRExposure'  )
+        self.rkHDRSaturation = cmds.optionVar( q='rkHDRSaturation')
+        self.rkHDRContrast   = cmds.optionVar( q='rkHDRContrast'  )
+        self.rkHDRSharpenAmount = cmds.optionVar( q='rkHDRSharpenAmount' )
+        
         self.rkImagePath     = cmds.optionVar( q='rkImagePath'    )
         self.rkAudioPath     = cmds.optionVar( q='rkAudioPath'    )
 
@@ -260,6 +267,50 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.rkDefTexHeightLE.setValidator(thValidator)
         self.rkDefTexHeightLE.setText(str(self.rkDefTexHeight))
 
+        self.rkHDRCheckbox = self.expOptFrame.findChild(QtWidgets.QCheckBox, 'rkHDRCheckBox')
+        self.rkHDRCheckbox.setChecked(self.rkHDRtoPNG)
+        
+        #self.rkHDRbit16PNG   = cmds.optionVar( q='rkHDRbit16PNG'  )
+        self.rkHDRBitRadio16 = self.expOptFrame.findChild(QtWidgets.QRadioButton, 'rkHDRbit16PNG')
+        self.rkHDRBitRadio8 = self.expOptFrame.findChild(QtWidgets.QRadioButton, 'rkHDRbit8PNG')
+        
+        if self.rkHDRbit16PNG:
+            self.rkHDRBitRadio16.setChecked(True)
+        else:
+            self.rkHDRBitRadio8.setChecked(True)
+            
+        self.rkExpLETest = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'expText' )
+        self.rkExpSlider = self.expOptFrame.findChild(QtWidgets.QSlider, 'exposureSlider')
+        expValidator = QDoubleValidator(0.0, 3.0, 1, self.expOptFrame)
+        self.rkExpLETest.setValidator(expValidator)
+        self.rkExpLETest.setText(str(self.rkHDRExposure/10.0))
+        self.rkExpSlider.setValue(int(self.rkHDRExposure))
+        self.rkExpSlider.valueChanged.connect(self.setExpText)
+
+        self.rkSatLETest = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'satText' )
+        self.rkSatSlider = self.expOptFrame.findChild(QtWidgets.QSlider, 'saturationSlider')
+        satValidator = QDoubleValidator(0.0, 3.0, 1, self.expOptFrame)
+        self.rkSatLETest.setValidator(satValidator)
+        self.rkSatLETest.setText(str(self.rkHDRSaturation/10.0))
+        self.rkSatSlider.setValue(int(self.rkHDRSaturation))
+        self.rkSatSlider.valueChanged.connect(self.setSatText)
+
+        self.rkConLETest = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'conText' )
+        self.rkConSlider = self.expOptFrame.findChild(QtWidgets.QSlider, 'contrastSlider')
+        conValidator = QDoubleValidator(0.0, 3.0, 1, self.expOptFrame)
+        self.rkConLETest.setValidator(conValidator)
+        self.rkConLETest.setText(str(self.rkHDRContrast/10.0))
+        self.rkConSlider.setValue(int(self.rkHDRContrast))
+        self.rkConSlider.valueChanged.connect(self.setConText)
+        
+        self.rkShaLETest = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'shaText' )
+        self.rkShaSlider = self.expOptFrame.findChild(QtWidgets.QSlider, 'sharpenSlider')
+        shaValidator = QDoubleValidator(0.0, 2.0, 1, self.expOptFrame)
+        self.rkShaLETest.setValidator(shaValidator)
+        self.rkShaLETest.setText( str(self.rkHDRSharpenAmount/10.0))
+        self.rkShaSlider.setValue(int(self.rkHDRSharpenAmount))
+        self.rkShaSlider.valueChanged.connect(self.setShaText)
+        
         self.rkConsolidateCheckbox = self.expOptFrame.findChild(QtWidgets.QCheckBox, 'rkConsolidateCheckbox')
         self.rkConsolidateCheckbox.setChecked(self.rkConsolidate)
         
@@ -335,6 +386,13 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.rkDefTexWidthLE         = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'textureWidth'           )
         self.rkDefTexHeightLE        = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'textureHeight'          )
 
+        self.rkHDRBitRadio16           = self.expOptFrame.findChild(QtWidgets.QRadioButton, 'rkHDRbit16PNG'       )
+        self.rkHDRCheckbox           = self.expOptFrame.findChild(QtWidgets.QCheckBox, 'rkHDRCheckBox'          )
+        self.rkExpSlider             = self.expOptFrame.findChild(QtWidgets.QSlider,   'exposureSlider'         )
+        self.rkSatSlider             = self.expOptFrame.findChild(QtWidgets.QSlider,   'saturationSlider'       )
+        self.rkConSlider             = self.expOptFrame.findChild(QtWidgets.QSlider,   'contrastSlider'         )
+        self.rkShaSlider             = self.expOptFrame.findChild(QtWidgets.QSlider,   'sharpenSlider'          )
+
         self.rkConsolidateCheckbox   = self.expOptFrame.findChild(QtWidgets.QCheckBox, 'rkConsolidateCheckbox'  )
         self.procTextureComboBox     = self.expOptFrame.findChild(QtWidgets.QComboBox, 'procTextureComboBox'    )
         self.fileTextureComboBox     = self.expOptFrame.findChild(QtWidgets.QComboBox, 'fileTextureComboBox'    )
@@ -390,6 +448,13 @@ class RKFOptsDialog(QtWidgets.QDialog):
         cmds.optionVar( iv=('rkTextureHeight', hwi))
 
         cmds.optionVar( iv=('rkConsolidate'  , self.rkConsolidateCheckbox.isChecked()))
+        cmds.optionVar( iv=('rkHDRtoPNG'     , self.rkHDRCheckbox.isChecked()        ))
+        cmds.optionVar( iv=('rkHDRbit16PNG'  , self.rkHDRBitRadio16.isChecked()        ))
+        cmds.optionVar( iv=('rkHDRExposure'  , self.rkExpSlider.value()              ))
+        cmds.optionVar( iv=('rkHDRSaturation'  , self.rkSatSlider.value()            ))
+        cmds.optionVar( iv=('rkHDRContrast'  , self.rkConSlider.value()              ))
+        cmds.optionVar( iv=('rkHDRSharpenAmount'  , self.rkShaSlider.value()         ))
+        
         cmds.optionVar( iv=('rkProcTexType'  , self.procTextureComboBox.currentIndex()))
         cmds.optionVar( iv=('rkFileTexType'  , self.fileTextureComboBox.currentIndex()))
         cmds.optionVar( iv=('rkMovieTexType' , self.movieTextureComboBox.currentIndex()))
@@ -412,6 +477,33 @@ class RKFOptsDialog(QtWidgets.QDialog):
         cmds.optionVar( iv=('rkProcTexFormat', self.procTextureComboBox.currentIndex()))
         cmds.optionVar( iv=('rkFileTexFormat', self.consFormatComboBox.currentIndex())) #self.consFormatComboBox
 
+    def setExpText(self):
+        self.rkExpLETest = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'expText' )
+        self.rkExpSlider = self.expOptFrame.findChild(QtWidgets.QSlider, 'exposureSlider')
+        expValidator = QDoubleValidator(0.0, 3.0, 1, self.expOptFrame)
+        self.rkExpLETest.setValidator(expValidator)
+        self.rkExpLETest.setText(str(self.rkExpSlider.value()/10.0))
+
+    def setSatText(self):
+        self.rkSatLETest = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'satText' )
+        self.rkSatSlider = self.expOptFrame.findChild(QtWidgets.QSlider, 'saturationSlider')
+        satValidator = QDoubleValidator(0.0, 3.0, 1, self.expOptFrame)
+        self.rkSatLETest.setValidator(satValidator)
+        self.rkSatLETest.setText(str(self.rkSatSlider.value()/10.0))
+
+    def setConText(self):
+        self.rkConLETest = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'conText' )
+        self.rkConSlider = self.expOptFrame.findChild(QtWidgets.QSlider, 'contrastSlider')
+        conValidator = QDoubleValidator(0.0, 3.0, 1, self.expOptFrame)
+        self.rkConLETest.setValidator(conValidator)
+        self.rkConLETest.setText(str(self.rkConSlider.value()/10.0))
+
+    def setShaText(self):
+        self.rkShaLETest = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'shaText' )
+        self.rkShaSlider = self.expOptFrame.findChild(QtWidgets.QSlider, 'sharpenSlider')
+        shaValidator = QDoubleValidator(0.0, 2.0, 1, self.expOptFrame)
+        self.rkShaLETest.setValidator(shaValidator)
+        self.rkShaLETest.setText(str(self.rkShaSlider.value()/10.0))
 
     def exportX3D(self):
         if self.rkExportMode == 0:

@@ -63,7 +63,7 @@ def _write_mod_file(modules_dir, repo_root):
         "+ RawKee_PythonEdition_X3D 2.1.0 {root}\n"
         "PYTHONPATH+:=.\n"
         "MAYA_PLUG_IN_PATH+:=.\n"
-        "MAYA_SCRIPT_PATH+:=rawkee/maya/mel\n"
+        "MAYA_SCRIPT_PATH+:=rawkee4maya/maya/mel\n"
     ).format(root=repo_root_fwd)
 
     mod_path = os.path.join(modules_dir, "RawKee.mod")

@@ -68,7 +68,7 @@
           </font>
          </property>
          <property name="text">
-          <string>Steps for making a compliant HAnim Skeleton from existing Source Skeleton.</string>
+          <string>Steps for making a compliant HAnim Skeleton from existing mGear Skeleton.</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignBottom|Qt::AlignLeading|Qt::AlignLeft</set>
@@ -123,7 +123,7 @@
        <item>
         <widget class="QLabel" name="genSelRootLabel">
          <property name="text">
-          <string>Select Root Joint of Source Skeleton</string>
+          <string>Manipulate the mGear Character Rig into I-Pose or desired default pose.</string>
          </property>
         </widget>
        </item>
@@ -170,68 +170,19 @@
         <widget class="QLabel" name="rotOrderLabelEX">
          <property name="minimumSize">
           <size>
-           <width>200</width>
+           <width>350</width>
            <height>24</height>
           </size>
          </property>
          <property name="maximumSize">
           <size>
-           <width>200</width>
+           <width>350</width>
            <height>24</height>
           </size>
          </property>
          <property name="text">
-          <string>Choose Joint Rotation Order</string>
+          <string>Select Root Joint of the mGear Character's Skeleton</string>
          </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QComboBox" name="rotOrderComboBoxGN">
-         <property name="minimumSize">
-          <size>
-           <width>60</width>
-           <height>24</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>60</width>
-           <height>24</height>
-          </size>
-         </property>
-         <property name="currentIndex">
-          <number>0</number>
-         </property>
-         <item>
-          <property name="text">
-           <string>XYZ</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>YZX</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>ZXY</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>XZY</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>YXZ</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>ZYX</string>
-          </property>
-         </item>
         </widget>
        </item>
        <item>
@@ -283,18 +234,18 @@
         <widget class="QPushButton" name="createDuplicate">
          <property name="minimumSize">
           <size>
-           <width>150</width>
+           <width>180</width>
            <height>24</height>
           </size>
          </property>
          <property name="maximumSize">
           <size>
-           <width>150</width>
+           <width>180</width>
            <height>24</height>
           </size>
          </property>
          <property name="text">
-          <string>Create Duplicate Skeleton</string>
+          <string>Convert to HAnimHumanoid</string>
          </property>
         </widget>
        </item>
@@ -307,189 +258,6 @@
           <size>
            <width>40</width>
            <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_10">
-       <property name="spacing">
-        <number>6</number>
-       </property>
-       <property name="leftMargin">
-        <number>40</number>
-       </property>
-       <property name="bottomMargin">
-        <number>2</number>
-       </property>
-       <item>
-        <widget class="QLabel" name="genStep4">
-         <property name="minimumSize">
-          <size>
-           <width>40</width>
-           <height>24</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>40</width>
-           <height>24</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>Step 4:</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="genSourceLabel">
-         <property name="text">
-          <string>Position Source Skeleton in an HAnim I-Pose (or other desired default pose).</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <spacer name="horizontalSpacer_10">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>24</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_2">
-       <property name="spacing">
-        <number>6</number>
-       </property>
-       <property name="leftMargin">
-        <number>40</number>
-       </property>
-       <property name="bottomMargin">
-        <number>2</number>
-       </property>
-       <item>
-        <widget class="QLabel" name="genStep5">
-         <property name="minimumSize">
-          <size>
-           <width>40</width>
-           <height>24</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>40</width>
-           <height>24</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>Step 5:</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="setDuplicateIPose">
-         <property name="minimumSize">
-          <size>
-           <width>120</width>
-           <height>24</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>120</width>
-           <height>24</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>Set Duplicate I-Pose</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <spacer name="horizontalSpacer_2">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_3">
-       <property name="spacing">
-        <number>6</number>
-       </property>
-       <property name="leftMargin">
-        <number>40</number>
-       </property>
-       <property name="bottomMargin">
-        <number>2</number>
-       </property>
-       <item>
-        <widget class="QLabel" name="genStep6">
-         <property name="minimumSize">
-          <size>
-           <width>40</width>
-           <height>24</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>40</width>
-           <height>24</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>Step 6:</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="transferToDuplicate">
-         <property name="minimumSize">
-          <size>
-           <width>180</width>
-           <height>24</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>180</width>
-           <height>24</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>Transfer Bound Skin to Duplicate</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <spacer name="horizontalSpacer_3">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>24</height>
           </size>
          </property>
         </spacer>
