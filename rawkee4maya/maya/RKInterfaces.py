@@ -354,73 +354,58 @@ class RKInterfaces():
 
 
     #def convert_hdr_to_png16(self, hdr_path, png_path, gamma=2.2):
-    def hdri2png(self, hdr_path, png_path, gamma=2.2, bits=16, exposure=1.1, contrast=1.3, saturation=1.5, sharpen_amount=0.5):
+    def hdri2png(self, hdr_path, png_path, gamma=2.2):
         """
-        Converts a 32-bit float HDR image to a 16-bit uint PNG image 
-        with safety checks for channels and invalid numerical values.
+        Converts a 32-bit float HDR image to an 8-bit or 16-bit PNG.
+        Bit depth is determined by the rkHDRbit16PNG option variable.
         """
-        # 1. Read the HDR image (as float32)
-        # IMREAD_ANYDEPTH is critical for reading the 32-bit float data
+        isBit16        = cmds.optionVar(q='rkHDRbit16PNG')
+        exposure       = float(cmds.optionVar(q='rkHDRExposure'))      / 10.0
+        saturation     = float(cmds.optionVar(q='rkHDRSaturation'))    / 10.0
+        contrast       = float(cmds.optionVar(q='rkHDRContrast'))      / 10.0
+        sharpen_amount = float(cmds.optionVar(q='rkHDRSharpenAmount')) / 10.0
 
+        # 1. Load HDR image as float32
         hdr_image = cv2.imread(hdr_path, flags=cv2.IMREAD_ANYDEPTH | cv2.IMREAD_COLOR)
-
         if hdr_image is None:
             print(f"Error: Could not read the HDR image from {hdr_path}")
             return
 
-        # SAFETY CHECK: OpenCV tone mappers require 3-channel CV_32FC3
-        #if len(hdr_image.shape) == 2:  # Handle grayscale
-        #    hdr_image = cv2.cvtColor(hdr_image, cv2.COLOR_GRAY2BGR)
-        #elif hdr_image.shape[2] == 4:  # Handle alpha channel
-        #    hdr_image = cv2.cvtColor(hdr_image, cv2.COLOR_BGRA2BGR)
+        # Ensure 3-channel BGR float32 (required by tone mappers)
         if len(hdr_image.shape) == 2:
             hdr_image = cv2.cvtColor(hdr_image, cv2.COLOR_GRAY2BGR)
         elif hdr_image.shape[2] == 4:
             hdr_image = cv2.cvtColor(hdr_image, cv2.COLOR_BGRA2BGR)
-        
-        # Ensure data type is float32
         hdr_image = hdr_image.astype(np.float32)
 
-        # 2. Tone map to displayable range [0, 1]
-        #tonemap = cv2.createTonemap(gamma=gamma)
-        tonemap = cv2.createTonemapReinhard(gamma=gamma)
-        ldr_float = tonemap.process(hdr_image)
-        
-        ldr_float = np.clip(ldr_float * exposure, 0, 1)
-        ldr_float = np.clip(((ldr_float - 0.5) * contrast) + 0.5, 0, 1)
-        
-        # Saturation
+        # 2. Tone-map to [0, 1]
+        ldr_float = cv2.createTonemapReinhard(gamma=gamma).process(hdr_image)
+        ldr_float = np.clip(ldr_float * exposure, 0.0, 1.0)
+        ldr_float = np.clip((ldr_float - 0.5) * contrast + 0.5, 0.0, 1.0)
+
+        # 3. Saturation adjustment in HSV
         hsv = cv2.cvtColor(ldr_float, cv2.COLOR_BGR2HSV)
-        hsv[:,:,1] *= saturation
+        hsv[:, :, 1] = np.clip(hsv[:, :, 1] * saturation, 0.0, 1.0)
         ldr_float = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
-        
-        # Sharpening
-        if sharpen_amount > 0:
-            blurred = cv2.GaussianBlur(ldr_float, (0,0), 3)
+
+        # 4. Unsharp mask
+        if sharpen_amount > 0.0:
+            blurred = cv2.GaussianBlur(ldr_float, (0, 0), 3)
             ldr_float = cv2.addWeighted(ldr_float, 1.0 + sharpen_amount, blurred, -sharpen_amount, 0)
-        
-        # SAFETY CHECK: Handle NaNs/Infs and clip strictly to [0, 1] 
-        # This prevents the "invalid value encountered in cast" warning
-        ldr_float = np.nan_to_num(ldr_float, nan=0.0, posinf=1.0, neginf=0.0)
-        ldr_float = np.clip(ldr_float, 0.0, 1.0)
 
-        # 3. Scale and convert to 16-bit unsigned integer (0-65535)
-        # Using np.round ensures better precision during the conversion
-        
-        intType = np.uint16
-        intLen  = 65535
-        if bits == 8:
-            intType = np.uint8
-            intLen  = 255
-            
-        png16_image = np.round(ldr_float * intLen).astype(intType)
+        # 5. Sanitize and hard-clip
+        ldr_float = np.clip(np.nan_to_num(ldr_float, nan=0.0, posinf=1.0, neginf=0.0), 0.0, 1.0)
 
-        # 4. Save as 16-bit PNG
-        # OpenCV imwrite supports 16-bit PNG depth natively
-        success = cv2.imwrite(png_path, png16_image)
+        # 6. Quantize and save
+        if isBit16:
+            out_image = np.round(ldr_float * 65535.0).astype(np.uint16)
+            label = "16-bit"
+        else:
+            out_image = np.round(ldr_float * 255.0).astype(np.uint8)
+            label = "8-bit"
 
-        if success:
-            print(f"Successfully converted {hdr_path} to {png_path}")
+        if cv2.imwrite(png_path, out_image):
+            print(f"Successfully converted {hdr_path} to {png_path} ({label})")
         else:
             print(f"Error: Could not write the PNG image to {png_path}")
 

@@ -104,7 +104,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.hanimCS  = None
         self.haNameEd = None
         self.haLOA    = None
-        self.rotCBGN  = None
+        #self.rotCBGN  = None
         self.rotCBHA  = None
         self.rotCBAS  = None
         
@@ -165,7 +165,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         
         self.cDupButton = None
         self.sDupIPose  = None
-        self.transToDup = None
+        #self.transToDup = None
         
         self.sAnimPack   = None
         
@@ -259,7 +259,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             genericGUIFile = QtCore.QFile(self.genericPath)
             genericGUIFile.open(QtCore.QFile.ReadOnly)
             self.genericSkeletonPanel = loader.load(genericGUIFile)
-        self.tab_widget.addTab(self.genericSkeletonPanel, "Generic X3D/HAnim Skeleton Functions")
+        self.tab_widget.addTab(self.genericSkeletonPanel, "Configure mGear Character for HAnim X3D Export")
 
         # antCGI Rigging Toolkit
         try:
@@ -328,13 +328,13 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         self.haNameEd = self.findChild(QtWidgets.QLineEdit,   'haNameEdit'         )
         self.haLOA    = self.findChild(QtWidgets.QComboBox,   'loaComboBox'        )
         self.rotCBAS  = self.findChild(QtWidgets.QComboBox,   'rotOrderComboBoxAS' )
-        self.rotCBGN  = self.findChild(QtWidgets.QComboBox,   'rotOrderComboBoxGN' )
+        #self.rotCBGN  = self.findChild(QtWidgets.QComboBox,   'rotOrderComboBoxGN' )
         self.rotCBHA  = self.findChild(QtWidgets.QComboBox,   'rotOrderComboBoxHA' )
         
         # Generic Skeleton - Tab
         self.cDupButton = self.findChild(QtWidgets.QPushButton, 'createDuplicate')
-        self.cDupIPose  = self.findChild(QtWidgets.QPushButton, 'setDuplicateIPose')
-        self.transToDup = self.findChild(QtWidgets.QPushButton, 'transferToDuplicate')
+        #self.cDupIPose  = self.findChild(QtWidgets.QPushButton, 'setDuplicateIPose')
+        #self.transToDup = self.findChild(QtWidgets.QPushButton, 'transferToDuplicate')
         
         # Advanced Skeleton - Tab
         adString = "AdvancedSkeleton"
@@ -409,13 +409,11 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         
         # HAnim Joint Rotation Order
         self.rotCBAS.currentIndexChanged.connect(self.setRotOrderValue)
-        self.rotCBGN.currentIndexChanged.connect(self.setRotOrderValue)
+        #self.rotCBGN.currentIndexChanged.connect(self.setRotOrderValue)
         self.rotCBHA.currentIndexChanged.connect(self.setRotOrderValue)
         
         # Generic Skeleton - Tab
-        self.cDupButton.clicked.connect(self.genericStep2)
-        self.cDupIPose.clicked.connect(self.genericStep4)
-        self.transToDup.clicked.connect(self.genericStep5)
+        self.cDupButton.clicked.connect(self.buildHAnimHumanoidFromSkeleton)
         
         # Advanced Skeleton - Tab
         # estIPose will be == to None if Advanced Skeleton is not found.
@@ -470,63 +468,67 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
 
 
     #################################################
-    # Generic Create Duplicate Skeleton
+    # Unique Joint Name Generator
     #################################################
-    def genericStep2(self):
-        print("genericStep2")
-        # Create a duplicate skeleton
-        ##################################
-        # Create a HAnimHumanoid transform
-        ##################################
-        self.duplicateRoot = ""
-        
-        rotOrder = self.rotOrderValue
+    def _uniqueJointName(self, baseName):
+        """Return *baseName* unchanged if no scene node with that name exists,
+        otherwise append incrementing integers (baseName1, baseName2, …) until
+        a free name is found."""
+        if not cmds.objExists(baseName):
+            return baseName
+        i = 1
+        candidate = f"{baseName}{i}"
+        while cmds.objExists(candidate):
+            i += 1
+            candidate = f"{baseName}{i}"
+        return candidate
 
-        selectNames = cmds.ls(sl=True, long=False)
-        selectPaths = cmds.ls(sl=True, long=True )
-        if not selectNames:
-            print("selectNames didn't exist.")
-            return
-        sourceName      = selectNames[0]
-        self.sourceRoot = selectPaths[0]
-        print(sourceName)
-        print(self.sourceRoot)
-        
-        actualName = cmds.createNode('transform', ss=True, name='HAnimHumanoid')
-        cmds.addAttr(actualName, longName='x3dGroupType', dataType='string', keyable=False)
-        cmds.setAttr(actualName + '.x3dGroupType', "HAnimHumanoid", type='string', lock=True)
-        cmds.addAttr(actualName, longName='levelOfArticulation', shortName='LOA', attributeType='long', keyable=False, defaultValue=0, minValue=-1, maxValue=4)
-        cmds.addAttr(actualName, longName="skeletalConfiguration", dataType="string")
-        cmds.setAttr(actualName+'.skeletalConfiguration', "BASIC", type="string")
-        try:
-            stk.put(actualName,  "x3dHAnimHumanoid.png")
-        except Exception as e:
-            print(f"Exception Type: {type(e).__name__}")
-            print(f"Exception Message: {e}")                            
-            print("Oops... Node Sticker Didn't work.")
 
-        newRootName = cmds.duplicate(self.sourceRoot, rr=True, rc=False, ic=False, un=False, ilf=True, f=True)
-        
-        #self.removeNonJointNodes(newRootName[0])
-        cmds.parent(newRootName[0], actualName)
-        child = cmds.listRelatives(actualName, children=True, f=True)[0]
-        cmds.rename(child, sourceName)
+    #################################################
+    # Recursive Joint Hierarchy Builder
+    #################################################
+    def _createJointHierarchyUnderParent(self, srcJoint, parentNode, srcToDupMap):
+        """Create one new joint under *parentNode* whose local transform
+        exactly mirrors *srcJoint*, then recurse into each joint child.
 
-        self.duplicateRoot = cmds.listRelatives(actualName, children=True, f=True)[0]
-        print(self.duplicateRoot)
-        
-        self.changeSkeletonRotOrder(self.duplicateRoot, rotOrder)
-        
-        # Assign parentConstraints
-        
-        #jSel = om.MSelectionList()
-        #jSel.add(self.sourceRoot)
-        #jSel.add(self.duplicateRoot)
-        #sRoot = om.MFnDagNode(jSel.getDagPath(0))
-        #nRoot = om.MFnDagNode(jSel.getDagPath(1))
-        
-        #self.addHAnimConstraints(sRoot, nRoot)
-        
+        The new joint's short name is the source short name with a ``_ha``
+        suffix; ``_uniqueJointName`` ensures there are no collisions.
+
+        *srcToDupMap* accumulates {srcFullPath: newJointShortName} entries
+        for every joint created during the recursion."""
+        srcShortName = srcJoint.split('|')[-1]
+        newName      = self._uniqueJointName(srcShortName + '_ha')
+
+        # Read every local transform component from the source so that the
+        # new joint occupies the identical world position.
+        t   = cmds.getAttr(srcJoint + '.translate')[0]
+        r   = cmds.getAttr(srcJoint + '.rotate')[0]
+        jo  = cmds.getAttr(srcJoint + '.jointOrient')[0]
+        ra  = cmds.getAttr(srcJoint + '.rotateAxis')[0]
+        s   = cmds.getAttr(srcJoint + '.scale')[0]
+        ro  = cmds.getAttr(srcJoint + '.rotateOrder')
+        rad = cmds.getAttr(srcJoint + '.radius')
+        opm = cmds.getAttr(srcJoint + '.offsetParentMatrix')
+
+        newJoint = cmds.createNode('joint', name=newName, parent=parentNode)
+
+        cmds.setAttr(newJoint + '.translate',    t[0],  t[1],  t[2])
+        cmds.setAttr(newJoint + '.rotate',       r[0],  r[1],  r[2])
+        cmds.setAttr(newJoint + '.jointOrient', jo[0], jo[1], jo[2])
+        cmds.setAttr(newJoint + '.rotateAxis',  ra[0], ra[1], ra[2])
+        cmds.setAttr(newJoint + '.scale',        s[0],  s[1],  s[2])
+        cmds.setAttr(newJoint + '.rotateOrder', ro)
+        cmds.setAttr(newJoint + '.radius', rad)
+        cmds.setAttr(newJoint + '.offsetParentMatrix', opm, type='matrix')
+
+        srcToDupMap[srcJoint] = newJoint
+
+        children = cmds.listRelatives(srcJoint, children=True, type='joint', fullPath=True) or []
+        for child in children:
+            self._createJointHierarchyUnderParent(child, newJoint, srcToDupMap)
+
+        return newJoint
+
 
     def addHAnimConstraints(self, sLeader, nFollower):
         cmds.parentConstraint(sLeader, nFollower, mo=True, w=1)
@@ -539,56 +541,312 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
 
 
     #################################################
-    # Set Duplicate I-Pose
-    ##################################################
-    def genericStep4(self):
-        print("genericStep4")
+    # Find mGear Rig Root via Dependency Graph
+    #################################################
+    def _findMGearRoot(self, jointFullPath):
+        """Find the mGear rig root transform.
 
-        dSel = om.MSelectionList()
-        dSel.add(self.duplicateRoot)
-        dupDag = om.MFnDagNode(dSel.getDagPath(0))
-        
-        
-        # Remove Constraints
-        constraints = []
-        self.constraintRemover(dupDag, constraints)
-        for con in constraints:
-            if cmds.objExists(con):
-                cmds.delete(con)
-        constraints.clear()
-        
-        # Freeze Joints
-        cmds.makeIdentity(self.duplicateRoot, apply=True, t=True, r=True, s=True, n=False, pn=True, jo=True)
-        
-        # Transfer joint.translate values to joint.opm.translate
-        self.flipTranslateToPMO(self.duplicateRoot)
-        mJoints = cmds.listRelatives(self.duplicateRoot, ad=True, type="joint", f=True)
-        if mJoints:
-            for mJoint in mJoints:
-                self.flipTranslateToPMO(mJoint)
-        
-        # Set BindPose for Duplicate skeleton
-        if mJoints != None:
-            mJoints.append(self.duplicateRoot)
-            cmds.select(mJoints)
-            poseName = cmds.dagPose(save=True, selection=True, name="iPose")
-            cmds.addAttr(poseName, longName='x3dHAnimPose', dataType="string")
-            cmds.setAttr(poseName + ".x3dHAnimPose", "iPose", type="string")
+        Traverses the dependency graph upstream from *jointFullPath*, filtering
+        for transform nodes.  The first transform found that carries the mGear
+        'isCtl' attribute is an mGear control; walking up its DAG chain to the
+        world level yields the rig root.  Falls back to the joint's own topmost
+        DAG ancestor if no controls are reachable."""
+        sel = om.MSelectionList()
+        sel.add(jointFullPath)
+        jointObj = sel.getDependNode(0)
 
-        
-        # Assign new parentConstraints
-        #jSel = om.MSelectionList()
-        #print(self.sourceRoot)
-        #print(self.duplicateRoot)
-        #jSel.add(self.sourceRoot)
-        #jSel.add(self.duplicateRoot)
-        #sRoot = om.MFnDagNode(jSel.getDagPath(0))
-        #nRoot = om.MFnDagNode(jSel.getDagPath(1))
-        
-        #self.addHAnimConstraints(sRoot, nRoot)
-        self.addHAnimConstraints(self.sourceRoot, self.duplicateRoot)
-        
-            
+        dgIter = om.MItDependencyGraph(
+            jointObj,
+            om.MFn.kTransform,
+            om.MItDependencyGraph.kUpstream,
+            om.MItDependencyGraph.kBreadthFirst,
+            om.MItDependencyGraph.kNodeLevel
+        )
+        while not dgIter.isDone():
+            node     = dgIter.currentNode()
+            nodeName = om.MFnDependencyNode(node).name()
+            if cmds.attributeQuery('isCtl', node=nodeName, exists=True):
+                # Found a control — walk up its DAG chain looking for the mGear
+                # rig root, identified by the presence of 'is_rig' or 'gear_version'.
+                current = om.MFnDagNode(node).fullPathName()
+                while True:
+                    if (cmds.attributeQuery('is_rig',      node=current, exists=True) or
+                            cmds.attributeQuery('gear_version', node=current, exists=True)):
+                        return current
+                    parents = cmds.listRelatives(current, parent=True, fullPath=True)
+                    if not parents:
+                        break
+                    current = parents[0]
+            dgIter.next()
+
+        # Fallback: no mGear root found upstream; use the joint's top DAG ancestor.
+        print("_findMGearRoot: no mGear rig root reachable from skeleton DG; using joint's top ancestor.")
+        current = jointFullPath
+        while True:
+            parents = cmds.listRelatives(current, parent=True, fullPath=True)
+            if not parents:
+                return current
+            current = parents[0]
+
+
+    #################################################
+    # Build HAnimHumanoid Container From Existing Skeleton
+    #################################################
+    def buildHAnimHumanoidFromSkeleton(self):
+        print("buildHAnimHumanoidFromSkeleton")
+
+        selectNames = cmds.ls(sl=True, long=False)
+        selectPaths = cmds.ls(sl=True, long=True)
+        if not selectNames:
+            print("buildHAnimHumanoidFromSkeleton: nothing selected.")
+            return
+
+        self.sourceRoot = selectPaths[0]
+
+        # --- 1. Save mGear pose and reset to bind pose so the duplicate
+        #        captures bind-pose joint positions. ---
+        mgearRoot = self._findMGearRoot(self.sourceRoot)
+        charName = cmds.getAttr(f"{mgearRoot}.rig_name")
+        cmds.select(mgearRoot)
+        self.addCustomMGearCtlValues()
+
+        # --- 2. Create HAnimHumanoid container ---
+        actualName = cmds.createNode('transform', ss=True, name=f'HAnim_{charName}')
+        cmds.addAttr(actualName, longName="rkPoseCount", at="long", defaultValue=0)
+        cmds.addAttr(actualName, longName='x3dGroupType', dataType='string', keyable=False)
+        cmds.setAttr(actualName + '.x3dGroupType', "HAnimHumanoid", type='string', lock=True)
+        cmds.addAttr(actualName, longName='levelOfArticulation', shortName='LOA', attributeType='long', keyable=False, defaultValue=0, minValue=-1, maxValue=4)
+        cmds.addAttr(actualName, longName="skeletalConfiguration", dataType="string")
+        cmds.setAttr(actualName + '.skeletalConfiguration', "BASIC", type="string")
+        try:
+            stk.put(actualName, "x3dHAnimHumanoid.png")
+        except Exception as e:
+            print(f"buildHAnimHumanoidFromSkeleton: sticker failed: {e}")
+
+        # --- 3. Create a clean duplicate skeleton under HAnimHumanoid.
+        #        _createJointHierarchyUnderParent copies all TRS values but no
+        #        connections, so makeIdentity runs without fighting live rig values. ---
+        srcToDupShortMap = {}
+        self._createJointHierarchyUnderParent(self.sourceRoot, actualName, srcToDupShortMap)
+
+        dupRootList = cmds.listRelatives(actualName, children=True, type='joint', fullPath=True) or []
+        if not dupRootList:
+            print("buildHAnimHumanoidFromSkeleton: failed to create duplicate root joint.")
+            return
+        dupRoot = dupRootList[0]
+
+        # Full-path source → duplicate map used throughout the rest of the function.
+        srcToFullDupMap = {}
+        self._buildJointMap(self.sourceRoot, dupRoot, srcToFullDupMap)
+
+        # --- 4. Freeze duplicate and push translations into offsetParentMatrix ---
+        cmds.makeIdentity(dupRoot, apply=True, t=True, r=True, s=True, n=False, pn=True, jo=True)
+
+        dupJoints = [dupRoot]
+        dupDescs  = cmds.listRelatives(dupRoot, ad=True, type='joint', fullPath=True) or []
+        dupDescs.sort(key=lambda j: j.count('|'))
+        dupJoints.extend(dupDescs)
+
+        for dj in dupJoints:
+            x = cmds.getAttr(dj + '.translateX')
+            y = cmds.getAttr(dj + '.translateY')
+            z = cmds.getAttr(dj + '.translateZ')
+            cmds.setAttr(dj + '.offsetParentMatrix',
+                         [1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1],
+                         type='matrix')
+            cmds.setAttr(dj + '.translate',   0.0, 0.0, 0.0, type='double3')
+            cmds.setAttr(dj + '.rotateOrder', 0)
+
+        # --- 5. Add a parentConstraint from each source joint to its corresponding
+        #        duplicate joint so the duplicate skeleton follows the source rig. ---
+        for srcJoint, dupJoint in srcToFullDupMap.items():
+            try:
+                cmds.parentConstraint(srcJoint, dupJoint, mo=True, w=1)
+            except Exception as e:
+                print(f"buildHAnimHumanoidFromSkeleton: parentConstraint {srcJoint} \u2192 {dupJoint}: {e}")
+        self.resetMGear(mgearRoot)
+
+        # --- 6. Parent mGear root under HAnimHumanoid ---
+        if cmds.objExists(mgearRoot):
+            result    = cmds.parent(mgearRoot, actualName)
+            mgearRoot = cmds.ls(result[0], long=True)[0]
+            #cmds.reorder(mgearRoot, front=True)
+
+        # --- 7. Collect bound meshes and save skin weights from source skeleton ---
+        skelSel = om.MSelectionList()
+        skelSel.add(self.sourceRoot)
+        srDag   = om.MFnDagNode(skelSel.getDagPath(0))
+        skins   = []
+        self.collectBoundSkins(srDag, skins)
+
+        skinClusters = []
+        for skin in skins:
+            self.collectSkinClusterFromSkin(skin, skinClusters)
+
+        # Map each source influencer to its duplicate counterpart.
+        infDagPaths = []
+        for sc in skinClusters:
+            dupPaths = []
+            for inf in (cmds.skinCluster(sc.name(), q=True, inf=True) or []):
+                try:
+                    iSel = om.MSelectionList()
+                    iSel.add(inf)
+                    srcPath = iSel.getDagPath(0).fullPathName()
+                    dupPath = srcToFullDupMap.get(srcPath)
+                    if dupPath:
+                        dSel = om.MSelectionList()
+                        dSel.add(dupPath)
+                        dupPaths.append(dSel.getDagPath(0))
+                    else:
+                        print(f"buildHAnimHumanoidFromSkeleton: no dup for influencer '{srcPath}'")
+                except Exception as e:
+                    print(f"buildHAnimHumanoidFromSkeleton: influencer '{inf}': {e}")
+            infDagPaths.append(dupPaths)
+
+        meshWeights = []
+        infLengths  = []
+        for i in range(len(skins)):
+            self.getWeightsFromSkin(skins[i], skinClusters[i], meshWeights, infLengths)
+
+        # --- 8. Unbind meshes from source skeleton ---
+        for skin in skins:
+            cmds.skinCluster(skin.name(), edit=True, unbind=True, ubk=True)
+
+        # --- 9. Rebind meshes to the duplicate skeleton ---
+        boundSkins    = []
+        boundWeights  = []
+        boundInfPaths = []
+        for i in range(len(skins)):
+            if not infDagPaths[i]:
+                print(f"buildHAnimHumanoidFromSkeleton: no dup joints for '{skins[i].name()}' — skipping")
+                continue
+            try:
+                cmds.delete(skins[i].fullPathName(), ch=True)
+                jStrings = [dp.fullPathName() for dp in infDagPaths[i]]
+                cmds.skinCluster(jStrings + [skins[i].fullPathName()], tsb=True)
+                boundSkins.append(skins[i])
+                boundWeights.append(meshWeights[i])
+                boundInfPaths.append(infDagPaths[i])
+            except Exception as e:
+                print(f"buildHAnimHumanoidFromSkeleton: rebind '{skins[i].name()}': {e}")
+
+        self.overWriteWeights(boundSkins, boundWeights, boundInfPaths)
+
+        # --- 10. Remove the parentConstraints that were added to the duplicate
+        #         joints in step 6 before the mGear connections are redirected. ---
+        for dupJoint in srcToFullDupMap.values():
+            try:
+                cons = cmds.listRelatives(dupJoint, children=True,
+                                          type='parentConstraint', fullPath=True) or []
+                if cons:
+                    cmds.delete(cons)
+            except Exception as e:
+                print(f"buildHAnimHumanoidFromSkeleton: delete parentConstraint on {dupJoint}: {e}")
+
+        # --- 11. Redirect mGear rig connections from source to duplicate joints.
+        #        Direct connections are rewired; constraint-based connections are
+        #        deleted from source and recreated on the duplicate with mo=True
+        #        so the offset is recalculated for the new (OPM-based) joint pose. ---
+        CONSTRAINT_TYPES = ('parentConstraint', 'orientConstraint',
+                            'pointConstraint',  'scaleConstraint')
+        TRS_ATTRS = [
+            'translate',   'translateX',   'translateY',   'translateZ',
+            'rotate',      'rotateX',      'rotateY',      'rotateZ',
+            'scale',       'scaleX',       'scaleY',       'scaleZ',
+            'jointOrient', 'jointOrientX', 'jointOrientY', 'jointOrientZ',
+            'rotateAxis',  'rotateAxisX',  'rotateAxisY',  'rotateAxisZ',
+        ]
+
+        for srcJoint, dupJoint in srcToFullDupMap.items():
+            # Rewire direct (non-constraint) incoming TRS connections.
+            try:
+                iSel    = om.MSelectionList()
+                iSel.add(srcJoint)
+                mobj    = iSel.getDependNode(0)
+                srcFull = iSel.getDagPath(0).fullPathName()
+                depFn   = om.MFnDependencyNode(mobj)
+                for attrName in TRS_ATTRS:
+                    try:
+                        attr = depFn.attribute(attrName)
+                        plug = om.MPlug(mobj, attr)
+                        if plug.isDestination:
+                            driverNode = plug.source().name().split('.')[0]
+                            if cmds.nodeType(driverNode) not in CONSTRAINT_TYPES:
+                                srcPlugName = plug.source().name()
+                                dstAttr = plug.partialName(includeNodeName=False, useLongNames=True)
+                                cmds.disconnectAttr(srcPlugName, srcFull + '.' + dstAttr)
+                                cmds.connectAttr(srcPlugName, dupJoint + '.' + dstAttr, force=True)
+                    except Exception as e:
+                        print(f"buildHAnimHumanoidFromSkeleton: redirect '{attrName}' on {srcJoint}: {e}")
+            except Exception as e:
+                print(f"buildHAnimHumanoidFromSkeleton: redirect API setup {srcJoint}: {e}")
+
+            # Recreate constraint-based connections on the duplicate joint.
+            try:
+                cons = cmds.listRelatives(srcJoint, children=True,
+                                          type=list(CONSTRAINT_TYPES), fullPath=True) or []
+                for con in cons:
+                    conType = cmds.nodeType(con)
+                    try:
+                        if conType == 'parentConstraint':
+                            targets = cmds.parentConstraint(con, q=True, targetList=True) or []
+                            if targets:
+                                cmds.parentConstraint(targets, dupJoint, mo=True, w=1)
+                        elif conType == 'orientConstraint':
+                            targets = cmds.orientConstraint(con, q=True, targetList=True) or []
+                            if targets:
+                                cmds.orientConstraint(targets, dupJoint, mo=True, w=1)
+                        elif conType == 'pointConstraint':
+                            targets = cmds.pointConstraint(con, q=True, targetList=True) or []
+                            if targets:
+                                cmds.pointConstraint(targets, dupJoint, mo=True, w=1)
+                        elif conType == 'scaleConstraint':
+                            targets = cmds.scaleConstraint(con, q=True, targetList=True) or []
+                            if targets:
+                                cmds.scaleConstraint(targets, dupJoint, mo=True, w=1)
+                    except Exception as e:
+                        print(f"buildHAnimHumanoidFromSkeleton: recreate {conType} on {dupJoint}: {e}")
+            except Exception as e:
+                print(f"buildHAnimHumanoidFromSkeleton: constraint redirect {srcJoint}: {e}")
+
+        # --- 12. Delete source skeleton ---
+        if cmds.objExists(self.sourceRoot):
+            cmds.delete(self.sourceRoot)
+
+        # --- 13. Rename duplicate joints to the original source short names.
+        #         Sort deepest-first so parent renames don't invalidate child paths. ---
+        renameItems = sorted(srcToFullDupMap.items(),
+                             key=lambda p: p[0].count('|'), reverse=True)
+        for srcPath, dupPath in renameItems:
+            srcShortName = srcPath.split('|')[-1]
+            try:
+                if cmds.objExists(dupPath):
+                    cmds.rename(dupPath, srcShortName)
+            except Exception as e:
+                print(f"buildHAnimHumanoidFromSkeleton: rename {dupPath} → {srcShortName}: {e}")
+
+        # Refresh duplicateRoot and sourceRoot to the renamed dup root.
+        dupRootFinal = (cmds.listRelatives(actualName, children=True, type='joint',
+                                           fullPath=True) or [None])[0]
+        self.duplicateRoot = dupRootFinal or dupRoot
+        self.sourceRoot    = self.duplicateRoot
+
+        # --- 14. Save bind pose ---
+        #finalJoints = [self.duplicateRoot]
+        #finalJoints.extend(
+        #    cmds.listRelatives(self.duplicateRoot, ad=True, type='joint', fullPath=True) or []
+        #)
+        #cmds.select(finalJoints)
+        #poseName = cmds.dagPose(save=True, selection=True, name="iPose")
+        #cmds.addAttr(poseName, longName='x3dHAnimPose', dataType="string")
+        #cmds.setAttr(poseName + ".x3dHAnimPose", "iPose", type="string")
+
+        # --- 15. Restore mGear pose ---
+        self.setMGearPose(0, root=actualName)
+
+        print("buildHAnimHumanoidFromSkeleton: complete.")
+
+
     def flipTranslateToPMO(self, nodeName):
         x = cmds.getAttr(nodeName + ".translateX")
         y = cmds.getAttr(nodeName + ".translateY")
@@ -621,125 +879,28 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
 
 
     #################################################
-    # Transfer Bound Skin to Duplicate Skeleton
+    # Build Source-to-Duplicate Joint Mapping
     ##################################################
-    def genericStep5(self):
-        print("genericStep5")
-        
-        # Collect Bound Meshes
-        skelSel = om.MSelectionList()
-        skelSel.add(self.sourceRoot)
-        srDag = om.MFnDagNode(skelSel.getDagPath(0))
-        skins = []
-        self.collectBoundSkins(srDag, skins)
-        
-        '''
-        for skin in skins:
-            scs = cmds.ls(cmds.listHistory(skin.name()), type='skinCluster')
-            if scs:
-                for sc in scs:
-                    # Use the unbindKeepHistory flag (ubk)
-                    cmds.skinCluster(scs, edit=True, unbindKeepHistory=True)
-                    
-                rels = cmds.listRelatives(skin.name(), parent=True)#, fullPath=True)
-                if rels:
-                    pv=[0, 0, 0]
-                    cmds.parent(rels[0], world=True)
-                    cmds.xform(rels[0], pivots=pv, worldSpace=True)
-                    cmds.makeIdentity(rels[0], apply=True, t=True, r=True, s=True, n=False, pn=True, jo=True)
-                    
-                cmds.select(self.duplicateRoot)
-                cmds.select(cmds.listRelatives(self.duplicateRoot, allDescendents=True, type='joint', f=True), add=True)
-                cmds.select(skin.name(), add=True)
+    def _buildJointMap(self, srcRootPath, dupRootPath, mapping):
+        """Walk the source and duplicate joint hierarchies in parallel and
+        populate *mapping* with entries of the form:
+            source_joint_full_path -> duplicate_joint_full_path
 
-                cmds.skinCluster(tsb=True)
-        
-        return
-        '''
-        
-        #Collect Skin Clusters
-        skinClusters = []
-        for skin in skins:
-            self.collectSkinClusterFromSkin(skin, skinClusters)
-        
-        #Collect lists of potential Duplicate influencer dag paths per skin cluster
-        #for future reattachement. 
-        infDagPaths = []
-        for sc in skinClusters:
-            skDags = om.MDagPathArray()
-            
-            jtSels = om.MSelectionList()
-            jtSels.add(self.duplicateRoot)
-            fullDupRootName = jtSels.getDagPath(0).fullPathName()
-            jtSels.clear()
-            
-            curInf = []
-            curInf = cmds.skinCluster(sc.name(), q=True, inf=True)
-            for tinf in curInf:
-                cons = []
-                cons = cmds.listConnections(tinf, fnn=True, type='parentConstraint')
-                if cons != None:
-                    if fullDupRootName in cons[0]:
-                        #This add the parentConstraint's DAG parent to the MSelectionList, which allows us to get the parent's DagPath later
-                        jtSels.add(cons[0].rsplit("|", 1)[0])
-            
-            for i in range(jtSels.length()):
-                skDags.append(jtSels.getDagPath(i))
-                
-            infDagPaths.append(skDags)
-                
-            #self.getAllInfluencesForSkinCluster(sc, infDagPaths)
-        
-        meshWeights = []
-        infLengths  = []
-        for i in range(len(skins)):
-            self.getWeightsFromSkin(skins[i], skinClusters[i], meshWeights, infLengths)
-        
-        #Select All Bound Meshes
-        actList = om.MSelectionList()
-        for skin in skins:
-            actList.add(skin.fullPathName())
-        om.MGlobal.setActiveSelectionList(actList)
-        
-        #Unbined Meshes
-        #cmds.DetachSkin(unbindAll=True, deleteHistroy=True)
-        
-        #Make skins identity in worldspace.
-        for skin in skins:
-            cmds.skinCluster(skin.name(), edit=True, unbind=True, ubk=True)
-            
-            rels = cmds.listRelatives(skin.name(), parent=True)#, fullPath=True)
-            ##########################################################
-            # Insert code to check if parent transform is keyed.
-            # if it is, break connections.
-            connections = cmds.listConnections(rels[0], c=True, p=True)
-            
-            if connections:
-                cLen = len(connections)
-                cIter = 0
-                while cIter < cLen:
-                    if "translate" in connections[cIter] or "rotate" in connections[cIter] or "scale" in connections[cIter]:
-                        try:
-                            cmds.disconnectAttr(connections[cIter+1], connections[cIter])
-                        except:
-                            print("disconnectAttr failed")
-                    cIter += 2
-                
-            # Format the mesh within the transform properly
-            pv=[0, 0, 0]
-            cmds.parent(rels[0], world=True)
-            cmds.xform(rels[0], pivots=pv, worldSpace=True)
-            cmds.makeIdentity(rels[0], apply=True, t=True, r=True, s=True, n=False, pn=True, jo=True)
-        
-        #Rebind Meshes to Duplicate Skeleton
-        for i in range(len(skins)):
-            cmds.delete(skins[i].fullPathName(), ch=True)
-            cmds.skinCluster(infDagPaths[i], skins[i].fullPathName(), tsb=True)
-            
-            #self.bindSkinToSpecificInfluencers(skins[i], infDagPaths[i])
-            
-        #Set Skin weights of source skeleton to new skeleton
-        self.overWriteWeights(skins, meshWeights, infDagPaths)
+        The duplicate skeleton must have been created by duplicating the source
+        skeleton (via buildHAnimHumanoidFromSkeleton), so both hierarchies are structurally
+        identical even though joint names may differ due to Maya auto-numbering
+        collisions at duplication time (e.g. ``root`` -> ``root1``)."""
+        srcSel = om.MSelectionList()
+        dupSel = om.MSelectionList()
+        srcSel.add(srcRootPath)
+        dupSel.add(dupRootPath)
+        mapping[srcSel.getDagPath(0).fullPathName()] = dupSel.getDagPath(0).fullPathName()
+
+        srcChildren = cmds.listRelatives(srcRootPath, children=True, type='joint', fullPath=True) or []
+        dupChildren = cmds.listRelatives(dupRootPath, children=True, type='joint', fullPath=True) or []
+
+        for i in range(min(len(srcChildren), len(dupChildren))):
+            self._buildJointMap(srcChildren[i], dupChildren[i], mapping)
 
 
     def overWriteWeights(self, skins, weights, infPaths):
@@ -1581,18 +1742,18 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             pivot = [0.0, 0.902462, -0.01797304]
 
             cmds.setAttr(mayaJointName + '.offsetParentMatrix', 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, pivot[0], pivot[1], pivot[2], 1.0, type='matrix')
-            cmds.setAttr(mayaJointName + '.rotateOrder', rotOrder)
+            cmds.setAttr(mayaJointName + '.rotateOrder', self.rotOrderValue)
             
         elif loaValue == 1 or loaValue == 2 or loaValue == 3 or loaValue == 4:
             isMore = True
 
         if isMore == True:
-            #self.uiPaths
+            melPath = self.uiPaths.replace('\\', '/').replace('\\', '/')
             melCmd  = 'file -import -type "mayaBinary" -ignoreVersion -ra true '
-            melCmd += '-mergeNamespacesOnClash false -namespace ' + haNodeName + ' '#"rawkeeImport" '
+            melCmd += '-mergeNamespacesOnClash false -namespace ' + haNodeName + ' '
             melCmd += '-options "v=0;" -pr -importFrameRate false -importTimeRange "keep" '
-            melCmd += '"' + self.uiPaths + 'hanimLOA' + str(loaValue) + '_HumanoidFullSkeleton.mb";'
-            
+            melCmd += '"' + melPath + 'hanimLOA' + str(loaValue) + '_HumanoidFullSkeleton.mb";'
+            print("Importing: " + melCmd)
             result = mel.eval(melCmd)
             
             tSelect = cmds.ls(haNodeName + "*:hanim_LOA" + str(loaValue))
@@ -2644,3 +2805,90 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
             
         #myID = cmds.getAttr(nodeObj.name() + ".rkMessageId")
         #om.MMessage.removeCallback(myID)
+
+
+    ##################################
+    # Bind Pose Functions
+    ##################################
+    def addCustomMGearCtlValues(self):
+        selected = cmds.ls(sl=True, type="transform")
+        if not selected:
+            print("addCustomMGearCtlValues: no transform selected.")
+            return
+        root        = selected[0]
+        descendants = cmds.listRelatives(root, allDescendents=True, type="transform", fullPath=True) or []
+        controls    = [n for n in descendants
+                       if cmds.attributeQuery("isCtl", node=n, exists=True)]
+
+        for ctl in controls:
+            #if not cmds.attributeQuery("rkPoseCount", node=ctl, exists=True):
+            #    cmds.addAttr(ctl, longName="rkPoseCount", at="long", defaultValue=0)
+            #rkPCount = cmds.getAttr(f"{ctl}.rkPoseCount")
+            #rkPCount += 1
+            #cmds.setAttr(f"{ctl}.rkPoseCount", rkPCount)
+
+            for attr in (cmds.listAttr(ctl, keyable=True) or []):
+                try:
+                    attrValue = cmds.getAttr(f"{ctl}.{attr}")
+                    if not isinstance(attrValue, (int, float)):
+                        continue
+                    if cmds.attributeQuery(f"rkPose_{attr}_0", node=ctl, exists=True):
+                        cmds.setAttr(f"{ctl}.rkPose_{attr}_0", attrValue)
+                    else:
+                        #cmds.addAttr(ctl, longName=f"rkPose_{attr}_{rkPCount}", defaultValue=attrValue, hidden=True)
+                        cmds.addAttr(ctl, longName=f"rkPose_{attr}_0", at="double",
+                                     defaultValue=attrValue, hidden=True)
+                except Exception as e:
+                    print(f"addCustomMGearCtlValues: skipped '{ctl}.{attr}': {e}")
+
+
+    def setMGearPose(self, poseIndex, root=None):
+        if root is None:
+            selected = cmds.ls(sl=True, type="transform")
+            if not selected:
+                print("setMGearPose: no transform selected.")
+                return
+            root = selected[0]
+        descendants = cmds.listRelatives(root, allDescendents=True, type="transform", fullPath=True) or []
+        controls    = [n for n in descendants
+                       if cmds.attributeQuery("isCtl", node=n, exists=True)]
+        for ctl in controls:
+            for attr in (cmds.listAttr(ctl, keyable=True) or []):
+                try:
+                    poseAttr = f"rkPose_{attr}_{poseIndex}"
+                    if cmds.attributeQuery(poseAttr, node=ctl, exists=True):
+                        poseValue = cmds.getAttr(f"{ctl}.{poseAttr}")
+                        if isinstance(poseValue, (int, float)):
+                            cmds.setAttr(f"{ctl}.{attr}", poseValue)
+                except Exception as e:
+                    print(f"setMGearPose: skipped '{ctl}.{attr}': {e}")
+
+
+    def resetMGear(self, mgearRoot):
+        root = mgearRoot
+        if root is None:
+            print("resetMGear: no mgearRoot was provided.")
+            return
+        descendants = cmds.listRelatives(root, allDescendents=True, type="transform", fullPath=True) or []
+        controls    = [n for n in descendants
+                       if cmds.attributeQuery("isCtl", node=n, exists=True)]
+        for ctl in controls:
+            for attr in (cmds.listAttr(ctl, keyable=True) or []):
+                try:
+                    default = cmds.attributeQuery(attr, node=ctl, listDefault=True)
+                    if default is not None:
+                        cmds.setAttr(f"{ctl}.{attr}", default[0])
+                except:
+                    pass
+
+
+    def resetToBindPose(self, rootJoint):
+        if cmds.objExists(rootJoint):
+            cmds.select(rootJoint, hi=True, replace=True)
+            cmds.dagPose(load=True, bindPose=True)
+
+
+    def setBindPose(self, rootJoint):
+        if cmds.objExists(rootJoint):
+            cmds.select(rootJoint, hi=True, replace=True)
+            cmds.dagPose(save=True, bindPose=True)

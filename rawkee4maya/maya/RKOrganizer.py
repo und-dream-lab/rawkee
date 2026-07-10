@@ -253,6 +253,7 @@ class RKOrganizer():
 
         self.rkExportMtlxInfo = cmds.optionVar(q='rkExportMtlxInfo')
         self.rkMtlx2Uri       = cmds.optionVar(q='rkMtlx2Uri'      )
+        self.rkHDRtoPNG       = cmds.optionVar( q='rkHDRtoPNG'     )
         self.rkConsolidate    = cmds.optionVar(q='rkConsolidate'   )
         self.rkProcTexType    = cmds.optionVar(q='rkProcTexType'   )
         self.rkFileTexType    = cmds.optionVar(q='rkFileTexType'   )
@@ -1103,7 +1104,7 @@ class RKOrganizer():
                 fileExt  = os.path.splitext(fileName)[1]
                 fileName = os.path.splitext(fileName)[0]
                 
-                if self.rkFileTexFormat > 0:
+                if self.rkHDRtoPNG > 0:
                     fileName = fileName + ".png"
                     localTexWrite   = localTexWrite + fileName
                     self.rkint.hdri2png(filePath, localTexWrite, bits=8)
@@ -1154,7 +1155,7 @@ class RKOrganizer():
                     fileExt  = os.path.splitext(fileName)[1]
                     fileName = os.path.splitext(fileName)[0]
                     
-                    if self.rkFileTexFormat > 0:
+                    if self.rkHDRtoPNG > 0:
                         fileName = fileName + ".png"
                         localTexWrite   = localTexWrite   + fileName
                         self.rkint.hdri2png(filePath, localTexWrite)
