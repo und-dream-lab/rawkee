@@ -270,7 +270,13 @@ global proc setDefRKOptVars()
     if(`optionVar -exists "rkMaxCubeMapFaceSize"`){
     }
     else{
-        optionVar -iv rkMaxCubeMapFaceSize 2048;
+        optionVar -iv rkMaxCubeMapFaceSize 4096;
+    }
+
+    if(`optionVar -exists "rkUseExtreme32BitCubeMap"`){
+    }
+    else{
+        optionVar -iv rkUseExtreme32BitCubeMap 0;
     }
     
     // Determines the format of Maya Proceedural Textures

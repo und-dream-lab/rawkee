@@ -353,75 +353,20 @@ class RKInterfaces():
 #        iio.imwrite(outputPath, hdri16bit, extension='.png')
 
 
-    def _hdri_equirect_to_faces(self, eq_img, face_size):
-        """
-        Convert an equirectangular (panoramic) HDR image to 6 cubemap face images.
-        Returns a list of 6 float32 arrays, each (face_size, face_size, C).
-        Face order follows the Vulkan/KTX2 standard: +X, -X, +Y, -Y, +Z, -Z.
-        Bilinear interpolation via scipy.ndimage.map_coordinates.
-        Longitude wraps correctly (mode='wrap') for seamless east-west edges.
-        """
-        from scipy.ndimage import map_coordinates
-
-        h, w, C = eq_img.shape
-
-        # Normalised grid for one face: s = horizontal [-1,1], t = vertical [-1,1 downward]
-        s_vals = (np.arange(face_size, dtype=np.float32) + 0.5) / face_size * 2.0 - 1.0
-        t_vals = (np.arange(face_size, dtype=np.float32) + 0.5) / face_size * 2.0 - 1.0
-        s_grid, t_grid = np.meshgrid(s_vals, t_vals)   # (face_size, face_size)
-        one = np.ones_like(s_grid)
-
-        # Direction vectors per face (Vulkan cubemap convention, right-handed +Y up)
-        # s increases left→right, t increases top→bottom
-        face_vecs = [
-            np.stack([ one,    -t_grid, -s_grid], axis=-1),  # +X
-            np.stack([-one,    -t_grid,  s_grid], axis=-1),  # -X
-            np.stack([ s_grid,  one,     t_grid], axis=-1),  # +Y
-            np.stack([ s_grid, -one,    -t_grid], axis=-1),  # -Y
-            np.stack([ s_grid, -t_grid,  one],    axis=-1),  # +Z
-            np.stack([-s_grid, -t_grid, -one],    axis=-1),  # -Z
-        ]
-
-        faces = []
-        for vecs in face_vecs:
-            norms = np.sqrt((vecs ** 2).sum(axis=-1, keepdims=True))
-            vecs  = vecs / norms
-            x, y, z = vecs[..., 0], vecs[..., 1], vecs[..., 2]
-
-            # Equirectangular UV: longitude φ = atan2(x, -z) maps -Z→u=0.5 (front),
-            # +X→u=0.75 (right), matching the standard Maya/X3D -Z-forward convention.
-            lon = np.arctan2(x, -z)                  # [-π, π]
-            lat = np.arcsin(np.clip(y, -1.0, 1.0))   # [-π/2, π/2]
-            u   = (lon + np.pi) / (2.0 * np.pi)      # [0, 1]  left=0, right=1
-            v   = 0.5 - lat / np.pi                   # [0, 1]  top=0 (+Y), bottom=1 (-Y)
-
-            px = (u * w - 0.5).ravel()
-            py = (v * h - 0.5).ravel()
-
-            face = np.empty((face_size, face_size, C), dtype=np.float32)
-            for c in range(C):
-                face[..., c] = map_coordinates(
-                    eq_img[..., c], [py, px],
-                    order=1, mode='wrap', cval=0.0
-                ).reshape(face_size, face_size)
-
-            face = np.clip(np.nan_to_num(face, nan=0.0, posinf=65504.0, neginf=0.0),
-                           0.0, 65504.0)
-            faces.append(face)
-
-        return faces
-
-
-    def hdri2ktx2(self, hdr_path, ktx2_path, isEXR=False, maxFaceSize=2048):
+    def hdri2ktx2(self, hdr_path, ktx2_path, isEXR=False, maxFaceSize=4096, use32=False, autoExpose=True):
         """Converts an equirectangular HDRI to a KTX2 TEXTURE_CUBE_MAP (faceCount=6).
 
-        Output is VK_FORMAT_R16G16B16A16_SFLOAT, full mip chain, HDR preserved.
+        Output is VK_FORMAT_R16G16B16A16_SFLOAT (use32=False) or VK_FORMAT_R32G32B32A32_SFLOAT (use32=True).
+        autoExpose=True normalizes exposure via log-average luminance and clips at the 99.9th percentile.
+        autoExpose is ignored when use32=True (full range is preserved for renderer-side exposure).
         Face order follows Vulkan spec: +X(0) -X(1) +Y(2) -Y(3) +Z(4) -Z(5).
         Face size is auto-determined as input_width/4 rounded to nearest power of 2, capped at maxFaceSize.
         """
         import struct
         from scipy.ndimage import map_coordinates
 
+        # Static constants: face basis vectors, KTX2 magic identifier, and DFD block size.
+        # Each face entry is (label, forward, right, up) unit vectors in right-handed Y-up space.
         # Vulkan cubemap face order: +X(0) -X(1) +Y(2) -Y(3) +Z(4) -Z(5)
         _FACES = [
             ('+X', ( 1,  0,  0), ( 0,  0, -1), ( 0,  1,  0)),
@@ -431,8 +376,8 @@ class RKInterfaces():
             ('+Z', ( 0,  0,  1), ( 1,  0,  0), ( 0,  1,  0)),
             ('-Z', ( 0,  0, -1), (-1,  0,  0), ( 0,  1,  0)),
         ]
-        _KTX2_ID  = bytes([0xAB,0x4B,0x54,0x58,0x20,0x32,0x30,0xBB,0x0D,0x0A,0x1A,0x0A])
-        _DFD_SIZE = 92
+        _KTX2_ID  = bytes([0xAB,0x4B,0x54,0x58,0x20,0x32,0x30,0xBB,0x0D,0x0A,0x1A,0x0A])  # KTX2 file-identifier magic bytes
+        _DFD_SIZE = 92  # fixed size: 4-byte total + 88-byte descriptor block (4 channel samples × 16 bytes each)
 
         # 1. Load equirectangular HDR/EXR (RGB float32)
         if isEXR:
@@ -449,13 +394,20 @@ class RKInterfaces():
             hdr = np.stack([hdr, hdr, hdr], axis=-1)
         elif hdr.shape[2] != 3:  # strip alpha and any extra EXR AOV channels
             hdr = hdr[:, :, :3]
-        hdr = np.clip(np.nan_to_num(hdr, nan=0.0, posinf=65504.0, neginf=0.0), 0.0, 65504.0)
+        _clip_max = np.finfo(np.float32).max if use32 else 65504.0
+        hdr = np.clip(np.nan_to_num(hdr, nan=0.0, posinf=_clip_max, neginf=0.0), 0.0, _clip_max)
         H, W = hdr.shape[:2]
 
-        # Scale to mid-grey key (~0.18), then clip at 5.0 to prevent overexposure
-        lum    = 0.2126*hdr[:,:,0] + 0.7152*hdr[:,:,1] + 0.0722*hdr[:,:,2]
-        lw_bar = float(np.exp(np.mean(np.log(lum + 1e-6))))
-        hdr    = np.clip(hdr * (0.18 / max(lw_bar, 1e-6)), 0.0, 5.0)
+        # Auto-exposure: log-average key normalization + 99.9th-percentile white point
+        if autoExpose and not use32:
+            lum    = 0.2126*hdr[:,:,0] + 0.7152*hdr[:,:,1] + 0.0722*hdr[:,:,2]
+            lw_bar = float(np.exp(np.mean(np.log(np.maximum(lum, 1e-6)))))
+            scale  = 0.18 / max(lw_bar, 1e-6)
+            hdr    = hdr * scale
+            white_pt = float(np.percentile(hdr, 99.9))
+            hdr    = np.clip(hdr, 0.0, white_pt)
+            _clip_max = white_pt
+            print(f"  auto-expose: scale={scale:.4f}  white_pt={white_pt:.4f}")
 
         # Auto-determine face size: width/4 rounded to nearest power of 2, then cap at maxFaceSize
         ideal = W / 4
@@ -468,7 +420,9 @@ class RKInterfaces():
             TILE //= 2
         print(f"  source: {W}x{H}  →  face: {TILE}x{TILE}")
 
-        # 2. Build coordinate grids — computed once, shared across all faces
+        # 2. Build coordinate grids — computed once, shared across all faces.
+        # s and t are NDC coordinates in [-1, 1] with pixel-center sampling (texel offset of 0.5).
+        # s increases left-to-right (along the face's right axis), t increases bottom-to-top (along up).
         idx = np.arange(TILE, dtype=np.float32)
         px_grid, py_grid = np.meshgrid(idx, idx)
         s = (2.0 * px_grid + 1.0) / TILE - 1.0
@@ -481,12 +435,15 @@ class RKInterfaces():
             rgt = np.array(rgt_t, dtype=np.float32)
             upd = np.array(upd_t, dtype=np.float32)
 
+            # Reconstruct the world-space 3D direction for each texel by combining the face
+            # forward vector with scaled right and up offsets, then normalize to unit sphere.
             x = fwd[0] + s * rgt[0] + t * upd[0]
             y = fwd[1] + s * rgt[1] + t * upd[1]
             z = fwd[2] + s * rgt[2] + t * upd[2]
             r = np.sqrt(x*x + y*y + z*z)
             x /= r;  y /= r;  z /= r
 
+            # Project unit-sphere direction to equirectangular (lon/lat) UV coordinates.
             lon = np.arctan2(x, -z)
             lat = np.arcsin(np.clip(y, -1.0, 1.0))
             u_eq = (lon + np.pi) / (2.0 * np.pi)
@@ -503,11 +460,13 @@ class RKInterfaces():
                 ).reshape(TILE, TILE)
 
             face_arrays.append(np.clip(
-                np.nan_to_num(face, nan=0.0, posinf=5.0, neginf=0.0), 0.0, 5.0
+                np.nan_to_num(face, nan=0.0, posinf=_clip_max, neginf=0.0), 0.0, _clip_max
             ))
             print(f"  face {label:3s}  sampled")
 
-        # 4. Generate mip chain for each face (box filter in float32 linear space)
+        # 4. Generate mip chain for each face (box filter in float32 linear space).
+        # Each level halves both dimensions; the reshape groups 2×2 pixel blocks so mean(axis=(1,3))
+        # averages them in a single vectorized op. Filtering is done in linear light (no gamma).
         def make_mip_chain(f32):
             mips = [f32]
             while max(mips[-1].shape[:2]) > 1:
@@ -523,14 +482,18 @@ class RKInterfaces():
         mip_chains = [make_mip_chain(f) for f in face_arrays]
         num_levels = len(mip_chains[0])
 
-        # 5. Compute KTX2 file layout
+        # 5. Compute KTX2 file layout: header + level index + DFD + 8-byte-aligned padding + pixel data.
+        # KTX2 requires pixel data to start on an 8-byte boundary; pad_bytes bridges any gap.
         LEVEL_IDX_SIZE = num_levels * 24
         HEADER_END     = 80 + LEVEL_IDX_SIZE + _DFD_SIZE
         pad_bytes      = (8 - HEADER_END % 8) % 8
         PIXEL_OFFSET   = HEADER_END + pad_bytes
 
-        level_byte_sizes = [6 * max(1, TILE >> lvl)**2 * 8 for lvl in range(num_levels)]
+        # Each level stores all 6 faces; RGBA adds one extra channel beyond the source RGB.
+        _bytes_per_pixel = 16 if use32 else 8
+        level_byte_sizes = [6 * max(1, TILE >> lvl)**2 * _bytes_per_pixel for lvl in range(num_levels)]
 
+        # KTX2 stores mip levels from smallest (N-1) to largest (0) in the file; accumulate offsets in that order.
         level_file_offsets = {}
         cum = 0
         for lvl in range(num_levels - 1, -1, -1):
@@ -539,8 +502,8 @@ class RKInterfaces():
 
         # 6. KTX2 header (80 bytes)
         hdr_bytes = _KTX2_ID
-        hdr_bytes += struct.pack('<I', 97)                    # VK_FORMAT_R16G16B16A16_SFLOAT
-        hdr_bytes += struct.pack('<I', 2)                     # typeSize: 2 bytes/component
+        hdr_bytes += struct.pack('<I', 109 if use32 else 97)   # VK_FORMAT_R32G32B32A32_SFLOAT or R16G16B16A16_SFLOAT
+        hdr_bytes += struct.pack('<I', 4 if use32 else 2)        # typeSize: bytes/component
         hdr_bytes += struct.pack('<I', TILE)                  # pixelWidth
         hdr_bytes += struct.pack('<I', TILE)                  # pixelHeight
         hdr_bytes += struct.pack('<I', 0)                     # pixelDepth: 0 for 2D
@@ -562,29 +525,35 @@ class RKInterfaces():
             level_idx += struct.pack('<Q', level_byte_sizes[lvl])
             level_idx += struct.pack('<Q', level_byte_sizes[lvl])
 
-        # 8. DFD (92 bytes) — matches verified reference file
+        # 8. Data Format Descriptor (DFD): describes the per-texel channel layout so Vulkan/KTX
+        # loaders know the bit widths, signedness, and color model without inspecting pixel data.
         dfd = struct.pack('<I', _DFD_SIZE)                   # dfdTotalSize
         dfd += struct.pack('<I', 0)                           # vendorId=0, descriptorType=0
         dfd += struct.pack('<I', (88 << 16) | 2)             # descriptorBlockSize=88, versionNumber=2
         dfd += struct.pack('<I', (1 << 16) | (1 << 8) | 1)  # RGBSDA, BT709, LINEAR, flags=0
         dfd += struct.pack('<I', 0)                           # texelBlockDimensions
-        dfd += bytes([8, 0, 0, 0, 0, 0, 0, 0])              # bytesPlane: plane0=8
-        for bit_off, ch_id in [(0, 0), (16, 1), (32, 2), (48, 15)]:  # ch_id 15 = KHR alpha
+        dfd += bytes([16 if use32 else 8, 0, 0, 0, 0, 0, 0, 0])  # bytesPlane: plane0
+        _bit_len = 31 if use32 else 15                           # bitLength = bits-per-channel minus 1
+        _stride  = 2 if use32 else 1
+        for bit_off, ch_id in [(0*_stride, 0), (16*_stride, 1), (32*_stride, 2), (48*_stride, 15)]:
             dfd += struct.pack('<H', bit_off)
-            dfd += struct.pack('<B', 15)                      # bitLength = 16-1
+            dfd += struct.pack('<B', _bit_len)
             dfd += struct.pack('<B', ch_id | 0xC0)           # FLOAT|SIGNED, no extra flags
             dfd += bytes(4)                                   # samplePosition[4]
             dfd += struct.pack('<I', 0xBF800000)              # sampleLower: float32(-1.0)
             dfd += struct.pack('<I', 0x3F800000)              # sampleUpper: float32(+1.0)
 
-        # 9. Pixel data (level N-1 first → level 0 last, per KTX2 spec)
+        # 9. Pixel data (level N-1 first → level 0 last, per KTX2 spec).
+        # Within each level the 6 faces are interleaved in Vulkan order (+X … -Z).
+        # A constant alpha=1.0 channel is appended so the output format is RGBA (required by the VK_FORMAT).
+        _pix_dtype = np.float32 if use32 else np.float16
         pixel_data = bytearray()
         for lvl in range(num_levels - 1, -1, -1):
             for face_mips in mip_chains:
                 mip = face_mips[lvl]
-                rgb16 = mip.astype(np.float16)
-                alpha = np.full((*mip.shape[:2], 1), np.float16(1.0), dtype=np.float16)
-                pixel_data += np.concatenate([rgb16, alpha], axis=-1).tobytes()
+                rgb = mip.astype(_pix_dtype)
+                alpha = np.ones((*mip.shape[:2], 1), dtype=_pix_dtype)
+                pixel_data += np.concatenate([rgb, alpha], axis=-1).tobytes()
 
         # 10. Write file
         try:
@@ -595,8 +564,9 @@ class RKInterfaces():
                 f.write(dfd)
                 f.write(bytes(pad_bytes))
                 f.write(bytes(pixel_data))
+            fmt_label = 'R32G32B32A32_SFLOAT' if use32 else 'R16G16B16A16_SFLOAT'
             print(f"Saved {ktx2_path}  ({TILE}x{TILE} faces × 6, {num_levels} mip levels, "
-                  f"{total_mb:.1f} MB, R16G16B16A16_SFLOAT TEXTURE_CUBE_MAP)")
+                  f"{total_mb:.1f} MB, {fmt_label} TEXTURE_CUBE_MAP)")
         except Exception as e:
             print(f"Error: Could not write KTX2 file to {ktx2_path}: {e}")
 

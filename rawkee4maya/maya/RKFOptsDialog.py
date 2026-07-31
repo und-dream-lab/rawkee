@@ -58,8 +58,9 @@ class RKFOptsDialog(QtWidgets.QDialog):
         
         self.dialogTitle = dialogTitle
         self.setWindowTitle(self.dialogTitle)
-        self.setMinimumSize(600,400)
-        self.setFixedWidth(800)
+        self._dpi = QtWidgets.QApplication.primaryScreen().logicalDotsPerInch() / 96.0
+        self.setMinimumSize(int(600 * self._dpi), int(400 * self._dpi))
+        self.setMinimumWidth(int(800 * self._dpi))
         
         # On macOS make the window a Tool to keep it on top of Maya
         if sys.platform == "darwin":
@@ -94,7 +95,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.rkPrjDirButton = self.expOptFrame.findChild(QtWidgets.QPushButton, 'rkPrjDirButton')
         self.rkPrjDirButton.setIcon(QtGui.QIcon(":folder-open.png"))
         self.rkPrjDirButton.setContentsMargins(0,0,0,0)
-        self.rkPrjDirButton.setFixedSize(20,20)
+        self.rkPrjDirButton.setFixedSize(int(20 * self._dpi), int(20 * self._dpi))
         self.rkPrjDirButton.clicked.connect(self.setProjectFolder)
         
         
@@ -104,9 +105,6 @@ class RKFOptsDialog(QtWidgets.QDialog):
             dialogLayout.addWidget(scrollArea)
             
             buttonRow = QtWidgets.QHBoxLayout()
-            self.buttonSpace = QtWidgets.QLabel(" ")
-            self.buttonSpace.setFixedWidth(400)
-            self.buttonSpace.setAlignment(QtCore.Qt.AlignRight)
             
             self.cancelButton = QtWidgets.QPushButton("Save Options and Close")
             self.cancelButton.setObjectName("RKOptPanel")
@@ -116,7 +114,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
             self.exportButton.setObjectName("RKOptPanel")
             self.exportButton.clicked.connect(self.saveOptionsExportX3D)
             
-            buttonRow.addWidget(self.buttonSpace)
+            buttonRow.addStretch()
             buttonRow.addWidget(self.cancelButton)
             buttonRow.addWidget(self.exportButton)
             dialogLayout.addLayout(buttonRow)
@@ -128,9 +126,6 @@ class RKFOptsDialog(QtWidgets.QDialog):
             dialogLayout.addWidget(scrollArea)
             
             buttonRow = QtWidgets.QHBoxLayout()
-            self.buttonSpace = QtWidgets.QLabel(" ")
-            self.buttonSpace.setFixedWidth(400)
-            self.buttonSpace.setAlignment(QtCore.Qt.AlignRight)
 
             self.cancelButton = QtWidgets.QPushButton("Save Options and Close")
             self.cancelButton.setObjectName("RKOptPanel")
@@ -140,7 +135,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
             self.exportButton.setObjectName("RKOptPanel")
             self.exportButton.clicked.connect(self.saveOptionsExportX3D)
             
-            buttonRow.addWidget(self.buttonSpace)
+            buttonRow.addStretch()
             buttonRow.addWidget(self.cancelButton)
             buttonRow.addWidget(self.exportButton)
             dialogLayout.addLayout(buttonRow)
@@ -154,9 +149,6 @@ class RKFOptsDialog(QtWidgets.QDialog):
             dialogLayout.addWidget(scrollArea)
             
             buttonRow = QtWidgets.QHBoxLayout()
-            self.buttonSpace = QtWidgets.QLabel(" ")
-            self.buttonSpace.setFixedWidth(400)
-            self.buttonSpace.setAlignment(QtCore.Qt.AlignRight)
 
             self.cancelButton = QtWidgets.QPushButton("Save Options and Close")
             self.cancelButton.setObjectName("RKOptPanel")
@@ -166,7 +158,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
             self.exportButton.setObjectName("RKOptPanel")
             self.exportButton.clicked.connect(self.saveOptionsExportX3D)
             
-            buttonRow.addWidget(self.buttonSpace)
+            buttonRow.addStretch()
             buttonRow.addWidget(self.cancelButton)
             buttonRow.addWidget(self.exportButton)
             dialogLayout.addLayout(buttonRow)
@@ -178,9 +170,6 @@ class RKFOptsDialog(QtWidgets.QDialog):
             dialogLayout.addWidget(scrollArea)
             
             buttonRow = QtWidgets.QHBoxLayout()
-            self.buttonSpace = QtWidgets.QLabel(" ")
-            self.buttonSpace.setFixedWidth(400)
-            self.buttonSpace.setAlignment(QtCore.Qt.AlignRight)
 
             self.cancelButton = QtWidgets.QPushButton("Save Options and Close")
             self.cancelButton.setObjectName("RKOptPanel")
@@ -190,7 +179,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
             self.exportButton.setObjectName("RKOptPanel")
             self.exportButton.clicked.connect(self.saveOptionsExportX3D)
             
-            buttonRow.addWidget(self.buttonSpace)
+            buttonRow.addStretch()
             buttonRow.addWidget(self.cancelButton)
             buttonRow.addWidget(self.exportButton)
             dialogLayout.addLayout(buttonRow)
@@ -207,6 +196,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
 
         self.rkConvertHDRI        = cmds.optionVar( q='rkConvertHDRI'       )
         self.rkMaxCubeMapFaceSize = cmds.optionVar( q='rkMaxCubeMapFaceSize')
+        self.rkUseExtreme32BitCubeMap    = cmds.optionVar( q='rkUseExtreme32BitCubeMap'   )
         
         self.rkImagePath     = cmds.optionVar( q='rkImagePath'    )
         self.rkAudioPath     = cmds.optionVar( q='rkAudioPath'    )
@@ -266,51 +256,13 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.rkHDRCheckbox = self.expOptFrame.findChild(QtWidgets.QCheckBox, 'rkHDRCheckBox')
         self.rkHDRCheckbox.setChecked(self.rkConvertHDRI)
 
+        self.rkEDRCheckbox = self.expOptFrame.findChild(QtWidgets.QCheckBox, 'extremeDynamicRange')
+        self.rkEDRCheckbox.setChecked(self.rkUseExtreme32BitCubeMap)
+
         self.rkMaxFaceSize = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'cubeTextureSize')
-        faceIntValidator = QIntValidator(1, 2048, self.expOptFrame)
+        faceIntValidator = QIntValidator(1, 4096, self.expOptFrame)
         self.rkMaxFaceSize.setValidator(faceIntValidator)
         self.rkMaxFaceSize.setText(str(self.rkMaxCubeMapFaceSize))
-        
-        #self.rkHDRbit16PNG   = cmds.optionVar( q='rkHDRbit16PNG'  )
-        #self.rkHDRBitRadio16 = self.expOptFrame.findChild(QtWidgets.QRadioButton, 'rkHDRbit16PNG')
-        #self.rkHDRBitRadio8 = self.expOptFrame.findChild(QtWidgets.QRadioButton, 'rkHDRbit8PNG')
-        
-        #if self.rkHDRbit16PNG:
-        #    self.rkHDRBitRadio16.setChecked(True)
-        #else:
-        #    self.rkHDRBitRadio8.setChecked(True)
-            
-        #self.rkExpLETest = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'expText' )
-        #self.rkExpSlider = self.expOptFrame.findChild(QtWidgets.QSlider, 'exposureSlider')
-        #expValidator = QDoubleValidator(0.0, 3.0, 1, self.expOptFrame)
-        #self.rkExpLETest.setValidator(expValidator)
-        #self.rkExpLETest.setText(str(self.rkHDRExposure/10.0))
-        #self.rkExpSlider.setValue(int(self.rkHDRExposure))
-        #self.rkExpSlider.valueChanged.connect(self.setExpText)
-
-        #self.rkSatLETest = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'satText' )
-        #self.rkSatSlider = self.expOptFrame.findChild(QtWidgets.QSlider, 'saturationSlider')
-        #satValidator = QDoubleValidator(0.0, 3.0, 1, self.expOptFrame)
-        #self.rkSatLETest.setValidator(satValidator)
-        #self.rkSatLETest.setText(str(self.rkHDRSaturation/10.0))
-        #self.rkSatSlider.setValue(int(self.rkHDRSaturation))
-        #self.rkSatSlider.valueChanged.connect(self.setSatText)
-
-        #self.rkConLETest = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'conText' )
-        #self.rkConSlider = self.expOptFrame.findChild(QtWidgets.QSlider, 'contrastSlider')
-        #conValidator = QDoubleValidator(0.0, 3.0, 1, self.expOptFrame)
-        #self.rkConLETest.setValidator(conValidator)
-        #self.rkConLETest.setText(str(self.rkHDRContrast/10.0))
-        #self.rkConSlider.setValue(int(self.rkHDRContrast))
-        #self.rkConSlider.valueChanged.connect(self.setConText)
-        
-        #self.rkShaLETest = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'shaText' )
-        #self.rkShaSlider = self.expOptFrame.findChild(QtWidgets.QSlider, 'sharpenSlider')
-        #shaValidator = QDoubleValidator(0.0, 2.0, 1, self.expOptFrame)
-        #self.rkShaLETest.setValidator(shaValidator)
-        #self.rkShaLETest.setText( str(self.rkHDRSharpenAmount/10.0))
-        #self.rkShaSlider.setValue(int(self.rkHDRSharpenAmount))
-        #self.rkShaSlider.valueChanged.connect(self.setShaText)
         
         self.rkConsolidateCheckbox = self.expOptFrame.findChild(QtWidgets.QCheckBox, 'rkConsolidateCheckbox')
         self.rkConsolidateCheckbox.setChecked(self.rkConsolidate)
@@ -345,7 +297,6 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.colorOptions.setCurrentIndex(self.rkColorOpts)
 
 
-        
     def setProjectFolder(self):
         print("Set Project Folder")
         
@@ -387,12 +338,8 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.rkDefTexWidthLE         = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'textureWidth'           )
         self.rkDefTexHeightLE        = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'textureHeight'          )
 
-        #self.rkHDRBitRadio16           = self.expOptFrame.findChild(QtWidgets.QRadioButton, 'rkHDRbit16PNG'       )
         self.rkHDRCheckbox           = self.expOptFrame.findChild(QtWidgets.QCheckBox, 'rkHDRCheckBox'          )
-        #self.rkExpSlider             = self.expOptFrame.findChild(QtWidgets.QSlider,   'exposureSlider'         )
-        #self.rkSatSlider             = self.expOptFrame.findChild(QtWidgets.QSlider,   'saturationSlider'       )
-        #self.rkConSlider             = self.expOptFrame.findChild(QtWidgets.QSlider,   'contrastSlider'         )
-        #self.rkShaSlider             = self.expOptFrame.findChild(QtWidgets.QSlider,   'sharpenSlider'          )
+        self.rkEDRCheckbox           = self.expOptFrame.findChild(QtWidgets.QCheckBox, 'extremeDynamicRange'    )
 
         self.rkConsolidateCheckbox   = self.expOptFrame.findChild(QtWidgets.QCheckBox, 'rkConsolidateCheckbox'  )
         self.procTextureComboBox     = self.expOptFrame.findChild(QtWidgets.QComboBox, 'procTextureComboBox'    )
@@ -449,7 +396,8 @@ class RKFOptsDialog(QtWidgets.QDialog):
         cmds.optionVar( iv=('rkTextureHeight', hwi))
 
         cmds.optionVar( iv=('rkConsolidate'  , self.rkConsolidateCheckbox.isChecked()))
-        cmds.optionVar( iv=('rkConvertHDRI'     , self.rkHDRCheckbox.isChecked()        ))
+        cmds.optionVar( iv=('rkConvertHDRI'     , self.rkHDRCheckbox.isChecked()     ))
+        cmds.optionVar( iv=('rkUseExtreme32BitCubeMap' , self.rkEDRCheckbox.isChecked()     ))
         cmds.optionVar( iv=('rkMaxCubeMapFaceSize', int(self.rkMaxFaceSize.text())))
         cmds.optionVar( iv=('rkProcTexType'  , self.procTextureComboBox.currentIndex()))
         cmds.optionVar( iv=('rkFileTexType'  , self.fileTextureComboBox.currentIndex()))
@@ -473,34 +421,6 @@ class RKFOptsDialog(QtWidgets.QDialog):
         cmds.optionVar( iv=('rkProcTexFormat', self.procTextureComboBox.currentIndex()))
         cmds.optionVar( iv=('rkFileTexFormat', self.consFormatComboBox.currentIndex())) #self.consFormatComboBox
 
-
-    def setExpText(self):
-        self.rkExpLETest = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'expText' )
-        self.rkExpSlider = self.expOptFrame.findChild(QtWidgets.QSlider, 'exposureSlider')
-        expValidator = QDoubleValidator(0.0, 3.0, 1, self.expOptFrame)
-        self.rkExpLETest.setValidator(expValidator)
-        self.rkExpLETest.setText(str(self.rkExpSlider.value()/10.0))
-
-    def setSatText(self):
-        self.rkSatLETest = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'satText' )
-        self.rkSatSlider = self.expOptFrame.findChild(QtWidgets.QSlider, 'saturationSlider')
-        satValidator = QDoubleValidator(0.0, 3.0, 1, self.expOptFrame)
-        self.rkSatLETest.setValidator(satValidator)
-        self.rkSatLETest.setText(str(self.rkSatSlider.value()/10.0))
-
-    def setConText(self):
-        self.rkConLETest = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'conText' )
-        self.rkConSlider = self.expOptFrame.findChild(QtWidgets.QSlider, 'contrastSlider')
-        conValidator = QDoubleValidator(0.0, 3.0, 1, self.expOptFrame)
-        self.rkConLETest.setValidator(conValidator)
-        self.rkConLETest.setText(str(self.rkConSlider.value()/10.0))
-
-    def setShaText(self):
-        self.rkShaLETest = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'shaText' )
-        self.rkShaSlider = self.expOptFrame.findChild(QtWidgets.QSlider, 'sharpenSlider')
-        shaValidator = QDoubleValidator(0.0, 2.0, 1, self.expOptFrame)
-        self.rkShaLETest.setValidator(shaValidator)
-        self.rkShaLETest.setText(str(self.rkShaSlider.value()/10.0))
 
     def exportX3D(self):
         if self.rkExportMode == 0:

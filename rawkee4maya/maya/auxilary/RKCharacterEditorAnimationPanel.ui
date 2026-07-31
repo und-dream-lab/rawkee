@@ -93,7 +93,7 @@
              <property name="maximumSize">
               <size>
                <width>16777215</width>
-               <height>24</height>
+               <height>16777215</height>
               </size>
              </property>
              <property name="text">
@@ -117,8 +117,8 @@
              </property>
              <property name="maximumSize">
               <size>
-               <width>256</width>
-               <height>24</height>
+               <width>16777215</width>
+               <height>16777215</height>
               </size>
              </property>
             </widget>
@@ -133,8 +133,8 @@
              </property>
              <property name="maximumSize">
               <size>
-               <width>81</width>
-               <height>24</height>
+               <width>16777215</width>
+               <height>16777215</height>
               </size>
              </property>
              <property name="text">
@@ -169,8 +169,8 @@
              </property>
              <property name="maximumSize">
               <size>
-               <width>106</width>
-               <height>24</height>
+               <width>16777215</width>
+               <height>16777215</height>
               </size>
              </property>
              <property name="text">
@@ -197,8 +197,8 @@
              </property>
              <property name="maximumSize">
               <size>
-               <width>260</width>
-               <height>24</height>
+               <width>16777215</width>
+               <height>16777215</height>
               </size>
              </property>
              <property name="text">
@@ -260,8 +260,8 @@
                </property>
                <property name="maximumSize">
                 <size>
-                 <width>100</width>
-                 <height>160</height>
+                 <width>16777215</width>
+                 <height>16777215</height>
                 </size>
                </property>
                <property name="text">
@@ -296,8 +296,8 @@
                </property>
                <property name="maximumSize">
                 <size>
-                 <width>256</width>
-                 <height>226</height>
+                 <width>16777215</width>
+                 <height>16777215</height>
                 </size>
                </property>
                <property name="indentation">
@@ -345,8 +345,8 @@
                  </property>
                  <property name="maximumSize">
                   <size>
-                   <width>100</width>
-                   <height>24</height>
+                   <width>16777215</width>
+                   <height>16777215</height>
                   </size>
                  </property>
                  <property name="text">
@@ -364,8 +364,8 @@
                  </property>
                  <property name="maximumSize">
                   <size>
-                   <width>156</width>
-                   <height>24</height>
+                   <width>16777215</width>
+                   <height>16777215</height>
                   </size>
                  </property>
                  <property name="text">
@@ -387,8 +387,8 @@
                  </property>
                  <property name="maximumSize">
                   <size>
-                   <width>130</width>
-                   <height>24</height>
+                   <width>16777215</width>
+                   <height>16777215</height>
                   </size>
                  </property>
                  <item>
@@ -423,8 +423,8 @@
                  </property>
                  <property name="maximumSize">
                   <size>
-                   <width>50</width>
-                   <height>24</height>
+                   <width>16777215</width>
+                   <height>16777215</height>
                   </size>
                  </property>
                  <property name="text">
@@ -442,8 +442,8 @@
                  </property>
                  <property name="maximumSize">
                   <size>
-                   <width>50</width>
-                   <height>24</height>
+                   <width>16777215</width>
+                   <height>16777215</height>
                   </size>
                  </property>
                  <property name="text">
@@ -480,8 +480,8 @@
                </property>
                <property name="maximumSize">
                 <size>
-                 <width>256</width>
-                 <height>290</height>
+                 <width>16777215</width>
+                 <height>16777215</height>
                 </size>
                </property>
                <property name="verticalScrollBarPolicy">

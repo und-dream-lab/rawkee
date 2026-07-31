@@ -61,8 +61,8 @@ class RKMaterialXEditor(MayaQWidgetDockableMixin, QWidget):
 
         self.setObjectName(self.OBJECT_NAME)
         self.setWindowTitle("MaterialXSurfaceShader Export Type Editor")
-        self.setMinimumSize(400,300)
-        self.setMaximumSize(400,300)
+        _dpi = QtWidgets.QApplication.primaryScreen().logicalDotsPerInch() / 96.0
+        self.setMinimumSize(int(400 * _dpi), int(300 * _dpi))
 
         self.add_to_materialx_editor_workspace_control()
 
