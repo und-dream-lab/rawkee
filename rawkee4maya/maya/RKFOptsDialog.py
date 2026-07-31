@@ -205,12 +205,8 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.rkSunrizePrjDir = cmds.optionVar( q='rkSunrizePrjDir')
         self.rkPrjDir        = cmds.optionVar( q='rkPrjDir'       )
 
-        self.rkHDRtoPNG      = cmds.optionVar( q='rkHDRtoPNG'     )
-        #self.rkHDRbit16PNG   = cmds.optionVar( q='rkHDRbit16PNG'  )
-        #self.rkHDRExposure   = cmds.optionVar( q='rkHDRExposure'  )
-        #self.rkHDRSaturation = cmds.optionVar( q='rkHDRSaturation')
-        #self.rkHDRContrast   = cmds.optionVar( q='rkHDRContrast'  )
-        #self.rkHDRSharpenAmount = cmds.optionVar( q='rkHDRSharpenAmount' )
+        self.rkConvertHDRI        = cmds.optionVar( q='rkConvertHDRI'       )
+        self.rkMaxCubeMapFaceSize = cmds.optionVar( q='rkMaxCubeMapFaceSize')
         
         self.rkImagePath     = cmds.optionVar( q='rkImagePath'    )
         self.rkAudioPath     = cmds.optionVar( q='rkAudioPath'    )
@@ -268,7 +264,12 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.rkDefTexHeightLE.setText(str(self.rkDefTexHeight))
 
         self.rkHDRCheckbox = self.expOptFrame.findChild(QtWidgets.QCheckBox, 'rkHDRCheckBox')
-        self.rkHDRCheckbox.setChecked(self.rkHDRtoPNG)
+        self.rkHDRCheckbox.setChecked(self.rkConvertHDRI)
+
+        self.rkMaxFaceSize = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'cubeTextureSize')
+        faceIntValidator = QIntValidator(1, 2048, self.expOptFrame)
+        self.rkMaxFaceSize.setValidator(faceIntValidator)
+        self.rkMaxFaceSize.setText(str(self.rkMaxCubeMapFaceSize))
         
         #self.rkHDRbit16PNG   = cmds.optionVar( q='rkHDRbit16PNG'  )
         #self.rkHDRBitRadio16 = self.expOptFrame.findChild(QtWidgets.QRadioButton, 'rkHDRbit16PNG')
@@ -448,13 +449,8 @@ class RKFOptsDialog(QtWidgets.QDialog):
         cmds.optionVar( iv=('rkTextureHeight', hwi))
 
         cmds.optionVar( iv=('rkConsolidate'  , self.rkConsolidateCheckbox.isChecked()))
-        cmds.optionVar( iv=('rkHDRtoPNG'     , self.rkHDRCheckbox.isChecked()        ))
-        #cmds.optionVar( iv=('rkHDRbit16PNG'  , self.rkHDRBitRadio16.isChecked()        ))
-        #cmds.optionVar( iv=('rkHDRExposure'  , self.rkExpSlider.value()              ))
-        #cmds.optionVar( iv=('rkHDRSaturation'  , self.rkSatSlider.value()            ))
-        #cmds.optionVar( iv=('rkHDRContrast'  , self.rkConSlider.value()              ))
-        #cmds.optionVar( iv=('rkHDRSharpenAmount'  , self.rkShaSlider.value()         ))
-        
+        cmds.optionVar( iv=('rkConvertHDRI'     , self.rkHDRCheckbox.isChecked()        ))
+        cmds.optionVar( iv=('rkMaxCubeMapFaceSize', int(self.rkMaxFaceSize.text())))
         cmds.optionVar( iv=('rkProcTexType'  , self.procTextureComboBox.currentIndex()))
         cmds.optionVar( iv=('rkFileTexType'  , self.fileTextureComboBox.currentIndex()))
         cmds.optionVar( iv=('rkMovieTexType' , self.movieTextureComboBox.currentIndex()))
@@ -476,6 +472,7 @@ class RKFOptsDialog(QtWidgets.QDialog):
 
         cmds.optionVar( iv=('rkProcTexFormat', self.procTextureComboBox.currentIndex()))
         cmds.optionVar( iv=('rkFileTexFormat', self.consFormatComboBox.currentIndex())) #self.consFormatComboBox
+
 
     def setExpText(self):
         self.rkExpLETest = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'expText' )

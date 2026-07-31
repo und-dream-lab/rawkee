@@ -1104,13 +1104,14 @@ class RKOrganizer():
                 fileExt  = os.path.splitext(fileName)[1]
                 fileName = os.path.splitext(fileName)[0]
                 
-                if self.rkHDRtoPNG > 0 and "hdr" in fileExt:
+                if self.rkHDRtoPNG > 0 and ("hdr" in fileExt or "exr" in fileExt):
+                    rkMaxCubeMapFaceSize = cmds.optionVar( q='rkMaxCubeMapFaceSize')
                     fileName = fileName + ".ktx2"
                     localTexWrite   = localTexWrite + fileName
-                    self.rkint.hdri2ktx2(filePath, localTexWrite)
+                    self.rkint.hdri2ktx2(filePath, localTexWrite, 'exr' in fileExt, rkMaxCubeMapFaceSize)
                 elif self.rkConsolidate == True:
                     fileName = self.rkint.getFileName(filePath)
-                    localTexWrite = localTexwrite + fileName
+                    localTexWrite = localTexWrite + fileName
                     self.rkint.copyFile(filePath, localTexWrite)
                 else:
                     localTexWrite = filePath
@@ -1155,10 +1156,11 @@ class RKOrganizer():
                     fileExt  = os.path.splitext(fileName)[1]
                     fileName = os.path.splitext(fileName)[0]
                     
-                    if self.rkHDRtoPNG > 0 and "hdr" in fileExt:
+                    if self.rkHDRtoPNG > 0 and ("hdr" in fileExt or "exr" in fileExt):
+                        rkMaxCubeMapFaceSize = cmds.optionVar( q='rkMaxCubeMapFaceSize')
                         fileName = fileName + ".ktx2"
                         localTexWrite   = localTexWrite   + fileName
-                        self.rkint.hdri2ktx2(filePath, localTexWrite)
+                        self.rkint.hdri2ktx2(filePath, localTexWrite, 'exr' in fileExt, rkMaxCubeMapFaceSize)
                     elif self.rkConsolidate == True:
                         fileName = self.rkint.getFileName(filePath)
                         localTexWrite = localTexWrite + "/" + fileName
