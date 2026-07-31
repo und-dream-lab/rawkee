@@ -162,6 +162,7 @@ def _ensure_python_modules():
         ("imageio.v3", "imageio"),
         ("ffmpeg",     "ffmpeg-python"),
         ("PIL",        "Pillow"),
+        ("scipy",      "scipy"),
     ]
 
     mayapy = _find_mayapy()

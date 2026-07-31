@@ -412,12 +412,12 @@ class RKInterfaces():
         return faces
 
 
-    def hdri2ktx2(self, hdr_path, ktx2_path):
+    def hdri2ktx2(self, hdr_path, ktx2_path, isEXR=False, maxFaceSize=2048):
         """Converts an equirectangular HDRI to a KTX2 TEXTURE_CUBE_MAP (faceCount=6).
 
         Output is VK_FORMAT_R16G16B16A16_SFLOAT, full mip chain, HDR preserved.
         Face order follows Vulkan spec: +X(0) -X(1) +Y(2) -Y(3) +Z(4) -Z(5).
-        Face size is auto-determined as input_width/4 rounded to nearest power of 2.
+        Face size is auto-determined as input_width/4 rounded to nearest power of 2, capped at maxFaceSize.
         """
         import struct
         from scipy.ndimage import map_coordinates
@@ -434,14 +434,20 @@ class RKInterfaces():
         _KTX2_ID  = bytes([0xAB,0x4B,0x54,0x58,0x20,0x32,0x30,0xBB,0x0D,0x0A,0x1A,0x0A])
         _DFD_SIZE = 92
 
-        # 1. Load equirectangular HDR (RGB float32)
-        hdr = iio.imread(hdr_path).astype(np.float32)
+        # 1. Load equirectangular HDR/EXR (RGB float32)
+        if isEXR:
+            try:
+                hdr = iio.imread(hdr_path, plugin='EXR').astype(np.float32)
+            except Exception:
+                hdr = iio.imread(hdr_path).astype(np.float32)
+        else:
+            hdr = iio.imread(hdr_path).astype(np.float32)
         if hdr is None or hdr.size == 0:
             print(f"Error: Could not read {hdr_path}")
             return
         if hdr.ndim == 2:
             hdr = np.stack([hdr, hdr, hdr], axis=-1)
-        elif hdr.shape[2] == 4:
+        elif hdr.shape[2] != 3:  # strip alpha and any extra EXR AOV channels
             hdr = hdr[:, :, :3]
         hdr = np.clip(np.nan_to_num(hdr, nan=0.0, posinf=65504.0, neginf=0.0), 0.0, 65504.0)
         H, W = hdr.shape[:2]
@@ -451,13 +457,15 @@ class RKInterfaces():
         lw_bar = float(np.exp(np.mean(np.log(lum + 1e-6))))
         hdr    = np.clip(hdr * (0.18 / max(lw_bar, 1e-6)), 0.0, 5.0)
 
-        # Auto-determine face size: width/4 rounded to nearest power of 2
+        # Auto-determine face size: width/4 rounded to nearest power of 2, then cap at maxFaceSize
         ideal = W / 4
         TILE  = 1
         while TILE * 2 <= ideal:
             TILE *= 2
         if (ideal - TILE) > (TILE * 2 - ideal):
             TILE *= 2
+        while TILE > maxFaceSize:
+            TILE //= 2
         print(f"  source: {W}x{H}  →  face: {TILE}x{TILE}")
 
         # 2. Build coordinate grids — computed once, shared across all faces

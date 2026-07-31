@@ -262,41 +262,17 @@ global proc setDefRKOptVars()
     }
     
     //Convert HDR Files to PNG Files
-    if(`optionVar -exists "rkHDRtoPNG"`){
+    if(`optionVar -exists "rkConvertHDRI"`){
     }else{
-        optionVar -iv rkHDRtoPNG 0;
+        optionVar -iv rkConvertHDRI 0;
     }
     
-    //SET Bit Level for HDR PNGs
-    if(`optionVar -exists "rkHDRbit16PNG"`){
-    }else{
-        optionVar -iv rkHDRbit16PNG 1;
+    if(`optionVar -exists "rkMaxCubeMapFaceSize"`){
+    }
+    else{
+        optionVar -iv rkMaxCubeMapFaceSize 2048;
     }
     
-    //SET Exposure for HDR PNGs
-    if(`optionVar -exists "rkHDRExposure"`){
-    }else{
-        optionVar -iv rkHDRExposure 11;
-    }
-
-    //SET Saturation for HDR PNGs
-    if(`optionVar -exists "rkHDRSaturation"`){
-    }else{
-        optionVar -iv rkHDRSaturation 15;
-    }
-
-    //SET Contrast for HDR PNGs
-    if(`optionVar -exists "rkHDRContrast"`){
-    }else{
-        optionVar -iv rkHDRContrast 13;
-    }
-
-    //SET SharpenAmount for HDR PNGs
-    if(`optionVar -exists "rkHDRSharpenAmount"`){
-    }else{
-        optionVar -iv rkHDRSharpenAmount 5;
-    }
-
     // Determines the format of Maya Proceedural Textures
     // when saved as a PNG/JPG
     // QComboBox in GUI - 0/1 Values
