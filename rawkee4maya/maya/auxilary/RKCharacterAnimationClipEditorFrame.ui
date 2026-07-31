@@ -53,7 +53,7 @@
          <property name="maximumSize">
           <size>
            <width>16777215</width>
-           <height>24</height>
+           <height>16777215</height>
           </size>
          </property>
          <property name="text">
@@ -86,7 +86,7 @@
          <property name="maximumSize">
           <size>
            <width>16777215</width>
-           <height>280</height>
+           <height>16777215</height>
           </size>
          </property>
          <column>
@@ -131,8 +131,8 @@
          </property>
          <property name="maximumSize">
           <size>
-           <width>80</width>
-           <height>24</height>
+           <width>16777215</width>
+           <height>16777215</height>
           </size>
          </property>
          <property name="text">
@@ -151,7 +151,7 @@
          <property name="maximumSize">
           <size>
            <width>16777215</width>
-           <height>24</height>
+           <height>16777215</height>
           </size>
          </property>
         </widget>
@@ -171,7 +171,7 @@
          <property name="maximumSize">
           <size>
            <width>16777215</width>
-           <height>100</height>
+           <height>16777215</height>
           </size>
          </property>
          <property name="columnCount">
@@ -207,8 +207,8 @@
            </property>
            <property name="maximumSize">
             <size>
-             <width>110</width>
-             <height>24</height>
+             <width>16777215</width>
+             <height>16777215</height>
             </size>
            </property>
            <property name="text">
@@ -227,7 +227,7 @@
            <property name="maximumSize">
             <size>
              <width>16777215</width>
-             <height>24</height>
+             <height>16777215</height>
             </size>
            </property>
           </widget>
@@ -250,7 +250,7 @@
            <property name="maximumSize">
             <size>
              <width>16777215</width>
-             <height>24</height>
+             <height>16777215</height>
             </size>
            </property>
            <item>
@@ -285,8 +285,8 @@
            </property>
            <property name="maximumSize">
             <size>
-             <width>50</width>
-             <height>24</height>
+             <width>16777215</width>
+             <height>16777215</height>
             </size>
            </property>
            <property name="text">
@@ -304,8 +304,8 @@
            </property>
            <property name="maximumSize">
             <size>
-             <width>50</width>
-             <height>24</height>
+             <width>16777215</width>
+             <height>16777215</height>
             </size>
            </property>
            <property name="text">
