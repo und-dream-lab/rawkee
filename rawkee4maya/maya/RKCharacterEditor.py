@@ -670,7 +670,7 @@ class RKCharacterEditor(MayaQWidgetDockableMixin, QWidget):
         if cmds.objExists(mgearRoot):
             result    = cmds.parent(mgearRoot, actualName)
             mgearRoot = cmds.ls(result[0], long=True)[0]
-            #cmds.reorder(mgearRoot, front=True)
+            cmds.reorder(mgearRoot, front=True)
 
         # --- 7. Collect bound meshes and save skin weights from source skeleton ---
         skelSel = om.MSelectionList()
