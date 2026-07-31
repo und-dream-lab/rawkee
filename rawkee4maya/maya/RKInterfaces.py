@@ -353,61 +353,244 @@ class RKInterfaces():
 #        iio.imwrite(outputPath, hdri16bit, extension='.png')
 
 
-    #def convert_hdr_to_png16(self, hdr_path, png_path, gamma=2.2):
-    def hdri2png(self, hdr_path, png_path, gamma=2.2):
+    def _hdri_equirect_to_faces(self, eq_img, face_size):
         """
-        Converts a 32-bit float HDR image to an 8-bit or 16-bit PNG.
-        Bit depth is determined by the rkHDRbit16PNG option variable.
+        Convert an equirectangular (panoramic) HDR image to 6 cubemap face images.
+        Returns a list of 6 float32 arrays, each (face_size, face_size, C).
+        Face order follows the Vulkan/KTX2 standard: +X, -X, +Y, -Y, +Z, -Z.
+        Bilinear interpolation via scipy.ndimage.map_coordinates.
+        Longitude wraps correctly (mode='wrap') for seamless east-west edges.
         """
-        isBit16        = cmds.optionVar(q='rkHDRbit16PNG')
-        exposure       = float(cmds.optionVar(q='rkHDRExposure'))      / 10.0
-        saturation     = float(cmds.optionVar(q='rkHDRSaturation'))    / 10.0
-        contrast       = float(cmds.optionVar(q='rkHDRContrast'))      / 10.0
-        sharpen_amount = float(cmds.optionVar(q='rkHDRSharpenAmount')) / 10.0
+        from scipy.ndimage import map_coordinates
 
-        # 1. Load HDR image as float32
-        hdr_image = cv2.imread(hdr_path, flags=cv2.IMREAD_ANYDEPTH | cv2.IMREAD_COLOR)
-        if hdr_image is None:
-            print(f"Error: Could not read the HDR image from {hdr_path}")
+        h, w, C = eq_img.shape
+
+        # Normalised grid for one face: s = horizontal [-1,1], t = vertical [-1,1 downward]
+        s_vals = (np.arange(face_size, dtype=np.float32) + 0.5) / face_size * 2.0 - 1.0
+        t_vals = (np.arange(face_size, dtype=np.float32) + 0.5) / face_size * 2.0 - 1.0
+        s_grid, t_grid = np.meshgrid(s_vals, t_vals)   # (face_size, face_size)
+        one = np.ones_like(s_grid)
+
+        # Direction vectors per face (Vulkan cubemap convention, right-handed +Y up)
+        # s increases left→right, t increases top→bottom
+        face_vecs = [
+            np.stack([ one,    -t_grid, -s_grid], axis=-1),  # +X
+            np.stack([-one,    -t_grid,  s_grid], axis=-1),  # -X
+            np.stack([ s_grid,  one,     t_grid], axis=-1),  # +Y
+            np.stack([ s_grid, -one,    -t_grid], axis=-1),  # -Y
+            np.stack([ s_grid, -t_grid,  one],    axis=-1),  # +Z
+            np.stack([-s_grid, -t_grid, -one],    axis=-1),  # -Z
+        ]
+
+        faces = []
+        for vecs in face_vecs:
+            norms = np.sqrt((vecs ** 2).sum(axis=-1, keepdims=True))
+            vecs  = vecs / norms
+            x, y, z = vecs[..., 0], vecs[..., 1], vecs[..., 2]
+
+            # Equirectangular UV: longitude φ = atan2(x, -z) maps -Z→u=0.5 (front),
+            # +X→u=0.75 (right), matching the standard Maya/X3D -Z-forward convention.
+            lon = np.arctan2(x, -z)                  # [-π, π]
+            lat = np.arcsin(np.clip(y, -1.0, 1.0))   # [-π/2, π/2]
+            u   = (lon + np.pi) / (2.0 * np.pi)      # [0, 1]  left=0, right=1
+            v   = 0.5 - lat / np.pi                   # [0, 1]  top=0 (+Y), bottom=1 (-Y)
+
+            px = (u * w - 0.5).ravel()
+            py = (v * h - 0.5).ravel()
+
+            face = np.empty((face_size, face_size, C), dtype=np.float32)
+            for c in range(C):
+                face[..., c] = map_coordinates(
+                    eq_img[..., c], [py, px],
+                    order=1, mode='wrap', cval=0.0
+                ).reshape(face_size, face_size)
+
+            face = np.clip(np.nan_to_num(face, nan=0.0, posinf=65504.0, neginf=0.0),
+                           0.0, 65504.0)
+            faces.append(face)
+
+        return faces
+
+
+    def hdri2ktx2(self, hdr_path, ktx2_path):
+        """Converts an equirectangular HDRI to a KTX2 TEXTURE_CUBE_MAP (faceCount=6).
+
+        Output is VK_FORMAT_R16G16B16A16_SFLOAT, full mip chain, HDR preserved.
+        Face order follows Vulkan spec: +X(0) -X(1) +Y(2) -Y(3) +Z(4) -Z(5).
+        Face size is auto-determined as input_width/4 rounded to nearest power of 2.
+        """
+        import struct
+        from scipy.ndimage import map_coordinates
+
+        # Vulkan cubemap face order: +X(0) -X(1) +Y(2) -Y(3) +Z(4) -Z(5)
+        _FACES = [
+            ('+X', ( 1,  0,  0), ( 0,  0, -1), ( 0,  1,  0)),
+            ('-X', (-1,  0,  0), ( 0,  0,  1), ( 0,  1,  0)),
+            ('+Y', ( 0,  1,  0), ( 1,  0,  0), ( 0,  0, -1)),
+            ('-Y', ( 0, -1,  0), ( 1,  0,  0), ( 0,  0,  1)),
+            ('+Z', ( 0,  0,  1), ( 1,  0,  0), ( 0,  1,  0)),
+            ('-Z', ( 0,  0, -1), (-1,  0,  0), ( 0,  1,  0)),
+        ]
+        _KTX2_ID  = bytes([0xAB,0x4B,0x54,0x58,0x20,0x32,0x30,0xBB,0x0D,0x0A,0x1A,0x0A])
+        _DFD_SIZE = 92
+
+        # 1. Load equirectangular HDR (RGB float32)
+        hdr = iio.imread(hdr_path).astype(np.float32)
+        if hdr is None or hdr.size == 0:
+            print(f"Error: Could not read {hdr_path}")
             return
+        if hdr.ndim == 2:
+            hdr = np.stack([hdr, hdr, hdr], axis=-1)
+        elif hdr.shape[2] == 4:
+            hdr = hdr[:, :, :3]
+        hdr = np.clip(np.nan_to_num(hdr, nan=0.0, posinf=65504.0, neginf=0.0), 0.0, 65504.0)
+        H, W = hdr.shape[:2]
 
-        # Ensure 3-channel BGR float32 (required by tone mappers)
-        if len(hdr_image.shape) == 2:
-            hdr_image = cv2.cvtColor(hdr_image, cv2.COLOR_GRAY2BGR)
-        elif hdr_image.shape[2] == 4:
-            hdr_image = cv2.cvtColor(hdr_image, cv2.COLOR_BGRA2BGR)
-        hdr_image = hdr_image.astype(np.float32)
+        # Scale to mid-grey key (~0.18), then clip at 5.0 to prevent overexposure
+        lum    = 0.2126*hdr[:,:,0] + 0.7152*hdr[:,:,1] + 0.0722*hdr[:,:,2]
+        lw_bar = float(np.exp(np.mean(np.log(lum + 1e-6))))
+        hdr    = np.clip(hdr * (0.18 / max(lw_bar, 1e-6)), 0.0, 5.0)
 
-        # 2. Tone-map to [0, 1]
-        ldr_float = cv2.createTonemapReinhard(gamma=gamma).process(hdr_image)
-        ldr_float = np.clip(ldr_float * exposure, 0.0, 1.0)
-        ldr_float = np.clip((ldr_float - 0.5) * contrast + 0.5, 0.0, 1.0)
+        # Auto-determine face size: width/4 rounded to nearest power of 2
+        ideal = W / 4
+        TILE  = 1
+        while TILE * 2 <= ideal:
+            TILE *= 2
+        if (ideal - TILE) > (TILE * 2 - ideal):
+            TILE *= 2
+        print(f"  source: {W}x{H}  →  face: {TILE}x{TILE}")
 
-        # 3. Saturation adjustment in HSV
-        hsv = cv2.cvtColor(ldr_float, cv2.COLOR_BGR2HSV)
-        hsv[:, :, 1] = np.clip(hsv[:, :, 1] * saturation, 0.0, 1.0)
-        ldr_float = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+        # 2. Build coordinate grids — computed once, shared across all faces
+        idx = np.arange(TILE, dtype=np.float32)
+        px_grid, py_grid = np.meshgrid(idx, idx)
+        s = (2.0 * px_grid + 1.0) / TILE - 1.0
+        t = 1.0 - (2.0 * py_grid + 1.0) / TILE
 
-        # 4. Unsharp mask
-        if sharpen_amount > 0.0:
-            blurred = cv2.GaussianBlur(ldr_float, (0, 0), 3)
-            ldr_float = cv2.addWeighted(ldr_float, 1.0 + sharpen_amount, blurred, -sharpen_amount, 0)
+        # 3. Sample each face from the equirectangular image
+        face_arrays = []
+        for label, fwd_t, rgt_t, upd_t in _FACES:
+            fwd = np.array(fwd_t, dtype=np.float32)
+            rgt = np.array(rgt_t, dtype=np.float32)
+            upd = np.array(upd_t, dtype=np.float32)
 
-        # 5. Sanitize and hard-clip
-        ldr_float = np.clip(np.nan_to_num(ldr_float, nan=0.0, posinf=1.0, neginf=0.0), 0.0, 1.0)
+            x = fwd[0] + s * rgt[0] + t * upd[0]
+            y = fwd[1] + s * rgt[1] + t * upd[1]
+            z = fwd[2] + s * rgt[2] + t * upd[2]
+            r = np.sqrt(x*x + y*y + z*z)
+            x /= r;  y /= r;  z /= r
 
-        # 6. Quantize and save
-        if isBit16:
-            out_image = np.round(ldr_float * 65535.0).astype(np.uint16)
-            label = "16-bit"
-        else:
-            out_image = np.round(ldr_float * 255.0).astype(np.uint8)
-            label = "8-bit"
+            lon = np.arctan2(x, -z)
+            lat = np.arcsin(np.clip(y, -1.0, 1.0))
+            u_eq = (lon + np.pi) / (2.0 * np.pi)
+            v_eq = 0.5 - lat / np.pi
 
-        if cv2.imwrite(png_path, out_image):
-            print(f"Successfully converted {hdr_path} to {png_path} ({label})")
-        else:
-            print(f"Error: Could not write the PNG image to {png_path}")
+            src_x = (u_eq * W - 0.5).ravel()
+            src_y = (v_eq * H - 0.5).ravel()
+
+            face = np.empty((TILE, TILE, 3), dtype=np.float32)
+            for c in range(3):
+                face[:, :, c] = map_coordinates(
+                    hdr[:, :, c], [src_y, src_x],
+                    order=1, mode='wrap', cval=0.0
+                ).reshape(TILE, TILE)
+
+            face_arrays.append(np.clip(
+                np.nan_to_num(face, nan=0.0, posinf=5.0, neginf=0.0), 0.0, 5.0
+            ))
+            print(f"  face {label:3s}  sampled")
+
+        # 4. Generate mip chain for each face (box filter in float32 linear space)
+        def make_mip_chain(f32):
+            mips = [f32]
+            while max(mips[-1].shape[:2]) > 1:
+                prev = mips[-1]
+                nh   = max(1, prev.shape[0] // 2)
+                nw   = max(1, prev.shape[1] // 2)
+                ph   = nh * 2 if nh * 2 <= prev.shape[0] else prev.shape[0]
+                pw   = nw * 2 if nw * 2 <= prev.shape[1] else prev.shape[1]
+                down = prev[:ph, :pw].reshape(nh, ph//nh, nw, pw//nw, 3).mean(axis=(1, 3))
+                mips.append(down.astype(np.float32))
+            return mips
+
+        mip_chains = [make_mip_chain(f) for f in face_arrays]
+        num_levels = len(mip_chains[0])
+
+        # 5. Compute KTX2 file layout
+        LEVEL_IDX_SIZE = num_levels * 24
+        HEADER_END     = 80 + LEVEL_IDX_SIZE + _DFD_SIZE
+        pad_bytes      = (8 - HEADER_END % 8) % 8
+        PIXEL_OFFSET   = HEADER_END + pad_bytes
+
+        level_byte_sizes = [6 * max(1, TILE >> lvl)**2 * 8 for lvl in range(num_levels)]
+
+        level_file_offsets = {}
+        cum = 0
+        for lvl in range(num_levels - 1, -1, -1):
+            level_file_offsets[lvl] = PIXEL_OFFSET + cum
+            cum += level_byte_sizes[lvl]
+
+        # 6. KTX2 header (80 bytes)
+        hdr_bytes = _KTX2_ID
+        hdr_bytes += struct.pack('<I', 97)                    # VK_FORMAT_R16G16B16A16_SFLOAT
+        hdr_bytes += struct.pack('<I', 2)                     # typeSize: 2 bytes/component
+        hdr_bytes += struct.pack('<I', TILE)                  # pixelWidth
+        hdr_bytes += struct.pack('<I', TILE)                  # pixelHeight
+        hdr_bytes += struct.pack('<I', 0)                     # pixelDepth: 0 for 2D
+        hdr_bytes += struct.pack('<I', 0)                     # layerCount: non-array
+        hdr_bytes += struct.pack('<I', 6)                     # faceCount: 6 = TEXTURE_CUBE_MAP
+        hdr_bytes += struct.pack('<I', num_levels)
+        hdr_bytes += struct.pack('<I', 0)                     # supercompression: none
+        hdr_bytes += struct.pack('<I', 80 + LEVEL_IDX_SIZE)   # dfdByteOffset
+        hdr_bytes += struct.pack('<I', _DFD_SIZE)
+        hdr_bytes += struct.pack('<I', 0)                     # kvdByteOffset
+        hdr_bytes += struct.pack('<I', 0)                     # kvdByteLength
+        hdr_bytes += struct.pack('<Q', 0)                     # sgdByteOffset
+        hdr_bytes += struct.pack('<Q', 0)                     # sgdByteLength
+
+        # 6. Level index (num_levels × 24 bytes, level 0 → N-1)
+        level_idx = b''
+        for lvl in range(num_levels):
+            level_idx += struct.pack('<Q', level_file_offsets[lvl])
+            level_idx += struct.pack('<Q', level_byte_sizes[lvl])
+            level_idx += struct.pack('<Q', level_byte_sizes[lvl])
+
+        # 8. DFD (92 bytes) — matches verified reference file
+        dfd = struct.pack('<I', _DFD_SIZE)                   # dfdTotalSize
+        dfd += struct.pack('<I', 0)                           # vendorId=0, descriptorType=0
+        dfd += struct.pack('<I', (88 << 16) | 2)             # descriptorBlockSize=88, versionNumber=2
+        dfd += struct.pack('<I', (1 << 16) | (1 << 8) | 1)  # RGBSDA, BT709, LINEAR, flags=0
+        dfd += struct.pack('<I', 0)                           # texelBlockDimensions
+        dfd += bytes([8, 0, 0, 0, 0, 0, 0, 0])              # bytesPlane: plane0=8
+        for bit_off, ch_id in [(0, 0), (16, 1), (32, 2), (48, 15)]:  # ch_id 15 = KHR alpha
+            dfd += struct.pack('<H', bit_off)
+            dfd += struct.pack('<B', 15)                      # bitLength = 16-1
+            dfd += struct.pack('<B', ch_id | 0xC0)           # FLOAT|SIGNED, no extra flags
+            dfd += bytes(4)                                   # samplePosition[4]
+            dfd += struct.pack('<I', 0xBF800000)              # sampleLower: float32(-1.0)
+            dfd += struct.pack('<I', 0x3F800000)              # sampleUpper: float32(+1.0)
+
+        # 9. Pixel data (level N-1 first → level 0 last, per KTX2 spec)
+        pixel_data = bytearray()
+        for lvl in range(num_levels - 1, -1, -1):
+            for face_mips in mip_chains:
+                mip = face_mips[lvl]
+                rgb16 = mip.astype(np.float16)
+                alpha = np.full((*mip.shape[:2], 1), np.float16(1.0), dtype=np.float16)
+                pixel_data += np.concatenate([rgb16, alpha], axis=-1).tobytes()
+
+        # 10. Write file
+        try:
+            total_mb = (HEADER_END + pad_bytes + sum(level_byte_sizes)) / 1_048_576
+            with open(ktx2_path, 'wb') as f:
+                f.write(hdr_bytes)
+                f.write(level_idx)
+                f.write(dfd)
+                f.write(bytes(pad_bytes))
+                f.write(bytes(pixel_data))
+            print(f"Saved {ktx2_path}  ({TILE}x{TILE} faces × 6, {num_levels} mip levels, "
+                  f"{total_mb:.1f} MB, R16G16B16A16_SFLOAT TEXTURE_CUBE_MAP)")
+        except Exception as e:
+            print(f"Error: Could not write KTX2 file to {ktx2_path}: {e}")
 
 
     # Creating a Data URI from any file type.

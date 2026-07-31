@@ -1104,10 +1104,10 @@ class RKOrganizer():
                 fileExt  = os.path.splitext(fileName)[1]
                 fileName = os.path.splitext(fileName)[0]
                 
-                if self.rkHDRtoPNG > 0:
-                    fileName = fileName + ".png"
+                if self.rkHDRtoPNG > 0 and "hdr" in fileExt:
+                    fileName = fileName + ".ktx2"
                     localTexWrite   = localTexWrite + fileName
-                    self.rkint.hdri2png(filePath, localTexWrite, bits=8)
+                    self.rkint.hdri2ktx2(filePath, localTexWrite)
                 elif self.rkConsolidate == True:
                     fileName = self.rkint.getFileName(filePath)
                     localTexWrite = localTexwrite + fileName
@@ -1155,10 +1155,10 @@ class RKOrganizer():
                     fileExt  = os.path.splitext(fileName)[1]
                     fileName = os.path.splitext(fileName)[0]
                     
-                    if self.rkHDRtoPNG > 0:
-                        fileName = fileName + ".png"
+                    if self.rkHDRtoPNG > 0 and "hdr" in fileExt:
+                        fileName = fileName + ".ktx2"
                         localTexWrite   = localTexWrite   + fileName
-                        self.rkint.hdri2png(filePath, localTexWrite)
+                        self.rkint.hdri2ktx2(filePath, localTexWrite)
                     elif self.rkConsolidate == True:
                         fileName = self.rkint.getFileName(filePath)
                         localTexWrite = localTexWrite + "/" + fileName
