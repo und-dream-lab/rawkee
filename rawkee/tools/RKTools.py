@@ -1,6 +1,29 @@
 # =============================================================================
 # RKTools.py  —  standalone HDRI → KTX2 cubemap converter
+# =============================================================================
+# MIT License
 #
+# Copyright (c) 2026 University of North Dakota DREAM Lab
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+# =============================================================================
+# =============================================================================
 # RKTools.hdri2ktx2() is intentionally Maya/Blender-agnostic; it depends only
 # on numpy, imageio, and scipy so it can be used from any Python environment.
 # The PySide6 application classes (_ConvertWorker, RKToolsApp) are defined only
@@ -30,7 +53,7 @@ try:
         QFileDialog, QFrame, QMessageBox,
     )
     from PySide6.QtCore import QThread, Signal
-    from PySide6.QtGui import QFont
+    from PySide6.QtGui import QFont, QAction
     _HAS_PYSIDE6 = True
 except ImportError:
     _HAS_PYSIDE6 = False
@@ -470,6 +493,11 @@ if _HAS_PYSIDE6:
 
         def _build_ui(self):
             """Construct all widgets and lay them out.  Called once from __init__."""
+            help_menu = self.menuBar().addMenu("License Menu")
+            view_license = QAction("View License", self)
+            view_license.triggered.connect(self._show_license)
+            help_menu.addAction(view_license)
+
             root = QWidget()
             self.setCentralWidget(root)
             layout = QVBoxLayout(root)
@@ -533,6 +561,31 @@ if _HAS_PYSIDE6:
             self._convert_btn = QPushButton("Convert")
             self._convert_btn.clicked.connect(self._run)
             layout.addWidget(self._convert_btn)
+
+        def _show_license(self):
+            QMessageBox.information(
+                self, "License",
+                "MIT License\n\n"
+                "Copyright (c) 2026 University of North Dakota DREAM Lab\n\n"
+                "Permission is hereby granted, free of charge, to any person \n"
+                "obtaining a copy of this software and associated documentation \n"
+                "files (the \"Software\"), to deal in the Software without \n"
+                "restriction, including without limitation the rights to use, \n"
+                "copy, modify, merge, publish, distribute, sublicense, and/or \n"
+                "sell copies of the Software, and to permit persons to whom \n"
+                "the Software is furnished to do so, subject to the following \n"
+                "conditions:\n\n"
+                "The above copyright notice and this permission notice shall be \n"
+                "included in all copies or substantial portions of the Software.\n\n"
+                "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY \n"
+                "KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE \n"
+                "WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR \n"
+                "PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR \n"
+                "COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n"
+                "LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR \n"
+                "OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE \n"
+                "SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+            )
 
         def _browse_input(self):
             """Open file picker; auto-fill the output path when the output field is empty."""
