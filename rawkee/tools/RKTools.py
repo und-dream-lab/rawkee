@@ -93,13 +93,41 @@ class RKTools():
         _DFD_SIZE = 92  # fixed size: 4-byte total + 88-byte descriptor block (4 channel samples × 16 bytes each)
 
         # 1. Load HDR/EXR as float32 RGB
-        # The EXR plugin path tries the dedicated EXR plugin first; some builds require
-        # it explicitly, while others handle it automatically through the generic path.
+        # Enable OpenCV's EXR codec before cv2 is imported by imageio; standard
+        # opencv-python wheels ship with EXR support compiled in but off by default.
+        os.environ.setdefault('OPENCV_IO_ENABLE_OPENEXR', '1')
         if isEXR:
+            hdr = None
+            # imageio EXR plugin (OpenEXR Python package) returns RGB float32 directly.
             try:
                 hdr = iio.imread(hdr_path, plugin='EXR').astype(np.float32)
             except Exception:
-                hdr = iio.imread(hdr_path).astype(np.float32)
+                pass
+            # cv2 direct: always returns BGR or BGRA regardless of EXR channel names;
+            # [:, :, 2::-1] selects indices [2,1,0] → RGB from any BGR/BGRA output.
+            if hdr is None:
+                try:
+                    import cv2 as _cv2
+                    _raw = _cv2.imread(hdr_path, _cv2.IMREAD_UNCHANGED)
+                    if _raw is not None and _raw.ndim >= 2:
+                        hdr = (_raw[:, :, 2::-1] if _raw.ndim == 3
+                               else np.stack([_raw]*3, axis=-1)).astype(np.float32)
+                except Exception:
+                    pass
+            # Generic imageio fallback — channel order not guaranteed for EXR.
+            if hdr is None:
+                try:
+                    hdr = iio.imread(hdr_path).astype(np.float32)
+                except Exception as exc:
+                    raise RuntimeError(
+                        f"Could not read EXR file '{hdr_path}': {exc}\n"
+                        "Install the 'OpenEXR' Python package:  pip install OpenEXR"
+                    ) from exc
+            if hdr is not None and hdr.ndim == 3 and hdr.shape[2] >= 3:
+                print(f"  EXR channels: shape={hdr.shape}  "
+                      f"R=[{hdr[...,0].min():.4g},{hdr[...,0].max():.4g}]  "
+                      f"G=[{hdr[...,1].min():.4g},{hdr[...,1].max():.4g}]  "
+                      f"B=[{hdr[...,2].min():.4g},{hdr[...,2].max():.4g}]")
         else:
             hdr = iio.imread(hdr_path).astype(np.float32)
         if hdr is None or hdr.size == 0:
@@ -165,17 +193,14 @@ class RKTools():
         # 99.9th-percentile white point: clips the top 0.1% of specular highlights without
         # affecting the bulk of the image content.
         white_pt = float(np.percentile(hdr * ae_scale, 99.9))
-        # Choose float32 if the scene is so bright that even after auto-exposure the 99.9th
-        # percentile still exceeds the float16 maximum — typically physically-calibrated EXRs.
-        use32    = white_pt > _HALF_MAX
-        print(f"  auto-detect: {'R32G32B32A32_SFLOAT' if use32 else 'R16G16B16A16_SFLOAT + auto-expose'}"
-              f"  (lw_bar={lw_bar:.4f}, white_pt={white_pt:.4f})")
-
-        _clip_max = _float32_max if use32 else _HALF_MAX
-        if not use32:
-            hdr       = hdr * ae_scale
-            hdr       = np.clip(hdr, 0.0, white_pt)
-            _clip_max = white_pt
+        # Always R16F: R32G32B32A32_SFLOAT has poor support in common texture tools (NVIDIA
+        # Photoshop plugin, Sunrize) and produces 1-bit-per-channel display artifacts.
+        use32    = False
+        # Highlights that exceed float16 max after auto-exposure are clamped to 65504.
+        _clip_max = min(white_pt, _HALF_MAX)
+        hdr = np.clip(hdr * ae_scale, 0.0, _clip_max)
+        print(f"  auto-detect: R16G16B16A16_SFLOAT + auto-expose"
+              f"  (lw_bar={lw_bar:.4f}, white_pt={white_pt:.4f}, clip={_clip_max:.4f})")
 
         # nearest for angular prevents cval=0 artifacts at the -Z pole boundary
         _sample_mode = ('wrap'    if layout == 'equirectangular' else
