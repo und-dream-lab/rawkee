@@ -12,7 +12,8 @@ import ufe
 import rawkee4maya.maya.RKufe as rkufe
 
 from rawkee4maya.maya.RKInterfaces   import RKInterfaces
-from rawkee.io.RKSceneTraversal import RKSceneTraversal
+from rawkee.io.RKSceneTraversal      import RKSceneTraversal
+from rawkee.tools.RKTools            import RKTools
 
 # Pushed Material Export into RKMaterials.py
 import rawkee4maya.maya.RKMaterials as rkMat
@@ -1106,11 +1107,10 @@ class RKOrganizer():
                 
                 if self.rkHDRtoPNG > 0 and ("hdr" in fileExt or "exr" in fileExt):
                     rkMaxCubeMapFaceSize = cmds.optionVar( q='rkMaxCubeMapFaceSize')
-                    rkUseExtreme32BitCubeMap    = cmds.optionVar( q='rkUseExtreme32BitCubeMap'   )
 
                     fileName = fileName + ".ktx2"
                     localTexWrite   = localTexWrite + fileName
-                    self.rkint.hdri2ktx2(filePath, localTexWrite, 'exr' in fileExt, rkMaxCubeMapFaceSize, rkUseExtreme32BitCubeMap)
+                    RKTools.hdri2ktx2(filePath, localTexWrite, 'exr' in fileExt, rkMaxCubeMapFaceSize)
                 elif self.rkConsolidate == True:
                     fileName = self.rkint.getFileName(filePath)
                     localTexWrite = localTexWrite + fileName
@@ -1160,11 +1160,10 @@ class RKOrganizer():
                     
                     if self.rkHDRtoPNG > 0 and ("hdr" in fileExt or "exr" in fileExt):
                         rkMaxCubeMapFaceSize     = cmds.optionVar( q='rkMaxCubeMapFaceSize'     )
-                        rkUseExtreme32BitCubeMap = cmds.optionVar( q='rkUseExtreme32BitCubeMap' )
 
                         fileName = fileName + ".ktx2"
                         localTexWrite   = localTexWrite   + fileName
-                        self.rkint.hdri2ktx2(filePath, localTexWrite, 'exr' in fileExt, rkMaxCubeMapFaceSize, rkUseExtreme32BitCubeMap)
+                        RKTools.hdri2ktx2(filePath, localTexWrite, 'exr' in fileExt, rkMaxCubeMapFaceSize)
                     elif self.rkConsolidate == True:
                         fileName = self.rkint.getFileName(filePath)
                         localTexWrite = localTexWrite + "/" + fileName
