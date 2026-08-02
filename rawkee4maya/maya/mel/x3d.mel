@@ -273,12 +273,6 @@ global proc setDefRKOptVars()
         optionVar -iv rkMaxCubeMapFaceSize 4096;
     }
 
-    if(`optionVar -exists "rkUseExtreme32BitCubeMap"`){
-    }
-    else{
-        optionVar -iv rkUseExtreme32BitCubeMap 0;
-    }
-    
     // Determines the format of Maya Proceedural Textures
     // when saved as a PNG/JPG
     // QComboBox in GUI - 0/1 Values

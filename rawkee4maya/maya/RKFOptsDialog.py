@@ -196,7 +196,6 @@ class RKFOptsDialog(QtWidgets.QDialog):
 
         self.rkConvertHDRI        = cmds.optionVar( q='rkConvertHDRI'       )
         self.rkMaxCubeMapFaceSize = cmds.optionVar( q='rkMaxCubeMapFaceSize')
-        self.rkUseExtreme32BitCubeMap    = cmds.optionVar( q='rkUseExtreme32BitCubeMap'   )
         
         self.rkImagePath     = cmds.optionVar( q='rkImagePath'    )
         self.rkAudioPath     = cmds.optionVar( q='rkAudioPath'    )
@@ -255,9 +254,6 @@ class RKFOptsDialog(QtWidgets.QDialog):
 
         self.rkHDRCheckbox = self.expOptFrame.findChild(QtWidgets.QCheckBox, 'rkHDRCheckBox')
         self.rkHDRCheckbox.setChecked(self.rkConvertHDRI)
-
-        self.rkEDRCheckbox = self.expOptFrame.findChild(QtWidgets.QCheckBox, 'extremeDynamicRange')
-        self.rkEDRCheckbox.setChecked(self.rkUseExtreme32BitCubeMap)
 
         self.rkMaxFaceSize = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'cubeTextureSize')
         faceIntValidator = QIntValidator(1, 4096, self.expOptFrame)
@@ -339,7 +335,6 @@ class RKFOptsDialog(QtWidgets.QDialog):
         self.rkDefTexHeightLE        = self.expOptFrame.findChild(QtWidgets.QLineEdit, 'textureHeight'          )
 
         self.rkHDRCheckbox           = self.expOptFrame.findChild(QtWidgets.QCheckBox, 'rkHDRCheckBox'          )
-        self.rkEDRCheckbox           = self.expOptFrame.findChild(QtWidgets.QCheckBox, 'extremeDynamicRange'    )
 
         self.rkConsolidateCheckbox   = self.expOptFrame.findChild(QtWidgets.QCheckBox, 'rkConsolidateCheckbox'  )
         self.procTextureComboBox     = self.expOptFrame.findChild(QtWidgets.QComboBox, 'procTextureComboBox'    )
@@ -397,7 +392,6 @@ class RKFOptsDialog(QtWidgets.QDialog):
 
         cmds.optionVar( iv=('rkConsolidate'  , self.rkConsolidateCheckbox.isChecked()))
         cmds.optionVar( iv=('rkConvertHDRI'     , self.rkHDRCheckbox.isChecked()     ))
-        cmds.optionVar( iv=('rkUseExtreme32BitCubeMap' , self.rkEDRCheckbox.isChecked()     ))
         cmds.optionVar( iv=('rkMaxCubeMapFaceSize', int(self.rkMaxFaceSize.text())))
         cmds.optionVar( iv=('rkProcTexType'  , self.procTextureComboBox.currentIndex()))
         cmds.optionVar( iv=('rkFileTexType'  , self.fileTextureComboBox.currentIndex()))

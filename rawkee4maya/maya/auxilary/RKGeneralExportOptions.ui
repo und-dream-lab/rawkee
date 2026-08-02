@@ -293,7 +293,7 @@
          <item>
           <widget class="QCheckBox" name="extremeDynamicRange">
            <property name="text">
-            <string>Enable Extreme Range for KTX2 Images</string>
+            <string>Enable Extreme Dynamic Range for KTX2 Images</string>
            </property>
           </widget>
          </item>
@@ -338,7 +338,7 @@
             </size>
            </property>
            <property name="text">
-            <string>      Maximum W and H of texture cube tile size if converted: </string>
+            <string>      Maximum W and H of texture cube face if converted: </string>
            </property>
           </widget>
          </item>
