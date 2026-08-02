@@ -66,8 +66,9 @@ class RKTools():
 
         Input projection is auto-detected: equirectangular (2:1 aspect), cubemap cross (4:3 or
         3:4), angular/fisheye (square with dark corners), or octahedral (square, full coverage).
-        Output is always VK_FORMAT_R16G16B16A16_SFLOAT with log-average auto-exposure;
-        highlights exceeding the float16 ceiling (65504) after auto-exposure are clamped.
+        Output is always VK_FORMAT_R16G16B16A16_SFLOAT for scenes whose auto-exposed white
+        point fits in float16 range; VK_FORMAT_R32G32B32A32_SFLOAT is used when it does not.
+        Auto-exposure is applied in both cases so pixel values are viewer-compatible.
         Cubemap cross assumes OpenGL/Vulkan face order and orientation conventions.
         Face order follows Vulkan spec: +X(0) -X(1) +Y(2) -Y(3) +Z(4) -Z(5).
         Face size is auto-determined from source resolution, rounded to nearest power of 2, capped at maxFaceSize.
@@ -191,10 +192,12 @@ class RKTools():
         # 99.9th-percentile white point: clips the top 0.1% of specular highlights without
         # affecting the bulk of the image content.
         white_pt = float(np.percentile(hdr * ae_scale, 99.9))
-        # Highlights above the float16 ceiling after auto-exposure are clamped to 65504.
-        _clip_max = min(white_pt, _HALF_MAX)
+        # Use R32F when auto-exposed highlights still exceed the float16 ceiling (e.g. sun/sky EXRs).
+        use32     = white_pt > _HALF_MAX
+        _clip_max = white_pt  # clip to 99.9th percentile regardless of format
         hdr = np.clip(hdr * ae_scale, 0.0, _clip_max)
-        print(f"  auto-expose → R16G16B16A16_SFLOAT"
+        fmt_label = 'R32G32B32A32_SFLOAT' if use32 else 'R16G16B16A16_SFLOAT'
+        print(f"  auto-expose \u2192 {fmt_label}"
               f"  (lw_bar={lw_bar:.4f}, white_pt={white_pt:.4f}, clip={_clip_max:.4f})")
 
         # nearest for angular prevents cval=0 artifacts at the -Z pole boundary
@@ -351,8 +354,8 @@ class RKTools():
         pad_bytes      = (8 - HEADER_END % 8) % 8
         PIXEL_OFFSET   = HEADER_END + pad_bytes
 
-        # 8 bytes per pixel: 4 channels × 2 bytes (float16).
-        _bytes_per_pixel = 8
+        # 16 bytes/pixel for R32F RGBA; 8 bytes/pixel for R16F RGBA.
+        _bytes_per_pixel = 16 if use32 else 8
         level_byte_sizes = [6 * max(1, TILE >> lvl)**2 * _bytes_per_pixel for lvl in range(num_levels)]
 
         # KTX2 stores mip levels smallest-first (level N-1) → largest-last (level 0) in the file.
@@ -365,8 +368,8 @@ class RKTools():
         # ── KTX2 header (80 bytes fixed) ────────────────────────────────────
         # 6. KTX2 header (80 bytes)
         hdr_bytes = _KTX2_ID
-        hdr_bytes += struct.pack('<I', 97)  # vkFormat: VK_FORMAT_R16G16B16A16_SFLOAT
-        hdr_bytes += struct.pack('<I', 2)   # typeSize: 2 bytes per float16 component
+        hdr_bytes += struct.pack('<I', 109 if use32 else 97)  # vkFormat: R32G32B32A32_SFLOAT or R16G16B16A16_SFLOAT
+        hdr_bytes += struct.pack('<I', 4 if use32 else 2)      # typeSize: bytes per component
         hdr_bytes += struct.pack('<I', TILE)                  # pixelWidth
         hdr_bytes += struct.pack('<I', TILE)                  # pixelHeight
         hdr_bytes += struct.pack('<I', 0)                     # pixelDepth: 0 for 2D
@@ -398,9 +401,9 @@ class RKTools():
         dfd += struct.pack('<I', (88 << 16) | 2)             # descriptorBlockSize=88, versionNumber=2
         dfd += struct.pack('<I', (1 << 16) | (1 << 8) | 1)  # RGBSDA, BT709, LINEAR, flags=0
         dfd += struct.pack('<I', 0)                           # texelBlockDimensions
-        dfd += bytes([8, 0, 0, 0, 0, 0, 0, 0])  # bytesPlane0: 8 bytes (float16 RGBA)
-        _bit_len = 15   # bitLength field = bits-per-channel minus 1 (16-bit float → 15)
-        _stride  = 1    # channel bit-offset stride for 16-bit channels
+        dfd += bytes([16 if use32 else 8, 0, 0, 0, 0, 0, 0, 0])  # bytesPlane0
+        _bit_len = 31 if use32 else 15   # bitLength = bits-per-channel minus 1
+        _stride  = 2  if use32 else 1    # channel bit-offset stride (32-bit uses 2×16-bit units)
         # Channel IDs: 0=R 1=G 2=B 15=A.  0xC0 sets FLOAT|SIGNED flags in the DFD sample.
         for bit_off, ch_id in [(0*_stride, 0), (16*_stride, 1), (32*_stride, 2), (48*_stride, 15)]:
             dfd += struct.pack('<H', bit_off)
@@ -414,7 +417,7 @@ class RKTools():
         # 9. Pixel data (level N-1 first → level 0 last, per KTX2 spec).
         # Within each level the 6 faces are interleaved in Vulkan order (+X … -Z).
         # A constant alpha=1.0 channel is appended so the output format is RGBA (required by the VK_FORMAT).
-        _pix_dtype = np.float16
+        _pix_dtype = np.float32 if use32 else np.float16
         pixel_data = bytearray()
         for lvl in range(num_levels - 1, -1, -1):
             for face_mips in mip_chains:
@@ -433,7 +436,7 @@ class RKTools():
                 f.write(bytes(pad_bytes))
                 f.write(pixel_data)
             print(f"Saved {ktx2_path}  ({TILE}x{TILE} faces × 6, {num_levels} mip levels, "
-                  f"{total_mb:.1f} MB, R16G16B16A16_SFLOAT TEXTURE_CUBE_MAP)")
+                  f"{total_mb:.1f} MB, {fmt_label} TEXTURE_CUBE_MAP)")
         except Exception as e:
             print(f"Error: Could not write KTX2 file to {ktx2_path}: {e}")
 
