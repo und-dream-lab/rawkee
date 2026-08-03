@@ -54,11 +54,19 @@ class RKXScene(rkx.Scene):# class X3D_Transform (aom.MPxNode, x3d.Transform):
         self.eNodes = []
         self.eEdges = []
         self._x3d_scene = None  # reference to rkx.Scene; used for ROUTE insertion
+        self._sai_runner = None  # callable(js_str) → pushes JS to the X_ITE browser
         
         self.scene_width  = 64000
         self.scene_height = 64000
         
         self.initUI()
+
+    def set_sai_runner(self, callback):
+        self._sai_runner = callback
+
+    def _run_sai(self, js):
+        if self._sai_runner:
+            self._sai_runner(js)
     
     ###################################################################
     # Used 'add_eNode' instead of 'addNode' to void overlapping with 
@@ -111,6 +119,13 @@ class RKXScene(rkx.Scene):# class X3D_Transform (aom.MPxNode, x3d.Transform):
                     c.toNode   == to_def   and
                     _fields_match(c.toField, to_field, to_x3d))
         ]
+        self._run_sai(
+            f"(function(){{var b=document.querySelector('x3d-canvas').browser;"
+            f"var s=b.currentScene;"
+            f"var fn=s.getNamedNode({from_def!r});"
+            f"var tn=s.getNamedNode({to_def!r});"
+            f"if(fn&&tn)b.deleteRoute(fn,{from_field!r},tn,{to_field!r});}})()"
+        )
 
     def set_x3d_scene(self, x3d_scene):
         self._x3d_scene = x3d_scene
@@ -164,6 +179,13 @@ class RKXScene(rkx.Scene):# class X3D_Transform (aom.MPxNode, x3d.Transform):
         route.toNode    = to_def
         route.toField   = to_field
         self._x3d_scene.children.append(route)
+        self._run_sai(
+            f"(function(){{var b=document.querySelector('x3d-canvas').browser;"
+            f"var s=b.currentScene;"
+            f"var fn=s.getNamedNode({from_def!r});"
+            f"var tn=s.getNamedNode({to_def!r});"
+            f"if(fn&&tn)b.addRoute(fn,{from_field!r},tn,{to_field!r});}})()"
+        )
 
     def initUI(self):
         self.grScene = RKGraphicsScene(self)
