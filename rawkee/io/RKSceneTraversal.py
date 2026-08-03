@@ -1,6 +1,7 @@
 import sys
 import os
 import re
+import json
 from rawkee.io.RKx3d import *
 from typing import Final
 
@@ -152,7 +153,7 @@ class RKSceneTraversal():
                 if   keyp[3] == "DEF" and node.DEF != "":
                     sFieldsList.append("DEF")
                     
-                elif keyp[3] == "USE" and node.USE != "":
+                elif keyp[3] == "USE" and node.USE:
                     sFieldsList.append("USE")
                     
                 elif keyp[3] == "metadata": #and pastMeta == False:
@@ -226,7 +227,7 @@ class RKSceneTraversal():
         
         runUSE = False
         if hasattr(node, "USE"):
-            if node.USE != '':
+            if node.USE:  # None (set when DEF is non-empty) and '' are both falsy
                 runUSE = True
         
         if runUSE == True:
@@ -1279,12 +1280,171 @@ class RKSceneTraversal():
         return rNode        
 
 
+    def scene2sai(self, x3dDoc):
+        """Return a JS IIFE that rebuilds x3dDoc.Scene in X_ITE via SAI."""
+        lines = [
+            '(function () {',
+            '  var b = document.querySelector(\'x3d-canvas\').browser;',
+            '  var s = b.currentScene;',
+            '  Array.from(s.rootNodes).forEach(function (n) { s.removeRootNode(n); });',
+            '  var nodes = {};',
+        ]
+        counter = [0]
+        routes  = []
+        if x3dDoc and x3dDoc.Scene:
+            for child in x3dDoc.Scene.children:
+                if type(child).__name__ == 'ROUTE':
+                    routes.append(child)
+                else:
+                    var = self._node2sai(child, lines, counter)
+                    if var:
+                        lines.append(f'  s.addRootNode({var});')
+            for r in routes:
+                fd = getattr(r, 'fromNode',  '') or ''
+                ff = getattr(r, 'fromField', '') or ''
+                td = getattr(r, 'toNode',    '') or ''
+                tf = getattr(r, 'toField',   '') or ''
+                if fd and ff and td and tf:
+                    lines.append(
+                        f'  if (nodes[{json.dumps(fd)}] && nodes[{json.dumps(td)}])'
+                        f' b.addRoute(nodes[{json.dumps(fd)}], {json.dumps(ff)},'
+                        f' nodes[{json.dumps(td)}], {json.dumps(tf)});'
+                    )
+        lines.append('})();')
+        return '\n'.join(lines)
+
+
+    def _node2sai(self, node, lines, counter):
+        """Recursively emit SAI JS to create node; returns the JS variable name."""
+        nType   = type(node).__name__
+        use_val = getattr(node, 'USE', None) or ''
+        if use_val:
+            return f'nodes[{json.dumps(use_val)}]'
+
+        nodeTuple = instantiateNodeFromString(nType)
+        if not nodeTuple or not nodeTuple[0]:
+            return None
+        compNode = nodeTuple[0]
+
+        var = f'n{counter[0]}'
+        counter[0] += 1
+        lines.append(f'  var {var} = s.createNode({json.dumps(nType)});')
+
+        def_val = getattr(node, 'DEF', None) or ''
+        if def_val:
+            lines.append(f'  s.addNamedNode({json.dumps(def_val)}, {var});')
+            lines.append(f'  nodes[{json.dumps(def_val)}] = {var};')
+
+        pastMeta = False
+        for key, value in vars(node).items():
+            keyp = key.split('_')
+            if len(keyp) < 4:
+                continue
+            if keyp[1] == 'X3DNode':
+                if keyp[3] == 'metadata':
+                    pastMeta = True
+                continue
+            if keyp[1] == 'ROUTE':
+                continue
+            if not pastMeta:
+                continue
+
+            py_fname = 'global_' if keyp[3] == 'global' else keyp[3]
+            js_fname = 'global'  if keyp[3] == 'global' else keyp[3]
+
+            try:
+                default_val = getattr(compNode, py_fname)
+            except AttributeError:
+                continue
+
+            if isinstance(value, list):
+                if not value or value == default_val:
+                    continue
+                if isinstance(value[0], (str, float, int, tuple, bool)):
+                    if value[0] is not None:
+                        lines.append(f'  {var}.{js_fname} = {self._py2js(value)};')
+                else:
+                    child_vars = [self._node2sai(c, lines, counter) for c in value]
+                    child_vars = [cv for cv in child_vars if cv]
+                    if child_vars:
+                        children_js = ', '.join(child_vars)
+                        lines.append(f'  {var}.{js_fname} = [{children_js}];')
+            else:
+                if value == default_val or value is None:
+                    continue
+                if isinstance(value, (str, float, int, tuple, bool)):
+                    lines.append(f'  {var}.{js_fname} = {self._py2js(value)};')
+                elif hasattr(value, 'NAME'):
+                    cv = self._node2sai(value, lines, counter)
+                    if cv:
+                        lines.append(f'  {var}.{js_fname} = {cv};')
+
+        return var
+
+
+    def _py2js(self, value):
+        """Convert a Python X3D field value to a JavaScript literal."""
+        if value is None:
+            return 'null'
+        if isinstance(value, bool):
+            return 'true' if value else 'false'
+        if isinstance(value, (int, float)):
+            return repr(value)
+        if isinstance(value, str):
+            return json.dumps(value)
+        if isinstance(value, tuple):
+            return '[' + ', '.join(repr(x) for x in value) + ']'
+        if isinstance(value, list):
+            if not value:
+                return '[]'
+            first = value[0]
+            if isinstance(first, tuple):
+                return '[' + ', '.join('[' + ', '.join(repr(x) for x in t) + ']' for t in value) + ']'
+            if isinstance(first, bool):
+                return '[' + ', '.join('true' if v else 'false' for v in value) + ']'
+            if isinstance(first, str):
+                return '[' + ', '.join(json.dumps(v) for v in value) + ']'
+            return '[' + ', '.join(repr(v) for v in value) + ']'
+        return json.dumps(str(value))
+
+
     def getX3DObject(self):
         return X3D()
 
         
     def getSceneObject(self):
         return Scene()
+
+
+    def collectProfileFromScene(self, x3dDoc):
+        """Walk a pre-built X3D tree to populate profDict and profileType."""
+        if x3dDoc is None or x3dDoc.Scene is None:
+            return
+        for node in x3dDoc.Scene.children:
+            self._collectNodeComponents(node)
+        compLen = len(self.profDict)
+        if   compLen >= 36: self.evaluateForFull()
+        elif compLen >= 20: self.evaluateForImmersive()
+        elif compLen >= 16: self.evaluateForInteractive()
+        elif compLen >= 14: self.evaluateForMP4Interactive()
+        elif compLen >= 12: self.evaluateForInterchange()
+        elif compLen >= 10: self.evaluateForCADInterchange()
+        else:               self.evaluateForCore()
+        self.setAdditionalComponents()
+
+
+    def _collectNodeComponents(self, node):
+        nType = type(node).__name__
+        nodeTuple = instantiateNodeFromString(nType)
+        if nodeTuple and nodeTuple[1]:
+            self.adjustProfileAndComponents(nodeTuple[1])
+        for value in vars(node).values():
+            if isinstance(value, list):
+                for item in value:
+                    if hasattr(item, 'NAME'):
+                        self._collectNodeComponents(item)
+            elif hasattr(value, 'NAME'):
+                self._collectNodeComponents(value)
 
 
     #######################################################

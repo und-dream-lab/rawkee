@@ -16,6 +16,7 @@ from functools import partial
 
 import rawkee.io.RKx3d as rkx
 from rawkee.io.RKLoadSceneFromFile import RKLoadSceneFromFile
+from rawkee.io.RKSceneTraversal import RKSceneTraversal
 
 # Pure outputOnly/inputOnly event fields missing from FIELD_DECLARATIONS in RKx3d.py.
 # Format: {NodeTypeName: [(field_name, field_type, access)]}  access = 'inputOnly'|'outputOnly'
@@ -528,6 +529,8 @@ class RKSceneEditor(QMainWindow):
         self.clearGraphAction.triggered.connect(self.on_clear_graph)
         self.closeEditor.triggered.connect(self.close)
         self.combo_box.activated.connect(self.on_item_viewer_selection)
+        self.node_editor_widget.scene.set_sai_runner(
+            lambda js: self.browser.page().runJavaScript(js))
 
 
     def on_item_viewer_selection(self, index):
@@ -552,6 +555,7 @@ class RKSceneEditor(QMainWindow):
         self._x3dObj = None
         self.node_editor_widget.clearGraph()
         self.setX3DScene(None)
+        self.browser.reload()
         self.setWindowTitle("RawKee PE - X3D Interaction Editor")
 
     def on_open_file(self):
@@ -569,10 +573,44 @@ class RKSceneEditor(QMainWindow):
         self.node_editor_widget.clearGraph()
         scene_node = getattr(x3d, 'Scene', None)
         self.setX3DScene(scene_node)
+        self._push_file_to_xite()
         self.setWindowTitle(f"RawKee PE - {os.path.basename(file_path)}")
 
+    def _push_file_to_xite(self):
+        if self._x3dObj is None:
+            return
+        trv = RKSceneTraversal()
+        self.browser.page().runJavaScript(trv.scene2sai(self._x3dObj))
+
     def on_export_as(self):
-        QMessageBox.information(self, "Export X3D", "Export not yet implemented.")
+        if self._x3dObj is None:
+            QMessageBox.warning(self, "Export X3D", "No X3D scene to export.")
+            return
+        file_path, selected_filter = QFileDialog.getSaveFileName(
+            self, "Export X3D As...", "",
+            "X3D XML (*.x3d);;X3D Classic VRML (*.x3dv);;X3D JSON (*.x3dj)")
+        if not file_path:
+            return
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext == ".x3dv" or "x3dv" in selected_filter:
+            encoding = "x3dv"
+            if not file_path.lower().endswith(".x3dv"):
+                file_path += ".x3dv"
+        elif ext == ".x3dj" or "x3dj" in selected_filter:
+            encoding = "x3dj"
+            if not file_path.lower().endswith(".x3dj"):
+                file_path += ".x3dj"
+        else:
+            encoding = "x3d"
+            if not file_path.lower().endswith(".x3d"):
+                file_path += ".x3d"
+        try:
+            trv = RKSceneTraversal()
+            trv.collectProfileFromScene(self._x3dObj)
+            trv.x3d2disk(self._x3dObj, file_path, encoding)
+            self.setWindowTitle(f"RawKee PE - {os.path.basename(file_path)}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Failed", str(e))
 
     def on_clear_graph(self):
         self.node_editor_widget.clearGraph()
