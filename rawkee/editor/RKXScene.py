@@ -1,4 +1,3 @@
-import sys
 import rawkee.io.RKx3d as rkx
 from rawkee.editor.RKGraphics import RKGraphicsScene
 

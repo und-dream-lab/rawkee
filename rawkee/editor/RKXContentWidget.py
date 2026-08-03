@@ -1,15 +1,7 @@
-try:
-    #Qt5
-    from PySide2.QtWidgets import *
-    from PySide2.QtCore    import *
-    from PySide2.QtGui     import *
+from PySide6.QtWidgets import *
+from PySide6.QtCore    import *
+from PySide6.QtGui     import *
 
-except ImportError:
-    #Qt6
-    from PySide6.QtWidgets import *
-    from PySide6.QtCore    import *
-    from PySide6.QtGui     import *
- 
 class RKXContentWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)

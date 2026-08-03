@@ -682,7 +682,7 @@ class RKAssignLabelAsName(aom.MPxCommand):
         
         return jointName
 
-
+'''
 class RKShowSceneEditor(aom.MPxCommand):
     kPluginCmdName = "rkShowSceneEditor"
     
@@ -694,25 +694,25 @@ class RKShowSceneEditor(aom.MPxCommand):
         return RKShowSceneEditor()
         
     def doIt(self, args):
-        print("RawKee Scene Editor")
+        print("RawKee Scene Editor - Removed")
         #cmds.rkPrimeX3DScene()
         
-        global rkWeb3D
-        if rkWeb3D is not None:
-            sceneEditorControlName = RKSceneEditor.scene_editor_control_name()
-        
-            if cmds.workspaceControl(sceneEditorControlName, exists=True):
-                #Must Close before Delete
-                cmds.workspaceControl(sceneEditorControlName, e=True, close=True, closeCommand=RKSceneEditor.workplace_close_command())
-                cmds.deleteUI(sceneEditorControlName)
+        #global rkWeb3D
+        #if rkWeb3D is not None:
+        #    sceneEditorControlName = RKSceneEditor.scene_editor_control_name()
+        #
+        #    if cmds.workspaceControl(sceneEditorControlName, exists=True):
+        #        #Must Close before Delete
+        #        cmds.workspaceControl(sceneEditorControlName, e=True, close=True, closeCommand=RKSceneEditor.workplace_close_command())
+        #        cmds.deleteUI(sceneEditorControlName)
             
-            rkSEditor = RKSceneEditor()
-            rkSEditor.setRKWeb3D(rkWeb3D)
-            rkSEditor.show(dockable=True, uiScript=RKSceneEditor.workspace_ui_script())
-            rkSEditor.centerNodeEditor()
-        else:
-            print("RKWeb3D is not set!")
-        
+        #    rkSEditor = RKSceneEditor()
+        #    rkSEditor.setRKWeb3D(rkWeb3D)
+        #    rkSEditor.show(dockable=True, uiScript=RKSceneEditor.workspace_ui_script())
+        #    rkSEditor.centerNodeEditor()
+        #else:
+        #    print("RKWeb3D is not set!")
+'''
 
 
 class RKShowCharacterEditor(aom.MPxCommand):
@@ -1595,12 +1595,14 @@ def uninitializePlugin(plugin):
     # 'del rkWeb3D'
     
     ########### Scene Editor ##################
-    sceneEditorControlName = RKSceneEditor.scene_editor_control_name()
-
-    if cmds.workspaceControl(sceneEditorControlName, exists=True):
-        #Must Close before Delete
-        cmds.workspaceControl(sceneEditorControlName, e=True, close=True, closeCommand=RKSceneEditor.workplace_close_command())
-        cmds.deleteUI(sceneEditorControlName)
+    # REMOVED *********************************
+    ###########################################
+    #sceneEditorControlName = RKSceneEditor.scene_editor_control_name()
+    #
+    #if cmds.workspaceControl(sceneEditorControlName, exists=True):
+    #    #Must Close before Delete
+    #    cmds.workspaceControl(sceneEditorControlName, e=True, close=True, closeCommand=RKSceneEditor.workplace_close_command())
+    #    cmds.deleteUI(sceneEditorControlName)
     
     ########### Deprecated Character Editor ####################
     characterEditorControlName = RKCharacterEditor.character_editor_control_name()
