@@ -1,17 +1,7 @@
-try:
-    #Qt5
-    from PySide2.QtGui     import *
-    from PySide2.QtWidgets import *
+from PySide6.QtGui     import *
+from PySide6.QtWidgets import *
+from PySide6.QtCore    import *
 
-    from PySide2.QtCore    import *
-
-except ImportError:
-    #Qt6
-    from PySide6.QtGui     import *
-    from PySide6.QtWidgets import *
-
-    from PySide6.QtCore    import *
-    
 import math
     
 
@@ -144,14 +134,14 @@ class RKGraphicsView(QGraphicsView):
     
     # Middle Mouse Button Event overrides that implement middle mouse button scene dragging.
     def middleMouseButtonPress(self, event):
-        releaseEvent = QMouseEvent(QEvent.MouseButtonRelease, event.localPos(), event.screenPos(), Qt.LeftButton, Qt.NoButton, event.modifiers())
+        releaseEvent = QMouseEvent(QEvent.Type.MouseButtonRelease, event.position(), event.globalPosition(), Qt.LeftButton, Qt.NoButton, event.modifiers())
         super().mouseReleaseEvent(releaseEvent)
         self.setDragMode(RKGraphicsView.ScrollHandDrag)
-        fakeEvent = QMouseEvent(event.type(), event.localPos(), event.screenPos(), Qt.LeftButton, event.buttons() | Qt.LeftButton, event.modifiers())
+        fakeEvent = QMouseEvent(event.type(), event.position(), event.globalPosition(), Qt.LeftButton, event.buttons() | Qt.LeftButton, event.modifiers())
         super().mousePressEvent(fakeEvent)
-        
+
     def middleMouseButtonRelease(self, event):
-        fakeEvent = QMouseEvent(event.type(), event.localPos(), event.screenPos(), Qt.LeftButton, event.buttons() | Qt.LeftButton, event.modifiers())
+        fakeEvent = QMouseEvent(event.type(), event.position(), event.globalPosition(), Qt.LeftButton, event.buttons() | Qt.LeftButton, event.modifiers())
         super().mouseReleaseEvent(fakeEvent)
         self.setDragMode(RKGraphicsView.NoDrag)
     

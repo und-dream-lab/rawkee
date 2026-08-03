@@ -67,7 +67,35 @@ class RKLoadSceneFromFile:
     @staticmethod
     def _fieldTypeMap(nodeClass):
         """Return {fieldName: fieldTypeString} for a node class."""
-        return {decl[0]: decl[2] for decl in nodeClass.FIELD_DECLARATIONS()}
+        return {decl[0]: decl[2]() for decl in nodeClass.FIELD_DECLARATIONS()}
+
+    # Classes that share a NAME() but have different field sets, ordered base→extended.
+    # The loader pre-scans XML attributes and picks the first class whose field set
+    # covers all attributes present in the element.
+    _UPGRADE_CHAIN = {
+        'PhysicalMaterial':   [PhysicalMaterial, PhysicalMaterialExt, PhysicalMaterial_X3DOM],
+        'IndexedFaceSet':     [IndexedFaceSet,    CGEIndexedFaceSet],
+        'IndexedTriangleSet': [IndexedTriangleSet, CGEIndexedTriangleSet],
+    }
+
+    @classmethod
+    def _selectClass(cls, tag, attr_keys, child_container_fields=None):
+        """Return an instance of the most appropriate class for *tag* given the
+        XML attribute names and child containerField values present.
+        Returns None if no upgrade chain exists."""
+        chain = cls._UPGRADE_CHAIN.get(tag)
+        if not chain:
+            return None
+        needed = frozenset(
+            'global_' if a == 'global' else a
+            for a in list(attr_keys) + list(child_container_fields or [])
+            if a and a != 'containerField'
+        )
+        for node_cls in chain:
+            known = frozenset(decl[0] for decl in node_cls.FIELD_DECLARATIONS())
+            if needed <= known:
+                return node_cls()
+        return chain[-1]()  # fall back to most capable class
 
     def _parseStrValue(self, strVal, fType):
         """
@@ -323,6 +351,12 @@ class RKLoadSceneFromFile:
         if useVal:
             tNode.USE = useVal
             return tNode
+
+        # ---- Upgrade to most capable class that supports all present attrs -
+        child_cfs = [child.get('containerField', '') for child in elem]
+        upgraded = self._selectClass(tag, elem.attrib.keys(), child_cfs)
+        if upgraded is not None:
+            tNode = upgraded
 
         # ---- Build field-type lookup for this node -------------------------
         ftMap = self._fieldTypeMap(type(tNode))

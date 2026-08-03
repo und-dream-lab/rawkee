@@ -1,65 +1,25 @@
-try:
-    #Qt5
-    from PySide2           import QtCore
-    from PySide2           import QtWidgets
-    from PySide2.QtWebEngineWidgets import *
-    from PySide2           import QtGui
-    from PySide2.QtGui     import *
-    from PySide2.QtWidgets import QMenu
-    from PySide2.QtWidgets import *
-    from PySide2.QtWidgets import QGraphicsItem as rkgItem
-    from PySide2.QtCore    import *
-    
-    from shiboken2         import wrapInstance
-    from shiboken2         import getCppPointer
+from PySide6           import QtCore
+from PySide6           import QtWidgets
+from PySide6.QtWebEngineWidgets import *
+from PySide6           import QtGui
+from PySide6.QtGui     import *
+from PySide6.QtWidgets import *
+from PySide6.QtWidgets import QGraphicsItem as rkgItem
+from PySide6.QtCore    import *
+from PySide6.QtWebEngineCore  import *
 
-except ImportError:
-    #Qt6
-    from PySide6           import QtCore
-    from PySide6           import QtWidgets
-    from PySide6.QtWebEngineWidgets import *
-    from PySide6           import QtGui
-    from PySide6.QtGui     import *
-    from PySide6.QtWidgets import *
-    from PySide6.QtWidgets import QGraphicsItem as rkgItem
-    from PySide6.QtCore    import *
-    from PySide6.QtWebEngineCore  import *
-    
-    from shiboken6         import wrapInstance
-    from shiboken6         import getCppPointer
-    
+import os
 import sys
-
-########################################
-# Not sure why I imported this
-########################################
-# from functools import partial
-
-#Python API 1.0 needed to access MQtUtil
-import maya.OpenMayaUI as omui
-import maya.cmds as cmds
-
-#Python API 2.0 needed to register command with API 2.0 plugin
-import maya.api.OpenMaya as aom
-
-#To get local file path for html file
-from rawkee4maya.maya import RKWeb3D #This needs to go at some point
-
-#To geth other items from 'rawkee'
-import rawkee.io.RKx3d as rkx
-from rawkee.editor.RKXScene   import RKXScene
-from rawkee.editor.RKXNodes   import RKXNode #notice the missing 's' - RKXNode is a test class
-from rawkee.editor.RKXSocket  import RKXSocket
-from rawkee.editor.RKGraphics   import RKGraphicsView
-
-# Needed to run a local server for X_ITE 14.1.0
 import http.server
 import threading
-from   functools import partial
+from functools import partial
 
-from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
-
-global rkWeb3D
+import rawkee.io.RKx3d as rkx
+from rawkee.io.RKLoadSceneFromFile import RKLoadSceneFromFile
+from rawkee.editor.RKXScene   import RKXScene
+from rawkee.editor.RKXNodes   import RKXNode
+from rawkee.editor.RKXSocket  import RKXSocket
+from rawkee.editor.RKGraphics import RKGraphicsView
 
 
 ###########################################################################
@@ -135,7 +95,7 @@ class RKNodeEditorDropView(RKGraphicsView):
             super().dropEvent(event)
 
 
-class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
+class RKSceneEditor(QMainWindow):
     
     OBJECT_NAME = "RKSceneEditor"
     
@@ -152,30 +112,23 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         return "self.cleanUpOnEditorClose()"
 
     
-    def __init__(self):
-        super().__init__()
-        
-        self.setObjectName(self.OBJECT_NAME)
-        self.setWindowTitle("RawKee PE - X3D Graph Editor (Scene and Interactions) with X_ITE Display - Under Development")
-        self.setMinimumSize(600,400)
-        
-        self.node_editor_name = ""
-        
-        self.add_to_scene_editor_workspace_control()
-        
-        self.setURLPaths()
-        
-        self.create_actions()
+    def __init__(self, parent=None):
+        super().__init__(parent)
 
+        self.setObjectName(self.OBJECT_NAME)
+        self.setWindowTitle("RawKee PE - X3D Interaction Editor")
+        self.setMinimumSize(900, 600)
+
+        self.node_editor_name = ""
+
+        self.setURLPaths()
+        self.create_actions()
         self.create_widgets()
-        
         self.create_layout()
-        
         self.create_connections()
-        
-        self.rkWeb3D = None
-        self.bkHost  = None
-        self.httpd   = None
+
+        self.bkHost = None
+        self.httpd  = None
 
 
     def setX3DScene(self, x3dScene):
@@ -253,33 +206,17 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
 
         
     def setRKWeb3D(self, rkWeb3D):
-        # Maybe this should be moved to the constructor.
-        # This is here so that the RKSceneEditor panel
-        # can send and receive x3d.X3D objects with the 
-        # MainMayaWindow RawKee GUI/Menu system.
-        self.rkWeb3D = rkWeb3D
-            
+        # Reserved for future DCC-host integration.
+        pass
+
     def cleanUpOnEditorClose(self):
-        # Release the RKWeb3D object, otherwise it will not
-        # later be deleteable when the plugin unloads. If
-        # the object is not deletable, then the __del__ 
-        # method for that object will never be called during
-        # the plugin unload, and thus the 'RawKee (X3D)' 
-        # menu won't be removed from the MayaMainWindow
-        # menubar.
         if self.bkHost:
             self.bkHost.stop()
-            self.bkHost  = None
-        self.rkWeb3D = None
+            self.bkHost = None
 
-
-    def add_to_scene_editor_workspace_control(self):
-        scene_editor_workspace_control = omui.MQtUtil.findControl(self.scene_editor_control_name())
-        if scene_editor_workspace_control:
-            scene_editor_workspace_control_ptr = int(scene_editor_workspace_control)
-            scene_editor_widget_ptr = int(getCppPointer(self)[0])
-            
-            omui.MQtUtil.addWidgetToMayaLayout(scene_editor_widget_ptr, scene_editor_workspace_control_ptr)
+    def closeEvent(self, event):
+        self.cleanUpOnEditorClose()
+        super().closeEvent(event)
 
     def setURLPaths(self):
         module_name = self.__class__.__module__
@@ -300,7 +237,6 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         
         
     def create_actions(self):
-        #:menu_options.png
         self.newX3DScene    = QAction("   New X3D Scene")
         self.openX3DFile    = QAction("   Open X3D")
         self.exportX3DAs    = QAction("   Export X3D As...")
@@ -322,12 +258,10 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
 #        self.qtBut.setText("Push my button")
         
     def create_widgets(self):
-        self.menu_bar    = QMenuBar()
-        file_menu = self.menu_bar.addMenu("File")
-    
-        node_menu   = self.menu_bar.addMenu("X3D Nodes")
-        about_menu  = self.menu_bar.addMenu("About RawKee")
-        
+        file_menu   = self.menuBar().addMenu("File")
+        node_menu   = self.menuBar().addMenu("X3D Nodes")    # noqa: F841
+        about_menu  = self.menuBar().addMenu("About RawKee") # noqa: F841
+
         file_menu.addAction(self.newX3DScene)
         file_menu.addAction(self.openX3DFile)
         file_menu.addAction(self.exportX3DAs)
@@ -402,50 +336,50 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         ##############################################
         # Creating a Tabbed Panel Widget to hold it all
         self.tab_widget = QTabWidget()
-        
+
+        # Disabled in standalone mode — require a DCC host
+        for action in (self.copySceneMaya, self.copySelectMaya,
+                       self.pasteSGToMaya, self.pasteSubToMaya):
+            action.setEnabled(False)
+
     def create_layout(self):
         #####################################################
         # X3D Player and Node Editor Layout                 #
-        plr_layout = QtWidgets.QVBoxLayout()           #
-                                                            #
-        plrCtrl_layout  = QtWidgets.QHBoxLayout()
+        plrCtrl_layout = QtWidgets.QHBoxLayout()
         plrCtrl_layout.addWidget(self.plcLabel)
         plrCtrl_layout.addWidget(self.combo_box)
-        plrCtrl_layout.setContentsMargins(0,0,0,0)
-        
+        plrCtrl_layout.setContentsMargins(0, 0, 0, 0)
         self.playerControl.setLayout(plrCtrl_layout)
-        plr_layout.setContentsMargins(0,0,0,0)
+
+        plr_layout = QtWidgets.QVBoxLayout()
+        plr_layout.setContentsMargins(0, 0, 0, 0)
         plr_layout.setSpacing(0)
         plr_layout.addWidget(self.playerControl)
-        plr_layout.addWidget(self.browser)
-        self.playerPanel.setLayout(plr_layout)
-        
-        plr_layout.addLayout(plrCtrl_layout)
         plr_layout.addWidget(self.browser, stretch=1)
-        
+        self.playerPanel.setLayout(plr_layout)
+
         self.tab_widget.addTab(self.node_editor_widget, "X3D Graph Editor")
         self.tab_widget.addTab(self.playerPanel, "X3D Player - X_ITE")
-        
+
         ######################################################
-        # Top Level Layout                                   #
-        main_layout = QtWidgets.QHBoxLayout(self)            #
-        main_layout.setMenuBar(self.menu_bar)                #
-        
+        # Top Level Layout — QMainWindow requires a central widget
+        central = QWidget()
+        self.setCentralWidget(central)
+        main_layout = QtWidgets.QHBoxLayout(central)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+
         self.splitter.addWidget(self.tab_widget)
         self.splitter.addWidget(self.tree_widget)
         main_layout.addWidget(self.splitter)
-        #main_layout.addWidget(self.tab_widget)
-        main_layout.setContentsMargins(0,0,0,0)
-        
-        #######################################################
-        # Keep for later use.
-        # self.playerURL = QUrl.fromLocalFile(self.x_itePath)
+
         self.playerURL = QUrl(self.x_itePath)
         self.browser.setUrl(self.playerURL)
         
     def create_connections(self):
-
-        # Adds functionality to switch between X_ITE and X3DOM
+        self.newX3DScene.triggered.connect(self.on_new_scene)
+        self.openX3DFile.triggered.connect(self.on_open_file)
+        self.exportX3DAs.triggered.connect(self.on_export_as)
+        self.closeEditor.triggered.connect(self.close)
         self.combo_box.activated.connect(self.on_item_viewer_selection)
 
 
@@ -466,8 +400,29 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
             # self.playerURL = QUrl.fromLocalFile(self.x3domPath)
             
         self.browser.load(self.playerURL)
-        
-    
+
+    def on_new_scene(self):
+        self.setX3DScene(None)
+        self.setWindowTitle("RawKee PE - X3D Interaction Editor")
+
+    def on_open_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Open X3D File", "",
+            "X3D Files (*.x3d *.x3dj *.x3dv);;All Files (*)")
+        if not file_path:
+            return
+        loader = RKLoadSceneFromFile()
+        x3d = loader.disk2x3d(file_path)
+        if x3d is None:
+            QMessageBox.warning(self, "Open Failed", f"Could not load:\n{file_path}")
+            return
+        scene_node = getattr(x3d, 'Scene', None)
+        self.setX3DScene(scene_node)
+        self.setWindowTitle(f"RawKee PE - {os.path.basename(file_path)}")
+
+    def on_export_as(self):
+        QMessageBox.information(self, "Export X3D", "Export not yet implemented.")
+
     def stopWebserver(self):
         if self.httpd:
             print("Shutting down server...")
