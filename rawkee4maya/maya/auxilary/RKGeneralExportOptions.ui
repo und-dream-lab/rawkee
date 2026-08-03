@@ -286,14 +286,7 @@
          <item>
           <widget class="QCheckBox" name="rkHDRCheckBox">
            <property name="text">
-            <string>Convert Equirectangular HDR/EXR Images to KTX2 Cube Map Images</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QCheckBox" name="extremeDynamicRange">
-           <property name="text">
-            <string>Enable Extreme Dynamic Range for KTX2 Images</string>
+            <string>Convert HDR/EXR Images to KTX2 Cube Map Images</string>
            </property>
           </widget>
          </item>

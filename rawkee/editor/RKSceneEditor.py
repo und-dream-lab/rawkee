@@ -287,10 +287,11 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         
         ############################################################
         # Keep these for later use.
-        self.serverPath = self.basePath + "/x_ite/x_ite-14.1.0"
-        self.port = 8000
+        #self.serverPath = self.basePath + "/x_ite/x_ite-14.1.0"
+        #self.port = 8000
 
-        self.x_itePath  = "https://create3000.github.io/x_ite/playground/?play=false&fullSize=true"
+        self.x_itePath = "https://und-dream-lab.github.io/rawkee/rawkee/examples/x_ite.html"
+        #self.x_itePath  = "https://create3000.github.io/x_ite/playground/?play=false&fullSize=true"
         #http://localhost:{self.port}"
         #self.x_itePath  = "https://vr.csgrid.org/x_ite/index.html"
 
@@ -362,11 +363,15 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         
         #############################################
         # X3D Player Panel Widgets
-        self.view = QWebEngineView()
-        print(self.view.page().profile().httpUserAgent())
+        self.browser = QWebEngineView()
+        # Enable access to remote scripts/URLs from a local file
+        settings = self.browser.settings()
+        settings.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
+        settings.setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
+        #print(self.browser.page().profile().httpUserAgent())
         
-        self.custom_page = RKCustomWebEnginePage(self.view)
-        self.view.setPage(self.custom_page)
+        self.custom_page = RKCustomWebEnginePage(self.browser)
+        self.browser.setPage(self.custom_page)
 
         # Box that holds the WebGL X_ITE / X3DOM canvas and the player controls
         self.playerPanel   = QGroupBox()
@@ -382,7 +387,8 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         self.combo_box.setMinimumWidth(250)
         self.combo_box.setMinimumHeight(25)
         self.combo_box.setMaximumHeight(25)
-        self.combo_box.addItem("X_ITE - https://create3000.github.io/x_ite/playground/?play=false&fullSize=true")
+        self.combo_box.addItem("X3D Player - X_ITE")
+        #self.combo_box.addItem("X_ITE - https://create3000.github.io/x_ite/playground/?play=false&fullSize=true")
         #self.combo_box.addItem("X3DOM - https://www.x3dom.org/")
         
         ##############################################
@@ -411,11 +417,11 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         plr_layout.setContentsMargins(0,0,0,0)
         plr_layout.setSpacing(0)
         plr_layout.addWidget(self.playerControl)
-        plr_layout.addWidget(self.view)
+        plr_layout.addWidget(self.browser)
         self.playerPanel.setLayout(plr_layout)
         
         plr_layout.addLayout(plrCtrl_layout)
-        plr_layout.addWidget(self.view, stretch=1)
+        plr_layout.addWidget(self.browser, stretch=1)
         
         self.tab_widget.addTab(self.node_editor_widget, "X3D Graph Editor")
         self.tab_widget.addTab(self.playerPanel, "X3D Player - X_ITE")
@@ -435,7 +441,7 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
         # Keep for later use.
         # self.playerURL = QUrl.fromLocalFile(self.x_itePath)
         self.playerURL = QUrl(self.x_itePath)
-        self.view.setUrl(self.playerURL)
+        self.browser.setUrl(self.playerURL)
         
     def create_connections(self):
 
@@ -459,7 +465,7 @@ class RKSceneEditor(MayaQWidgetDockableMixin, QWidget):
             # Keep for later use.
             # self.playerURL = QUrl.fromLocalFile(self.x3domPath)
             
-        self.view.load(self.playerURL)
+        self.browser.load(self.playerURL)
         
     
     def stopWebserver(self):
