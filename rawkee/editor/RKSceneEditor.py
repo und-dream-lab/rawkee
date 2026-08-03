@@ -16,6 +16,146 @@ from functools import partial
 
 import rawkee.io.RKx3d as rkx
 from rawkee.io.RKLoadSceneFromFile import RKLoadSceneFromFile
+
+# Pure outputOnly/inputOnly event fields missing from FIELD_DECLARATIONS in RKx3d.py.
+# Format: {NodeTypeName: [(field_name, field_type, access)]}  access = 'inputOnly'|'outputOnly'
+_EXTRA_EVENT_FIELDS = {
+    'TimeSensor': [
+        ('cycleTime',        'SFTime',    'outputOnly'),
+        ('elapsedTime',      'SFTime',    'outputOnly'),
+        ('fraction_changed', 'SFFloat',   'outputOnly'),
+        ('isActive',         'SFBool',    'outputOnly'),
+        ('isPaused',         'SFBool',    'outputOnly'),
+        ('time',             'SFTime',    'outputOnly'),
+    ],
+    'PositionInterpolator': [
+        ('set_fraction',  'SFFloat',    'inputOnly'),
+        ('value_changed', 'SFVec3f',    'outputOnly'),
+    ],
+    'PositionInterpolator2D': [
+        ('set_fraction',  'SFFloat',    'inputOnly'),
+        ('value_changed', 'SFVec2f',    'outputOnly'),
+    ],
+    'OrientationInterpolator': [
+        ('set_fraction',  'SFFloat',    'inputOnly'),
+        ('value_changed', 'SFRotation', 'outputOnly'),
+    ],
+    'ColorInterpolator': [
+        ('set_fraction',  'SFFloat',    'inputOnly'),
+        ('value_changed', 'SFColor',    'outputOnly'),
+    ],
+    'ScalarInterpolator': [
+        ('set_fraction',  'SFFloat',    'inputOnly'),
+        ('value_changed', 'SFFloat',    'outputOnly'),
+    ],
+    'NormalInterpolator': [
+        ('set_fraction',  'SFFloat',    'inputOnly'),
+        ('value_changed', 'MFVec3f',    'outputOnly'),
+    ],
+    'CoordinateInterpolator': [
+        ('set_fraction',  'SFFloat',    'inputOnly'),
+        ('value_changed', 'MFVec3f',    'outputOnly'),
+    ],
+    'CoordinateInterpolator2D': [
+        ('set_fraction',  'SFFloat',    'inputOnly'),
+        ('value_changed', 'MFVec2f',    'outputOnly'),
+    ],
+    'SquadOrientationInterpolator': [
+        ('set_fraction',  'SFFloat',    'inputOnly'),
+        ('value_changed', 'SFRotation', 'outputOnly'),
+    ],
+    'SplinePositionInterpolator': [
+        ('set_fraction',  'SFFloat',    'inputOnly'),
+        ('value_changed', 'SFVec3f',    'outputOnly'),
+    ],
+    'SplinePositionInterpolator2D': [
+        ('set_fraction',  'SFFloat',    'inputOnly'),
+        ('value_changed', 'SFVec2f',    'outputOnly'),
+    ],
+    'SplineScalarInterpolator': [
+        ('set_fraction',  'SFFloat',    'inputOnly'),
+        ('value_changed', 'SFFloat',    'outputOnly'),
+    ],
+    'EaseInEaseOut': [
+        ('set_fraction',  'SFFloat',    'inputOnly'),
+        ('modifiedFraction_changed', 'SFFloat', 'outputOnly'),
+    ],
+    'TouchSensor': [
+        ('hitNormal_changed',   'SFVec3f',  'outputOnly'),
+        ('hitPoint_changed',    'SFVec3f',  'outputOnly'),
+        ('hitTexCoord_changed', 'SFVec2f',  'outputOnly'),
+        ('isActive',            'SFBool',   'outputOnly'),
+        ('isOver',              'SFBool',   'outputOnly'),
+        ('touchTime',           'SFTime',   'outputOnly'),
+    ],
+    'ProximitySensor': [
+        ('centerOfRotation_changed', 'SFVec3f',    'outputOnly'),
+        ('isActive',                 'SFBool',     'outputOnly'),
+        ('orientation_changed',      'SFRotation', 'outputOnly'),
+        ('position_changed',         'SFVec3f',    'outputOnly'),
+        ('enterTime',                'SFTime',     'outputOnly'),
+        ('exitTime',                 'SFTime',     'outputOnly'),
+    ],
+    'VisibilitySensor': [
+        ('isActive',   'SFBool', 'outputOnly'),
+        ('enterTime',  'SFTime', 'outputOnly'),
+        ('exitTime',   'SFTime', 'outputOnly'),
+    ],
+    'PlaneSensor': [
+        ('isActive',           'SFBool',   'outputOnly'),
+        ('isOver',             'SFBool',   'outputOnly'),
+        ('translation_changed','SFVec3f',  'outputOnly'),
+        ('trackPoint_changed', 'SFVec3f',  'outputOnly'),
+    ],
+    'CylinderSensor': [
+        ('isActive',           'SFBool',    'outputOnly'),
+        ('isOver',             'SFBool',    'outputOnly'),
+        ('rotation_changed',   'SFRotation','outputOnly'),
+        ('trackPoint_changed', 'SFVec3f',   'outputOnly'),
+    ],
+    'SphereSensor': [
+        ('isActive',           'SFBool',    'outputOnly'),
+        ('isOver',             'SFBool',    'outputOnly'),
+        ('rotation_changed',   'SFRotation','outputOnly'),
+        ('trackPoint_changed', 'SFVec3f',   'outputOnly'),
+    ],
+    'KeySensor': [
+        ('actionKeyPress',   'SFInt32', 'outputOnly'),
+        ('actionKeyRelease', 'SFInt32', 'outputOnly'),
+        ('altKey',           'SFBool',  'outputOnly'),
+        ('controlKey',       'SFBool',  'outputOnly'),
+        ('isActive',         'SFBool',  'outputOnly'),
+        ('keyPress',         'SFString','outputOnly'),
+        ('keyRelease',       'SFString','outputOnly'),
+        ('shiftKey',         'SFBool',  'outputOnly'),
+    ],
+    'StringSensor': [
+        ('enteredText',  'SFString', 'outputOnly'),
+        ('finalText',    'SFString', 'outputOnly'),
+        ('isActive',     'SFBool',   'outputOnly'),
+    ],
+    'BooleanFilter': [
+        ('set_boolean',    'SFBool', 'inputOnly'),
+        ('inputFalse',     'SFBool', 'outputOnly'),
+        ('inputNegate',    'SFBool', 'outputOnly'),
+        ('inputTrue',      'SFBool', 'outputOnly'),
+    ],
+    'BooleanToggle': [
+        ('set_boolean', 'SFBool', 'inputOnly'),
+    ],
+    'BooleanTrigger': [
+        ('set_triggerTime', 'SFTime', 'inputOnly'),
+        ('triggerTrue',     'SFBool', 'outputOnly'),
+    ],
+    'IntegerTrigger': [
+        ('set_boolean',       'SFBool',  'inputOnly'),
+        ('triggerValue',      'SFInt32', 'outputOnly'),
+    ],
+    'TimeTrigger': [
+        ('set_boolean',  'SFBool', 'inputOnly'),
+        ('triggerTime',  'SFTime', 'outputOnly'),
+    ],
+}
 from rawkee.editor.RKXScene   import RKXScene
 from rawkee.editor.RKXNodes   import RKXNode
 from rawkee.editor.RKXSocket  import RKXSocket
@@ -127,14 +267,16 @@ class RKSceneEditor(QMainWindow):
         self.create_layout()
         self.create_connections()
 
-        self.bkHost = None
-        self.httpd  = None
+        self.bkHost  = None
+        self.httpd   = None
+        self._x3dObj = None  # full rkx.X3D object kept in memory
 
 
     def setX3DScene(self, x3dScene):
         """Populate the tree widget from an rkx.Scene object produced by maya2x3d()."""
         self._x3dScene = x3dScene
         self._build_scene_tree(x3dScene)
+        self.node_editor_widget.set_x3d_scene(x3dScene)
 
     def _build_scene_tree(self, scene):
         self.tree_widget.clearRegistry()
@@ -151,11 +293,13 @@ class RKSceneEditor(QMainWindow):
         if isinstance(node, rkx.ROUTE):
             return None
 
-        # USE reference — shown read-only, not draggable
+        # USE reference — register for drag so addNodeFromX3D can resolve it to the DEF node
         use_val = getattr(node, 'USE', '')
         if use_val:
             node_type = type(node).NAME()
-            return QTreeWidgetItem(["USE '{}' ({})".format(use_val, node_type)])
+            item = QTreeWidgetItem(["USE '{}' ({})".format(use_val, node_type)])
+            item.setData(0, Qt.UserRole, self.tree_widget.registerNode(node))
+            return item
 
         # Regular node — register it so it can be dragged into the node editor
         node_type = type(node).NAME()
@@ -242,6 +386,7 @@ class RKSceneEditor(QMainWindow):
         self.exportX3DAs    = QAction("   Export X3D As...")
         #self.openX3DFile.setShortcut(QtGui.QKeySequence("Ctrl+S"))
 
+        self.clearGraphAction = QAction("   Clear Graph Editor")
         self.copySceneMaya  = QAction("   Copy Entire Maya Scene")
         self.copySelectMaya = QAction("   Copy Selected Maya Nodes")
         self.pasteSGToMaya  = QAction("   Paste Entire X3D Scenegraph")
@@ -259,8 +404,9 @@ class RKSceneEditor(QMainWindow):
         
     def create_widgets(self):
         file_menu   = self.menuBar().addMenu("File")
-        node_menu   = self.menuBar().addMenu("X3D Nodes")    # noqa: F841
+        node_menu   = self.menuBar().addMenu("X3D Nodes")
         about_menu  = self.menuBar().addMenu("About RawKee") # noqa: F841
+        node_menu.addAction(self.clearGraphAction)
 
         file_menu.addAction(self.newX3DScene)
         file_menu.addAction(self.openX3DFile)
@@ -379,6 +525,7 @@ class RKSceneEditor(QMainWindow):
         self.newX3DScene.triggered.connect(self.on_new_scene)
         self.openX3DFile.triggered.connect(self.on_open_file)
         self.exportX3DAs.triggered.connect(self.on_export_as)
+        self.clearGraphAction.triggered.connect(self.on_clear_graph)
         self.closeEditor.triggered.connect(self.close)
         self.combo_box.activated.connect(self.on_item_viewer_selection)
 
@@ -402,6 +549,8 @@ class RKSceneEditor(QMainWindow):
         self.browser.load(self.playerURL)
 
     def on_new_scene(self):
+        self._x3dObj = None
+        self.node_editor_widget.clearGraph()
         self.setX3DScene(None)
         self.setWindowTitle("RawKee PE - X3D Interaction Editor")
 
@@ -416,12 +565,17 @@ class RKSceneEditor(QMainWindow):
         if x3d is None:
             QMessageBox.warning(self, "Open Failed", f"Could not load:\n{file_path}")
             return
+        self._x3dObj = x3d
+        self.node_editor_widget.clearGraph()
         scene_node = getattr(x3d, 'Scene', None)
         self.setX3DScene(scene_node)
         self.setWindowTitle(f"RawKee PE - {os.path.basename(file_path)}")
 
     def on_export_as(self):
         QMessageBox.information(self, "Export X3D", "Export not yet implemented.")
+
+    def on_clear_graph(self):
+        self.node_editor_widget.clearGraph()
 
     def stopWebserver(self):
         if self.httpd:
@@ -499,37 +653,129 @@ class RKCustomNodeEditor(QWidget):
         else:
             self.view = RKGraphicsView(self.scene.grScene, self)
         self.layout.addWidget(self.view)
-        
-        # Adding an RKXNode for Development / Testing purposes.
-        self.node1 = RKXNode(self.scene, "RawKeeNode 1", inputs=[1, 2, 3], outputs=[1])
-        self.node1.setPos(0,0)
-        node2 = RKXNode(self.scene, "RawKeeNode 2", inputs=[1, 2, 3], outputs=[1])
-        node2.setPos(300,0)
-        node3 = RKXNode(self.scene, "RawKeeNode 3", inputs=[1, 2, 3], outputs=[1])
-        node3.setPos(600,0)
+
+    def set_x3d_scene(self, x3d_scene):
+        self.scene.set_x3d_scene(x3d_scene)
+
+    def clearGraph(self):
+        self.scene.clear_graph()
 
     def addNodeFromX3D(self, x3d_node, scene_pos):
         """Create an RKXNode in the editor canvas from a dropped rkx node object."""
+        # USE nodes are just references — resolve to the actual DEF node
+        use_val = getattr(x3d_node, 'USE', '')
+        if use_val:
+            node_type = type(x3d_node)
+            for candidate in self._tree_widget._node_registry.values():
+                if type(candidate) == node_type and getattr(candidate, 'DEF', '') == use_val:
+                    x3d_node = candidate
+                    break
+
+        # Prevent duplicate: same DEF already in graph
+        def_val = getattr(x3d_node, 'DEF', '')
+        if def_val:
+            for existing in self.scene.eNodes:
+                if getattr(getattr(existing, 'x3d_node', None), 'DEF', '') == def_val:
+                    return
+
         node_type = type(x3d_node).NAME()
         def_name  = getattr(x3d_node, 'DEF', '')
-        title = "{} DEF='{}'".format(node_type, def_name) if def_name else node_type
+        use_name  = getattr(x3d_node, 'USE', '')
+        title = use_name if use_name else def_name
 
+        _NO_ROUTE_NAMES = frozenset({'DEF', 'USE', 'IS', 'class_', 'id_', 'style_'})
         inputs  = []
         outputs = []
         if hasattr(type(x3d_node), 'FIELD_DECLARATIONS'):
             for decl in type(x3d_node).FIELD_DECLARATIONS():
                 field_name = decl[0]
-                try:
-                    access_str = decl[3]()
-                except Exception:
-                    access_str = ''
+                try:    field_type = decl[2]()
+                except Exception: field_type = ''
+                try:    access_str = decl[3]()
+                except Exception: access_str = ''
+                if field_name in _NO_ROUTE_NAMES:
+                    continue
                 if access_str in ('inputOnly', 'inputOutput'):
-                    inputs.append(field_name)
+                    inputs.append((field_name, field_type))
                 if access_str in ('outputOnly', 'inputOutput'):
-                    outputs.append(field_name)
+                    outputs.append((field_name, field_type))
 
-        new_node = RKXNode(self.scene, title, inputs=inputs, outputs=outputs)
+        # Merge spec event fields absent from FIELD_DECLARATIONS
+        existing_in  = {fn for fn, _ in inputs}
+        existing_out = {fn for fn, _ in outputs}
+        for (fname, ftype, access) in _EXTRA_EVENT_FIELDS.get(node_type, []):
+            if access == 'inputOnly' and fname not in existing_in:
+                inputs.append((fname, ftype))
+            elif access == 'outputOnly' and fname not in existing_out:
+                outputs.append((fname, ftype))
+
+        new_node = RKXNode(self.scene, title, inputs=inputs, outputs=outputs, x3d_node=x3d_node, node_type=node_type)
         new_node.setPos(scene_pos.x(), scene_pos.y())
+        self._sync_routes_to_edges()
+
+    def _sync_routes_to_edges(self):
+        if self.scene._x3d_scene is None:
+            return
+
+        def base(name):
+            if name.endswith('_changed'): return name[:-8]
+            if name.startswith('set_'):   return name[4:]
+            return name
+
+        def_map = {getattr(n.x3d_node, 'DEF', ''): n
+                   for n in self.scene.eNodes
+                   if getattr(n, 'x3d_node', None) and getattr(n.x3d_node, 'DEF', '')}
+        existing_pairs = {(id(e.start_socket), id(e.end_socket))
+                          for e in self.scene.eEdges if e.start_socket and e.end_socket}
+        for child in self.scene._x3d_scene.children:
+            if not hasattr(child, 'fromNode'):
+                continue
+            from_enode = def_map.get(child.fromNode)
+            to_enode   = def_map.get(child.toNode)
+            if from_enode is None or to_enode is None:
+                continue
+            rf = base(child.fromField)
+            rt = base(child.toField)
+            start_sock = next((from_enode.outputs[i]
+                               for i, (fn, _) in enumerate(from_enode.output_fields)
+                               if base(fn) == rf and i < len(from_enode.outputs)), None)
+            end_sock   = next((to_enode.inputs[i]
+                               for i, (fn, _) in enumerate(to_enode.input_fields)
+                               if base(fn) == rt and i < len(to_enode.inputs)), None)
+
+            # Field not in FIELD_DECLARATIONS (pure event field) — create a socket on the fly
+            if start_sock is None:
+                start_sock = self._add_dynamic_socket(from_enode, child.fromField, is_output=True)
+            if end_sock is None:
+                end_sock = self._add_dynamic_socket(to_enode, child.toField, is_output=False)
+
+            if start_sock is None or end_sock is None:
+                continue
+            pair = (id(start_sock), id(end_sock))
+            if pair in existing_pairs:
+                continue
+            from rawkee.editor.RKXEdge import RKXEdge
+            RKXEdge(self.scene, start_sock, end_sock)
+            existing_pairs.add(pair)
+
+    def _add_dynamic_socket(self, enode, field_name, is_output):
+        """Create a socket for a field not present in FIELD_DECLARATIONS (pure event field)."""
+        from rawkee.editor.RKXSocket import RKXSocket, LEFT_BOTTOM, RIGHT_TOP
+        if is_output:
+            idx = len(enode.outputs)
+            enode.output_fields.append((field_name, ''))
+            enode._resize_for_sockets()
+            sock = RKXSocket(eNode=enode, index=idx, position=RIGHT_TOP,
+                             isOutput=True, field_name=field_name)
+            enode.outputs.append(sock)
+        else:
+            idx = len(enode.inputs)
+            enode.input_fields.append((field_name, ''))
+            enode._resize_for_sockets()
+            sock = RKXSocket(eNode=enode, index=idx, position=LEFT_BOTTOM,
+                             isOutput=False, field_name=field_name)
+            enode.inputs.append(sock)
+        return sock
 
     def centerViewOn(self, qpoint=QPointF(0,0)):
         self.view.centerOn(qpoint)

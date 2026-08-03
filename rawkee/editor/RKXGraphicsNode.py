@@ -28,7 +28,7 @@ class RKXGraphicsNode(QGraphicsItem):
         self.height = 280
         
         self.title_height = 24.0
-        self._padding = 2.0
+        self._padding = 3.0
         
         self.edge_size = 10.0
         
@@ -72,6 +72,13 @@ class RKXGraphicsNode(QGraphicsItem):
     def initUI(self):
         self.setFlag(RKXGraphicsNode.ItemIsSelectable)
         self.setFlag(RKXGraphicsNode.ItemIsMovable)
+        self.setFlag(RKXGraphicsNode.ItemSendsGeometryChanges)
+
+    def itemChange(self, change, value):
+        if change == RKXGraphicsNode.GraphicsItemChange.ItemPositionHasChanged:
+            for edge in self.eNode.scene.eEdges:
+                edge.updatePositions()
+        return super().itemChange(change, value)
 
 
     @property
@@ -79,8 +86,7 @@ class RKXGraphicsNode(QGraphicsItem):
     @title.setter
     def title(self, value):
         self._title = value
-        nodeDEFChop = self._title[:28]
-        self.title_item.setPlainText(nodeDEFChop)
+        self.title_item.setPlainText(value[:28])
         
     
         

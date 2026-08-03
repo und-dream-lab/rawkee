@@ -578,12 +578,22 @@ class RKLoadSceneFromFile:
 
             elif tok == 'COMPONENT':
                 self._classicConsume()
-                compTok  = self._classicConsume()   # Name:level
-                parts    = compTok.split(':')
+                compTok = self._classicConsume()    # "Name:level" or just "Name"
+                # Handle both "Name:level" (no spaces) and "Name : level" (spaces)
+                if ':' in compTok:
+                    parts = compTok.split(':')
+                    compName  = parts[0].strip()
+                    compLevel = int(parts[1].strip()) if len(parts) > 1 else 1
+                else:
+                    compName = compTok
+                    if self._classicPeek() == ':':
+                        self._classicConsume()      # consume ':'
+                    try:    compLevel = int(self._classicConsume())
+                    except Exception: compLevel = 1
                 compNode = component()
-                try:    compNode.name  = parts[0].strip()
+                try:    compNode.name  = compName
                 except Exception: pass
-                try:    compNode.level = int(parts[1].strip()) if len(parts) > 1 else 1
+                try:    compNode.level = compLevel
                 except Exception: pass
                 if x3dDoc.head is None:
                     x3dDoc.head = head()

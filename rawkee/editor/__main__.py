@@ -31,9 +31,23 @@ else:
                           '--ignore-gpu-blacklist --ignore-gpu-blocklist')
 
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QtMsgType, qInstallMessageHandler
 from PySide6.QtGui import QPalette, QColor
 from rawkee.editor.RKSceneEditor import RKSceneEditor
+
+
+def _qt_message_handler(msg_type, context, message):
+    # Suppress noisy Qt painter/rendering warnings that don't affect functionality
+    _suppressed = (
+        'QPainter::',
+        'QBackingStore::',
+        'QOpenGLContext::',
+        'updateRequestSent',
+    )
+    if any(message.startswith(s) for s in _suppressed):
+        return
+    if msg_type in (QtMsgType.QtDebugMsg, QtMsgType.QtInfoMsg):
+        return
 
 
 def _apply_dark_palette(app):
@@ -63,6 +77,7 @@ def _apply_dark_palette(app):
 
 
 def main():
+    qInstallMessageHandler(_qt_message_handler)
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     app = QApplication.instance() or QApplication(sys.argv)
     _apply_dark_palette(app)
