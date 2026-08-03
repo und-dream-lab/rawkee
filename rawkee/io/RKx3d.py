@@ -60170,8 +60170,9 @@ print("x3d.py package 4.0.64.5 loaded, have fun with X3D Graphics!", flush=True)
 ###############################################
 
 
-def instantiateNodeFromString(x3dType):
-    x3dNodeMapping = {
+def instantiateNodeFromString(x3dType, _cache={}):
+    if not _cache:
+        _cache.update({
         ####################################### A
         'AcousticProperties':(AcousticProperties(), {'Core':1, 'Lighting':4, 'Grouping':1, 'Rendering':1, 'Shape':4}),
         'Analyser':(Analyser(), {'Core':1, 'Sound':2, 'Time':1}),
@@ -60473,8 +60474,14 @@ def instantiateNodeFromString(x3dType):
         'WaveShaper':(WaveShaper(), {'Core':1, 'Sound':2, 'Time':1}),
         'WindPhysicsModel':(WindPhysicsModel(), {'Core':1, 'Grouping':1, 'ParticleSystems':1, 'Rendering':1, 'Shape':1}),
         'WorldInfo':(WorldInfo(), {'Core':1})
-    }
+        })
 
-    return x3dNodeMapping.get(x3dType, (None, {'NotFound':0}))
-    
+    result = _cache.get(x3dType)
+    if result is None:
+        return (None, {'NotFound': 0})
+    node_or_class, profile_dict = result
+    if isinstance(node_or_class, type):
+        return (node_or_class, profile_dict)
+    return (type(node_or_class)(), profile_dict)
+
     #return x3dNodeMapping[x3dType]()

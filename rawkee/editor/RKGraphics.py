@@ -84,6 +84,9 @@ class RKGraphicsView(QGraphicsView):
         self.zoomStep = 1
         self.zoomRange = [0, 20]
 
+        self._drag_start_socket = None
+        self._drag_edge         = None
+
         
     def initUI(self):
         # At least in PySide6 - Tutorial's use of HighQualityAntialiasing is not supported
@@ -121,11 +124,285 @@ class RKGraphicsView(QGraphicsView):
             super().mouseReleaseEvent(event)
             
     def leftMouseButtonPress(self, event):
-        return super().mousePressEvent(event)
+        from rawkee.editor.RKXGraphicsSocket import RKXGraphicsSocket
+        item = self.itemAt(event.pos())
+        if isinstance(item, RKXGraphicsSocket):
+            self._begin_drag_edge(item)
+            return
+        super().mousePressEvent(event)
         
     def leftMouseButtonRelease(self, event):
-        return super().mouseReleaseEvent(event)
-        
+        if self._drag_start_socket is not None:
+            from rawkee.editor.RKXGraphicsSocket import RKXGraphicsSocket
+            item = self.itemAt(event.pos())
+            if isinstance(item, RKXGraphicsSocket) and item is not self._drag_start_socket:
+                self._complete_drag_edge(item)
+            else:
+                self._cancel_drag_edge()
+            return
+        super().mouseReleaseEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._drag_edge is not None:
+            self._drag_edge.setDestPos(self.mapToScene(event.pos()))
+            self._drag_edge.update()
+        super().mouseMoveEvent(event)
+
+    def _begin_drag_edge(self, gr_socket):
+        from rawkee.editor.RKXGraphicsEdge import RKXGraphicsEdge
+        self._drag_start_socket = gr_socket
+        self._drag_edge = RKXGraphicsEdge(None)
+        self.grScene.addItem(self._drag_edge)
+        src = gr_socket.scenePos()
+        self._drag_edge.setSourcePos(src)
+        self._drag_edge.setDestPos(src)
+        self._drag_edge.update()
+
+    def _complete_drag_edge(self, end_gr_socket):
+        from rawkee.editor.RKXEdge import RKXEdge
+        self.grScene.removeItem(self._drag_edge)
+        self._drag_edge = None
+        start, end = self._drag_start_socket, end_gr_socket
+        self._drag_start_socket = None
+        # Enforce output → input direction
+        if start.isOutput and not end.isOutput:
+            pass
+        elif end.isOutput and not start.isOutput:
+            start, end = end, start
+        else:
+            return  # both same direction — reject
+        start_sock = getattr(start, 'socket', None)
+        end_sock   = getattr(end,   'socket', None)
+        if start_sock and end_sock:
+            RKXEdge(self.grScene.scene, start_sock, end_sock)
+
+    def _cancel_drag_edge(self):
+        if self._drag_edge is not None:
+            self.grScene.removeItem(self._drag_edge)
+        self._drag_edge         = None
+        self._drag_start_socket = None
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key_Delete, Qt.Key_Backspace):
+            from rawkee.editor.RKXGraphicsEdge import RKXGraphicsEdge
+            for item in self.grScene.selectedItems():
+                if isinstance(item, RKXGraphicsEdge) and item.edge is not None:
+                    self._delete_edge(item.edge)
+            return
+        super().keyPressEvent(event)
+
+    def _delete_edge(self, edge):
+        edge.remove()
+
+    def contextMenuEvent(self, event):
+        from rawkee.editor.RKXGraphicsEdge import RKXGraphicsEdge
+        gr_node = self._find_graphics_node_at(event.pos())
+        gr_edge = self._find_graphics_edge_at(event.pos())
+        menu = QMenu(self)
+        menu.setStyleSheet("QMenu::separator { background: #39FF14; height: 2px; margin: 2px 4px; }")
+        if gr_edge is not None and gr_edge.edge is not None:
+            action = menu.addAction("Delete Connection")
+            if menu.exec(event.globalPos()) == action:
+                self._delete_edge(gr_edge.edge)
+        elif gr_node is not None:
+            action_fit   = menu.addAction("Fit Node to View")
+            menu.addSeparator()
+            action_graph = menu.addAction("Display All Nodes in Connected Graph")
+            menu.addSeparator()
+            action_both  = menu.addAction("Display Connected Adjacent Nodes")
+            action_up    = menu.addAction("Display Upstream Adjacent Nodes")
+            action_down  = menu.addAction("Display Downstream Adjacent Nodes")
+            menu.addSeparator()
+            action_clear = menu.addAction("Clear From Graph Editor")
+            chosen = menu.exec(event.globalPos())
+            if chosen == action_fit:
+                from PySide6.QtCore import Qt
+                self.fitInView(gr_node.sceneBoundingRect().adjusted(-40, -40, 40, 40), Qt.KeepAspectRatio)
+            elif chosen == action_clear:
+                self._remove_node(gr_node)
+            elif chosen == action_both:
+                self._add_adjacent_nodes(gr_node, 'both')
+            elif chosen == action_up:
+                self._add_adjacent_nodes(gr_node, 'upstream')
+            elif chosen == action_down:
+                self._add_adjacent_nodes(gr_node, 'downstream')
+            elif chosen == action_graph:
+                self._add_connected_graph_nodes(gr_node)
+        else:
+            action = menu.addAction("Clear Graph Editor")
+            if menu.exec(event.globalPos()) == action:
+                self.grScene.scene.clear_graph()
+
+    def _add_adjacent_nodes(self, gr_node, direction):
+        """Add graph editor nodes for X3D nodes connected via ROUTEs ('upstream'|'downstream'|'both')."""
+        from PySide6.QtCore import QPointF
+
+        x3d_scene = self.grScene.scene._x3d_scene
+        if x3d_scene is None:
+            return
+
+        def_val = getattr(getattr(gr_node.eNode, 'x3d_node', None), 'DEF', '')
+        if not def_val:
+            return
+
+        parent_editor = self.parent()
+        if not hasattr(parent_editor, 'addNodeFromX3D'):
+            return
+
+        # Build DEF→node map; prefer the tree registry (includes nested nodes)
+        def_map = {}
+        if hasattr(parent_editor, '_tree_widget') and parent_editor._tree_widget is not None:
+            for node in parent_editor._tree_widget._node_registry.values():
+                d = getattr(node, 'DEF', '')
+                if d:
+                    def_map[d] = node
+        else:
+            for child in x3d_scene.children:
+                d = getattr(child, 'DEF', '')
+                if d:
+                    def_map[d] = child
+
+        upstream_defs   = []
+        downstream_defs = []
+        for child in x3d_scene.children:
+            if not hasattr(child, 'fromNode'):
+                continue
+            if direction in ('upstream', 'both') and child.toNode == def_val:
+                if child.fromNode not in upstream_defs:
+                    upstream_defs.append(child.fromNode)
+            if direction in ('downstream', 'both') and child.fromNode == def_val:
+                if child.toNode not in downstream_defs:
+                    downstream_defs.append(child.toNode)
+
+        node_pos   = gr_node.pos()
+        spacing_x  = gr_node.width + 80
+        spacing_y  = 200
+
+        for i, adj_def in enumerate(upstream_defs):
+            if adj_def in def_map:
+                place = QPointF(node_pos.x() - spacing_x * 1.5, node_pos.y() + i * spacing_y)
+                parent_editor.addNodeFromX3D(def_map[adj_def], place)
+
+        for i, adj_def in enumerate(downstream_defs):
+            if adj_def in def_map:
+                place = QPointF(node_pos.x() + spacing_x * 1.5, node_pos.y() + i * spacing_y)
+                parent_editor.addNodeFromX3D(def_map[adj_def], place)
+
+        # Center the view on all nodes now visible in the graph
+        from PySide6.QtCore import Qt
+        self.fitInView(self.grScene.itemsBoundingRect(), Qt.KeepAspectRatio)
+
+    def _add_connected_graph_nodes(self, gr_node):
+        """BFS through all ROUTEs in both directions to add every reachable node."""
+        from PySide6.QtCore import QPointF, Qt
+
+        x3d_scene = self.grScene.scene._x3d_scene
+        if x3d_scene is None:
+            return
+
+        start_def = getattr(getattr(gr_node.eNode, 'x3d_node', None), 'DEF', '')
+        if not start_def:
+            return
+
+        parent_editor = self.parent()
+        if not hasattr(parent_editor, 'addNodeFromX3D'):
+            return
+
+        def_map = {}
+        if hasattr(parent_editor, '_tree_widget') and parent_editor._tree_widget is not None:
+            for node in parent_editor._tree_widget._node_registry.values():
+                d = getattr(node, 'DEF', '')
+                if d:
+                    def_map[d] = node
+        else:
+            for child in x3d_scene.children:
+                d = getattr(child, 'DEF', '')
+                if d:
+                    def_map[d] = child
+
+        # Build adjacency: for each DEF, collect all DEFs connected via any ROUTE
+        adjacency = {}
+        for child in x3d_scene.children:
+            if not hasattr(child, 'fromNode'):
+                continue
+            fn, tn = child.fromNode, child.toNode
+            adjacency.setdefault(fn, set()).add(tn)
+            adjacency.setdefault(tn, set()).add(fn)
+
+        # BFS from start_def
+        visited = set()
+        queue   = [start_def]
+        while queue:
+            current = queue.pop(0)
+            if current in visited:
+                continue
+            visited.add(current)
+            for neighbour in adjacency.get(current, []):
+                if neighbour not in visited:
+                    queue.append(neighbour)
+
+        # Layout: column per BFS depth layer
+        from collections import deque
+        layers   = {start_def: 0}
+        bfs_q    = deque([start_def])
+        while bfs_q:
+            cur = bfs_q.popleft()
+            for nb in adjacency.get(cur, []):
+                if nb not in layers:
+                    layers[nb] = layers[cur] + 1
+                    bfs_q.append(nb)
+
+        layer_nodes = {}
+        for d, l in layers.items():
+            if d in visited:
+                layer_nodes.setdefault(l, []).append(d)
+
+        node_pos  = gr_node.pos()
+        spacing_x = (gr_node.width if hasattr(gr_node, 'width') else 220) + 80
+        spacing_y = 200
+
+        for layer, defs in layer_nodes.items():
+            x = node_pos.x() + layer * spacing_x
+            for row, d in enumerate(defs):
+                if d == start_def:
+                    continue
+                if d in def_map:
+                    y = node_pos.y() + row * spacing_y
+                    parent_editor.addNodeFromX3D(def_map[d], QPointF(x, y))
+
+        self.fitInView(self.grScene.itemsBoundingRect(), Qt.KeepAspectRatio)
+
+    def _find_graphics_node_at(self, pos):
+        from rawkee.editor.RKXGraphicsNode import RKXGraphicsNode as GrNode
+        item = self.itemAt(pos)
+        while item is not None:
+            if isinstance(item, GrNode):
+                return item
+            item = item.parentItem()
+        return None
+
+    def _find_graphics_edge_at(self, pos):
+        from rawkee.editor.RKXGraphicsEdge import RKXGraphicsEdge
+        for item in self.items(pos):
+            if isinstance(item, RKXGraphicsEdge):
+                return item
+        return None
+
+    def _remove_node(self, gr_node):
+        eNode = gr_node.eNode
+        scene = self.grScene.scene
+        s_ids = set(id(s) for s in eNode.inputs + eNode.outputs)
+        for edge in [e for e in list(scene.eEdges)
+                     if id(e.start_socket) in s_ids or id(e.end_socket) in s_ids]:
+            # Remove visual edge only; preserve the ROUTE in the X3D scene
+            if edge.grEdge is not None:
+                scene.grScene.removeItem(edge.grEdge)
+            if edge in scene.eEdges:
+                scene.eEdges.remove(edge)
+        scene.grScene.removeItem(gr_node)
+        if eNode in scene.eNodes:
+            scene.eNodes.remove(eNode)
+
     def rightMouseButtonPress(self, event):
         return super().mousePressEvent(event)
         

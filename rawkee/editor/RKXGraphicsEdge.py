@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QGraphicsPathItem, QGraphicsItem
-from PySide6.QtGui     import QPen, QColor, QPainterPath
+from PySide6.QtGui     import QPen, QColor, QPainterPath, QPainterPathStroker
 from PySide6.QtCore    import Qt, QPointF
 
 
@@ -14,9 +14,9 @@ class RKXGraphicsEdge(QGraphicsPathItem):
         super().__init__(parent)
         self.edge = edge
 
-        self._color          = QColor("#FF009A44")
-        self._color_selected = QColor("#FFFF671F")
-        self._color_dragging = QColor("#FF009A44")
+        self._color          = QColor("#FF009A44")   # UND green — connected
+        self._color_selected = QColor("#FFFF671F")   # orange — selected
+        self._color_dragging = QColor("#39FF14")     # neon green — in-progress drag
 
         self._pen = QPen(self._color)
         self._pen.setWidthF(2.0)
@@ -56,13 +56,16 @@ class RKXGraphicsEdge(QGraphicsPathItem):
         return self.shape().boundingRect()
 
     def shape(self):
-        return self._calcPath()
+        # Widen the hit area to ~10px so right-click detection works reliably
+        stroker = QPainterPathStroker()
+        stroker.setWidth(10.0)
+        return stroker.createStroke(self._calcPath())
 
     def paint(self, painter, option, widget=None):
         self.setPath(self._calcPath())
         pen = self._pen_selected if self.isSelected() else self._pen
         # Use dashed style when destination is not yet connected
-        if self.edge.end_socket is None:
+        if self.edge is None or self.edge.end_socket is None:
             pen = self._pen_dragging
         painter.setPen(pen)
         painter.setBrush(Qt.NoBrush)
