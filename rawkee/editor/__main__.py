@@ -18,16 +18,15 @@ if _exe_dir not in os.environ.get('PATH', '').split(os.pathsep):
 _platform = sys.platform
 if _platform == 'win32':
     os.environ.setdefault('QTWEBENGINE_CHROMIUM_FLAGS',
-                          '--use-gl=angle --in-process-gpu '
+                          '--use-gl=angle '
                           '--ignore-gpu-blacklist --ignore-gpu-blocklist')
     os.environ.setdefault('QT_D3DCREATE_MULTITHREADED', '1')
 elif _platform == 'darwin':
     os.environ.setdefault('QTWEBENGINE_CHROMIUM_FLAGS',
-                          '--use-gl=angle --in-process-gpu '
+                          '--use-gl=angle '
                           '--ignore-gpu-blacklist --ignore-gpu-blocklist')
 else:
     os.environ.setdefault('QTWEBENGINE_CHROMIUM_FLAGS',
-                          '--in-process-gpu '
                           '--ignore-gpu-blacklist --ignore-gpu-blocklist')
 
 from PySide6.QtWidgets import QApplication

@@ -423,66 +423,29 @@ class RKSceneEditor(QMainWindow):
         file_menu.addAction(self.sendToCastle)
         file_menu.addSeparator()
         file_menu.addAction(self.closeEditor)
-        #file_menu.addAction(self.widget_action)
-        #file_menu.addMenu(self.testMenu)
-        
-        self.splitter = QSplitter()
-        self.splitter.setOrientation(QtCore.Qt.Orientation.Horizontal)
-        self.splitter.setLineWidth(4)
-        
-        #############################################
-        # X3D Tree Panel Widgets
-        #self.treePanel = QGroupBox()
-        #self.treePanelLabel = QLabel("X3D SceneGraph")
-        #self.treePanelLabel.setMaximumHeight(20)
-        #self.treePanelLabel.setMinimumHeight(20)
-        
+
         self.tree_widget = RKX3DTreeWidget()
         self.tree_widget.setHeaderLabels(['X3D Scenegraph'])
         self.tree_widget.setMaximumWidth(400)
         self.tree_widget.setMinimumWidth(250)
-        
-        #############################################
-        # X3D Player Panel Widgets
+
         self.browser = QWebEngineView()
-        # Enable access to remote scripts/URLs from a local file
         settings = self.browser.settings()
         settings.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
         settings.setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
-        #print(self.browser.page().profile().httpUserAgent())
-        
+        settings.setAttribute(QWebEngineSettings.WebGLEnabled, True)
+        settings.setAttribute(QWebEngineSettings.Accelerated2dCanvasEnabled, True)
         self.custom_page = RKCustomWebEnginePage(self.browser)
         self.browser.setPage(self.custom_page)
 
-        # Box that holds the WebGL X_ITE / X3DOM canvas and the player controls
-        self.playerPanel   = QGroupBox()
-
-        self.playerControl = QGroupBox()
-        
-        self.plcLabel      = QLabel("X3D Player Controls")
-        self.plcLabel.setMinimumHeight(25)
-        self.plcLabel.setMaximumHeight(25)
-        
-        self.combo_box = QComboBox()
-        self.combo_box.setMaximumWidth(450)
-        self.combo_box.setMinimumWidth(250)
-        self.combo_box.setMinimumHeight(25)
-        self.combo_box.setMaximumHeight(25)
-        self.combo_box.addItem("X3D Player - X_ITE")
-        #self.combo_box.addItem("X_ITE - https://create3000.github.io/x_ite/playground/?play=false&fullSize=true")
-        #self.combo_box.addItem("X3DOM - https://www.x3dom.org/")
-        
-        ##############################################
-        # Grabing the Maya Node Editor Panel
-        ##### node_editor_panel = cmds.scriptedPanel(type="nodeEditorPanel")
-        #self.node_editor_control = omui.MQtUtil.findControl(self.node_editor_panel)
-        ##### print(node_editor_panel)
-        ##### node_editor_control = omui.MQtUtil.findControl(node_editor_panel)
-        
         self.node_editor_widget = RKCustomNodeEditor(self.tree_widget, parent=self)
-        ##############################################
-        # Creating a Tabbed Panel Widget to hold it all
-        self.tab_widget = QTabWidget()
+
+        self.console_widget = QPlainTextEdit()
+        self.console_widget.setReadOnly(True)
+        self.console_widget.setMaximumHeight(180)
+        self.console_widget.setMinimumHeight(60)
+        self.console_widget.setPlaceholderText("Output / Errors")
+        self.custom_page.set_console(self.console_widget)
 
         # Disabled in standalone mode — require a DCC host
         for action in (self.copySceneMaya, self.copySelectMaya,
@@ -490,37 +453,31 @@ class RKSceneEditor(QMainWindow):
             action.setEnabled(False)
 
     def create_layout(self):
-        #####################################################
-        # X3D Player and Node Editor Layout                 #
-        plrCtrl_layout = QtWidgets.QHBoxLayout()
-        plrCtrl_layout.addWidget(self.plcLabel)
-        plrCtrl_layout.addWidget(self.combo_box)
-        plrCtrl_layout.setContentsMargins(0, 0, 0, 0)
-        self.playerControl.setLayout(plrCtrl_layout)
+        # Left vertical splitter: X_ITE browser on top, graph editor on bottom
+        self.left_splitter = QSplitter(QtCore.Qt.Orientation.Vertical)
+        self.left_splitter.addWidget(self.browser)
+        self.left_splitter.addWidget(self.node_editor_widget)
+        self.left_splitter.setSizes([500, 500])
 
-        plr_layout = QtWidgets.QVBoxLayout()
-        plr_layout.setContentsMargins(0, 0, 0, 0)
-        plr_layout.setSpacing(0)
-        plr_layout.addWidget(self.playerControl)
-        plr_layout.addWidget(self.browser, stretch=1)
-        self.playerPanel.setLayout(plr_layout)
+        # Top horizontal splitter: left panels | scenegraph tree
+        self.top_splitter = QSplitter(QtCore.Qt.Orientation.Horizontal)
+        self.top_splitter.addWidget(self.left_splitter)
+        self.top_splitter.addWidget(self.tree_widget)
+        self.top_splitter.setSizes([900, 300])
 
-        self.tab_widget.addTab(self.node_editor_widget, "X3D Graph Editor")
-        self.tab_widget.addTab(self.playerPanel, "X3D Player - X_ITE")
+        # Main vertical splitter: top panels | console
+        self.main_splitter = QSplitter(QtCore.Qt.Orientation.Vertical)
+        self.main_splitter.addWidget(self.top_splitter)
+        self.main_splitter.addWidget(self.console_widget)
+        self.main_splitter.setSizes([800, 160])
 
-        ######################################################
-        # Top Level Layout — QMainWindow requires a central widget
         central = QWidget()
         self.setCentralWidget(central)
-        main_layout = QtWidgets.QHBoxLayout(central)
+        main_layout = QtWidgets.QVBoxLayout(central)
         main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.addWidget(self.main_splitter)
 
-        self.splitter.addWidget(self.tab_widget)
-        self.splitter.addWidget(self.tree_widget)
-        main_layout.addWidget(self.splitter)
-
-        self.playerURL = QUrl(self.x_itePath)
-        self.browser.setUrl(self.playerURL)
+        self.browser.setUrl(QUrl(self.x_itePath))
         
     def create_connections(self):
         self.newX3DScene.triggered.connect(self.on_new_scene)
@@ -528,28 +485,12 @@ class RKSceneEditor(QMainWindow):
         self.exportX3DAs.triggered.connect(self.on_export_as)
         self.clearGraphAction.triggered.connect(self.on_clear_graph)
         self.closeEditor.triggered.connect(self.close)
-        self.combo_box.activated.connect(self.on_item_viewer_selection)
         self.node_editor_widget.scene.set_sai_runner(
             lambda js: self.browser.page().runJavaScript(js))
 
 
     def on_item_viewer_selection(self, index):
-
-        # Get selected index for viewer
-        # selected_text = self.combo_box.itemText(index)
-        # print("Selected:", selected_text)
-        if index == 0:
-            self.playerURL = QUrl(self.x_itePath)
-            #####################################################
-            # Keep for later use.
-            # self.playerURL = QUrl.fromLocalFile(self.x_itePath)
-        #elif index == 1:
-        #    self.playerURL = QUrl(self.x3domPath)
-            #####################################################
-            # Keep for later use.
-            # self.playerURL = QUrl.fromLocalFile(self.x3domPath)
-            
-        self.browser.load(self.playerURL)
+        pass  # player control dropdown removed
 
     def on_new_scene(self):
         self._x3dObj = None
@@ -573,14 +514,31 @@ class RKSceneEditor(QMainWindow):
         self.node_editor_widget.clearGraph()
         scene_node = getattr(x3d, 'Scene', None)
         self.setX3DScene(scene_node)
-        self._push_file_to_xite()
+        self._push_file_to_xite(file_path)
         self.setWindowTitle(f"RawKee PE - {os.path.basename(file_path)}")
 
-    def _push_file_to_xite(self):
-        if self._x3dObj is None:
+    def _push_file_to_xite(self, file_path):
+        import json, re
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except Exception as e:
+            self.console_widget.appendPlainText(f"File read error: {e}")
             return
-        trv = RKSceneTraversal()
-        self.browser.page().runJavaScript(trv.scene2sai(self._x3dObj))
+        # Strip XML declaration and DOCTYPE — createX3DFromString expects bare <X3D>
+        content = re.sub(r'<\?xml[^?]*\?>', '', content)
+        content = re.sub(r'<!DOCTYPE[^>]*>', '', content)
+        # Upgrade Core profile to Immersive so X_ITE enables the full render pipeline
+        content = re.sub(r"profile=['\"]Core['\"]", "profile='Immersive'", content)
+        content = content.strip()
+        js = (
+            "(function(){"
+            " var c=document.querySelector('x3d-canvas');"
+            " c.removeAttribute('src');"
+            " c.browser.replaceWorld(c.browser.createX3DFromString(" + json.dumps(content) + "));"
+            "})()"
+        )
+        self.browser.page().runJavaScript(js)
 
     def on_export_as(self):
         if self._x3dObj is None:
@@ -625,21 +583,26 @@ class RKSceneEditor(QMainWindow):
 
 
 class RKCustomWebEnginePage(QWebEnginePage):
-    """
-    A custom QWebEnginePage to capture and display console messages.
-    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._console = None
+
+    def set_console(self, widget):
+        self._console = widget
+
+    def _log(self, text):
+        print(text)
+        if self._console is not None:
+            self._console.appendPlainText(text)
+
     def javaScriptConsoleMessage(self, level, message, lineNumber, sourceId):
-        """
-        Overrides the method to print JavaScript console messages to the console.
-        """
-        # Format the output for clarity
-        level_str = "INFO"
         if level == QWebEnginePage.JavaScriptConsoleMessageLevel.WarningMessageLevel:
             level_str = "WARNING"
         elif level == QWebEnginePage.JavaScriptConsoleMessageLevel.ErrorMessageLevel:
             level_str = "ERROR"
-        
-        print(f"WEB_CONSOLE [{level_str}] {sourceId}:{lineNumber}: {message}")
+        else:
+            level_str = "INFO"
+        self._log(f"[{level_str}] {sourceId}:{lineNumber}: {message}")
 
 
 class RKBackgroundHost:
