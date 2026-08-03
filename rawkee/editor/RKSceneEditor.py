@@ -514,31 +514,14 @@ class RKSceneEditor(QMainWindow):
         self.node_editor_widget.clearGraph()
         scene_node = getattr(x3d, 'Scene', None)
         self.setX3DScene(scene_node)
-        self._push_file_to_xite(file_path)
+        self._push_file_to_xite()
         self.setWindowTitle(f"RawKee PE - {os.path.basename(file_path)}")
 
-    def _push_file_to_xite(self, file_path):
-        import json, re
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-        except Exception as e:
-            self.console_widget.appendPlainText(f"File read error: {e}")
+    def _push_file_to_xite(self):
+        if self._x3dObj is None:
             return
-        # Strip XML declaration and DOCTYPE — createX3DFromString expects bare <X3D>
-        content = re.sub(r'<\?xml[^?]*\?>', '', content)
-        content = re.sub(r'<!DOCTYPE[^>]*>', '', content)
-        # Upgrade Core profile to Immersive so X_ITE enables the full render pipeline
-        content = re.sub(r"profile=['\"]Core['\"]", "profile='Immersive'", content)
-        content = content.strip()
-        js = (
-            "(function(){"
-            " var c=document.querySelector('x3d-canvas');"
-            " c.removeAttribute('src');"
-            " c.browser.replaceWorld(c.browser.createX3DFromString(" + json.dumps(content) + "));"
-            "})()"
-        )
-        self.browser.page().runJavaScript(js)
+        trv = RKSceneTraversal()
+        self.browser.page().runJavaScript(trv.scene2sai(self._x3dObj))
 
     def on_export_as(self):
         if self._x3dObj is None:

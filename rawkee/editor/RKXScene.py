@@ -124,7 +124,9 @@ class RKXScene(rkx.Scene):# class X3D_Transform (aom.MPxNode, x3d.Transform):
             f"var s=b.currentScene;"
             f"var fn=s.getNamedNode({from_def!r});"
             f"var tn=s.getNamedNode({to_def!r});"
-            f"if(fn&&tn)b.deleteRoute(fn,{from_field!r},tn,{to_field!r});}})()"
+            f"b.endUpdate();"
+            f"if(fn&&tn)b.deleteRoute(fn,{from_field!r},tn,{to_field!r});"
+            f"b.beginUpdate();}})()"
         )
 
     def set_x3d_scene(self, x3d_scene):
@@ -184,7 +186,9 @@ class RKXScene(rkx.Scene):# class X3D_Transform (aom.MPxNode, x3d.Transform):
             f"var s=b.currentScene;"
             f"var fn=s.getNamedNode({from_def!r});"
             f"var tn=s.getNamedNode({to_def!r});"
-            f"if(fn&&tn)b.addRoute(fn,{from_field!r},tn,{to_field!r});}})()"
+            f"b.endUpdate();"
+            f"if(fn&&tn)b.addRoute(fn,{from_field!r},tn,{to_field!r});"
+            f"b.beginUpdate();}})()"
         )
 
     def initUI(self):

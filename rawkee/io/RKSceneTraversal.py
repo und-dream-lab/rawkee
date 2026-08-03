@@ -1286,6 +1286,7 @@ class RKSceneTraversal():
             '(function () {',
             '  var b = document.querySelector(\'x3d-canvas\').browser;',
             '  var s = b.currentScene;',
+            '  b.endUpdate();',
             '  var rn = []; for (var _i = 0; _i < s.rootNodes.length; _i++) rn.push(s.rootNodes[_i]);',
             '  rn.forEach(function (n) { s.removeRootNode(n); });',
             '  var nodes = {};',
@@ -1311,8 +1312,8 @@ class RKSceneTraversal():
                         f' b.addRoute(nodes[{json.dumps(fd)}], {json.dumps(ff)},'
                         f' nodes[{json.dumps(td)}], {json.dumps(tf)});'
                     )
+        lines.append('  b.beginUpdate();')
         lines.append('  b.viewAll();')
-        lines.append('  window.dispatchEvent(new Event("resize"));')
         lines.append('})();')
         return '\n'.join(lines)
 
