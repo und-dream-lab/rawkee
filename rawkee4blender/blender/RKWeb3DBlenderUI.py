@@ -24,6 +24,113 @@ from rawkee4blender.blender.nodes import rkBX3DSound, rkBAnimPack
 
 
 # ---------------------------------------------------------------------------
+# Qt co-pump state — one QApplication and one editor window shared across calls.
+_qt_app      = None
+_editor_win  = None
+_timer_live  = False
+
+
+def _pump_qt_events():
+    """Blender timer callback: keep Qt responsive. Returns next interval or None to stop."""
+    global _editor_win, _timer_live
+    if _editor_win is None or not _editor_win.isVisible():
+        _editor_win  = None
+        _timer_live  = False
+        return None  # unregisters the timer
+    try:
+        from PySide6.QtWidgets import QApplication
+        QApplication.processEvents()
+    except Exception:
+        pass
+    return 0.016  # ~60 fps
+
+
+class RAWKEE_OT_InstallPySide6(bpy.types.Operator):
+    """Install PySide6 into Blender's bundled Python via pip"""
+    bl_idname  = "rawkee.install_pyside6"
+    bl_label   = "Install PySide6"
+    bl_options = {'REGISTER'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self, width=420)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.label(text="PySide6 is required for the RawKee Scene Editor.", icon='INFO')
+        layout.separator()
+        layout.label(text="Click OK to install it via pip into Blender's Python.")
+        layout.label(text="Requires internet access and may take 1-2 minutes.", icon='TIME')
+        layout.label(text="Blender must be restarted after installation.", icon='ERROR')
+
+    def execute(self, context):
+        import subprocess
+        import glob
+
+        # sys.executable is blender.exe; find the real Python binary via sys.prefix
+        if sys.platform == 'win32':
+            candidates = glob.glob(os.path.join(sys.prefix, 'bin', 'python*.exe'))
+        else:
+            candidates = [p for p in glob.glob(os.path.join(sys.prefix, 'bin', 'python3*'))
+                          if not p.endswith('-config')]
+        if not candidates:
+            self.report({'ERROR'}, f"Could not locate Python binary under {sys.prefix}")
+            return {'CANCELLED'}
+        python_exe = candidates[0]
+
+        # Install into Blender's user modules dir, which is already on sys.path
+        target_dir = bpy.utils.user_resource('SCRIPTS', path='modules')
+        os.makedirs(target_dir, exist_ok=True)
+
+        self.report({'INFO'}, f"Installing PySide6 to {target_dir} …")
+        try:
+            result = subprocess.run(
+                [python_exe, '-m', 'pip', 'install', 'PySide6', '--target', target_dir],
+                capture_output=True, text=True, timeout=300
+            )
+            if result.returncode == 0:
+                self.report({'INFO'}, "PySide6 installed. Please restart Blender, then open the Scene Editor.")
+            else:
+                self.report({'ERROR'}, f"pip install failed: {result.stderr[-300:]}")
+        except Exception as exc:
+            self.report({'ERROR'}, f"Installation failed: {exc}")
+        return {'FINISHED'}
+
+
+class RAWKEE_OT_OpenSceneEditor(bpy.types.Operator):
+    """Launch the RawKee Scene Editor alongside Blender"""
+    bl_idname  = "rawkee.open_scene_editor"
+    bl_label   = "RawKee Scene Editor"
+    bl_options = {'REGISTER'}
+
+    def execute(self, context):
+        global _qt_app, _editor_win, _timer_live
+        try:
+            from PySide6.QtWidgets import QApplication
+            from rawkee.editor.RKSceneEditor import RKSceneEditor
+        except ImportError:
+            bpy.ops.rawkee.install_pyside6('INVOKE_DEFAULT')
+            return {'CANCELLED'}
+
+        if _qt_app is None:
+            _qt_app = QApplication.instance() or QApplication([])
+            from rawkee.editor.RKSceneEditor import apply_dark_palette
+            apply_dark_palette(_qt_app)
+            from rawkee.editor.RKSceneEditor import apply_dark_palette
+            apply_dark_palette(_qt_app)
+
+        if _editor_win is not None and _editor_win.isVisible():
+            _editor_win.raise_()
+            _editor_win.activateWindow()
+        else:
+            _editor_win = RKSceneEditor()
+            _editor_win.show()
+
+        if not _timer_live:
+            bpy.app.timers.register(_pump_qt_events, first_interval=0.016)
+            _timer_live = True
+
+        return {'FINISHED'}
+
 ENCODING_ITEMS = [
     ('x3d',  "X3D XML (.x3d)",      "X3D 4.1 XML encoding"),
     ('x3dv', "X3D Classic (.x3dv)", "X3D 4.1 Classic VRML-style encoding"),
@@ -169,6 +276,18 @@ class RAWKEE_PT_SubPanel_Export(bpy.types.Panel):
         col.operator("rawkee.set_project", icon='FILE_FOLDER', text="Set RawKee Project")
 
 
+class RAWKEE_PT_SubPanel_SceneEditor(bpy.types.Panel):
+    """Launch the standalone RawKee Scene Editor"""
+    bl_label       = "Scene Editor"
+    bl_idname      = "RAWKEE_PT_SubPanel_SceneEditor"
+    bl_space_type  = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category    = 'RawKee (.X3D)'
+    bl_parent_id   = 'RAWKEE_PT_MainPanel'
+    def draw(self, context):
+        self.layout.operator("rawkee.open_scene_editor", icon='WINDOW', text="Open Scene Editor")
+
+
 class RAWKEE_PT_SubPanel_AddNodes(bpy.types.Panel):
     """Add RawKee custom nodes"""
     bl_label       = "Add Custom Nodes"
@@ -221,6 +340,8 @@ def _menu_export(self, context):
 
 
 _own_classes = [
+    RAWKEE_OT_InstallPySide6,
+    RAWKEE_OT_OpenSceneEditor,
     RAWKEE_OT_ExportX3DAll,
     RAWKEE_OT_ExportX3DSelected,
     RAWKEE_OT_SetProject,
@@ -233,6 +354,7 @@ _own_classes = [
     RAWKEE_OT_ShowWeb3D,
     RAWKEE_OT_ShowMSF,
     RKMainPanel,
+    RAWKEE_PT_SubPanel_SceneEditor,
     RAWKEE_PT_SubPanel_Export,
     RAWKEE_PT_SubPanel_AddNodes,
     RAWKEE_PT_SubPanel_Links,
@@ -271,6 +393,19 @@ def register():
 
 
 def unregister():
+    global _editor_win, _timer_live
+    if _editor_win is not None:
+        try:
+            _editor_win.close()
+        except Exception:
+            pass
+        _editor_win = None
+    if _timer_live:
+        try:
+            bpy.app.timers.unregister(_pump_qt_events)
+        except Exception:
+            pass
+        _timer_live = False
     bpy.types.TOPBAR_MT_file_export.remove(_menu_export)
 
     for mod in reversed(_sub_modules):
