@@ -509,10 +509,13 @@ class RKSceneEditor(QMainWindow):
             " var mt=s.getNamedNode('myTransform');"
             " var ot=s.getNamedNode('otherTransform');"
             " if(!mt||!ot) return 'ERROR: nodes not found';"
-            " b.addRoute(mt,'translation_changed',ot,'set_translation');"
-            " mt.translation=[10,0,0];"
-            " return 'Route added; myTransform=[10,0,0]; otherTransform.translation='"
-            "        +JSON.stringify(Array.from(ot.translation));"
+            " var before_mt=JSON.stringify(Array.from(mt.translation));"
+            " b.endUpdate();"
+            " mt.translation = new mt.translation.constructor(0,0,0);"
+            " b.beginUpdate();"
+            " b.resetViewpoint();"
+            " var after_mt=JSON.stringify(Array.from(mt.translation));"
+            " return 'before='+before_mt+' after='+after_mt;"
             "})()"
         )
         self.browser.page().runJavaScript(
@@ -531,9 +534,11 @@ class RKSceneEditor(QMainWindow):
         self.node_editor_widget.clearGraph()
         self.setX3DScene(None)
         self.browser.page().runJavaScript(
-            "(function(){var b=document.querySelector('x3d-canvas').browser;"
-            "var g=b.currentScene.getNamedNode('RKInteractionEditor');"
-            "b.endUpdate();g.children=[];b.beginUpdate();})()"
+            "(function(){var c=document.querySelector('x3d-canvas');"
+            "if(!c||!c.browser)return;"
+            "var b=c.browser;var s=b.currentScene;"
+            "var rn=[];for(var i=0;i<s.rootNodes.length;i++)rn.push(s.rootNodes[i]);"
+            "b.endUpdate();rn.forEach(function(n){s.removeRootNode(n);});b.beginUpdate();})()"
         )
         self.setWindowTitle("RawKee PE - X3D Interaction Editor")
 
@@ -558,14 +563,6 @@ class RKSceneEditor(QMainWindow):
     def _push_file_to_xite(self):
         if self._x3dObj is None:
             return
-        # Confirm x3d-canvas and X_ITE browser are ready
-        self.browser.page().runJavaScript(
-            "(function(){var c=document.querySelector('x3d-canvas');"
-            "var g=c&&c.browser?c.browser.currentScene.getNamedNode('RKInteractionEditor'):null;"
-            "return g?'RKIENode: found':'RKIENode: NOT FOUND (canvas='+(c?'ok':'null')+')';})()",
-            lambda r: (print(f"SAI check: {r}"),
-                       self.console_widget.appendPlainText(f"SAI check: {r}"))
-        )
         trv = RKSceneTraversal()
         self.browser.page().runJavaScript(trv.scene2sai(self._x3dObj))
 

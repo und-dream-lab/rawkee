@@ -1281,21 +1281,20 @@ class RKSceneTraversal():
 
 
     def scene2sai(self, x3dDoc):
-        """Return a JS IIFE that populates the permanent RKInteractionEditor Group via SAI."""
+        """Return a JS IIFE that rebuilds x3dDoc.Scene in X_ITE via SAI."""
         lines = [
             '(function () {',
             '  var c = document.querySelector(\'x3d-canvas\');',
             '  if (!c || !c.browser) return;',
             '  var b = c.browser;',
             '  var s = b.currentScene;',
-            '  var g = s.getNamedNode(\'RKInteractionEditor\');',
-            '  if (!g) return;',
-            '  var nodes = {};',
+            '  var rn = []; for (var _i = 0; _i < s.rootNodes.length; _i++) rn.push(s.rootNodes[_i]);',
             '  b.endUpdate();',
+            '  rn.forEach(function (n) { s.removeRootNode(n); });',
+            '  var nodes = {};',
         ]
         counter = [0]
         routes  = []
-        root_vars = []
         if x3dDoc and x3dDoc.Scene:
             for child in x3dDoc.Scene.children:
                 if type(child).__name__ == 'ROUTE':
@@ -1303,10 +1302,7 @@ class RKSceneTraversal():
                 else:
                     var = self._node2sai(child, lines, counter)
                     if var:
-                        root_vars.append(var)
-            if root_vars:
-                root_js = ', '.join(root_vars)
-                lines.append(f'  g.children = [{root_js}];')
+                        lines.append(f'  s.addRootNode({var});')
             for r in routes:
                 fd = getattr(r, 'fromNode',  '') or ''
                 ff = getattr(r, 'fromField', '') or ''
@@ -1315,13 +1311,13 @@ class RKSceneTraversal():
                 if fd and ff and td and tf:
                     lines.append(
                         f'  if (nodes[{json.dumps(fd)}] && nodes[{json.dumps(td)}])'
-                        f' b.addRoute(nodes[{json.dumps(fd)}], {json.dumps(ff)},'
+                        f' s.addRoute(nodes[{json.dumps(fd)}], {json.dumps(ff)},'
                         f' nodes[{json.dumps(td)}], {json.dumps(tf)});'
                     )
         lines.append('  b.beginUpdate();')
         lines.append('  b.viewAll();')
         lines.append('  b.firstViewpoint();')
-        lines.append('  console.log("RKI children=" + g.children.length + " rootNodes=" + s.rootNodes.length);')
+        lines.append('  console.log("RKI rootNodes=" + s.rootNodes.length);')
         lines.append('})();')
         return '\n'.join(lines)
 
@@ -1384,7 +1380,11 @@ class RKSceneTraversal():
             else:
                 if value == default_val or value is None:
                     continue
-                if isinstance(value, (str, float, int, tuple, bool)):
+                if isinstance(value, tuple):
+                    # SFVec3f/SFColor/SFRotation etc. — must use typed constructor
+                    args = ', '.join(repr(x) for x in value)
+                    lines.append(f'  {var}.{js_fname} = new {var}.{js_fname}.constructor({args});')
+                elif isinstance(value, (str, float, int, bool)):
                     lines.append(f'  {var}.{js_fname} = {self._py2js(value)};')
                 elif hasattr(value, 'NAME'):
                     cv = self._node2sai(value, lines, counter)
