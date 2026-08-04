@@ -35,6 +35,7 @@ from rawkee.editor.RKSceneEditor import RKSceneEditor, apply_dark_palette as _ap
 
 
 def _qt_message_handler(msg_type, context, message):
+    pass
 
 
 def main():
