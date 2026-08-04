@@ -1281,18 +1281,18 @@ class RKSceneTraversal():
 
 
     def scene2sai(self, x3dDoc):
-        """Return a JS IIFE that rebuilds x3dDoc.Scene in X_ITE via SAI."""
+        """Return a JS IIFE that populates the permanent RKInteractionEditor Group via SAI."""
         lines = [
             '(function () {',
             '  var b = document.querySelector(\'x3d-canvas\').browser;',
             '  var s = b.currentScene;',
-            '  b.endUpdate();',
-            '  var rn = []; for (var _i = 0; _i < s.rootNodes.length; _i++) rn.push(s.rootNodes[_i]);',
-            '  rn.forEach(function (n) { s.removeRootNode(n); });',
+            '  var g = s.getNamedNode(\'RKInteractionEditor\');',
             '  var nodes = {};',
+            '  b.endUpdate();',
         ]
         counter = [0]
         routes  = []
+        root_vars = []
         if x3dDoc and x3dDoc.Scene:
             for child in x3dDoc.Scene.children:
                 if type(child).__name__ == 'ROUTE':
@@ -1300,7 +1300,10 @@ class RKSceneTraversal():
                 else:
                     var = self._node2sai(child, lines, counter)
                     if var:
-                        lines.append(f'  s.addRootNode({var});')
+                        root_vars.append(var)
+            if root_vars:
+                root_js = ', '.join(root_vars)
+                lines.append(f'  g.children = [{root_js}];')
             for r in routes:
                 fd = getattr(r, 'fromNode',  '') or ''
                 ff = getattr(r, 'fromField', '') or ''

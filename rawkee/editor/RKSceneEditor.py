@@ -496,7 +496,11 @@ class RKSceneEditor(QMainWindow):
         self._x3dObj = None
         self.node_editor_widget.clearGraph()
         self.setX3DScene(None)
-        self.browser.reload()
+        self.browser.page().runJavaScript(
+            "(function(){var b=document.querySelector('x3d-canvas').browser;"
+            "var g=b.currentScene.getNamedNode('RKInteractionEditor');"
+            "b.endUpdate();g.children=[];b.beginUpdate();})()"
+        )
         self.setWindowTitle("RawKee PE - X3D Interaction Editor")
 
     def on_open_file(self):
