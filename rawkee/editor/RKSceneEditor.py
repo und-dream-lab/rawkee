@@ -513,7 +513,7 @@ class RKSceneEditor(QMainWindow):
             " b.endUpdate();"
             " mt.translation = new mt.translation.constructor(0,0,0);"
             " b.beginUpdate();"
-            " b.resetViewpoint();"
+            " b.firstViewpoint();"
             " var after_mt=JSON.stringify(Array.from(mt.translation));"
             " return 'before='+before_mt+' after='+after_mt;"
             "})()"
@@ -533,13 +533,8 @@ class RKSceneEditor(QMainWindow):
         self._x3dObj = None
         self.node_editor_widget.clearGraph()
         self.setX3DScene(None)
-        self.browser.page().runJavaScript(
-            "(function(){var c=document.querySelector('x3d-canvas');"
-            "if(!c||!c.browser)return;"
-            "var b=c.browser;var s=b.currentScene;"
-            "var rn=[];for(var i=0;i<s.rootNodes.length;i++)rn.push(s.rootNodes[i]);"
-            "b.endUpdate();rn.forEach(function(n){s.removeRootNode(n);});b.beginUpdate();})()"
-        )
+        trv = RKSceneTraversal()
+        self.browser.page().runJavaScript(trv.scene2sai(None))
         self.setWindowTitle("RawKee PE - X3D Interaction Editor")
 
     def on_open_file(self):

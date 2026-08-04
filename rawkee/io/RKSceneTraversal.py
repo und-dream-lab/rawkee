@@ -1334,13 +1334,14 @@ class RKSceneTraversal():
             return None
         compNode = nodeTuple[0]
 
+        x3d_type = node.NAME()  # canonical X3D name X_ITE recognises (vs Python subclass name)
         var = f'n{counter[0]}'
         counter[0] += 1
-        lines.append(f'  var {var} = s.createNode({json.dumps(nType)});')
+        lines.append(f'  var {var} = s.createNode({json.dumps(x3d_type)});')
 
         def_val = getattr(node, 'DEF', None) or ''
         if def_val:
-            lines.append(f'  s.addNamedNode({json.dumps(def_val)}, {var});')
+            lines.append(f'  s.updateNamedNode({json.dumps(def_val)}, {var});')
             lines.append(f'  nodes[{json.dumps(def_val)}] = {var};')
 
         pastMeta = False
