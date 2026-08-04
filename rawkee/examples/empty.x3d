@@ -5,6 +5,5 @@
 		<meta name='generator' content='RawKee X3D Exporter for Maya 2025+ [Python Edition], https://github.com/und-dream-lab/rawkee/'/>
 	</head>
 	<Scene>
-		<Group DEF='RKInteractionEditor'/>
 	</Scene>
 </X3D>
