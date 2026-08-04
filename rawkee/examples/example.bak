@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE X3D PUBLIC "ISO//Web3D//DTD X3D 4.1//EN" "https://www.web3d.org/specifications/x3d-4.1.dtd">
+<X3D profile='Interchange' version='4.1' xmlns:xsd='http://www.w3.org/2001/XMLSchema-instance' xsd:noNamespaceSchemaLocation='https://www.web3d.org/specifications/x3d-4.1.xsd'>
+  <head>
+    <meta name='creator' content='Aaron Bergstrom'/>
+    <meta name='created' content='Tue, 04 Aug 2026 00:52:13 GMT'/>
+    <meta name='modified' content='Tue, 04 Aug 2026 00:52:53 GMT'/>
+    <meta name='generator' content='Sunrize X3D Editor V2.1.18, https://create3000.github.io/sunrize/'/>
+  </head>
+  <Scene>
+    <Transform DEF='myTransform'
+        translation='-3 0 0'>
+      <Shape DEF='shapeOne'>
+        <Appearance DEF='appOne'>
+          <Material DEF='red'
+              diffuseColor='1 0 0'/>
+        </Appearance>
+        <Sphere DEF='myBall'/>
+      </Shape>
+    </Transform>
+    <Transform DEF='otherTransform'
+        translation='5 0 0'>
+      <Shape DEF='shapeTwo'>
+        <Appearance DEF='appTwo'>
+          <Material DEF='green'
+              diffuseColor='0 1 0'/>
+        </Appearance>
+        <Sphere USE='myBall'/>
+      </Shape>
+    </Transform>
+    <Transform DEF='myTransform2'
+        translation='0 5 0'>
+      <Shape USE='shapeOne'/>
+    </Transform>
+    <Transform DEF='otherTransform2'
+        translation='0 -5 0'>
+      <Shape USE='shapeTwo'/>
+    </Transform>
+    <Viewpoint DEF='mainView'
+        position='0 0 0'/>
+    <DirectionalLight DEF='dirLight'
+        direction='-1 0 -1'/>
+    <NavigationInfo DEF='navInfo'
+        headlight='false'/>
+  </Scene>
+</X3D>
