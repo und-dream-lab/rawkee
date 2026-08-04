@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QGraphicsItem as rkgItem
 from PySide6.QtCore    import *
 from PySide6.QtWebEngineCore  import *
 
+import json
 import os
 import sys
 import http.server
@@ -262,15 +263,16 @@ class RKSceneEditor(QMainWindow):
 
         self.node_editor_name = ""
 
+        self.bkHost  = None
+        self.httpd   = None
+        self._x3dObj = None  # full rkx.X3D object kept in memory
+        self._file_url = None  # localhost URL of the open X3D file
+
         self.setURLPaths()
         self.create_actions()
         self.create_widgets()
         self.create_layout()
         self.create_connections()
-
-        self.bkHost  = None
-        self.httpd   = None
-        self._x3dObj = None  # full rkx.X3D object kept in memory
 
 
     def setX3DScene(self, x3dScene):
@@ -363,22 +365,32 @@ class RKSceneEditor(QMainWindow):
         self.cleanUpOnEditorClose()
         super().closeEvent(event)
 
+    _SERVER_PORT = 8765
+
+    def _local_url(self, abs_path):
+        """Convert an absolute local path to http://localhost URL."""
+        abs_path = os.path.abspath(abs_path)
+        if sys.platform == 'win32':
+            _, tail = os.path.splitdrive(abs_path)
+            url_path = tail.replace('\\', '/').lstrip('/')
+        else:
+            url_path = abs_path.lstrip('/')
+        return f'http://localhost:{self._SERVER_PORT}/{url_path}'
+
     def setURLPaths(self):
         module_name = self.__class__.__module__
         self.basePath = sys.modules[module_name].__file__.replace("\\", "/").rsplit("/", 1)[0]
-        
-        ############################################################
-        # Keep these for later use.
-        #self.serverPath = self.basePath + "/x_ite/x_ite-14.1.0"
-        #self.port = 8000
 
-        self.x_itePath = "https://und-dream-lab.github.io/rawkee/rawkee/examples/x_ite.html?v=20260803"
-        #self.x_itePath  = "https://create3000.github.io/x_ite/playground/?play=false&fullSize=true"
-        #http://localhost:{self.port}"
-        #self.x_itePath  = "https://vr.csgrid.org/x_ite/index.html"
+        # Serve the entire drive so any local X3D file and its textures are reachable
+        if sys.platform == 'win32':
+            drive_root = os.path.splitdrive(os.path.abspath(self.basePath))[0] + os.sep
+        else:
+            drive_root = '/'
+        self.bkHost = RKBackgroundHost(directory=drive_root, port=self._SERVER_PORT)
+        self.bkHost.start()
 
-        #self.bkHost = RKBackgroundHost(directory=self.serverPath, port=self.port)
-        #self.bkHost.start()
+        xite_abs = os.path.normpath(os.path.join(self.basePath, '..', 'examples', 'x_ite.html'))
+        self.x_itePath = self._local_url(xite_abs) + '?v=20260803'
         
         
     def create_actions(self):
@@ -447,7 +459,7 @@ class RKSceneEditor(QMainWindow):
         self.console_widget.setPlaceholderText("Output / Errors")
         self.custom_page.set_console(self.console_widget)
 
-        self.test_route_btn = QPushButton("Test SAI Routes")
+        self.test_route_btn = QPushButton("Test")
         self.test_route_btn.setMaximumHeight(24)
 
         self.console_container = QWidget()
@@ -502,28 +514,20 @@ class RKSceneEditor(QMainWindow):
 
 
     def _on_test_routes(self):
-        js = (
+        self.browser.page().runJavaScript(
             "(function(){"
             " var b=document.querySelector('x3d-canvas').browser;"
+            " if(!b){console.log('No browser');return;}"
             " var s=b.currentScene;"
-            " var mt=s.getNamedNode('myTransform');"
-            " var ot=s.getNamedNode('otherTransform');"
-            " if(!mt||!ot) return 'ERROR: nodes not found';"
-            " var before_mt=JSON.stringify(Array.from(mt.translation));"
-            " b.endUpdate();"
-            " mt.translation = new mt.translation.constructor(0,0,0);"
-            " b.beginUpdate();"
-            " b.firstViewpoint();"
-            " var after_mt=JSON.stringify(Array.from(mt.translation));"
-            " return 'before='+before_mt+' after='+after_mt;"
+            " try{"
+            "  var n=s.getNamedNode('myTransform');"
+            "  n.translation=new n.translation.constructor(0,0,0);"
+            "  console.log('myTransform translation reset to origin');"
+            " }catch(e){console.log('Error: '+e);}"
             "})()"
         )
-        self.browser.page().runJavaScript(
-            js, lambda r: (print(f"Route test: {r}"),
-                           self.console_widget.appendPlainText(f"Route test: {r}")))
-
     def _on_page_load_finished(self, ok):
-        if ok and self._x3dObj is not None:
+        if ok and self._file_url is not None:
             self._push_file_to_xite()
 
     def on_item_viewer_selection(self, index):
@@ -531,10 +535,14 @@ class RKSceneEditor(QMainWindow):
 
     def on_new_scene(self):
         self._x3dObj = None
+        self._file_url = None
         self.node_editor_widget.clearGraph()
         self.setX3DScene(None)
-        trv = RKSceneTraversal()
-        self.browser.page().runJavaScript(trv.scene2sai(None))
+        empty_url = self._local_url(os.path.normpath(
+            os.path.join(self.basePath, '..', 'examples', 'empty.x3d')))
+        self.browser.page().runJavaScript(
+            f'document.querySelector("x3d-canvas").src = {json.dumps(empty_url)};'
+        )
         self.setWindowTitle("RawKee PE - X3D Interaction Editor")
 
     def on_open_file(self):
@@ -549,6 +557,7 @@ class RKSceneEditor(QMainWindow):
             QMessageBox.warning(self, "Open Failed", f"Could not load:\n{file_path}")
             return
         self._x3dObj = x3d
+        self._file_url = self._local_url(os.path.abspath(file_path))
         self.node_editor_widget.clearGraph()
         scene_node = getattr(x3d, 'Scene', None)
         self.setX3DScene(scene_node)
@@ -556,10 +565,11 @@ class RKSceneEditor(QMainWindow):
         self.setWindowTitle(f"RawKee PE - {os.path.basename(file_path)}")
 
     def _push_file_to_xite(self):
-        if self._x3dObj is None:
+        if self._file_url is None:
             return
-        trv = RKSceneTraversal()
-        self.browser.page().runJavaScript(trv.scene2sai(self._x3dObj))
+        self.browser.page().runJavaScript(
+            f'document.querySelector("x3d-canvas").src = {json.dumps(self._file_url)};'
+        )
 
     def on_export_as(self):
         if self._x3dObj is None:

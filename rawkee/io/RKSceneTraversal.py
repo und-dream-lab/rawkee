@@ -1280,7 +1280,7 @@ class RKSceneTraversal():
         return rNode        
 
 
-    def scene2sai(self, x3dDoc):
+    def scene2sai(self, x3dDoc, base_url=None):
         """Return a JS IIFE that rebuilds x3dDoc.Scene in X_ITE via SAI."""
         lines = [
             '(function () {',
@@ -1288,6 +1288,10 @@ class RKSceneTraversal():
             '  if (!c || !c.browser) return;',
             '  var b = c.browser;',
             '  var s = b.currentScene;',
+        ]
+        if base_url:
+            lines.append(f'  b.baseURL = {json.dumps(base_url)};')
+        lines += [
             '  var rn = []; for (var _i = 0; _i < s.rootNodes.length; _i++) rn.push(s.rootNodes[_i]);',
             '  b.endUpdate();',
             '  rn.forEach(function (n) { s.removeRootNode(n); });',
@@ -1300,9 +1304,9 @@ class RKSceneTraversal():
                 if type(child).__name__ == 'ROUTE':
                     routes.append(child)
                 else:
-                    var = self._node2sai(child, lines, counter)
+                    var = self._node2sai(child, lines, counter, base_url=base_url)
                     if var:
-                        lines.append(f'  s.addRootNode({var});')
+                        lines.append(f'  if ({var}) s.addRootNode({var});')
             for r in routes:
                 fd = getattr(r, 'fromNode',  '') or ''
                 ff = getattr(r, 'fromField', '') or ''
@@ -1316,13 +1320,27 @@ class RKSceneTraversal():
                     )
         lines.append('  b.beginUpdate();')
         lines.append('  b.viewAll();')
-        lines.append('  b.firstViewpoint();')
+        # Detect first Viewpoint DEF at Python time and bind it via set_bind
+        vp_def = None
+        _vp_names = {'Viewpoint', 'OrthoViewpoint', 'GeoViewpoint'}
+        if x3dDoc and x3dDoc.Scene:
+            for child in x3dDoc.Scene.children:
+                if hasattr(child, 'NAME') and child.NAME() in _vp_names:
+                    vp_def = getattr(child, 'DEF', None) or None
+                    if vp_def:
+                        break
+        if vp_def:
+            lines.append(
+                f'  setTimeout(function () {{'
+                f' try {{ s.getNamedNode({json.dumps(vp_def)}).set_bind = true; }}'
+                f' catch(_e) {{}} }}, 0);'
+            )
         lines.append('  console.log("RKI rootNodes=" + s.rootNodes.length);')
         lines.append('})();')
         return '\n'.join(lines)
 
 
-    def _node2sai(self, node, lines, counter):
+    def _node2sai(self, node, lines, counter, base_url=None):
         """Recursively emit SAI JS to create node; returns the JS variable name."""
         nType   = type(node).__name__
         use_val = getattr(node, 'USE', None) or ''
@@ -1337,12 +1355,16 @@ class RKSceneTraversal():
         x3d_type = node.NAME()  # canonical X3D name X_ITE recognises (vs Python subclass name)
         var = f'n{counter[0]}'
         counter[0] += 1
-        lines.append(f'  var {var} = s.createNode({json.dumps(x3d_type)});')
+
+        # Child nodes must be created before the parent's try block
+        # Collect field/child data first, then emit
+        block = []  # lines inside the try block for this node
+        block.append(f'    {var} = s.createNode({json.dumps(x3d_type)});')
 
         def_val = getattr(node, 'DEF', None) or ''
         if def_val:
-            lines.append(f'  s.updateNamedNode({json.dumps(def_val)}, {var});')
-            lines.append(f'  nodes[{json.dumps(def_val)}] = {var};')
+            block.append(f'    s.updateNamedNode({json.dumps(def_val)}, {var});')
+            block.append(f'    nodes[{json.dumps(def_val)}] = {var};')
 
         pastMeta = False
         for key, value in vars(node).items():
@@ -1371,29 +1393,50 @@ class RKSceneTraversal():
                     continue
                 if isinstance(value[0], (str, float, int, tuple, bool)):
                     if value[0] is not None:
-                        lines.append(f'  {var}.{js_fname} = {self._py2js(value)};')
+                        resolved = ([self._resolve_url(v, base_url) for v in value]
+                                    if js_fname == 'url' and base_url and isinstance(value[0], str)
+                                    else value)
+                        block.append(f'    {var}.{js_fname} = {self._py2js(resolved)};')
                 else:
-                    child_vars = [self._node2sai(c, lines, counter) for c in value]
+                    # MFNode children — recurse into outer lines before parent's try block
+                    child_vars = [self._node2sai(c, lines, counter, base_url=base_url) for c in value]
                     child_vars = [cv for cv in child_vars if cv]
                     if child_vars:
-                        children_js = ', '.join(child_vars)
-                        lines.append(f'  {var}.{js_fname} = [{children_js}];')
+                        children_js = ', '.join(cv for cv in child_vars)
+                        # Filter null children in case any failed to create
+                        block.append(f'    {var}.{js_fname} = [{children_js}].filter(Boolean);')
             else:
                 if value == default_val or value is None:
                     continue
                 if isinstance(value, tuple):
-                    # SFVec3f/SFColor/SFRotation etc. — must use typed constructor
                     args = ', '.join(repr(x) for x in value)
-                    lines.append(f'  {var}.{js_fname} = new {var}.{js_fname}.constructor({args});')
+                    block.append(f'    {var}.{js_fname} = new {var}.{js_fname}.constructor({args});')
                 elif isinstance(value, (str, float, int, bool)):
-                    lines.append(f'  {var}.{js_fname} = {self._py2js(value)};')
+                    resolved = (self._resolve_url(value, base_url)
+                                if js_fname == 'url' and isinstance(value, str) and base_url
+                                else value)
+                    block.append(f'    {var}.{js_fname} = {self._py2js(resolved)};')
                 elif hasattr(value, 'NAME'):
-                    cv = self._node2sai(value, lines, counter)
+                    # SFNode child — recurse into outer lines before parent's try block
+                    cv = self._node2sai(value, lines, counter, base_url=base_url)
                     if cv:
-                        lines.append(f'  {var}.{js_fname} = {cv};')
+                        block.append(f'    if ({cv}) {var}.{js_fname} = {cv};')
+
+        lines.append(f'  var {var} = null;')
+        lines.append(f'  try {{')
+        lines.extend(block)
+        lines.append(f'  }} catch (_e) {{ {var} = null; }}')
 
         return var
 
+
+    def _resolve_url(self, url_str, base_url):
+        """Resolve a relative URL against base_url; absolute URLs are returned unchanged."""
+        if not base_url or not url_str:
+            return url_str
+        if url_str.startswith(('http://', 'https://', 'file://', 'data:', '/')):
+            return url_str
+        return base_url + url_str
 
     def _py2js(self, value):
         """Convert a Python X3D field value to a JavaScript literal."""
@@ -1412,7 +1455,9 @@ class RKSceneTraversal():
                 return '[]'
             first = value[0]
             if isinstance(first, tuple):
-                return '[' + ', '.join('[' + ', '.join(repr(x) for x in t) + ']' for t in value) + ']'
+                # MF vector type — X_ITE expects a flat array, not nested arrays
+                flat = [repr(x) for tup in value for x in tup]
+                return '[' + ', '.join(flat) + ']'
             if isinstance(first, bool):
                 return '[' + ', '.join('true' if v else 'false' for v in value) + ']'
             if isinstance(first, str):
