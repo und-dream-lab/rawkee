@@ -13,6 +13,32 @@ import os
 import sys
 import http.server
 import threading
+
+
+def apply_dark_palette(app):
+    app.setStyle('Fusion')
+    p = QPalette()
+    p.setColor(QPalette.ColorRole.Window,               QColor(45,  45,  45))
+    p.setColor(QPalette.ColorRole.WindowText,           QColor(220, 220, 220))
+    p.setColor(QPalette.ColorRole.Base,                 QColor(30,  30,  30))
+    p.setColor(QPalette.ColorRole.AlternateBase,        QColor(45,  45,  45))
+    p.setColor(QPalette.ColorRole.ToolTipBase,          QColor(30,  30,  30))
+    p.setColor(QPalette.ColorRole.ToolTipText,          QColor(220, 220, 220))
+    p.setColor(QPalette.ColorRole.Text,                 QColor(220, 220, 220))
+    p.setColor(QPalette.ColorRole.Button,               QColor(55,  55,  55))
+    p.setColor(QPalette.ColorRole.ButtonText,           QColor(220, 220, 220))
+    p.setColor(QPalette.ColorRole.BrightText,           QColor(255, 255, 255))
+    p.setColor(QPalette.ColorRole.Link,                 QColor(0,   154,  68))
+    p.setColor(QPalette.ColorRole.Highlight,            QColor(0,   154,  68))
+    p.setColor(QPalette.ColorRole.HighlightedText,      QColor(255, 255, 255))
+    p.setColor(QPalette.ColorRole.PlaceholderText,      QColor(120, 120, 120))
+    disabled = QPalette.ColorGroup.Disabled
+    p.setColor(disabled, QPalette.ColorRole.WindowText, QColor(120, 120, 120))
+    p.setColor(disabled, QPalette.ColorRole.Text,       QColor(120, 120, 120))
+    p.setColor(disabled, QPalette.ColorRole.ButtonText, QColor(120, 120, 120))
+    p.setColor(disabled, QPalette.ColorRole.Highlight,  QColor(60,  100,  60))
+    app.setPalette(p)
+
 from functools import partial
 
 import rawkee.io.RKx3d as rkx
@@ -612,6 +638,22 @@ class RKSceneEditor(QMainWindow):
             # .server_close() closes the socket properly
             self.httpd.server_close()
 
+    def getDataFromMaya(self, mayaData, selected_only=False):
+        # Placeholder for future DCC-host integration.
+        return None
+
+    def sendDataToMaya(self, x3dData, selected_only=False):
+        # Placeholder for future DCC-host integration.
+        return None
+
+    def getDataFromBlender(self, blenderData, selected_only=False):
+        # Placeholder for future DCC-host integration.
+        return None
+
+    def sendDataToBlender(self, x3dData, selected_only=False):
+        # Placeholder for future DCC-host integration.
+        return None
+
 
 class RKCustomWebEnginePage(QWebEnginePage):
     def __init__(self, parent=None):
@@ -649,11 +691,15 @@ class RKBackgroundHost:
         print(f"Server started at http://localhost:{self.port} (Root: {self.directory})")
 
     def stop(self):
-        print("Shutting down server...")
-        self.httpd.shutdown() # Stops the serve_forever loop
-        self.httpd.server_close() # Releases the port
-        self.thread.join() # Ensures the thread has finished
-        print("Server stopped.")    
+        # Shutdown blocks until serve_forever exits; run it off the main thread
+        def _do_stop():
+            try:
+                self.httpd.shutdown()
+                self.httpd.server_close()
+            except Exception:
+                pass
+        threading.Thread(target=_do_stop, daemon=True).start()
+        print("Server shutting down.")    
 
 
 #####################################################################

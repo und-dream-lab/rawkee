@@ -165,7 +165,7 @@ class RKWeb3D():
         cmds.menuItem(label='Experimental Features', subMenu=True)
         ### --- will be part of future release --- ### 
         cmds.menuItem(label='MaterialXSurfaceShader Export Type Editor',  command='maya.cmds.rkShowMaterialXEditor()')
-        #cmds.menuItem(label='X3D Graph Editor (Scene and Interactions) - Under Development', command='maya.cmds.rkShowSceneEditor()')
+        cmds.menuItem(label='X3D Scene Editor',                           command='maya.cmds.rkShowSceneEditor()')
         cmds.setParent(self.rkMenuName, menu=True)
         ### --- will be part of next release --- ### cmds.menuItem(label='X3D General Animation Editor')                  # -command "x3dAnimationEditor";
 

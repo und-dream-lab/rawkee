@@ -113,7 +113,8 @@ def initialize_mtlx_paths():
 # Global RawKee menu systems Object used to add Menus to Maya Main Window
 # Cosntructing the RawKee menu system using "maya.cmds" is a more pleasant 
 # experience than using MEL 
-global rkWeb3D
+rkWeb3D = None
+_rkSceneEditorWin = None
 
 
 class RKServer(aom.MPxCommand):
@@ -682,7 +683,7 @@ class RKAssignLabelAsName(aom.MPxCommand):
         
         return jointName
 
-'''
+
 class RKShowSceneEditor(aom.MPxCommand):
     kPluginCmdName = "rkShowSceneEditor"
     
@@ -694,25 +695,13 @@ class RKShowSceneEditor(aom.MPxCommand):
         return RKShowSceneEditor()
         
     def doIt(self, args):
-        print("RawKee Scene Editor - Removed")
-        #cmds.rkPrimeX3DScene()
-        
-        #global rkWeb3D
-        #if rkWeb3D is not None:
-        #    sceneEditorControlName = RKSceneEditor.scene_editor_control_name()
-        #
-        #    if cmds.workspaceControl(sceneEditorControlName, exists=True):
-        #        #Must Close before Delete
-        #        cmds.workspaceControl(sceneEditorControlName, e=True, close=True, closeCommand=RKSceneEditor.workplace_close_command())
-        #        cmds.deleteUI(sceneEditorControlName)
-            
-        #    rkSEditor = RKSceneEditor()
-        #    rkSEditor.setRKWeb3D(rkWeb3D)
-        #    rkSEditor.show(dockable=True, uiScript=RKSceneEditor.workspace_ui_script())
-        #    rkSEditor.centerNodeEditor()
-        #else:
-        #    print("RKWeb3D is not set!")
-'''
+        global _rkSceneEditorWin
+        if _rkSceneEditorWin is not None and _rkSceneEditorWin.isVisible():
+            _rkSceneEditorWin.raise_()
+            _rkSceneEditorWin.activateWindow()
+        else:
+            _rkSceneEditorWin = RKSceneEditor()
+            _rkSceneEditorWin.show()
 
 
 class RKShowCharacterEditor(aom.MPxCommand):

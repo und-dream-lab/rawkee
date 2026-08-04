@@ -31,48 +31,10 @@ else:
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt, QtMsgType, qInstallMessageHandler
-from PySide6.QtGui import QPalette, QColor
-from rawkee.editor.RKSceneEditor import RKSceneEditor
+from rawkee.editor.RKSceneEditor import RKSceneEditor, apply_dark_palette as _apply_dark_palette
 
 
 def _qt_message_handler(msg_type, context, message):
-    # Suppress noisy Qt painter/rendering warnings that don't affect functionality
-    _suppressed = (
-        'QPainter::',
-        'QBackingStore::',
-        'QOpenGLContext::',
-        'updateRequestSent',
-    )
-    if any(message.startswith(s) for s in _suppressed):
-        return
-    if msg_type in (QtMsgType.QtDebugMsg, QtMsgType.QtInfoMsg):
-        return
-
-
-def _apply_dark_palette(app):
-    app.setStyle('Fusion')
-    p = QPalette()
-    p.setColor(QPalette.ColorRole.Window,               QColor(45,  45,  45))
-    p.setColor(QPalette.ColorRole.WindowText,           QColor(220, 220, 220))
-    p.setColor(QPalette.ColorRole.Base,                 QColor(30,  30,  30))
-    p.setColor(QPalette.ColorRole.AlternateBase,        QColor(45,  45,  45))
-    p.setColor(QPalette.ColorRole.ToolTipBase,          QColor(30,  30,  30))
-    p.setColor(QPalette.ColorRole.ToolTipText,          QColor(220, 220, 220))
-    p.setColor(QPalette.ColorRole.Text,                 QColor(220, 220, 220))
-    p.setColor(QPalette.ColorRole.Button,               QColor(55,  55,  55))
-    p.setColor(QPalette.ColorRole.ButtonText,           QColor(220, 220, 220))
-    p.setColor(QPalette.ColorRole.BrightText,           QColor(255, 255, 255))
-    p.setColor(QPalette.ColorRole.Link,                 QColor(0,   154,  68))   # UND green
-    p.setColor(QPalette.ColorRole.Highlight,            QColor(0,   154,  68))   # UND green
-    p.setColor(QPalette.ColorRole.HighlightedText,      QColor(255, 255, 255))
-    p.setColor(QPalette.ColorRole.PlaceholderText,      QColor(120, 120, 120))
-    # Disabled state
-    disabled = QPalette.ColorGroup.Disabled
-    p.setColor(disabled, QPalette.ColorRole.WindowText, QColor(120, 120, 120))
-    p.setColor(disabled, QPalette.ColorRole.Text,       QColor(120, 120, 120))
-    p.setColor(disabled, QPalette.ColorRole.ButtonText, QColor(120, 120, 120))
-    p.setColor(disabled, QPalette.ColorRole.Highlight,  QColor(60,  100,  60))
-    app.setPalette(p)
 
 
 def main():
