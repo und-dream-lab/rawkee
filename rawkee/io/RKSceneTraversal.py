@@ -1284,9 +1284,12 @@ class RKSceneTraversal():
         """Return a JS IIFE that populates the permanent RKInteractionEditor Group via SAI."""
         lines = [
             '(function () {',
-            '  var b = document.querySelector(\'x3d-canvas\').browser;',
+            '  var c = document.querySelector(\'x3d-canvas\');',
+            '  if (!c || !c.browser) return;',
+            '  var b = c.browser;',
             '  var s = b.currentScene;',
             '  var g = s.getNamedNode(\'RKInteractionEditor\');',
+            '  if (!g) return;',
             '  var nodes = {};',
             '  b.endUpdate();',
         ]
@@ -1317,6 +1320,8 @@ class RKSceneTraversal():
                     )
         lines.append('  b.beginUpdate();')
         lines.append('  b.viewAll();')
+        lines.append('  b.firstViewpoint();')
+        lines.append('  console.log("RKI children=" + g.children.length + " rootNodes=" + s.rootNodes.length);')
         lines.append('})();')
         return '\n'.join(lines)
 

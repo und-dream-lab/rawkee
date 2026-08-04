@@ -372,7 +372,7 @@ class RKSceneEditor(QMainWindow):
         #self.serverPath = self.basePath + "/x_ite/x_ite-14.1.0"
         #self.port = 8000
 
-        self.x_itePath = "https://und-dream-lab.github.io/rawkee/rawkee/examples/x_ite.html"
+        self.x_itePath = "https://und-dream-lab.github.io/rawkee/rawkee/examples/x_ite.html?v=20260803"
         #self.x_itePath  = "https://create3000.github.io/x_ite/playground/?play=false&fullSize=true"
         #http://localhost:{self.port}"
         #self.x_itePath  = "https://vr.csgrid.org/x_ite/index.html"
@@ -447,6 +447,16 @@ class RKSceneEditor(QMainWindow):
         self.console_widget.setPlaceholderText("Output / Errors")
         self.custom_page.set_console(self.console_widget)
 
+        self.test_route_btn = QPushButton("Test SAI Routes")
+        self.test_route_btn.setMaximumHeight(24)
+
+        self.console_container = QWidget()
+        _cc_layout = QtWidgets.QVBoxLayout(self.console_container)
+        _cc_layout.setContentsMargins(0, 0, 0, 0)
+        _cc_layout.setSpacing(2)
+        _cc_layout.addWidget(self.test_route_btn)
+        _cc_layout.addWidget(self.console_widget)
+
         # Disabled in standalone mode — require a DCC host
         for action in (self.copySceneMaya, self.copySelectMaya,
                        self.pasteSGToMaya, self.pasteSubToMaya):
@@ -468,7 +478,7 @@ class RKSceneEditor(QMainWindow):
         # Main vertical splitter: top panels | console
         self.main_splitter = QSplitter(QtCore.Qt.Orientation.Vertical)
         self.main_splitter.addWidget(self.top_splitter)
-        self.main_splitter.addWidget(self.console_widget)
+        self.main_splitter.addWidget(self.console_container)
         self.main_splitter.setSizes([800, 160])
 
         central = QWidget()
@@ -487,7 +497,31 @@ class RKSceneEditor(QMainWindow):
         self.closeEditor.triggered.connect(self.close)
         self.node_editor_widget.scene.set_sai_runner(
             lambda js: self.browser.page().runJavaScript(js))
+        self.browser.loadFinished.connect(self._on_page_load_finished)
+        self.test_route_btn.clicked.connect(self._on_test_routes)
 
+
+    def _on_test_routes(self):
+        js = (
+            "(function(){"
+            " var b=document.querySelector('x3d-canvas').browser;"
+            " var s=b.currentScene;"
+            " var mt=s.getNamedNode('myTransform');"
+            " var ot=s.getNamedNode('otherTransform');"
+            " if(!mt||!ot) return 'ERROR: nodes not found';"
+            " b.addRoute(mt,'translation_changed',ot,'set_translation');"
+            " mt.translation=[10,0,0];"
+            " return 'Route added; myTransform=[10,0,0]; otherTransform.translation='"
+            "        +JSON.stringify(Array.from(ot.translation));"
+            "})()"
+        )
+        self.browser.page().runJavaScript(
+            js, lambda r: (print(f"Route test: {r}"),
+                           self.console_widget.appendPlainText(f"Route test: {r}")))
+
+    def _on_page_load_finished(self, ok):
+        if ok and self._x3dObj is not None:
+            self._push_file_to_xite()
 
     def on_item_viewer_selection(self, index):
         pass  # player control dropdown removed
@@ -524,6 +558,14 @@ class RKSceneEditor(QMainWindow):
     def _push_file_to_xite(self):
         if self._x3dObj is None:
             return
+        # Confirm x3d-canvas and X_ITE browser are ready
+        self.browser.page().runJavaScript(
+            "(function(){var c=document.querySelector('x3d-canvas');"
+            "var g=c&&c.browser?c.browser.currentScene.getNamedNode('RKInteractionEditor'):null;"
+            "return g?'RKIENode: found':'RKIENode: NOT FOUND (canvas='+(c?'ok':'null')+')';})()",
+            lambda r: (print(f"SAI check: {r}"),
+                       self.console_widget.appendPlainText(f"SAI check: {r}"))
+        )
         trv = RKSceneTraversal()
         self.browser.page().runJavaScript(trv.scene2sai(self._x3dObj))
 
