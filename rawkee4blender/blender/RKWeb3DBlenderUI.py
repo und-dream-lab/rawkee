@@ -56,7 +56,7 @@ class RAWKEE_OT_InstallPySide6(bpy.types.Operator):
 
     def draw(self, context):
         layout = self.layout
-        layout.label(text="PySide6 is required for the RawKee Scene Editor.", icon='INFO')
+        layout.label(text="PySide6 is required for the RawKee X3D Interaction Editor.", icon='INFO')
         layout.separator()
         layout.label(text="Click OK to install it via pip into Blender's Python.")
         layout.label(text="Requires internet access and may take 1-2 minutes.", icon='TIME')
@@ -88,7 +88,7 @@ class RAWKEE_OT_InstallPySide6(bpy.types.Operator):
                 capture_output=True, text=True, timeout=300
             )
             if result.returncode == 0:
-                self.report({'INFO'}, "PySide6 installed. Please restart Blender, then open the Scene Editor.")
+                self.report({'INFO'}, "PySide6 installed. Please restart Blender, then open the X3D Interaction Editor.")
             else:
                 self.report({'ERROR'}, f"pip install failed: {result.stderr[-300:]}")
         except Exception as exc:
@@ -97,9 +97,9 @@ class RAWKEE_OT_InstallPySide6(bpy.types.Operator):
 
 
 class RAWKEE_OT_OpenSceneEditor(bpy.types.Operator):
-    """Launch the RawKee Scene Editor alongside Blender"""
+    """Launch the RawKee X3D Interaction Editor alongside Blender"""
     bl_idname  = "rawkee.open_scene_editor"
-    bl_label   = "RawKee Scene Editor"
+    bl_label   = "RawKee X3D Interaction Editor"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
@@ -277,15 +277,15 @@ class RAWKEE_PT_SubPanel_Export(bpy.types.Panel):
 
 
 class RAWKEE_PT_SubPanel_SceneEditor(bpy.types.Panel):
-    """Launch the standalone RawKee Scene Editor"""
-    bl_label       = "Scene Editor"
+    """Launch the standalone RawKee X3D Interaction Editor"""
+    bl_label       = "X3D Interaction Editor"
     bl_idname      = "RAWKEE_PT_SubPanel_SceneEditor"
     bl_space_type  = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category    = 'RawKee (.X3D)'
     bl_parent_id   = 'RAWKEE_PT_MainPanel'
     def draw(self, context):
-        self.layout.operator("rawkee.open_scene_editor", icon='WINDOW', text="Open Scene Editor")
+        self.layout.operator("rawkee.open_scene_editor", icon='WINDOW', text="X3D Interaction Editor")
 
 
 class RAWKEE_PT_SubPanel_AddNodes(bpy.types.Panel):

@@ -588,7 +588,7 @@ class RKSceneEditor(QMainWindow):
         scene_node = getattr(x3d, 'Scene', None)
         self.setX3DScene(scene_node)
         self._push_file_to_xite()
-        self.setWindowTitle(f"RawKee PE - {os.path.basename(file_path)}")
+        #self.setWindowTitle(f"RawKee PE - {os.path.basename(file_path)}")
 
     def _push_file_to_xite(self):
         if self._file_url is None:
@@ -623,7 +623,7 @@ class RKSceneEditor(QMainWindow):
             trv = RKSceneTraversal()
             trv.collectProfileFromScene(self._x3dObj)
             trv.x3d2disk(self._x3dObj, file_path, encoding)
-            self.setWindowTitle(f"RawKee PE - {os.path.basename(file_path)}")
+            #self.setWindowTitle(f"RawKee PE - {os.path.basename(file_path)}")
         except Exception as e:
             QMessageBox.critical(self, "Export Failed", str(e))
 
