@@ -11,6 +11,7 @@ from rawkee4maya.maya.RKWeb3D import RKLoadIPoseForASGS,     RKLoadAPoseForASGS,
 from rawkee4maya.maya.RKWeb3D import RKSaveIPoseForASGS,     RKSaveAPoseForASGS,     RKSaveTPoseForASGS
 from rawkee4maya.maya.RKWeb3D import RKX3DAuxLoader
 from rawkee.editor.RKSceneEditor import *
+from rawkee4maya.maya.RKSceneEditorMaya import RKSceneEditorMaya
 from rawkee4maya.maya.RKCharacterEditor import *
 from rawkee4maya.maya.RKBindPoseEditor import *
 from rawkee4maya.maya.RKCharacterAnimationClipEditor import *
@@ -695,13 +696,13 @@ class RKShowSceneEditor(aom.MPxCommand):
         return RKShowSceneEditor()
         
     def doIt(self, args):
-        global _rkSceneEditorWin
-        if _rkSceneEditorWin is not None and _rkSceneEditorWin.isVisible():
-            _rkSceneEditorWin.raise_()
-            _rkSceneEditorWin.activateWindow()
-        else:
-            _rkSceneEditorWin = RKSceneEditor()
-            _rkSceneEditorWin.show()
+        sceneEditorControlName = RKSceneEditorMaya.scene_editor_control_name()
+        if cmds.workspaceControl(sceneEditorControlName, exists=True):
+            cmds.workspaceControl(sceneEditorControlName, e=True, close=True,
+                                  closeCommand=RKSceneEditorMaya.workplace_close_command())
+            cmds.deleteUI(sceneEditorControlName)
+        rkSEEditor = RKSceneEditorMaya()
+        rkSEEditor.show(dockable=True, uiScript=RKSceneEditorMaya.workspace_ui_script())
 
 
 class RKShowCharacterEditor(aom.MPxCommand):
@@ -1584,14 +1585,11 @@ def uninitializePlugin(plugin):
     # 'del rkWeb3D'
     
     ########### Scene Editor ##################
-    # REMOVED *********************************
-    ###########################################
-    #sceneEditorControlName = RKSceneEditor.scene_editor_control_name()
-    #
-    #if cmds.workspaceControl(sceneEditorControlName, exists=True):
-    #    #Must Close before Delete
-    #    cmds.workspaceControl(sceneEditorControlName, e=True, close=True, closeCommand=RKSceneEditor.workplace_close_command())
-    #    cmds.deleteUI(sceneEditorControlName)
+    sceneEditorControlName = RKSceneEditorMaya.scene_editor_control_name()
+    if cmds.workspaceControl(sceneEditorControlName, exists=True):
+        cmds.workspaceControl(sceneEditorControlName, e=True, close=True,
+                              closeCommand=RKSceneEditorMaya.workplace_close_command())
+        cmds.deleteUI(sceneEditorControlName)
     
     ########### Deprecated Character Editor ####################
     characterEditorControlName = RKCharacterEditor.character_editor_control_name()

@@ -272,6 +272,12 @@ global proc setDefRKOptVars()
     else{
         optionVar -iv rkMaxCubeMapFaceSize 4096;
     }
+    
+    if(`optionVar -exists "rkX3DIEDockable`){
+    }
+    else{
+        optionVar -iv rkX3DIEDockable 1;
+    }
 
     // Determines the format of Maya Proceedural Textures
     // when saved as a PNG/JPG

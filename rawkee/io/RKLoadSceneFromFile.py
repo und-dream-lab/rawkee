@@ -18,6 +18,7 @@ class RKLoadSceneFromFile:
 
     def __init__(self):
         self._defNodes = {}   # DEF name -> node instance (for USE resolution)
+        self._baseDir  = ''   # directory of the file being loaded
 
     # -----------------------------------------------------------------------
     # Public entry point – mirrors RKSceneTraversal.x3d2disk()
@@ -36,6 +37,7 @@ class RKLoadSceneFromFile:
         """
         ext = os.path.splitext(fullPath)[1].lower()
         self._defNodes.clear()
+        self._baseDir = os.path.dirname(os.path.abspath(fullPath))
 
         try:
             if   ext == '.x3d':
@@ -96,6 +98,33 @@ class RKLoadSceneFromFile:
             if needed <= known:
                 return node_cls()
         return chain[-1]()  # fall back to most capable class
+
+    def _resolveUrls(self, urls):
+        """Resolve URL strings to server-relative paths (leading '/'), forward slashes only."""
+        if not self._baseDir or not urls:
+            return urls
+        _ABS = ('http://', 'https://', 'ftp://', 'ftps://', 'data:', 'urn:', '#')
+        result = []
+        for url in urls:
+            s = url.strip()
+            if not s or any(s.lower().startswith(p) for p in _ABS):
+                result.append(url)
+                continue
+            # Strip file:// scheme
+            sl = s.lower()
+            if sl.startswith('file:///'):
+                s = s[8:]
+            elif sl.startswith('file://'):
+                s = s[7:]
+            # Resolve relative paths against base directory
+            if not os.path.isabs(s):
+                s = os.path.normpath(os.path.join(self._baseDir, s))
+            # Forward slashes; strip Windows drive letter so result is server-relative
+            s = s.replace('\\', '/')
+            if len(s) >= 2 and s[1] == ':':
+                s = s[2:]
+            result.append(s)
+        return result
 
     def _parseStrValue(self, strVal, fType):
         """
@@ -371,7 +400,10 @@ class RKLoadSceneFromFile:
             if fType is None or fType in ('SFNode', 'MFNode'):
                 continue
             try:
-                setattr(tNode, pName, self._parseStrValue(attrVal, fType))
+                parsed = self._parseStrValue(attrVal, fType)
+                if fType == 'MFString' and pName.lower() == 'url':
+                    parsed = self._resolveUrls(parsed)
+                setattr(tNode, pName, parsed)
                 if attrName == 'DEF':
                     self._defNodes[attrVal] = tNode
             except Exception as exc:
@@ -385,7 +417,7 @@ class RKLoadSceneFromFile:
             if childNode is None:
                 continue
 
-            fieldName = containerField if containerField else self._defaultContainerField(tNode)
+            fieldName = containerField if containerField else self._defaultContainerField(childNode, tNode)
             if not fieldName:
                 continue
             try:
@@ -399,13 +431,123 @@ class RKLoadSceneFromFile:
 
         return tNode
 
-    def _defaultContainerField(self, parentNode):
+    # X3D spec-defined default containerField for well-known node types.
+    # Keyed by the Python class name (type(node).__name__).
+    _DEFAULT_CF = {
+        'Appearance':                    'appearance',
+        # Material types
+        'Material':                      'material',
+        'PhysicalMaterial':              'material',
+        'PhysicalMaterialExt':           'material',
+        'UnlitMaterial':                 'material',
+        'TwoSidedMaterial':              'material',
+        'PhysicalMaterial_X3DOM':        'material',
+        # Texture types
+        'ImageTexture':                  'texture',
+        'MovieTexture':                  'texture',
+        'PixelTexture':                  'texture',
+        'ImageTexture3D':                'texture',
+        'PixelTexture3D':                'texture',
+        'ComposedTexture3D':             'texture',
+        'GeneratedCubeMapTexture':       'texture',
+        'ComposedCubeMapTexture':        'texture',
+        'ImageCubeMapTexture':           'texture',
+        'MultiTexture':                  'texture',
+        'RenderedTexture':               'texture',
+        # TextureTransform
+        'TextureTransform':              'textureTransform',
+        'TextureTransform3D':            'textureTransform',
+        'TextureTransformMatrix3D':      'textureTransform',
+        'MultiTextureTransform':         'textureTransform',
+        # Coord
+        'Coordinate':                    'coord',
+        'CoordinateDouble':              'coord',
+        'GeoCoordinate':                 'coord',
+        # Color / Normal / Tangent / TexCoord / FogCoord
+        'Color':                         'color',
+        'ColorRGBA':                     'color',
+        'Normal':                        'normal',
+        'Tangent':                       'tangent',
+        'TextureCoordinate':             'texCoord',
+        'TextureCoordinate3D':           'texCoord',
+        'TextureCoordinate4D':           'texCoord',
+        'TextureCoordinateGenerator':    'texCoord',
+        'MultiTextureCoordinate':        'texCoord',
+        'NurbsTextureCoordinate':        'texCoord',
+        'FogCoordinate':                 'fogCoord',
+        # FontStyle
+        'FontStyle':                     'fontStyle',
+        'ScreenFontStyle':               'fontStyle',
+        # Geometry
+        'Box':                           'geometry',
+        'Cone':                          'geometry',
+        'Cylinder':                      'geometry',
+        'Sphere':                        'geometry',
+        'Text':                          'geometry',
+        'PointSet':                      'geometry',
+        'LineSet':                       'geometry',
+        'IndexedLineSet':                'geometry',
+        'IndexedFaceSet':                'geometry',
+        'IndexedTriangleSet':            'geometry',
+        'IndexedTriangleFanSet':         'geometry',
+        'IndexedTriangleStripSet':       'geometry',
+        'TriangleSet':                   'geometry',
+        'TriangleFanSet':                'geometry',
+        'TriangleStripSet':              'geometry',
+        'QuadSet':                       'geometry',
+        'IndexedQuadSet':                'geometry',
+        'ElevationGrid':                 'geometry',
+        'Extrusion':                     'geometry',
+        'GeoElevationGrid':              'geometry',
+        'TriangleSet2D':                 'geometry',
+        'Polyline2D':                    'geometry',
+        'Polypoint2D':                   'geometry',
+        'Arc2D':                         'geometry',
+        'ArcClose2D':                    'geometry',
+        'Circle2D':                      'geometry',
+        'Disk2D':                        'geometry',
+        'Rectangle2D':                   'geometry',
+        'CGEIndexedFaceSet':             'geometry',
+        'CGEIndexedTriangleSet':         'geometry',
+        'NurbsCurve':                    'geometry',
+        'NurbsPatchSurface':             'geometry',
+        'NurbsTrimmedSurface':           'geometry',
+        'NurbsSweptSurface':             'geometry',
+        'NurbsSwungSurface':             'geometry',
+        # Sound source
+        'AudioClip':                     'source',
+    }
+
+    def _defaultContainerField(self, childNode, parentNode):
         """
-        Return a best-effort default container field name for a child node
-        when no containerField attribute is present.
+        Return the default containerField for *childNode* inside *parentNode*
+        when no containerField attribute was present in the X3D file.
+
+        Resolution order:
+          1. X3D spec lookup table keyed by Python class name
+          2. Case-insensitive scan of parent SFNode/MFNode field names
+          3. Fall back to 'children' if the parent has that field
         """
-        ftMap = self._fieldTypeMap(type(parentNode))
-        if 'children' in ftMap:
+        child_cls = type(childNode).__name__
+
+        # 1. Spec table lookup
+        cf = self._DEFAULT_CF.get(child_cls)
+        if cf and hasattr(parentNode, cf):
+            return cf
+
+        # 2. Scan parent SFNode/MFNode fields for a name that matches the child class
+        lname = child_cls.lower()
+        for decl in type(parentNode).FIELD_DECLARATIONS():
+            fname = decl[0]
+            try:
+                ftype = decl[2]()
+            except Exception:
+                continue
+            if ftype in ('SFNode', 'MFNode') and fname.lower() == lname:
+                return fname
+
+        # 3. Fall back to 'children'
+        if hasattr(parentNode, 'children'):
             return 'children'
         return ''
 
@@ -523,7 +665,10 @@ class RKLoadSceneFromFile:
                 if fType is None or fType in ('SFNode', 'MFNode'):
                     continue
                 try:
-                    setattr(tNode, pName, self._parseJSONValue(val, fType))
+                    parsed = self._parseJSONValue(val, fType)
+                    if fType == 'MFString' and pName.lower() == 'url':
+                        parsed = self._resolveUrls(parsed)
+                    setattr(tNode, pName, parsed)
                     if attrName == 'DEF':
                         self._defNodes[val] = tNode
                 except Exception as exc:

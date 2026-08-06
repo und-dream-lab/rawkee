@@ -57632,9 +57632,11 @@ class CGEIndexedFaceSet(IndexedFaceSet):
     Extends IndexedFaceSet with skinning attributes (skinJoints0/1, skinWeights0/1).
     """
     @classmethod
+    def NAME(cls): return super().NAME()
+    @classmethod
     def FIELD_DECLARATIONS(cls):
         """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
-        return IndexedFaceSet.FIELD_DECLARATIONS() + [
+        return super().FIELD_DECLARATIONS() + [
         ('skinJoints0', [], FieldType.MFInt32, AccessType.initializeOnly, 'IndexedFaceSet'),
         ('skinJoints1', [], FieldType.MFInt32, AccessType.initializeOnly, 'IndexedFaceSet'),
         ('skinWeights0', [], FieldType.MFVec4f, AccessType.initializeOnly, 'IndexedFaceSet'),
@@ -57761,9 +57763,11 @@ class CGEIndexedTriangleSet(IndexedTriangleSet):
     Extends IndexedTriangleSet with skinning attributes (skinJoints0/1, skinWeights0/1).
     """
     @classmethod
+    def NAME(cls): return super().NAME()
+    @classmethod
     def FIELD_DECLARATIONS(cls):
         """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
-        return IndexedTriangleSet.FIELD_DECLARATIONS() + [
+        return super().FIELD_DECLARATIONS() + [
         ('skinJoints0', [], FieldType.MFInt32, AccessType.initializeOnly, 'IndexedTriangleSet'),
         ('skinJoints1', [], FieldType.MFInt32, AccessType.initializeOnly, 'IndexedTriangleSet'),
         ('skinWeights0', [], FieldType.MFVec4f, AccessType.initializeOnly, 'IndexedTriangleSet'),
@@ -57895,9 +57899,11 @@ class PhysicalMaterialExt(PhysicalMaterial):
     Extends PhysicalMaterial with the extensions MFNode field.
     """
     @classmethod
+    def NAME(cls): return super().NAME()
+    @classmethod
     def FIELD_DECLARATIONS(cls):
         """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
-        return PhysicalMaterial.FIELD_DECLARATIONS() + [
+        return super().FIELD_DECLARATIONS() + [
         ('extensions', [], FieldType.MFNode, AccessType.inputOutput, 'PhysicalMaterialExt')]
     def __init__(self,
         baseColor=(1, 1, 1),
