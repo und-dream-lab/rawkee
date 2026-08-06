@@ -86,6 +86,10 @@ class RKGraphicsView(QGraphicsView):
 
         self._drag_start_socket = None
         self._drag_edge         = None
+        self._add_node_cb       = None
+
+    def set_add_node_callback(self, fn):
+        self._add_node_cb = fn
 
         
     def initUI(self):
@@ -201,7 +205,7 @@ class RKGraphicsView(QGraphicsView):
         menu = QMenu(self)
         menu.setStyleSheet("QMenu::separator { background: #39FF14; height: 2px; margin: 2px 4px; }")
         if gr_edge is not None and gr_edge.edge is not None:
-            action = menu.addAction("Delete Connection")
+            action = menu.addAction("Delete Route")
             if menu.exec(event.globalPos()) == action:
                 self._delete_edge(gr_edge.edge)
         elif gr_node is not None:
@@ -229,8 +233,13 @@ class RKGraphicsView(QGraphicsView):
             elif chosen == action_graph:
                 self._add_connected_graph_nodes(gr_node)
         else:
-            action = menu.addAction("Clear Graph Editor")
-            if menu.exec(event.globalPos()) == action:
+            action_add   = menu.addAction("Add Node")
+            menu.addSeparator()
+            action_clear = menu.addAction("Clear Graph Editor")
+            chosen = menu.exec(event.globalPos())
+            if chosen == action_add and self._add_node_cb is not None:
+                self._add_node_cb(self.mapToScene(event.pos()))
+            elif chosen == action_clear:
                 self.grScene.scene.clear_graph()
 
     def _add_adjacent_nodes(self, gr_node, direction):

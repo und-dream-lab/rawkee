@@ -17,7 +17,7 @@ x3d-canvas {
 }
     </style>
   </head>
-  <body>
-    <x3d-canvas src="example.x3d"></x3d-canvas>
+  <body style='background-color="black"'>
+    <x3d-canvas src="empty.x3d" theme="dark"></x3d-canvas>
   </body>
 </html>
