@@ -53,6 +53,42 @@ class RKLoadSceneFromFile:
             print(f'RKLoadSceneFromFile: error loading "{fullPath}": {exc}')
             return None
 
+    def from_xml_string(self, xml_str: str):
+        """Parse an X3D scene from an in-memory XML string. Returns X3D or None."""
+        import io as _io
+        self._defNodes.clear()
+        self._baseDir = ''
+        try:
+            tree = ET.parse(_io.StringIO(xml_str))
+        except ET.ParseError as exc:
+            print(f'RKLoadSceneFromFile.from_xml_string: {exc}')
+            return None
+        root    = tree.getroot()
+        tag     = re.sub(r'\{[^}]*\}', '', root.tag)
+        if tag != 'X3D':
+            return None
+        x3dDoc  = X3D()
+        profile = root.get('profile')
+        version = root.get('version')
+        if profile:
+            try:    x3dDoc.profile = profile
+            except Exception: pass
+        if version:
+            try:    x3dDoc.version = version
+            except Exception: pass
+        for child in root:
+            childTag = re.sub(r'\{[^}]*\}', '', child.tag)
+            if childTag == 'head':
+                x3dDoc.head = self._parseXMLHead(child)
+            elif childTag == 'Scene':
+                sceneNode = Scene()
+                for sc in child:
+                    node = self._parseXMLNode(sc)
+                    if node is not None:
+                        sceneNode.children.append(node)
+                x3dDoc.Scene = sceneNode
+        return x3dDoc
+
     # =======================================================================
     # Shared helpers
     # =======================================================================

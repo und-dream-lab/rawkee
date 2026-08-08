@@ -45,6 +45,7 @@ from functools import partial
 import rawkee.io.RKx3d as rkx
 from rawkee.io.RKLoadSceneFromFile import RKLoadSceneFromFile
 from rawkee.io.RKSceneTraversal import RKSceneTraversal
+from rawkee.editor.RKAIAssistant import RKAIAssistantPanel
 
 # Pure outputOnly/inputOnly event fields missing from FIELD_DECLARATIONS in RKx3d.py.
 # Format: {NodeTypeName: [(field_name, field_type, access)]}  access = 'inputOnly'|'outputOnly'
@@ -367,8 +368,9 @@ class RKNodeFieldEditor(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._node       = None
-        self._sai_runner = None
+        self._node          = None
+        self._sai_runner    = None
+        self._undo_push_fn  = None
         self._widgets    = {}   # field_name -> (widget, ftype)
 
         self._header = QLabel('No selection')
@@ -392,6 +394,9 @@ class RKNodeFieldEditor(QWidget):
 
     def set_sai_runner(self, fn):
         self._sai_runner = fn
+
+    def set_undo_push_fn(self, fn):
+        self._undo_push_fn = fn
 
     def set_node(self, node):
         self._node = node
@@ -484,6 +489,8 @@ class RKNodeFieldEditor(QWidget):
             if isinstance(w, QLineEdit): w.setStyleSheet('background:#5a1a1a;')
             return
         if isinstance(w, QLineEdit): w.setStyleSheet('')
+        if self._undo_push_fn:
+            self._undo_push_fn()
         try:
             setattr(self._node, fname, parsed)
         except Exception:
@@ -676,10 +683,16 @@ class RKSceneEditor(QMainWindow):
 
         self.node_editor_name = ""
 
-        self.bkHost  = None
-        self.httpd   = None
-        self._x3dObj = None  # full rkx.X3D object kept in memory
+        self.bkHost    = None
+        self.httpd    = None
+        self._x3dObj  = None  # full rkx.X3D object kept in memory
         self._file_url = None  # localhost URL of the open X3D file
+        self._ai_batch    = False  # suppress per-node tree rebuild and X_ITE reload
+        self._ai_new_defs: set = set()  # DEF names created in the current AI turn
+        self._undo_stack: list = []
+        self._redo_stack: list = []
+        import threading as _threading
+        self._undo_lock = _threading.Lock()
 
         self.setURLPaths()
         self.create_actions()
@@ -687,6 +700,110 @@ class RKSceneEditor(QMainWindow):
         self.create_layout()
         self.create_connections()
 
+    _MAX_UNDO = 50
+
+
+    # ------------------------------------------------------------------
+    # Undo / Redo
+    # ------------------------------------------------------------------
+    def _serialize_scene(self):
+        if self._x3dObj is None:
+            return None
+        import io
+        from rawkee.io.RKSceneTraversal import RKSceneTraversal
+        buf = io.StringIO()
+        trv = RKSceneTraversal()
+        trv.collectProfileFromScene(self._x3dObj)
+        trv.startExport(self._x3dObj, buf, 'x3d')
+        return buf.getvalue() or None
+
+    def _push_undo_snapshot(self):
+        if self._ai_batch:
+            return  # batch already pushed one snapshot at begin_ai_batch
+        if self._x3dObj is None:
+            return
+        # Serialize off the main thread so large scenes don't block the UI
+        import threading, io
+        x3d_ref = self._x3dObj
+        def _snap():
+            try:
+                from rawkee.io.RKSceneTraversal import RKSceneTraversal
+                buf = io.StringIO()
+                trv = RKSceneTraversal()
+                trv.collectProfileFromScene(x3d_ref)
+                trv.startExport(x3d_ref, buf, 'x3d')
+                xml = buf.getvalue()
+                if xml:
+                    with self._undo_lock:
+                        self._undo_stack.append(xml)
+                        if len(self._undo_stack) > self._MAX_UNDO:
+                            self._undo_stack.pop(0)
+                        self._redo_stack.clear()
+                    QtCore.QMetaObject.invokeMethod(
+                        self, '_update_undo_actions',
+                        QtCore.Qt.ConnectionType.QueuedConnection)
+            except Exception as exc:
+                print(f'[UNDO] snapshot failed: {exc}')
+        threading.Thread(target=_snap, daemon=True).start()
+
+    def _restore_snapshot(self, xml_str: str):
+        from rawkee.io.RKLoadSceneFromFile import RKLoadSceneFromFile
+        loader  = RKLoadSceneFromFile()
+        x3d_obj = loader.from_xml_string(xml_str)
+        if x3d_obj is None:
+            return
+        self._x3dObj = x3d_obj
+        scene = getattr(x3d_obj, 'Scene', None)
+        if scene is not None:
+            self.setX3DScene(scene)
+        self.field_editor.set_node(None)
+        self._sync_xite_via_temp_file()
+
+    def undo(self):
+        if not self._undo_stack:
+            return
+        with self._undo_lock:
+            xml_before = self._undo_stack.pop()
+        current = self._serialize_scene()
+        if current:
+            with self._undo_lock:
+                self._redo_stack.append(current)
+        self._restore_snapshot(xml_before)
+        self._update_undo_actions()
+
+    def redo(self):
+        if not self._redo_stack:
+            return
+        with self._undo_lock:
+            xml_after = self._redo_stack.pop()
+        current = self._serialize_scene()
+        if current:
+            with self._undo_lock:
+                self._undo_stack.append(current)
+        self._restore_snapshot(xml_after)
+        self._update_undo_actions()
+
+    @Slot()
+    def _update_undo_actions(self):
+        self.undoAction.setEnabled(bool(self._undo_stack))
+        self.redoAction.setEnabled(bool(self._redo_stack))
+
+    def begin_ai_batch(self):
+        """Suppress per-node tree rebuilds and X_ITE reloads while AI is editing."""
+        self._push_undo_snapshot()  # async snapshot before AI modifies the scene
+        self._ai_batch = True
+        self._ai_new_defs.clear()
+
+    def end_ai_batch(self):
+        """Re-enable updates and do one final tree rebuild + X_ITE reload."""
+        self._ai_batch = False
+        self._ai_new_defs.clear()
+        scene = getattr(self, "_x3dScene", None)
+        if scene is not None:
+            expanded = self._capture_tree_expanded()
+            self.setX3DScene(scene)
+            self._restore_tree_expanded(expanded)
+        self._sync_xite_via_temp_file()
 
     def setX3DScene(self, x3dScene):
         """Populate the tree widget from an rkx.Scene object produced by maya2x3d()."""
@@ -788,7 +905,16 @@ class RKSceneEditor(QMainWindow):
             self.bkHost.stop()
             self.bkHost = None
 
+    def _sync_ai_panel_action(self, visible: bool):
+        """Sync the menu action check state without re-triggering setVisible (avoids minimize hiding the dock)."""
+        self.toggleAIPanel.blockSignals(True)
+        self.toggleAIPanel.setChecked(visible)
+        self.toggleAIPanel.blockSignals(False)
+
     def closeEvent(self, event):
+        s = QSettings("RawKee", "RKSceneEditor")
+        s.setValue("ai_dock_visible", self._ai_dock.isVisible())
+        self.ai_panel.save_settings()
         self.cleanUpOnEditorClose()
         super().closeEvent(event)
 
@@ -815,12 +941,22 @@ class RKSceneEditor(QMainWindow):
             drive_root = '/'
         self.bkHost = RKBackgroundHost(directory=drive_root, port=self._SERVER_PORT)
         self.bkHost.start()
+        import atexit
+        atexit.register(self.cleanUpOnEditorClose)
 
         xite_abs = os.path.normpath(os.path.join(self.basePath, '..', 'examples', 'x_ite.html'))
         self.x_itePath = self._local_url(xite_abs) + '?v=20260803'
         
         
     def create_actions(self):
+        self.undoAction = QAction("   Undo")
+        self.undoAction.setShortcut(QKeySequence.StandardKey.Undo)
+        self.undoAction.setEnabled(False)
+        self.undoAction.triggered.connect(self.undo)
+        self.redoAction = QAction("   Redo")
+        self.redoAction.setShortcut(QKeySequence.StandardKey.Redo)
+        self.redoAction.setEnabled(False)
+        self.redoAction.triggered.connect(self.redo)
         self.newX3DScene    = QAction("   New X3D Scene")
         self.openX3DFile    = QAction("   Open X3D")
         self.exportX3DAs    = QAction("   Save X3D As...")
@@ -832,6 +968,9 @@ class RKSceneEditor(QMainWindow):
         self.sendToSunrise  = QAction("   Sunrize X3D Editor")
         self.sendToCastle   = QAction("   Castle Game Engine")
         self.closeEditor    = QAction("   Close Editor")
+
+        self.toggleAIPanel  = QAction("   AI Assistant")
+        self.toggleAIPanel.setCheckable(True)
 #        self.testMenu       = QMenu()
 #        self.qtBut          = QtWidgets.QPushButton()
 #        self.qIcon          = QtGui.QIcon(":menu_options.png")
@@ -841,7 +980,12 @@ class RKSceneEditor(QMainWindow):
         
     def create_widgets(self):
         file_menu   = self.menuBar().addMenu("File")
+        edit_menu   = self.menuBar().addMenu("Edit")
+        edit_menu.addAction(self.undoAction)
+        edit_menu.addAction(self.redoAction)
         node_menu   = self.menuBar().addMenu("X3D Nodes")
+        tools_menu  = self.menuBar().addMenu("Tools")
+        tools_menu.addAction(self.toggleAIPanel)
         help_menu = self.menuBar().addMenu("Help")
         about_action = help_menu.addAction("About RawKee")
         about_action.triggered.connect(self._on_about)
@@ -897,14 +1041,21 @@ class RKSceneEditor(QMainWindow):
         self.console_widget.setPlaceholderText("Output / Errors")
         self.custom_page.set_console(self.console_widget)
 
-        self.test_route_btn = QPushButton("Test")
-        self.test_route_btn.setMaximumHeight(24)
+        self.ai_panel = RKAIAssistantPanel()
+        self.ai_panel.set_editor(self)
+        self._ai_dock = QtWidgets.QDockWidget("AI Assistant", self)
+        self._ai_dock.setObjectName("RKAIDock")
+        self._ai_dock.setWidget(self.ai_panel)
+        self._ai_dock.setMinimumWidth(320)
+        self._ai_dock.hide()
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._ai_dock)
+        if QSettings("RawKee", "RKSceneEditor").value("ai_dock_visible") in (True, "true"):
+            self._ai_dock.show()
 
         self.console_container = QWidget()
         _cc_layout = QtWidgets.QVBoxLayout(self.console_container)
         _cc_layout.setContentsMargins(0, 0, 0, 0)
         _cc_layout.setSpacing(2)
-        _cc_layout.addWidget(self.test_route_btn)
         _cc_layout.addWidget(self.console_widget)
 
         # Disabled in standalone mode — require a DCC host
@@ -955,7 +1106,6 @@ class RKSceneEditor(QMainWindow):
         self.node_editor_widget.scene.set_sai_runner(
             lambda js: self.browser.page().runJavaScript(js))
         self.browser.loadFinished.connect(self._on_page_load_finished)
-        self.test_route_btn.clicked.connect(self._on_test_routes)
         self.tree_widget.itemSelectionChanged.connect(self._on_tree_selection_changed)
         self.tree_widget.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree_widget.customContextMenuRequested.connect(self._on_tree_context_menu)
@@ -964,6 +1114,10 @@ class RKSceneEditor(QMainWindow):
         self.tree_widget.set_reparent_callback(self._reparent_node)
         self.tree_widget.set_insert_key_callback(self._run_node_picker)
         self.field_editor.set_sai_runner(lambda js: self.browser.page().runJavaScript(js))
+        self.field_editor.set_undo_push_fn(self._push_undo_snapshot)
+        self.toggleAIPanel.toggled.connect(self._ai_dock.setVisible)
+        # Block toggleAIPanel signals when syncing check state to prevent minimize from hiding the dock
+        self._ai_dock.visibilityChanged.connect(self._sync_ai_panel_action)
 
 
     def _on_tree_selection_changed(self):
@@ -1164,6 +1318,7 @@ class RKSceneEditor(QMainWindow):
 
     def _delete_node(self, node):
         """Remove node and all its descendants from scenegraph, ROUTEs, and graph editor."""
+        self._push_undo_snapshot()
         if self._x3dScene is None:
             return
 
@@ -1271,8 +1426,14 @@ class RKSceneEditor(QMainWindow):
     def on_new_scene(self):
         self._x3dObj = None
         self._file_url = None
+        self._ai_new_defs.clear()
+        with self._undo_lock:
+            self._undo_stack.clear()
+            self._redo_stack.clear()
+        self._update_undo_actions()
         self.node_editor_widget.clearGraph()
         self.setX3DScene(None)
+        self.ai_panel.reset_for_new_scene()
         empty_url = self._local_url(os.path.normpath(
             os.path.join(self.basePath, '..', 'examples', 'empty.x3d')))
         self.browser.page().runJavaScript(
@@ -1296,6 +1457,7 @@ class RKSceneEditor(QMainWindow):
         self.node_editor_widget.clearGraph()
         scene_node = getattr(x3d, 'Scene', None)
         self.setX3DScene(scene_node)
+        self.ai_panel.reset_for_new_scene()
         self._push_file_to_xite()
         #self.setWindowTitle(f"RawKee PE - {os.path.basename(file_path)}")
 
@@ -1393,7 +1555,7 @@ class RKSceneEditor(QMainWindow):
             comp_map.setdefault(primary, []).append(node_name)
         return comp_map
 
-    def _add_node_to_editor(self, node_name, override_field=None):
+    def _add_node_to_editor(self, node_name, override_field=None, direct_parent=None):
         """Insert a new X3D node into the scenegraph, rebuild the tree, and sync X_ITE via temp file."""
         # Auto-create a minimal scene if none is loaded yet
         if self._x3dObj is None or getattr(self, '_x3dScene', None) is None:
@@ -1401,11 +1563,15 @@ class RKSceneEditor(QMainWindow):
             self._x3dObj.Scene = rkx.Scene()
             self.setX3DScene(self._x3dObj.Scene)
 
-        selected = self.tree_widget.selectedItems()
-        if len(selected) > 1:
-            QMessageBox.warning(self, "Multiple Selection",
-                "Select only one item in the scenegraph tree.")
-            return
+        if direct_parent is None:
+            self._push_undo_snapshot()
+            selected = self.tree_widget.selectedItems()
+            if len(selected) > 1:
+                QMessageBox.warning(self, "Multiple Selection",
+                    "Select only one item in the scenegraph tree.")
+                return
+        else:
+            selected = []
 
         node_cls = getattr(rkx, node_name, None)
         if node_cls is None or not callable(node_cls):
@@ -1422,7 +1588,19 @@ class RKSceneEditor(QMainWindow):
         except Exception:
             pass
 
-        if not selected:
+        if direct_parent is not None:
+            # Bypass tree selection: insert directly into the given parent node
+            field_name = override_field
+            if not field_name:
+                field_name, _is_mf, err = self._best_field_for_child(direct_parent, new_node)
+                if err:
+                    self.console_widget.appendPlainText(f'[AI] Cannot add {node_name}: {err}')
+                    return None
+            ok, msg = self._insert_into_field(direct_parent, field_name, new_node, node_name)
+            if not ok:
+                self.console_widget.appendPlainText(f'[AI] Cannot add {node_name}: {msg}')
+                return None
+        elif not selected:
             # No selection: append directly to Scene.children
             try:
                 self._x3dScene.children.append(new_node)
@@ -1466,15 +1644,20 @@ class RKSceneEditor(QMainWindow):
                 QMessageBox.warning(self, "Cannot Add Node", msg)
                 return
 
-        # Capture expansion state, rebuild tree, restore expansion, then sync X_ITE
-        expanded = self._capture_tree_expanded()
-        self.setX3DScene(self._x3dScene)
-        self._restore_tree_expanded(expanded)
-        self._reveal_tree_node(new_node)
-        self._sync_xite_via_temp_file()
+        if not self._ai_batch:
+            expanded = self._capture_tree_expanded()
+            self.setX3DScene(self._x3dScene)
+            self._restore_tree_expanded(expanded)
+            self._reveal_tree_node(new_node)
+            self._sync_xite_via_temp_file()
+        else:
+            # Register so _find_node_by_def can locate this node for subsequent parent lookups
+            self.tree_widget.registerNode(new_node)
+            def_name = getattr(new_node, "DEF", "")
+            if def_name:
+                self._ai_new_defs.add(def_name)
         return new_node
 
-    @staticmethod
     def _collect_defs(self, node, out=None):
         """Recursively collect all DEF values in the scenegraph as a set."""
         if out is None:
@@ -1552,7 +1735,6 @@ class RKSceneEditor(QMainWindow):
         return None, False, f"{pn} has no SFNode or MFNode field to receive {cn}."
 
     @staticmethod
-    @staticmethod
     def _insert_into_field(parent_node, field_name, new_node, node_name):
         """Insert new_node into parent_node.field_name; return (ok, err_msg)."""
         try:
@@ -1571,9 +1753,14 @@ class RKSceneEditor(QMainWindow):
         else:
             # SFNode — reject if already occupied
             if current is not None:
-                pn  = type(parent_node).NAME() if hasattr(type(parent_node), 'NAME') else type(parent_node).__name__
-                occ = type(current).NAME() if hasattr(type(current), 'NAME') else type(current).__name__
-                return False, f"'{field_name}' of {pn} is already occupied by {occ}."
+                pn      = type(parent_node).NAME() if hasattr(type(parent_node), 'NAME') else type(parent_node).__name__
+                occ     = type(current).NAME() if hasattr(type(current), 'NAME') else type(current).__name__
+                occ_def = getattr(current, 'DEF', '')
+                occ_ref = f"{occ} DEF='{occ_def}'" if occ_def else occ
+                parent_def = getattr(parent_node, 'DEF', '')
+                parent_ref = f"{pn} DEF='{parent_def}'" if parent_def else pn
+                return False, (f"'{field_name}' of {parent_ref} is already occupied by {occ_ref}. "
+                               f"Do not create a new {occ} — use parent_def='{occ_def}' to add children to it.")
             try:
                 setattr(parent_node, field_name, new_node)
             except Exception as e:
@@ -1633,7 +1820,7 @@ class RKSceneEditor(QMainWindow):
 
     def _sync_xite_via_temp_file(self):
         """Write _x3dObj to temp.x3d in the examples folder and reload it in X_ITE."""
-        if self._x3dObj is None:
+        if self._x3dObj is None or self._ai_batch:
             return
         try:
             trv = RKSceneTraversal()
@@ -1702,7 +1889,10 @@ class RKBackgroundHost:
         self.port = port
         self.directory = directory
         self.handler = partial(http.server.SimpleHTTPRequestHandler, directory=directory)
-        self.httpd = http.server.HTTPServer(("", port), self.handler)
+        # allow_reuse_address must be set before bind; subclass to ensure it
+        class _Server(http.server.HTTPServer):
+            allow_reuse_address = True
+        self.httpd = _Server(("", port), self.handler)
         self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
 
     def start(self):

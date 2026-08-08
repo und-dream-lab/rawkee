@@ -123,6 +123,13 @@ class RAWKEE_OT_OpenSceneEditor(bpy.types.Operator):
             _editor_win.activateWindow()
         else:
             _editor_win = RKSceneEditor()
+            try:
+                from PySide6.QtWidgets import QFileIconProvider
+                from PySide6.QtCore import QFileInfo
+                _editor_win.setWindowIcon(
+                    QFileIconProvider().icon(QFileInfo(bpy.app.binary_path)))
+            except Exception:
+                pass
             _editor_win.show()
 
         if not _timer_live:

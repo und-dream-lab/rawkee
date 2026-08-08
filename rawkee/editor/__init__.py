@@ -6,3 +6,4 @@ from . import RKXSocket
 from . import RKXNodes
 from . import RKXScene
 from . import RKSceneEditor
+from . import RKAIAssistant
