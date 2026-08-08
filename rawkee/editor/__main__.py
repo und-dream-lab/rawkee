@@ -30,8 +30,9 @@ else:
                           '--ignore-gpu-blacklist --ignore-gpu-blocklist')
 
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import Qt, QtMsgType, qInstallMessageHandler
+from PySide6.QtCore import Qt, QTimer, QtMsgType, qInstallMessageHandler
 from rawkee.editor.RKSceneEditor import RKSceneEditor, apply_dark_palette as _apply_dark_palette
+import signal
 
 
 def _qt_message_handler(msg_type, context, message):
@@ -43,6 +44,11 @@ def main():
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     app = QApplication.instance() or QApplication(sys.argv)
     _apply_dark_palette(app)
+    # Allow Ctrl+C to quit the Qt app on Windows
+    signal.signal(signal.SIGINT, lambda *_: app.quit())
+    _sigint_timer = QTimer()
+    _sigint_timer.start(200)
+    _sigint_timer.timeout.connect(lambda: None)  # wake event loop so SIGINT is processed
     editor = RKSceneEditor()
     editor.resize(1400, 900)
     editor.show()
