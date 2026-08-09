@@ -14,8 +14,7 @@ _addon_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 if _addon_dir not in sys.path:
     sys.path.insert(0, _addon_dir)
 
-from bpy_extras.io_utils import ExportHelper
-from bpy.props           import StringProperty, EnumProperty
+from bpy.props import StringProperty, EnumProperty
 
 from rawkee.io.RKSceneTraversal        import RKSceneTraversal
 from rawkee4blender.blender.RKOrganizerBlender import RKOrganizerBlender
@@ -128,7 +127,7 @@ def _run_export(operator, context, filepath, encoding, selected_only):
             except Exception:
                 pass
         del x3dDoc, rko
-        operator.report({'INFO'}, f"X3D export complete: {filepath}  |  Log: Scripting workspace → Text Editor → 'RawKee Export Log'")
+        operator.report({'INFO'}, f"X3D export complete: {filepath}")
         return {'FINISHED'}
     except Exception as e:
         import traceback; traceback.print_exc()
@@ -137,38 +136,68 @@ def _run_export(operator, context, filepath, encoding, selected_only):
 
 
 # ---------------------------------------------------------------------------
-class RAWKEE_OT_ExportX3DAll(bpy.types.Operator, ExportHelper):
+_EXT_MAP = {'x3d': '.x3d', 'x3dv': '.x3dv', 'x3dj': '.x3dj', 'json': '.json'}
+_KNOWN_EXTS = set(_EXT_MAP.values())
+
+
+def _sync_filepath_ext(op):
+    """Return True if filepath was changed to match encoding."""
+    new_ext = _EXT_MAP.get(op.encoding, '.x3d')
+    base, cur_ext = os.path.splitext(op.filepath)
+    if cur_ext.lower() in _KNOWN_EXTS:
+        new_path = base + new_ext
+    elif os.path.basename(op.filepath):
+        new_path = op.filepath + new_ext
+    else:
+        return False
+    if new_path != op.filepath:
+        op.filepath = new_path
+        return True
+    return False
+
+
+def _default_filepath(context, encoding):
+    blend = context.blend_data.filepath
+    base = os.path.splitext(blend)[0] if blend else "untitled"
+    return base + _EXT_MAP.get(encoding, '.x3d')
+
+
+class RAWKEE_OT_ExportX3DAll(bpy.types.Operator):
     """Export the entire Blender scene as an X3D file"""
     bl_idname = "rawkee.export_x3d_all"
     bl_label  = "RawKee -- Export All X3D"
     bl_options = {'REGISTER'}
-    filename_ext = ".x3d"
+    filepath:    StringProperty(subtype='FILE_PATH')
     filter_glob: StringProperty(default="*.x3d;*.x3dv;*.x3dj;*.json", options={'HIDDEN'})
-    encoding: EnumProperty(name="Encoding", items=ENCODING_ITEMS, default='x3d')
+    encoding:    EnumProperty(name="Encoding", items=ENCODING_ITEMS, default='x3d')
+    def check(self, context):
+        return _sync_filepath_ext(self)
     def invoke(self, context, event):
         prj = context.scene.rk_export_opts.prj_dir
-        if prj:
-            self.filepath = prj
-        return ExportHelper.invoke(self, context, event)
+        self.filepath = prj if prj else _default_filepath(context, self.encoding)
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
     def execute(self, context):
         return _run_export(self, context, self.filepath, self.encoding, False)
     def draw(self, context):
         self.layout.prop(self, "encoding")
 
 
-class RAWKEE_OT_ExportX3DSelected(bpy.types.Operator, ExportHelper):
+class RAWKEE_OT_ExportX3DSelected(bpy.types.Operator):
     """Export only selected objects as an X3D file"""
     bl_idname = "rawkee.export_x3d_selected"
     bl_label  = "RawKee -- Export Selected X3D"
     bl_options = {'REGISTER'}
-    filename_ext = ".x3d"
+    filepath:    StringProperty(subtype='FILE_PATH')
     filter_glob: StringProperty(default="*.x3d;*.x3dv;*.x3dj;*.json", options={'HIDDEN'})
-    encoding: EnumProperty(name="Encoding", items=ENCODING_ITEMS, default='x3d')
+    encoding:    EnumProperty(name="Encoding", items=ENCODING_ITEMS, default='x3d')
+    def check(self, context):
+        return _sync_filepath_ext(self)
     def invoke(self, context, event):
         prj = context.scene.rk_export_opts.prj_dir
-        if prj:
-            self.filepath = prj
-        return ExportHelper.invoke(self, context, event)
+        self.filepath = prj if prj else _default_filepath(context, self.encoding)
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
     def execute(self, context):
         return _run_export(self, context, self.filepath, self.encoding, True)
     def draw(self, context):
