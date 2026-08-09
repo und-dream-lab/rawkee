@@ -32,68 +32,18 @@ _timer_live  = False
 
 def _pump_qt_events():
     """Blender timer callback: keep Qt responsive. Returns next interval or None to stop."""
-    global _editor_win, _timer_live
-    if _editor_win is None or not _editor_win.isVisible():
-        _editor_win  = None
-        _timer_live  = False
-        return None  # unregisters the timer
+    global _editor_win, _timer_live, _qt_app
     try:
-        from PySide6.QtWidgets import QApplication
-        QApplication.processEvents()
+        if _qt_app is None or _editor_win is None or not _editor_win.isVisible():
+            _editor_win = None
+            _timer_live = False
+            return None  # unregisters the timer
+        _qt_app.processEvents()
     except Exception:
-        pass
-    return 0.016  # ~60 fps
-
-
-class RAWKEE_OT_InstallPySide6(bpy.types.Operator):
-    """Install PySide6 into Blender's bundled Python via pip"""
-    bl_idname  = "rawkee.install_pyside6"
-    bl_label   = "Install PySide6"
-    bl_options = {'REGISTER'}
-
-    def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self, width=420)
-
-    def draw(self, context):
-        layout = self.layout
-        layout.label(text="PySide6 is required for the RawKee X3D Interaction Editor.", icon='INFO')
-        layout.separator()
-        layout.label(text="Click OK to install it via pip into Blender's Python.")
-        layout.label(text="Requires internet access and may take 1-2 minutes.", icon='TIME')
-        layout.label(text="Blender must be restarted after installation.", icon='ERROR')
-
-    def execute(self, context):
-        import subprocess
-        import glob
-
-        # sys.executable is blender.exe; find the real Python binary via sys.prefix
-        if sys.platform == 'win32':
-            candidates = glob.glob(os.path.join(sys.prefix, 'bin', 'python*.exe'))
-        else:
-            candidates = [p for p in glob.glob(os.path.join(sys.prefix, 'bin', 'python3*'))
-                          if not p.endswith('-config')]
-        if not candidates:
-            self.report({'ERROR'}, f"Could not locate Python binary under {sys.prefix}")
-            return {'CANCELLED'}
-        python_exe = candidates[0]
-
-        # Install into Blender's user modules dir, which is already on sys.path
-        target_dir = bpy.utils.user_resource('SCRIPTS', path='modules')
-        os.makedirs(target_dir, exist_ok=True)
-
-        self.report({'INFO'}, f"Installing PySide6 to {target_dir} …")
-        try:
-            result = subprocess.run(
-                [python_exe, '-m', 'pip', 'install', 'PySide6', '--target', target_dir],
-                capture_output=True, text=True, timeout=300
-            )
-            if result.returncode == 0:
-                self.report({'INFO'}, "PySide6 installed. Please restart Blender, then open the X3D Interaction Editor.")
-            else:
-                self.report({'ERROR'}, f"pip install failed: {result.stderr[-300:]}")
-        except Exception as exc:
-            self.report({'ERROR'}, f"Installation failed: {exc}")
-        return {'FINISHED'}
+        _editor_win = None
+        _timer_live = False
+        return None
+    return 0.016 if bpy.app.version >= (5, 0, 0) else 0.05  # 60fps on 5+, 20fps on 4.x
 
 
 class RAWKEE_OT_OpenSceneEditor(bpy.types.Operator):
@@ -104,17 +54,30 @@ class RAWKEE_OT_OpenSceneEditor(bpy.types.Operator):
 
     def execute(self, context):
         global _qt_app, _editor_win, _timer_live
+        if bpy.app.version < (5, 0, 0):
+            self.report({'WARNING'},
+                "The X3D Interaction Editor requires Blender 5.0 or later. "
+                "Use the standalone RawKee PE application instead.")
+            return {'CANCELLED'}
+        # Ensure PySide6's Qt DLLs are on the Windows DLL search path
+        try:
+            import importlib.util, os as _os
+            _spec = importlib.util.find_spec('PySide6')
+            if _spec and _spec.origin and hasattr(_os, 'add_dll_directory'):
+                _os.add_dll_directory(_os.path.dirname(_spec.origin))
+        except Exception:
+            pass
         try:
             from PySide6.QtWidgets import QApplication
             from rawkee.editor.RKSceneEditor import RKSceneEditor
-        except ImportError:
-            bpy.ops.rawkee.install_pyside6('INVOKE_DEFAULT')
+        except Exception as e:
+            self.report({'ERROR'},
+                f"Cannot open X3D Interaction Editor: {type(e).__name__}: {e}. "
+                "Run blender_rawkee_install.py, then restart Blender.")
             return {'CANCELLED'}
 
         if _qt_app is None:
             _qt_app = QApplication.instance() or QApplication([])
-            from rawkee.editor.RKSceneEditor import apply_dark_palette
-            apply_dark_palette(_qt_app)
             from rawkee.editor.RKSceneEditor import apply_dark_palette
             apply_dark_palette(_qt_app)
 
@@ -152,11 +115,6 @@ def _run_export(operator, context, filepath, encoding, selected_only):
         rko.prepForSceneTraversal(context)
         x3dDoc       = rko.trv.getX3DObject()
         x3dDoc.Scene = rko.trv.getSceneObject()
-        bkNode = rko.trv.processBasicNodeAddition(
-            x3dDoc.Scene, "children", "Background", "DefaultBackground")
-        if bkNode and context.scene.world:
-            c = context.scene.world.color
-            bkNode.skyColor[0] = (c.r, c.g, c.b)
         fext = os.path.splitext(filepath)[1].lstrip('.')
         enc  = fext if fext in ('x3d','x3dv','x3dj','json') else encoding
         if selected_only:
@@ -170,7 +128,7 @@ def _run_export(operator, context, filepath, encoding, selected_only):
             except Exception:
                 pass
         del x3dDoc, rko
-        operator.report({'INFO'}, f"X3D export complete: {filepath}")
+        operator.report({'INFO'}, f"X3D export complete: {filepath}  |  Log: Scripting workspace → Text Editor → 'RawKee Export Log'")
         return {'FINISHED'}
     except Exception as e:
         import traceback; traceback.print_exc()
@@ -187,6 +145,11 @@ class RAWKEE_OT_ExportX3DAll(bpy.types.Operator, ExportHelper):
     filename_ext = ".x3d"
     filter_glob: StringProperty(default="*.x3d;*.x3dv;*.x3dj;*.json", options={'HIDDEN'})
     encoding: EnumProperty(name="Encoding", items=ENCODING_ITEMS, default='x3d')
+    def invoke(self, context, event):
+        prj = context.scene.rk_export_opts.prj_dir
+        if prj:
+            self.filepath = prj
+        return ExportHelper.invoke(self, context, event)
     def execute(self, context):
         return _run_export(self, context, self.filepath, self.encoding, False)
     def draw(self, context):
@@ -201,6 +164,11 @@ class RAWKEE_OT_ExportX3DSelected(bpy.types.Operator, ExportHelper):
     filename_ext = ".x3d"
     filter_glob: StringProperty(default="*.x3d;*.x3dv;*.x3dj;*.json", options={'HIDDEN'})
     encoding: EnumProperty(name="Encoding", items=ENCODING_ITEMS, default='x3d')
+    def invoke(self, context, event):
+        prj = context.scene.rk_export_opts.prj_dir
+        if prj:
+            self.filepath = prj
+        return ExportHelper.invoke(self, context, event)
     def execute(self, context):
         return _run_export(self, context, self.filepath, self.encoding, True)
     def draw(self, context):
@@ -258,41 +226,20 @@ class RAWKEE_OT_ShowMSF(bpy.types.Operator):
 # ---------------------------------------------------------------------------
 class RKMainPanel(bpy.types.Panel):
     """RawKee PE (X3D) main sidebar panel"""
-    bl_label       = "RawKee (.X3D)"
+    bl_label       = "RawKee X3D for Blender"
     bl_idname      = "RAWKEE_PT_MainPanel"
     bl_space_type  = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category    = 'RawKee (.X3D)'
+    bl_category    = 'RawKee X3D for Blender'
     def draw(self, context):
-        self.layout.label(text="RawKee PE (X3D) v0.1 - Blender 5", icon='WORLD')
-
-
-class RAWKEE_PT_SubPanel_Export(bpy.types.Panel):
-    """File Import / Export actions"""
-    bl_label       = "File - Import / Export"
-    bl_idname      = "RAWKEE_PT_SubPanel_Export"
-    bl_space_type  = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category    = 'RawKee (.X3D)'
-    bl_parent_id   = 'RAWKEE_PT_MainPanel'
-    def draw(self, context):
-        col = self.layout.column(align=True)
-        col.operator("rawkee.export_x3d_all",      icon='EXPORT', text="Export All X3D")
-        col.operator("rawkee.export_x3d_selected", icon='EXPORT', text="Export Selected X3D")
-        col.separator()
-        col.operator("rawkee.set_project", icon='FILE_FOLDER', text="Set RawKee Project")
-
-
-class RAWKEE_PT_SubPanel_SceneEditor(bpy.types.Panel):
-    """Launch the standalone RawKee X3D Interaction Editor"""
-    bl_label       = "X3D Interaction Editor"
-    bl_idname      = "RAWKEE_PT_SubPanel_SceneEditor"
-    bl_space_type  = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category    = 'RawKee (.X3D)'
-    bl_parent_id   = 'RAWKEE_PT_MainPanel'
-    def draw(self, context):
-        self.layout.operator("rawkee.open_scene_editor", icon='WINDOW', text="X3D Interaction Editor")
+        layout = self.layout
+        row = layout.row()
+        row.alignment = 'LEFT'
+        row.operator("rawkee.export_options_dialog", icon='PREFERENCES', text="X3D Export Options")
+        layout.separator()
+        row = layout.row()
+        row.alignment = 'LEFT'
+        row.operator("rawkee.open_scene_editor",     icon='WINDOW',       text="X3D Interaction Editor")
 
 
 class RAWKEE_PT_SubPanel_AddNodes(bpy.types.Panel):
@@ -301,36 +248,64 @@ class RAWKEE_PT_SubPanel_AddNodes(bpy.types.Panel):
     bl_idname      = "RAWKEE_PT_SubPanel_AddNodes"
     bl_space_type  = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category    = 'RawKee (.X3D)'
+    bl_category    = 'RawKee X3D for Blender'
     bl_parent_id   = 'RAWKEE_PT_MainPanel'
     bl_options     = {'DEFAULT_CLOSED'}
     def draw(self, context):
         col = self.layout.column(align=True)
         col.operator("rawkee.add_x3d_sound", icon='SPEAKER', text="Add X3D Sound")
-        col.operator("rawkee.add_anim_pack",  icon='ACTION',  text="Add RK AnimPack")
 
 
 class RAWKEE_PT_SubPanel_Links(bpy.types.Panel):
-    """3rd party X3D tools and viewers"""
-    bl_label       = "3rd Party Tools & Viewers"
+    """X3D external websites"""
+    bl_label       = "X3D External Websites"
     bl_idname      = "RAWKEE_PT_SubPanel_Links"
     bl_space_type  = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category    = 'RawKee (.X3D)'
+    bl_category    = 'RawKee X3D for Blender'
     bl_parent_id   = 'RAWKEE_PT_MainPanel'
     bl_options     = {'DEFAULT_CLOSED'}
     def draw(self, context):
-        layout = self.layout
-        col = layout.column(align=True)
-        col.label(text="X3D Viewers:", icon='WORLD_DATA')
-        col.operator("rawkee.show_x_ite",   icon='URL')
-        col.operator("rawkee.show_cge",     icon='URL')
-        col.operator("rawkee.show_x3dom",   icon='URL')
-        col.separator()
-        col.label(text="X3D Editors:", icon='NODE_COMPOSITING')
-        col.operator("rawkee.show_sunrize", icon='URL')
-        col.separator()
-        col.label(text="Resources:", icon='BOOKMARKS')
+        pass
+
+
+class RAWKEE_PT_ExternalWebsites_Viewers(bpy.types.Panel):
+    bl_label       = "X3D Viewers"
+    bl_idname      = "RAWKEE_PT_ExternalWebsites_Viewers"
+    bl_space_type  = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category    = 'RawKee X3D for Blender'
+    bl_parent_id   = 'RAWKEE_PT_SubPanel_Links'
+    bl_options     = {'DEFAULT_CLOSED'}
+    def draw(self, context):
+        col = self.layout.column(align=True)
+        col.operator("rawkee.show_x_ite",  icon='URL')
+        col.operator("rawkee.show_cge",    icon='URL')
+        col.operator("rawkee.show_x3dom",  icon='URL')
+
+
+class RAWKEE_PT_ExternalWebsites_Editors(bpy.types.Panel):
+    bl_label       = "X3D Editors"
+    bl_idname      = "RAWKEE_PT_ExternalWebsites_Editors"
+    bl_space_type  = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category    = 'RawKee X3D for Blender'
+    bl_parent_id   = 'RAWKEE_PT_SubPanel_Links'
+    bl_options     = {'DEFAULT_CLOSED'}
+    def draw(self, context):
+        self.layout.operator("rawkee.show_sunrize", icon='URL')
+
+
+class RAWKEE_PT_ExternalWebsites_Resources(bpy.types.Panel):
+    bl_label       = "Resources"
+    bl_idname      = "RAWKEE_PT_ExternalWebsites_Resources"
+    bl_space_type  = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category    = 'RawKee X3D for Blender'
+    bl_parent_id   = 'RAWKEE_PT_SubPanel_Links'
+    bl_options     = {'DEFAULT_CLOSED'}
+    def draw(self, context):
+        col = self.layout.column(align=True)
         col.operator("rawkee.show_help_wiki",  icon='URL')
         col.operator("rawkee.show_dream_lab",  icon='URL')
         col.operator("rawkee.show_web3d",      icon='URL')
@@ -344,10 +319,14 @@ def _menu_export(self, context):
         text="RawKee X3D (.x3d / .x3dv / .x3dj)",
         icon='WORLD_DATA',
     )
+    self.layout.operator(
+        "rawkee.export_options_dialog",
+        text="RawKee X3D - Export Options",
+        icon='PREFERENCES',
+    )
 
 
 _own_classes = [
-    RAWKEE_OT_InstallPySide6,
     RAWKEE_OT_OpenSceneEditor,
     RAWKEE_OT_ExportX3DAll,
     RAWKEE_OT_ExportX3DSelected,
@@ -361,10 +340,11 @@ _own_classes = [
     RAWKEE_OT_ShowWeb3D,
     RAWKEE_OT_ShowMSF,
     RKMainPanel,
-    RAWKEE_PT_SubPanel_SceneEditor,
-    RAWKEE_PT_SubPanel_Export,
     RAWKEE_PT_SubPanel_AddNodes,
     RAWKEE_PT_SubPanel_Links,
+    RAWKEE_PT_ExternalWebsites_Viewers,
+    RAWKEE_PT_ExternalWebsites_Editors,
+    RAWKEE_PT_ExternalWebsites_Resources,
 ]
 
 _sub_modules = [
@@ -380,7 +360,21 @@ _sub_modules = [
 ]
 
 
+def _setup_pip_paths():
+    """Ensure user site-packages is on sys.path at addon startup."""
+    import importlib, os as _os
+    try:
+        import site as _site
+        user_site = _os.path.normpath(_site.getusersitepackages())
+        if user_site not in [_os.path.normpath(p) for p in sys.path]:
+            sys.path.insert(0, user_site)
+            importlib.invalidate_caches()
+    except Exception as e:
+        print(f"[RawKee] _setup_pip_paths failed: {e}")
+
+
 def register():
+    _setup_pip_paths()
     for cls in _own_classes:
         bpy.utils.register_class(cls)
 
@@ -395,7 +389,7 @@ def register():
 
     bpy.types.TOPBAR_MT_file_export.append(_menu_export)
     print("[RawKee] Addon registered. "
-          "In the 3D Viewport press N and select the 'RawKee (.X3D)' tab. "
+          "In the 3D Viewport press N and select the 'RawKee X3D for Blender' tab. "
           "File > Export also has a 'RawKee X3D' entry.")
 
 

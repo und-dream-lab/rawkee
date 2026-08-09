@@ -145,6 +145,72 @@ def _show_result(title, lines):
     bpy.context.window_manager.popup_menu(draw, title=title, icon="INFO")
 
 
+def _check_pip_dependencies():
+    """Check all required pip packages and install any that are missing.
+    Uses actual import attempts. After install, queries pip show for the exact
+    install location and adds it to sys.path so packages are usable immediately
+    in the current session — works across all Blender versions."""
+    import subprocess, importlib
+
+    # pip install-name → Python import-name
+    PACKAGES = {
+        "numpy":         "numpy",
+        "imageio":       "imageio",
+        "opencv-python": "cv2",
+        "scipy":         "scipy",
+        "PySide6":       "PySide6",
+        "MaterialX":     "MaterialX",
+    }
+
+    def _importable(import_name):
+        try:
+            __import__(import_name)
+            return True
+        except Exception as e:
+            print(f"[RawKee] Cannot import '{import_name}': {type(e).__name__}: {e}")
+            return False
+
+    def _add_pip_location(pip_name):
+        """Query pip show to find install location and add it to sys.path."""
+        show = subprocess.run(
+            [sys.executable, "-m", "pip", "show", pip_name],
+            capture_output=True, text=True,
+        )
+        for line in show.stdout.splitlines():
+            if line.startswith("Location: "):
+                loc = os.path.normpath(line[10:].strip())
+                if loc not in [os.path.normpath(p) for p in sys.path]:
+                    sys.path.insert(0, loc)
+                break
+
+    missing = [pip for pip, imp in PACKAGES.items() if not _importable(imp)]
+    if not missing:
+        return [f"Python dependencies OK: {', '.join(PACKAGES)}"]
+
+    lines = [f"Missing: {', '.join(missing)}", "Installing via pip …"]
+
+    import site as _site
+    user_site = _site.getusersitepackages()
+    os.makedirs(user_site, exist_ok=True)
+
+    result = subprocess.run(
+        [sys.executable, "-m", "pip", "install", "--target", user_site] + missing,
+        capture_output=True, text=True,
+    )
+
+    # Find and register every installed package's location immediately
+    for pip_name in missing:
+        _add_pip_location(pip_name)
+    importlib.invalidate_caches()
+
+    if result.returncode == 0:
+        lines.append(f"Installed: {', '.join(missing)}")
+    else:
+        lines.append("pip install FAILED — see system console for details.")
+        print(result.stderr)
+    return lines
+
+
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
@@ -199,6 +265,7 @@ def install():
     rawkee4blender_dst  = _copy_package(repo_root, modules_dir, "rawkee4blender")
     addon_dst           = _copy_addon_entry_point(repo_root, addons_dir)
     status_msg          = _enable_addon(modules_dir)
+    dep_lines           = _check_pip_dependencies()
 
     _show_result(
         "RawKee Blender Installer — Done",
@@ -209,6 +276,8 @@ def install():
             f"Addon file       : {addon_dst}",
             "",
             status_msg,
+            "",
+        ] + dep_lines + [
             "",
             "Please restart Blender to confirm the installation.",
         ],

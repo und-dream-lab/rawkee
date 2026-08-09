@@ -13,7 +13,7 @@ bl_info = {
     "name"        : "BlenderRawKeeX3DExport",
     "author"      : "UND Dream Lab",
     "version"     : (0, 1, 0),
-    "blender"     : (5, 0, 1),
+    "blender"     : (4, 2, 0),
     "location"    : "File > Export / Sidebar N-panel 'RawKee (.X3D)'",
     "description" : "RawKee PE X3D export plugin for Blender 5",
     "doc_url"     : "https://github.com/und-dream-lab/rawkee/",
@@ -25,6 +25,17 @@ bl_info = {
 _addon_dir = os.path.dirname(__file__)
 if _addon_dir not in sys.path:
     sys.path.insert(0, _addon_dir)
+
+# Add pip-installed package locations to sys.path before any rawkee imports
+# so that RKTools.py picks up numpy/imageio at module load time.
+try:
+    import site as _site, importlib as _il, os as _os
+    _user_site = _os.path.normpath(_site.getusersitepackages())
+    if _user_site not in [_os.path.normpath(p) for p in sys.path]:
+        sys.path.insert(0, _user_site)
+        _il.invalidate_caches()
+except Exception:
+    pass
 
 
 class RawKeeAddonPreferences(bpy.types.AddonPreferences):

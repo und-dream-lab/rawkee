@@ -209,7 +209,7 @@ class RAWKEE_PT_CharacterEditor(Panel):
     bl_idname      = "RAWKEE_PT_CharacterEditor"
     bl_space_type  = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category    = 'RawKee (.X3D)'
+    bl_category    = 'RawKee X3D for Blender'
     bl_parent_id   = 'RAWKEE_PT_MainPanel'
     bl_options     = {'DEFAULT_CLOSED'}
 

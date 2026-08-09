@@ -30,10 +30,12 @@ import bpy
 import math
 import mathutils
 import os
+import sys
 import shutil
 
 from rawkee.io.RKSceneTraversal import RKSceneTraversal
 from rawkee.io.RKx3d import *
+from rawkee.tools.RKTools         import RKTools
 
 # ---------------------------------------------------------------------------
 #  Axis-conversion matrix  Blender Z-up → X3D Y-up
@@ -87,6 +89,20 @@ def _safe_name(name):
     return name.replace(' ', '_').replace('.', '_').replace(':', '_')
 
 
+_RK_LOG_NAME = "RawKee Export Log"
+
+
+def _rk_log(msg):
+    """Write to system console AND the 'RawKee Export Log' text block in the Text Editor."""
+    print(msg)
+    try:
+        if _RK_LOG_NAME not in bpy.data.texts:
+            bpy.data.texts.new(_RK_LOG_NAME)
+        bpy.data.texts[_RK_LOG_NAME].write(msg + "\n")
+    except Exception:
+        pass
+
+
 # ---------------------------------------------------------------------------
 #  Main class
 # ---------------------------------------------------------------------------
@@ -102,17 +118,19 @@ class RKOrganizerBlender:
 
         # Export option mirrors (loaded from scene.rk_export_opts in prepForSceneTraversal)
         self.rkPrjDir        = ""
-        self.rkImagePath     = "/images"
-        self.rkAudioPath     = "/audio"
-        self.rkInlinePath    = "/inline"
-        self.rkMatXPath      = "/mtlx"
+        self.rkImagePath     = "images/"
+        self.rkAudioPath     = "audio/"
+        self.rkInlinePath    = "inline/"
+        self.rkMatXPath      = "mtlx/"
         self.rkUseHAnimSites = False
         self.rkSkinInfluence = 0
         self.rkAdjTexSize    = False
         self.rkDefTexWidth   = 256
         self.rkDefTexHeight  = 256
-        self.rkConsolidate   = True
-        self.rkProcTexType   = 0
+        self.rkConsolidate         = True
+        self.rkConvertHDRToKTX2   = True
+        self.rkMaxCubeMapFaceSize  = 4096
+        self.rkProcTexType         = 0
         self.rkProcTexFormat = 0
         self.rkFileTexType   = 0
         self.rkFileTexFormat = 0
@@ -127,7 +145,6 @@ class RKOrganizerBlender:
         self.rkExportEmpties = True
         self.rkExportMetadata = True
         self.rkExportAnimations = True
-        self.exEncoding      = "x3d"
         self.exEncoding      = "x3d"
 
         # Internal state
@@ -150,16 +167,20 @@ class RKOrganizerBlender:
         opts = context.scene.rk_export_opts
 
         self.rkPrjDir        = opts.prj_dir
-        self.rkImagePath     = opts.image_path
-        self.rkAudioPath     = opts.audio_path
-        self.rkMatXPath      = opts.matx_path
+        # Normalize sub-paths: replace backslashes with forward slashes
+        self.rkImagePath  = opts.image_path.replace('\\', '/')
+        self.rkAudioPath  = opts.audio_path.replace('\\', '/')
+        self.rkInlinePath = opts.inline_path.replace('\\', '/')
+        self.rkMatXPath   = opts.matx_path.replace('\\', '/')
         self.rkUseHAnimSites = opts.use_hanim_sites
         self.rkSkinInfluence = int(opts.skin_influence)
         self.rkAdjTexSize    = opts.adj_tex_size
         self.rkDefTexWidth   = opts.tex_width
         self.rkDefTexHeight  = opts.tex_height
-        self.rkConsolidate   = opts.consolidate
-        self.rkProcTexType   = int(opts.proc_tex_type)
+        self.rkConsolidate        = opts.consolidate
+        self.rkConvertHDRToKTX2  = opts.convert_hdr_to_ktx2
+        self.rkMaxCubeMapFaceSize = opts.max_cube_map_face_size
+        self.rkProcTexType        = int(opts.proc_tex_type)
         self.rkProcTexFormat = int(opts.proc_tex_format)
         self.rkFileTexType   = int(opts.file_tex_type)
         self.rkFileTexFormat = int(opts.file_tex_format)
@@ -185,8 +206,8 @@ class RKOrganizerBlender:
     def checkSubDirs(self, fullPath):
         """Create sub-directories for consolidated media next to the output file."""
         base = os.path.dirname(fullPath)
-        self.imageMoveDir = base + self.rkImagePath
-        self.audioMoveDir = base + self.rkAudioPath
+        self.imageMoveDir = os.path.normpath(os.path.join(base, self.rkImagePath))
+        self.audioMoveDir = os.path.normpath(os.path.join(base, self.rkAudioPath))
         if self.rkConsolidate:
             os.makedirs(self.imageMoveDir, exist_ok=True)
             os.makedirs(self.audioMoveDir, exist_ok=True)
@@ -200,11 +221,12 @@ class RKOrganizerBlender:
             return src_abs
         fname   = os.path.basename(src_abs)
         dst_abs = os.path.join(self.imageMoveDir, fname)
-        try:
-            shutil.copy2(src_abs, dst_abs)
-        except Exception as e:
-            print(f"RKOrganizerBlender: texture copy failed: {e}")
-        rel_url = self.rkImagePath.lstrip('/') + '/' + fname
+        if src_abs != dst_abs:
+            try:
+                shutil.copy2(src_abs, dst_abs)
+            except Exception as e:
+                print(f"RKOrganizerBlender: texture copy failed: {e}")
+        rel_url = self.rkImagePath + fname  # rkImagePath is already normalised, e.g. "images/"
         self.exportedTextures[src_abs] = rel_url
         return rel_url
 
@@ -226,17 +248,17 @@ class RKOrganizerBlender:
         self.animation_data.clear()
         self.exportedTextures.clear()
 
+        # Reset the in-Blender log for this export run
+        try:
+            if _RK_LOG_NAME in bpy.data.texts:
+                bpy.data.texts[_RK_LOG_NAME].clear()
+            else:
+                bpy.data.texts.new(_RK_LOG_NAME)
+        except Exception:
+            pass
+
         # Mark pseudo-root
         self.trv.setAsHasBeen("BlenderScene", x3dScene)
-
-        # Background from world colour
-        world = context.scene.world
-        bkNode = self.trv.processBasicNodeAddition(
-            x3dScene, "children", "Background", "DefaultBackground"
-        )
-        if bkNode and world:
-            c = world.color
-            bkNode.skyColor[0] = (c.r, c.g, c.b)
 
         # World environment texture → EnvironmentLight
         self._process_world_environment(x3dScene, context)
@@ -278,15 +300,16 @@ class RKOrganizerBlender:
         self.haveBeenObjects.clear()
         self.animation_data.clear()
         self.exportedTextures.clear()
-        self.trv.setAsHasBeen("BlenderScene", x3dScene)
 
-        world = context.scene.world
-        bkNode = self.trv.processBasicNodeAddition(
-            x3dScene, "children", "Background", "DefaultBackground"
-        )
-        if bkNode and world:
-            c = world.color
-            bkNode.skyColor[0] = (c.r, c.g, c.b)
+        # Reset the in-Blender log for this export run
+        try:
+            if _RK_LOG_NAME in bpy.data.texts:
+                bpy.data.texts[_RK_LOG_NAME].clear()
+            else:
+                bpy.data.texts.new(_RK_LOG_NAME)
+        except Exception:
+            pass
+        self.trv.setAsHasBeen("BlenderScene", x3dScene)
 
         for obj in context.selected_objects:
             if obj.parent is None or obj.parent not in context.selected_objects:
@@ -329,9 +352,9 @@ class RKOrganizerBlender:
             x3dTarget = x3dParent
 
         # Objects directly inside this collection (only those without parents
-        # in the same collection so we don't double-export)
-        for obj in collection.objects:
-            if obj.parent is None or obj.parent.name not in collection.objects:
+        # reversed() matches the outliner top-to-bottom display order
+        for obj in reversed(list(collection.objects)):
+            if obj.parent is None or obj.parent not in collection.objects:
                 self._process_object(x3dTarget, obj, context, is_root=is_root)
 
         # Recurse into child collections
@@ -609,10 +632,15 @@ class RKOrganizerBlender:
                     gltf_mr = node
 
         # Prefer Principled BSDF; fall back to glTF MR; then legacy Material.
-        shader_node = pbsdf or gltf_mr
+        shader_node   = pbsdf or gltf_mr
+        as_x3d_shader = bool(mat.get("rk_as_x3d_shader", False))
         if shader_node is not None:
-            self._build_physical_material(app, mat, shader_node, app_name,
-                                          is_gltf_mr=(pbsdf is None))
+            if as_x3d_shader:
+                self._build_packaged_composed_shader(app, mat, shader_node, app_name,
+                                                     is_gltf_mr=(pbsdf is None))
+            else:
+                self._build_physical_material_ext(app, mat, shader_node, app_name,
+                                                  is_gltf_mr=(pbsdf is None))
         else:
             # Fallback: use diffuse colour directly
             pm = self.trv.processBasicNodeAddition(
@@ -649,69 +677,76 @@ class RKOrganizerBlender:
         return None
 
 
-    def _build_physical_material(self, x3dApp, mat, pbsdf, base_name,
-                                   is_gltf_mr=False):
-        """Map Principled BSDF or glTF Metallic Roughness inputs to X3D PhysicalMaterial."""
+    def _build_physical_material_ext(self, x3dApp, mat, pbsdf, base_name,
+                                      is_gltf_mr=False):
+        """Map Principled BSDF or glTF MR inputs to X3D PhysicalMaterialExt + glTF extensions."""
         pm = self.trv.processBasicNodeAddition(
-            x3dApp, "material", "PhysicalMaterial", base_name + "_PhysMat"
+            x3dApp, "material", "PhysicalMaterialExt", base_name + "_PhysMatExt"
         )
         if pm is None:
             return
 
+        # glTF MR group uses different socket names from Principled BSDF
+        base_col_sock = "BaseColorFactor"  if is_gltf_mr else "Base Color"
+        metal_sock    = "MetallicFactor"   if is_gltf_mr else "Metallic"
+        rough_sock    = "RoughnessFactor"  if is_gltf_mr else "Roughness"
+
         # Base color
-        base_col = self._get_pbsdf_input_value(pbsdf, "Base Color")
+        base_col = self._get_pbsdf_input_value(pbsdf, base_col_sock)
         if base_col:
             pm.baseColor = (base_col[0], base_col[1], base_col[2])
 
-        # Metallic / roughness
-        metal = self._get_pbsdf_input_value(pbsdf, "Metallic")
+        # Metallic / roughness scalars
+        metal = self._get_pbsdf_input_value(pbsdf, metal_sock)
         if metal is not None:
             pm.metallic = float(metal)
 
-        rough = self._get_pbsdf_input_value(pbsdf, "Roughness")
+        rough = self._get_pbsdf_input_value(pbsdf, rough_sock)
         if rough is not None:
             pm.roughness = float(rough)
 
-        # Emissive — socket name differs between the two shader types:
-        #   Principled BSDF : "Emission" (color) + "Emission Strength" (float)
-        #   glTF MR group   : "Emissive" (color, strength already baked in)
+        # Emissive color — do NOT pre-multiply by strength; extension handles that
         if is_gltf_mr:
             em_col = self._get_pbsdf_input_value(pbsdf, "Emissive")
             if em_col:
                 pm.emissiveColor = (float(em_col[0]), float(em_col[1]), float(em_col[2]))
         else:
-            em_sock = pbsdf.inputs.get("Emission")
-            em_str  = pbsdf.inputs.get("Emission Strength")
-            if em_sock and em_str:
+            # 4.x renamed "Emission" → "Emission Color"
+            em_sock = pbsdf.inputs.get("Emission Color") or pbsdf.inputs.get("Emission")
+            if em_sock:
                 ec = em_sock.default_value
-                es = float(em_str.default_value)
-                pm.emissiveColor = (ec[0] * es, ec[1] * es, ec[2] * es)
+                em_c = (float(ec[0]), float(ec[1]), float(ec[2]))
+                if any(v > 0.001 for v in em_c):
+                    pm.emissiveColor = em_c
 
-        # Transparency (alpha)
+        # Transparency
         alpha = self._get_pbsdf_input_value(pbsdf, "Alpha")
         if alpha is not None and float(alpha) < 0.999:
             pm.transparency = 1.0 - float(alpha)
 
         # ---- Textures ------------------------------------------------
-        # Diagnostics: print shader node inputs to Blender console
-        print(f"[RawKee] _build_physical_material: shader='{pbsdf.name}' "
+        print(f"[RawKee] _build_physical_material_ext: shader='{pbsdf.name}' "
               f"type={pbsdf.type} is_gltf_mr={is_gltf_mr}")
         for s in pbsdf.inputs:
             linked = len(s.links) > 0
             from_t = s.links[0].from_node.type if linked else 'none'
-            print(f"[RawKee]   socket '{s.name}': linked={linked} from_type={from_t}")
+            _rk_log(f"[RawKee]   socket '{s.name}': linked={linked} from_type={from_t}")
 
-        # Base color
-        img = self._find_image_texture(mat.node_tree, "Base Color", pbsdf)
-        print(f"[RawKee]   _find_image_texture('Base Color') -> {img}")
+        # Base color texture (glTF MR: "BaseColor"; Principled BSDF: "Base Color")
+        base_tex_sock = "BaseColor" if is_gltf_mr else "Base Color"
+        img = self._find_image_texture(mat.node_tree, base_tex_sock, pbsdf)
+        _rk_log(f"[RawKee]   _find_image_texture({base_tex_sock!r}) -> {img}")
         if img and img.image:
-            print(f"[RawKee]   image.name={img.image.name!r}  filepath={img.image.filepath!r}  packed={img.image.packed_file is not None}")
-            self._make_image_texture(pm, "baseTexture", img.image,
-                                     base_name + "_BaseTex")
+            _rk_log(f"[RawKee]   image.name={img.image.name!r}  filepath={img.image.filepath!r}"
+                  f"  packed={img.image.packed_file is not None}")
+            self._make_image_texture(pm, "baseTexture", img.image, base_name + "_BaseTex")
 
-        # Metallic-roughness (try Metallic socket first, fall back to Roughness)
-        mr = (self._find_image_texture(mat.node_tree, "Metallic", pbsdf) or
-              self._find_image_texture(mat.node_tree, "Roughness", pbsdf))
+        # Metallic-roughness texture
+        if is_gltf_mr:
+            mr = self._find_image_texture(mat.node_tree, "MetallicRoughness", pbsdf)
+        else:
+            mr = (self._find_image_texture(mat.node_tree, "Metallic", pbsdf) or
+                  self._find_image_texture(mat.node_tree, "Roughness", pbsdf))
         if mr and mr.image:
             self._make_image_texture(pm, "metallicRoughnessTexture", mr.image,
                                      base_name + "_MRTex")
@@ -719,21 +754,368 @@ class RKOrganizerBlender:
         # Normal map
         nm = self._find_image_texture(mat.node_tree, "Normal", pbsdf)
         if nm and nm.image:
-            self._make_image_texture(pm, "normalTexture", nm.image,
-                                     base_name + "_NormTex")
+            self._make_image_texture(pm, "normalTexture", nm.image, base_name + "_NormTex")
 
-        # Emissive texture
-        em_sock = "Emissive" if is_gltf_mr else "Emission"
-        em = self._find_image_texture(mat.node_tree, em_sock, pbsdf)
-        if em and em.image:
-            self._make_image_texture(pm, "emissiveTexture", em.image,
-                                     base_name + "_EmissTex")
+        # Emissive texture — override emissiveColor to white when a texture is present
+        em_tex_sock = ("Emissive" if is_gltf_mr
+                       else ("Emission Color" if pbsdf.inputs.get("Emission Color") else "Emission"))
+        em_tex = self._find_image_texture(mat.node_tree, em_tex_sock, pbsdf)
+        if em_tex and em_tex.image:
+            pm.emissiveColor = (1.0, 1.0, 1.0)
+            self._make_image_texture(pm, "emissiveTexture", em_tex.image, base_name + "_EmissTex")
 
         # Occlusion texture
         occ = self._find_image_texture(mat.node_tree, "Occlusion", pbsdf)
         if occ and occ.image:
-            self._make_image_texture(pm, "occlusionTexture", occ.image,
-                                     base_name + "_OccTex")
+            self._make_image_texture(pm, "occlusionTexture", occ.image, base_name + "_OccTex")
+
+        # ---- glTF material extensions (Principled BSDF only) ---------
+        if is_gltf_mr:
+            return
+
+        # IOR (KHR_materials_ior) — only when not the default 1.5
+        ior_val = self._get_pbsdf_input_value(pbsdf, "IOR")
+        if ior_val is not None and abs(float(ior_val) - 1.5) > 0.001:
+            ior_ext = self.trv.processBasicNodeAddition(
+                pm, "extensions", "IORMaterialExtension", base_name + "_IORME")
+            if ior_ext:
+                ior_ext.indexOfRefraction = float(ior_val)
+
+        # Emissive strength (KHR_materials_emissive_strength) — only when != 1.0
+        em_str_sock = pbsdf.inputs.get("Emission Strength")
+        if em_str_sock:
+            es = float(em_str_sock.default_value)
+            if abs(es - 1.0) > 0.001:
+                es_ext = self.trv.processBasicNodeAddition(
+                    pm, "extensions", "EmissiveStrengthMaterialExtension", base_name + "_ESME")
+                if es_ext:
+                    es_ext.emissiveStrength = es
+
+        # Transmission (KHR_materials_transmission)
+        trans_sock = (pbsdf.inputs.get("Transmission Weight") or  # 4.x
+                      pbsdf.inputs.get("Transmission"))           # 3.x
+        if trans_sock:
+            tv = float(trans_sock.default_value)
+            if tv > 0.001:
+                tr_ext = self.trv.processBasicNodeAddition(
+                    pm, "extensions", "TransmissionMaterialExtension", base_name + "_TRME")
+                if tr_ext:
+                    tr_ext.transmission = tv
+                    tr_tex = (self._find_image_texture(mat.node_tree, "Transmission Weight", pbsdf) or
+                              self._find_image_texture(mat.node_tree, "Transmission",        pbsdf))
+                    if tr_tex and tr_tex.image:
+                        self._make_image_texture(tr_ext, "transmissionTexture",
+                                                  tr_tex.image, base_name + "_TransTex")
+
+        # Clearcoat (KHR_materials_clearcoat)
+        coat_sock = (pbsdf.inputs.get("Coat Weight") or  # 4.x
+                     pbsdf.inputs.get("Clearcoat"))      # 3.x
+        if coat_sock:
+            cv = float(coat_sock.default_value)
+            if cv > 0.001:
+                coat_ext = self.trv.processBasicNodeAddition(
+                    pm, "extensions", "ClearcoatMaterialExtension", base_name + "_CoatME")
+                if coat_ext:
+                    coat_ext.clearcoat = cv
+                    coat_rough = (pbsdf.inputs.get("Coat Roughness") or
+                                  pbsdf.inputs.get("Clearcoat Roughness"))
+                    if coat_rough:
+                        coat_ext.clearcoatRoughness = float(coat_rough.default_value)
+                    coat_nm = (self._find_image_texture(mat.node_tree, "Coat Normal",      pbsdf) or
+                               self._find_image_texture(mat.node_tree, "Clearcoat Normal", pbsdf))
+                    if coat_nm and coat_nm.image:
+                        self._make_image_texture(coat_ext, "clearcoatNormalTexture",
+                                                  coat_nm.image, base_name + "_CoatNormTex")
+
+        # Sheen (KHR_materials_sheen)
+        sheen_sock = (pbsdf.inputs.get("Sheen Weight") or  # 4.x
+                      pbsdf.inputs.get("Sheen"))           # 3.x
+        if sheen_sock:
+            sv = float(sheen_sock.default_value)
+            if sv > 0.001:
+                sheen_ext = self.trv.processBasicNodeAddition(
+                    pm, "extensions", "SheenMaterialExtension", base_name + "_SheenME")
+                if sheen_ext:
+                    tint = pbsdf.inputs.get("Sheen Tint")
+                    if tint:
+                        sc = tint.default_value
+                        if hasattr(sc, '__len__') and len(sc) >= 3:  # 4.x: color
+                            sheen_ext.sheenColor = (float(sc[0]) * sv,
+                                                     float(sc[1]) * sv,
+                                                     float(sc[2]) * sv)
+                        else:                                         # 3.x: float
+                            sheen_ext.sheenColor = (sv, sv, sv)
+                    sheen_rough = pbsdf.inputs.get("Sheen Roughness")
+                    if sheen_rough:
+                        sheen_ext.sheenRoughness = float(sheen_rough.default_value)
+
+        # Anisotropy (KHR_materials_anisotropy)
+        ani_sock = pbsdf.inputs.get("Anisotropic")
+        if ani_sock:
+            av = float(ani_sock.default_value)
+            if abs(av) > 0.001:
+                ani_ext = self.trv.processBasicNodeAddition(
+                    pm, "extensions", "AnisotropyMaterialExtension", base_name + "_AniME")
+                if ani_ext:
+                    ani_ext.anisotropyStrength = av
+                    ani_rot = pbsdf.inputs.get("Anisotropic Rotation")
+                    if ani_rot:
+                        ani_ext.anisotropyRotation = float(ani_rot.default_value)
+
+
+    def _build_packaged_composed_shader(self, x3dApp, mat, pbsdf, base_name,
+                                        is_gltf_mr=False):
+        """Export as PackagedShader (MTLX) + ComposedShader (GLSL).
+        Falls back to PhysicalMaterialExt when MaterialX is unavailable or
+        the shader is a glTF MR group (no direct MTLX equivalent)."""
+        try:
+            import MaterialX as mx
+            import MaterialX.PyMaterialXGenShader as mx_gen
+            import MaterialX.PyMaterialXGenGlsl   as mx_glsl
+        except ImportError:
+            print(f"[RawKee] MaterialX Python package not found — "
+                  f"falling back to PhysicalMaterialExt for '{mat.name}'.")
+            self._build_physical_material_ext(x3dApp, mat, pbsdf, base_name,
+                                              is_gltf_mr=is_gltf_mr)
+            return
+
+        if is_gltf_mr:
+            print(f"[RawKee] glTF MR group has no MTLX equivalent — "
+                  f"falling back to PhysicalMaterialExt for '{mat.name}'.")
+            self._build_physical_material_ext(x3dApp, mat, pbsdf, base_name,
+                                              is_gltf_mr=True)
+            return
+
+        export_base = os.path.join(os.path.dirname(self.fullPath),
+                                   self.rkMatXPath.lstrip('/\\'))
+        os.makedirs(export_base, exist_ok=True)
+
+        mtlx_path, mat_node_name = self._build_mtlx_document(mat, pbsdf, base_name,
+                                                               export_base)
+        if not mtlx_path:
+            print(f"[RawKee] MaterialX document build failed for '{mat.name}' — "
+                  f"falling back to PhysicalMaterialExt.")
+            self._build_physical_material_ext(x3dApp, mat, pbsdf, base_name)
+            return
+
+        frag_path = os.path.join(export_base, base_name + ".frag")
+        vert_path = os.path.join(export_base, base_name + ".vert")
+
+        ok = self._generate_glsl_from_mtlx(mtlx_path, mat_node_name, frag_path, vert_path)
+        if not ok:
+            print(f"[RawKee] GLSL generation failed for '{mat.name}' — "
+                  f"falling back to PhysicalMaterialExt.")
+            self._build_physical_material_ext(x3dApp, mat, pbsdf, base_name)
+            return
+
+        rel_base  = self.rkMatXPath.rstrip('/') + '/' + base_name
+        mtlx_rel  = rel_base + ".mtlx"
+        frag_rel  = rel_base + ".frag"
+        vert_rel  = rel_base + ".vert"
+
+        # PackagedShader — MaterialX document
+        pkg = self.trv.processBasicNodeAddition(x3dApp, "shaders", "PackagedShader",
+                                                 base_name + "_PkSdr")
+        if pkg:
+            pkg.language = "MTLX"
+            pkg.url = [mtlx_rel]
+
+        # ComposedShader — GLSL frag + vert
+        cmp = self.trv.processBasicNodeAddition(x3dApp, "shaders", "ComposedShader",
+                                                 base_name + "_CpSdr")
+        if cmp:
+            cmp.language = "GLSL"
+            frag = self.trv.processBasicNodeAddition(cmp, "parts", "ShaderPart",
+                                                      base_name + "_CpSdr_Frag")
+            if frag:
+                frag.url  = [frag_rel]
+                frag.type = "FRAGMENT"
+            vert = self.trv.processBasicNodeAddition(cmp, "parts", "ShaderPart",
+                                                      base_name + "_CpSdr_Vert")
+            if vert:
+                vert.url = [vert_rel]
+
+
+    def _build_mtlx_document(self, mat, pbsdf, base_name, export_dir):
+        """Build a minimal MaterialX gltf_pbr document from Principled BSDF inputs.
+        Returns (mtlx_path, material_node_name) or (None, None) on failure."""
+        import MaterialX as mx
+
+        safe    = mx.createValidName(base_name)
+        ng_name = f"NG_{safe}"
+        sr_name = f"SR_{safe}"
+        m_name  = f"M_{safe}"
+
+        doc = mx.createDocument()
+        ng  = doc.addNodeGraph(ng_name)
+
+        def _add_image_node(sock_name, mx_type, out_suffix):
+            """Add an image node to the nodegraph for the texture on sock_name.
+            Returns the output name, or None if no texture is found."""
+            img_node = self._find_image_texture(mat.node_tree, sock_name, pbsdf)
+            blender_img = img_node.image if img_node else None
+            if not blender_img:
+                return None
+
+            src = bpy.path.abspath(blender_img.filepath) if blender_img.filepath else ''
+            if not os.path.isfile(src) and blender_img.packed_file:
+                fname = os.path.basename(blender_img.name) or blender_img.name
+                if not os.path.splitext(fname)[1]:
+                    data  = blender_img.packed_file.data
+                    fname += '.png' if data[:4] == b'\x89PNG' else '.jpg'
+                src = os.path.join(export_dir, fname)
+                with open(src, 'wb') as f:
+                    f.write(blender_img.packed_file.data)
+            if not os.path.isfile(src):
+                return None
+
+            url = (self._copy_texture(src, os.path.dirname(self.fullPath))
+                   if self.rkConsolidate else src)
+
+            node_name = f"img_{out_suffix}"
+            out_name  = f"{out_suffix}_out"
+            img_mx    = ng.addNode("image", node_name, mx_type)
+            file_inp  = img_mx.addInput("file", "filename")
+            file_inp.setValueString(url)
+            out_port  = ng.addOutput(out_name, mx_type)
+            out_port.setNodeName(node_name)
+            return out_name
+
+        em_sock_name = ("Emission Color" if pbsdf.inputs.get("Emission Color")
+                        else "Emission")
+
+        base_out = _add_image_node("Base Color",  "color3",  "base_color")
+        mr_out   = (_add_image_node("Metallic",   "color3",  "metallic_roughness") or
+                    _add_image_node("Roughness",  "color3",  "roughness"))
+        norm_out = _add_image_node("Normal",      "vector3", "normal")
+        emis_out = _add_image_node(em_sock_name,  "color3",  "emissive")
+        occ_out  = _add_image_node("Occlusion",   "float",   "occlusion")
+
+        # gltf_pbr surface shader
+        sr = doc.addNode("gltf_pbr", sr_name, "surfaceshader")
+
+        def _sr_inp_ng(name, mx_type, ng_out):
+            inp = sr.addInput(name, mx_type)
+            inp.setNodeGraphString(ng_name)
+            inp.setOutputString(ng_out)
+
+        def _sr_inp_val(name, mx_type, val):
+            inp = sr.addInput(name, mx_type)
+            if hasattr(val, '__len__'):
+                inp.setValueString(', '.join(f"{v:.6f}" for v in val))
+            else:
+                inp.setValueString(f"{val:.6f}")
+
+        base_col_raw = self._get_pbsdf_input_value(pbsdf, "Base Color")
+        if base_out:
+            _sr_inp_ng("base_color", "color3", base_out)
+        elif base_col_raw:
+            _sr_inp_val("base_color", "color3",
+                        (base_col_raw[0], base_col_raw[1], base_col_raw[2]))
+
+        if mr_out:
+            _sr_inp_ng("metallic_roughness", "color3", mr_out)
+        else:
+            metal_val = self._get_pbsdf_input_value(pbsdf, "Metallic")
+            rough_val = self._get_pbsdf_input_value(pbsdf, "Roughness")
+            if metal_val is not None:
+                _sr_inp_val("metallic",  "float", float(metal_val))
+            if rough_val is not None:
+                _sr_inp_val("roughness", "float", float(rough_val))
+
+        if norm_out:
+            _sr_inp_ng("normal", "vector3", norm_out)
+
+        em_sock = pbsdf.inputs.get("Emission Color") or pbsdf.inputs.get("Emission")
+        if emis_out:
+            _sr_inp_ng("emissive", "color3", emis_out)
+        elif em_sock:
+            ec = em_sock.default_value
+            if any(v > 0.001 for v in (ec[0], ec[1], ec[2])):
+                _sr_inp_val("emissive", "color3", (ec[0], ec[1], ec[2]))
+
+        if occ_out:
+            _sr_inp_ng("occlusion", "float", occ_out)
+
+        alpha_val = self._get_pbsdf_input_value(pbsdf, "Alpha")
+        if alpha_val is not None:
+            _sr_inp_val("alpha", "float", float(alpha_val))
+
+        ior_val = self._get_pbsdf_input_value(pbsdf, "IOR")
+        if ior_val is not None:
+            _sr_inp_val("ior", "float", float(ior_val))
+
+        trans_sock = (pbsdf.inputs.get("Transmission Weight") or
+                      pbsdf.inputs.get("Transmission"))
+        if trans_sock:
+            tv = float(trans_sock.default_value)
+            if tv > 0.001:
+                _sr_inp_val("transmission", "float", tv)
+
+        # Surface material node
+        mat_mx = doc.addNode("surfacematerial", m_name, "material")
+        ss_inp = mat_mx.addInput("surfaceshader", "surfaceshader")
+        ss_inp.setNodeName(sr_name)
+
+        mtlx_path = os.path.join(export_dir, base_name + ".mtlx")
+        try:
+            mx.writeToXmlFile(doc, mtlx_path)
+            print(f"[RawKee] MaterialX document written: {mtlx_path}")
+        except Exception as e:
+            print(f"[RawKee] Failed to write MaterialX document: {e}")
+            return None, None
+
+        return mtlx_path, m_name
+
+
+    def _generate_glsl_from_mtlx(self, mtlx_path, mat_name, frag_path, vert_path):
+        """Generate GLSL frag/vert from a MaterialX document. Returns True on success."""
+        import MaterialX as mx
+        import MaterialX.PyMaterialXGenShader as mx_gen
+        import MaterialX.PyMaterialXGenGlsl   as mx_glsl
+
+        try:
+            doc   = mx.createDocument()
+            sPath = mx.FileSearchPath()
+            sPath.append(os.path.dirname(mtlx_path))
+            sPath.append(mx.getDefaultDataSearchPath())
+
+            for subfolder in ['libraries', 'libraries/stdlib', 'libraries/pbrlib']:
+                lib_doc = mx.createDocument()
+                mx.loadLibraries([subfolder], sPath.asString(), lib_doc)
+                doc.importLibrary(lib_doc)
+
+            mx.readFromXmlFile(doc, mtlx_path, sPath.asString())
+
+            materials = [n for n in doc.getNodes() if n.getCategory() == 'surfacematerial']
+            if not materials:
+                print(f"[RawKee] No surfacematerial node found in {mtlx_path}")
+                return False
+
+            target = next((m for m in materials if m.getName() == mat_name), materials[0])
+
+            gen     = mx_glsl.GlslShaderGenerator.create()
+            context = mx_gen.GenContext(gen)
+            context.registerSourceCodeSearchPath(sPath)
+            context.getOptions().shaderInterfaceType = mx_gen.SHADER_INTERFACE_COMPLETE
+
+            safe_name = mx.createValidName(target.getName())
+            shader    = gen.generate(safe_name, target, context)
+
+            v_stage = getattr(mx_gen, 'VERTEX_STAGE', 'vertex')
+            p_stage = getattr(mx_gen, 'PIXEL_STAGE',  'pixel')
+
+            with open(vert_path, 'w') as f:
+                f.write(shader.getSourceCode(v_stage))
+            with open(frag_path, 'w') as f:
+                f.write(shader.getSourceCode(p_stage))
+
+            print(f"[RawKee] GLSL files written:\n  {vert_path}\n  {frag_path}")
+            return True
+
+        except Exception as e:
+            print(f"[RawKee] GLSL generation error: {e}")
+            return False
 
 
     def _make_image_texture(self, parent_node, field_name, blender_image, def_name,
@@ -748,14 +1130,13 @@ class RKOrganizerBlender:
 
         src_abs = bpy.path.abspath(blender_image.filepath) if blender_image.filepath else ''
 
-        # Packed image: the file lives only inside the .blend — extract raw bytes.
+        # Packed image: extract raw bytes to the images directory.
         if (not src_abs or not os.path.isfile(src_abs)) and blender_image.packed_file:
             raw_name = os.path.basename(
                 blender_image.name.lstrip('/').lstrip('\\')
             ) or blender_image.name
             fname = raw_name
             if not os.path.splitext(fname)[1]:
-                # Detect format from file magic bytes
                 data = blender_image.packed_file.data
                 if data[:4] == b'\x89PNG':
                     fname += '.png'
@@ -771,22 +1152,74 @@ class RKOrganizerBlender:
             except Exception as e:
                 print(f"RKOrganizerBlender: packed image extract failed '{fname}': {e}")
                 return None
-            url = self.rkImagePath.lstrip('/') + '/' + fname
+            src_abs = dst
 
         elif not src_abs or not os.path.isfile(src_abs):
             return None   # no file and not packed — nothing to export
 
+        # Determine output URL.
+        # HDR/EXR: "Convert HDR/EXR to KTX2" decides the format; "Consolidate Media"
+        # decides where the file lands.  Other formats follow the normal copy logic.
+        file_ext = os.path.splitext(src_abs)[1].lower()
+        if self.rkConvertHDRToKTX2 and file_ext in ('.hdr', '.exr'):
+            import importlib, subprocess as _sp
+            # Find pip install locations for KTX2 deps and add to sys.path immediately
+            for _pkg in ('numpy', 'imageio', 'cv2', 'scipy'):
+                _show = _sp.run([sys.executable, "-m", "pip", "show",
+                                  "opencv-python" if _pkg == "cv2" else _pkg],
+                                 capture_output=True, text=True)
+                for _line in _show.stdout.splitlines():
+                    if _line.startswith("Location: "):
+                        _loc = os.path.normpath(_line[10:].strip())
+                        if _loc not in [os.path.normpath(p) for p in sys.path]:
+                            sys.path.insert(0, _loc)
+                        break
+            importlib.invalidate_caches()
+            def _importable(name):
+                try:
+                    __import__(name)
+                    return True
+                except Exception as e:
+                    _rk_log(f"[RawKee] Cannot import '{name}': {type(e).__name__}: {e}")
+                    return False
+            _missing = [m for m in ('numpy', 'imageio', 'cv2', 'scipy') if not _importable(m)]
+            if _missing:
+                _rk_log(f"[RawKee] KTX2 skipped — missing packages: {_missing}\n"
+                      f"[RawKee] Fix: run blender_rawkee_install.py to install them.")
+                url_list = [src_abs]
+            else:
+                fname_ktx2 = os.path.splitext(os.path.basename(src_abs))[0] + '.ktx2'
+                if self.rkConsolidate:
+                    os.makedirs(self.imageMoveDir, exist_ok=True)
+                    dst_ktx2 = os.path.join(self.imageMoveDir, fname_ktx2)
+                    url_list  = [fname_ktx2, self.rkImagePath + fname_ktx2]
+                else:
+                    out_dir  = os.path.dirname(self.fullPath)
+                    dst_ktx2 = os.path.join(out_dir, fname_ktx2)
+                    url_list  = [fname_ktx2]
+                try:
+                    RKTools.hdri2ktx2(src_abs, dst_ktx2, file_ext == '.exr',
+                                      self.rkMaxCubeMapFaceSize)
+                    _rk_log(f"[RawKee] KTX2 conversion succeeded: {dst_ktx2}")
+                except Exception as e:
+                    import traceback
+                    _rk_log(f"[RawKee] KTX2 conversion FAILED for '{src_abs}': {e}")
+                    traceback.print_exc()
+                    url_list = [src_abs]  # fall back to original path on failure
+
         elif self.rkConsolidate:
-            url = self._copy_texture(src_abs, os.path.dirname(self.fullPath))
+            fname    = os.path.basename(src_abs)
+            rel_url  = self._copy_texture(src_abs, os.path.dirname(self.fullPath))
+            url_list = [fname, rel_url]  # ["texture.jpg", "images/texture.jpg"]
 
         else:
-            url = src_abs
+            url_list = [src_abs]
 
         tex = self.trv.processBasicNodeAddition(
             parent_node, field_name, node_type, def_name
         )
         if tex:
-            tex.url = [url]
+            tex.url = url_list
         return tex
 
 
@@ -1045,7 +1478,7 @@ class RKOrganizerBlender:
         if spkr.sound and spkr.sound.filepath:
             src_abs = bpy.path.abspath(spkr.sound.filepath)
             if self.rkConsolidate:
-                url = self.rkAudioPath.lstrip('/') + '/' + os.path.basename(src_abs)
+                url = self.rkAudioPath + os.path.basename(src_abs)
                 dst = os.path.join(self.audioMoveDir, os.path.basename(src_abs))
                 if os.path.isfile(src_abs) and not os.path.isfile(dst):
                     try:
