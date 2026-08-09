@@ -89,18 +89,8 @@ def _safe_name(name):
     return name.replace(' ', '_').replace('.', '_').replace(':', '_')
 
 
-_RK_LOG_NAME = "RawKee Export Log"
-
-
 def _rk_log(msg):
-    """Write to system console AND the 'RawKee Export Log' text block in the Text Editor."""
     print(msg)
-    try:
-        if _RK_LOG_NAME not in bpy.data.texts:
-            bpy.data.texts.new(_RK_LOG_NAME)
-        bpy.data.texts[_RK_LOG_NAME].write(msg + "\n")
-    except Exception:
-        pass
 
 
 # ---------------------------------------------------------------------------
