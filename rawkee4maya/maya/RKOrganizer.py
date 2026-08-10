@@ -2223,7 +2223,7 @@ class RKOrganizer():
             print("Couldn't find skinClusters for: " + mNode.name())
 
     
-    def processCGESkin(self, rNode, x3dPF, skinSpaceMatrix=aom.MMatrix()):
+    def processCGESkin(self, cgeNode, x3dPF, skinSpaceMatrix=aom.MMatrix()):
         
         #Setup Skin Node DEF value.
         skinName = "CGESkin"
@@ -2248,41 +2248,48 @@ class RKOrganizer():
             # this skeleton
             allJoints = []
             
-            #################################################
-            # Process CGESkin "skeleton" and "joints" fields
-            self.processMayaJointAsCGETransform(bna.DEF, rNode, bna, bna, cField="skeleton", allShapes=allShapes, allJoints=allJoints)
-
-            # The dict {} that associates the appropriate Maya mesh with this skins X3D Shape nodes.
-            mCollector = {}
+            children = cmds.listRelatives(cgeNode.name(), children=True, type="joint", fullPath=True)
+            rootNodeName = children[0] if children else None
             
-            #################################################t
-            # Process CGESkin "shapes" field
-            for mesh in allShapes:
-                #cgeShape = self.processMayaMesh(bna.DEF, mesh, cField="shapes", isAvatar=True, adjustment=skinSpaceMatrix)
-                #bLen = len(bna.shapes)
-                tmc = self.processMayaMesh(bna.DEF, mesh, cField="shapes", isAvatar=True, adjustment=skinSpaceMatrix)
-                for key in tmc:
-                    mCollector[key] = tmc[key]
-                #aLen = len(bna.shapes)
+            if rootNodeName:
+                rList = aom.MSelectionList()
+                rList.add(rootNodeName)
+                rNode = aom.MFnDagNode(rList.getDependNode(0))
+                #################################################
+                # Process CGESkin "skeleton" and "joints" fields
+                self.processMayaJointAsCGETransform(bna.DEF, rNode, bna, bna, cField="skeleton", allShapes=allShapes, allJoints=allJoints)
+
+                # The dict {} that associates the appropriate Maya mesh with this skins X3D Shape nodes.
+                mCollector = {}
                 
-            ######################################################################
-            # Grab the new shape nodes from the CG Skin node, and populate it with 
-            # weighting and joint info
-            cRange = len(mCollector)
-            
-            print("Mesh Collector Length: " + str(cRange))
-            for i in range(cRange):
-                try:
-                    mcMesh = mCollector.get(bna.shapes[i].DEF, None)
-                    if mcMesh:
-                        self.populateCGEWeightInformation(mcMesh, bna.shapes[i], allJoints)
-                    else:
-                        print("####\n\n\n--" + bna.shapes[i].DEF + "--\n\n\n####")
-                except Exception as e:
-                    print(f"Exception Type: {type(e).__name__}")
-                    print(f"Exception Message: {e}")                            
+                #################################################t
+                # Process CGESkin "shapes" field
+                for mesh in allShapes:
+                    #cgeShape = self.processMayaMesh(bna.DEF, mesh, cField="shapes", isAvatar=True, adjustment=skinSpaceMatrix)
+                    #bLen = len(bna.shapes)
+                    tmc = self.processMayaMesh(bna.DEF, mesh, cField="shapes", isAvatar=True, adjustment=skinSpaceMatrix)
+                    for key in tmc:
+                        mCollector[key] = tmc[key]
+                    #aLen = len(bna.shapes)
+                    
+                ######################################################################
+                # Grab the new shape nodes from the CG Skin node, and populate it with 
+                # weighting and joint info
+                cRange = len(mCollector)
+                
+                print("Mesh Collector Length: " + str(cRange))
+                for i in range(cRange):
+                    try:
+                        mcMesh = mCollector.get(bna.shapes[i].DEF, None)
+                        if mcMesh:
+                            self.populateCGEWeightInformation(mcMesh, bna.shapes[i], allJoints)
+                        else:
+                            print("####\n\n\n--" + bna.shapes[i].DEF + "--\n\n\n####")
+                    except Exception as e:
+                        print(f"Exception Type: {type(e).__name__}")
+                        print(f"Exception Message: {e}")                            
 
-            self.populateCGEInverseBindMatrices(bna, allJoints, ssm=skinSpaceMatrix)
+                self.populateCGEInverseBindMatrices(bna, allJoints, ssm=skinSpaceMatrix)
 
 
     def populateCGEInverseBindMatrices(self, x3dSkin, allJoints, ssm=aom.MMatrix()):
@@ -2348,7 +2355,7 @@ class RKOrganizer():
             limit  = 4
             aLimit = 0
             
-            if rkSkinInfluence > 0:
+            if self.rkSkinInfluence > 0:
                 limit = 8
                 
             if len(wg) < limit:
@@ -2775,6 +2782,19 @@ class RKOrganizer():
                     hhList.add(dagNode.name())
                     dnPath = hhList.getDagPath(0)
                     self.processHAnimHumanoid(dagNode, x3dPF, skinSpaceMatrix=dnPath.exclusiveMatrix())
+                elif x3dType == "CGESkin":
+                    if cmds.objExists("rkEPose"):
+                        #cmds.currentTime(0)
+                        cmds.dagPose( "rkEPose", restore=True )
+                        self.bPoseStore.append("rkEPose")
+                        print("RawKee Export Bind Pose WAS FOUND!")
+                    else:
+                        print("RawKee Export Bind Pose HAS NOT been set!")
+
+                    #x3dPF = [self.getX3DParent(dagNode, x3dParentDEF), cField]
+                    #self.processCGESkin(dagNode, x3dPF)#, skinSpaceMatrix=ssn)
+                    self.processCGESkin(dagNode, x3dPF)#, skinSpaceMatrix=ssn)
+                    pass
                 else:
                     self.processTransformSorting( x3dParentDEF, dagNode, x3dPF)
 
@@ -2844,16 +2864,17 @@ class RKOrganizer():
                 #    self.processSingleRKAnimPack(x3dParentDEF, dagNode, cField)
                     
                 elif dagNode.typeName == "joint":
-                    if cmds.objExists("rkEPose"):
-                        #cmds.currentTime(0)
-                        cmds.dagPose( "rkEPose", restore=True )
-                        self.bPoseStore.append("rkEPose")
-                        print("RawKee Export Bind Pose WAS FOUND!")
-                    else:
-                        print("RawKee Export Bind Pose HAS NOT been set!")
-
-                    x3dPF = [self.getX3DParent(dagNode, x3dParentDEF), cField]
-                    self.processCGESkin(dagNode, x3dPF)#, skinSpaceMatrix=ssn)
+                    #if cmds.objExists("rkEPose"):
+                    #    #cmds.currentTime(0)
+                    #    cmds.dagPose( "rkEPose", restore=True )
+                    #    self.bPoseStore.append("rkEPose")
+                    #    print("RawKee Export Bind Pose WAS FOUND!")
+                    #else:
+                    #    print("RawKee Export Bind Pose HAS NOT been set!")
+                    #
+                    #x3dPF = [self.getX3DParent(dagNode, x3dParentDEF), cField]
+                    #self.processCGESkin(dagNode, x3dPF)#, skinSpaceMatrix=ssn)
+                    pass
                         
             else:
                 self.cMessage("Node: " + nodeName + " will not be exported as it is connected to the 'RawKeeNoExport' Maya layer")
