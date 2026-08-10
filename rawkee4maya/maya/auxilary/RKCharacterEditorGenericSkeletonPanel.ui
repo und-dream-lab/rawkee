@@ -231,7 +231,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="createDuplicate">
+        <widget class="QPushButton" name="setAsHAnim">
          <property name="minimumSize">
           <size>
            <width>180</width>
@@ -246,6 +246,26 @@
          </property>
          <property name="text">
           <string>Convert to HAnimHumanoid</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label">
+         <property name="text">
+          <string>or</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="setAsCGESkin">
+         <property name="minimumSize">
+          <size>
+           <width>180</width>
+           <height>24</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Convert to Castle Engine Skin</string>
          </property>
         </widget>
        </item>

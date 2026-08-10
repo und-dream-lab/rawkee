@@ -75,15 +75,58 @@ global proc addRKMenuItemsFM()
     // The menu creation
     //addMenuItemSafe($gMainFileMenu, "AddMyMenuItems", "gMyMenuVariable");
     
-    addMenuItemSafe($gMainFileMenu, "addRawKeeMenuItemsToFileMenu", "gRKFMVariable");    
+    addMenuItemSafe($gMainFileMenu, "addRawKeeMenuItemsToFileMenu", "gRKFMVariable");
+    callbacks -addCallback rkOutlinerNodePopupMenu -hook "addItemsToOutlinerNodePopupMenu" -owner "RawKee";
 }
 
 global proc remRKMenuItemsFM()
 {
     global string $gMainFileMenu;
     global string $gRKFMVariable;
-    removeMenuItemSafe($gMainFileMenu, "$gRKFMVariable;");
+    removeMenuItemSafe($gMainFileMenu, "gRKFMVariable");
+    //removeMenuItemSafe("gRKFMVariable");
+    callbacks -removeCallback rkOutlinerNodePopupMenu -hook "addItemsToOutlinerNodePopupMenu" -owner "RawKee";
 }
+
+global proc rkOutlinerNodePopupMenu(string $nodeName) {
+    if (`nodeType $nodeName` == "joint") {
+        string $parents[] = `listRelatives -parent $nodeName`;
+        
+        int $pLen = size($parents);
+        
+        int $showMenu = 1;
+        
+        if ($pLen > 0)
+        {
+            if (`attributeExists "x3dGroupType" $parents[0]`)
+            {
+                $xgt = `getAttr ($nodeName + ".x3dGroupType")`;
+                if ($xgt == "HAnimHumanoid" || $xgt == "CGESkin")
+                {
+                    $showMenu = 0;
+                }
+            }
+        }
+        
+        if ($showMenu == 1)
+        {
+            select $nodeName;
+            
+            menuItem -divider true;
+            menuItem -label "RawKee Character Menu" -subMenu true;
+                menuItem -label "mGear" -subMenu true;
+                menuItem -label "Convert Skeleton to HAnim"
+                         -command "rkMGearSkelToHAnim";
+                menuItem -divider true;
+                menuItem -label "Convert Skeleton to CGESkin"
+                         -command "rkMGearSkelToCGESkin";
+                setParent -menu ..;
+            setParent -menu ..; // End RawKee Character Menu
+        }
+    }
+}
+
+
 
 global proc string addRawKeeMenuItemsToFileMenu()
 {
