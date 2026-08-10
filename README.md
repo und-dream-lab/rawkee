@@ -1,18 +1,27 @@
 
-# RawKee Python Edition (PE) - X3D Plugin 2.x.x for Maya 2023 and Beyond!
+# RawKee Python Edition (PE) - X3D Plugin 2.x.x for Maya 2023-2027 and Blender 4.2-5.0+!
 
-This GitHub site supports the latest version of the RawKee X3D exporter plugin for Autodesk Maya. Now available as a Maya Python API 2.0 plugin. RawKee PE is compatible with all versions of Maya newer than Maya 2025 on Windows, Linux, and macOS. RawKee PE may be compatible with versions of Maya on all three operating systems going back to Maya 2023, but this has not been tested.
+This GitHub site supports the latest version of the RawKee X3D exporter plugin for Autodesk Maya and Blender. RawKee PE is compatible with all versions of Maya newer than Maya 2023 and Blender 4.2 on Windows, Linux, and macOS.
 
-RawKee Python Edition version 2.0.0 is NOW available! - [Downlaod RawKee PE v2.0.0](https://github.com/und-dream-lab/rawkee/releases/tag/v2.0.0)
-See you all at the 2025 Web3D Conference, which is co-located with Digital Heritage 2025 in Siena Italy.
-- [2025 Web3D Conference](https://web3d.siggraph.org/2025/)
-- [Digital Heritage 2025](https://digitalheritage2025.unisi.it/)
+### RawKee Python Editon for Maya can now be installed with a script.
+- Simply clone the repo, and dragging the maya_rawkee_install.py file to your Maya viewport.
+- Let me know if it doesn't work for you.
+
+### New Major Features
+## X3D Interaction Editor (Experimental)
+- Integrated X_ITE Browser for visualizing X3D scene
+- Graph Editor for adding/deleting ROUTEs
+- AI Assitant GUI for local AI and remote AI with API Keys
+- Supports DCC integration for Maya 2024+ and Blender 5.0+
+- Standalone version included.
+
+## HDRI Conversion Tool
+- Converts HDR and OpenEXR High Dynamic Range Images to Khronos KTX2 format
+- Converts *.hdr/*.exr to *.ktx2 at export time
+- Standalone GUI version included.
 
 ### RawKee Python Edition - YouTube Tutorials Playlist
 - [RawKee PE - YouTube Tutorials Playlist](https://www.youtube.com/@UND-DREAM-Lab/playlists)
-
-### Collaborators:
-- [Antony Ward](https://www.antcgi.com/about) - Collaborating to provide RawKee and HAnim compatibility with his [aRT: Modular Rigging Tool](https://www.antcgi.com/store/p/art-modular-rigging-tool).
 
 ### Special Thanks:
 - Michalis Kamburelis - [Developer of Castle Game Engine](https://castle-engine.io/) for developer feedback and X3D consulting.
@@ -22,68 +31,7 @@ See you all at the 2025 Web3D Conference, which is co-located with Digital Herit
 ### Early RawKee
 Those interested in the deprecated C++ versions of RawKee should see the relevant section at the bottom of this page.
 
-
-## RawKee Python Edition requires the use of 'pip' with 'mayapy'.
-
-1. Most likely, the version of Python for Maya (aka the mayapy executable) is already installed.
-
-2. If for some reason it is not, you can follow the instruction on how to install 'pip' found here:
-   [Python.org page](https://pip.pypa.io/en/stable/installation/)
-   
-
-## Required Python Packages in addition to standard Maya Python API 1.0/2.0 packages (mayapy).
-
-Some of the packages listed may require a pip install regarless of what the list below explicitly states.
-- pillow        (pip install required)
-- ffmpeg-python (pip install required)
-- xmltodict     (pip install required)
-- typing
-- numpy
-- math
-- os
-- sys
-- base64
-- mimetypes
-- ctypes
-- json 
-
-
-## Installing RawKee 2.x.x from GitHub
-
-1. PIP install the Python packages listed above for your version of Maya and OS.<br>
-    a. On Windows use PowerShell to run:          mayapy.exe<br>
-    b. On OSX/Linux use the terminal to run:      mayapy<br>
-    c. Command line for installing using 'pip': ./mayapy -m pip install some_module
-
-2. Clone the RawKee GitHub main branch using PowerShell or Terminal:<br>
-    a. Create a directory somewhere on your computer's hard drive where you<br>
-    &emsp;want to install RawKee. We will use the Linux/OSX style psuedo path of:<br>
-    &emsp;&emsp;/path/to/your/install/directory<br>
-    b. Change directory to:<br>
-    &emsp;&emsp;/path/to/your/install/directory<br>
-    c. Then run the following git command:<br>
-    &emsp;&emsp;git clone https://github.com/und-dream-lab/rawkee.git
-
-3. Update Maya Environment variables.<br>
-    a. Edit your Maya version's Maya.env file adding the following evironment<br>
-    &emsp;variable entries.<br>
-    b. Instructions on where to find and edit your Maya.env file can be found here:<br>
-    &emsp;- [Autodesk Maya 2026 Environment Variables](https://help.autodesk.com/view/MAYAUL/2026/ENU/?guid=GUID-925EB3B5-1839-45ED-AA2E-3184E3A45AC7)<br>
-    c. In the appropriate Maya.env file, make the following entries:<br>
-    &emsp;MAYA_PLUG_IN_PATH=/path/to/your/install/directory/rawkee<br>
-    &emsp;MAYA_SCRIPT_PATH=/path/to/your/install/directoryrawkee/mel
-
-4. Load RawKee Plugin into Maya.<br>
-    a. After you start Maya, open the Plug-in Manager through the Maya menu system:<br>
-    &emsp;&emsp;Windows > Settings/Preferences > Plug-in Manager<br>
-    b. Near the top of the Plug-in Manager option window you will see the something<br>
-    &emsp;similar to the following:<br>
-    &emsp;&emsp;/path/to/your/install/directory/rawkee<br>
-    &emsp;&emsp;RawKee_Python_X3D.py<br>
-    c. Clicke the "Loaded" box to load RawKee, and then close the Plug-in Manager.<br>
-
-
-## Installing RawKee for Blender 5.x
+## Installing RawKee for Blender 4.2 and 5.0+
 
 1. Clone the repository (same as the Maya steps above).
 
