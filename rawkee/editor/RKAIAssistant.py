@@ -259,7 +259,7 @@ _PRESETS = {
     "Custom":    {"endpoint": "",                          "model": "",                 "needs_key": False},
 }
 
-_MCP_DEFAULT_URL = "https://x3d-mcp.onrender.com/mcp"
+_MCP_DEFAULT_URL = "http://localhost:8766/mcp"
 
 _TOOLS = [
     {

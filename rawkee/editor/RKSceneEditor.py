@@ -206,12 +206,16 @@ class RKX3DTreeWidget(QTreeWidget):
         self._reparent_hover = None
         self._reparent_cb    = None
         self._insert_key_cb  = None
+        self._bind_key_cb    = None
         self.setDragEnabled(True)
         self.setDragDropMode(QAbstractItemView.DragOnly)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
     def set_reparent_callback(self, fn):
         self._reparent_cb = fn
+
+    def set_bind_key_callback(self, fn):
+        self._bind_key_cb = fn
 
     def set_insert_key_callback(self, fn):
         self._insert_key_cb = fn
@@ -295,7 +299,17 @@ class RKX3DTreeWidget(QTreeWidget):
             self.clearSelection()
         self._deselect_on_release = False
 
+    def event(self, event):
+        # Tab is consumed by Qt focus traversal before keyPressEvent; handle it here.
+        if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key_Tab:
+            if self._insert_key_cb is not None:
+                self._insert_key_cb()
+            return True
+        return super().event(event)
+
     def keyPressEvent(self, event):
+        if event.key() == Qt.Key_B:
+            return  # suppress type-ahead so keyReleaseEvent can bind without changing selection
         if event.key() == Qt.Key_Insert:
             if self._insert_key_cb is not None:
                 self._insert_key_cb()
@@ -312,6 +326,17 @@ class RKX3DTreeWidget(QTreeWidget):
                         scene_editor._delete_node(node)
                         return
         super().keyPressEvent(event)
+
+    def keyReleaseEvent(self, event):
+        if event.key() == Qt.Key_B and not event.isAutoRepeat():
+            selected = self.selectedItems()
+            if selected and self._bind_key_cb:
+                key  = selected[0].data(0, Qt.UserRole)
+                node = self.nodeForKey(key) if key else None
+                if node is not None:
+                    self._bind_key_cb(node)
+                    return
+        super().keyReleaseEvent(event)
 
 
 ###########################################################################
@@ -370,6 +395,7 @@ class RKNodeFieldEditor(QWidget):
         super().__init__(parent)
         self._node          = None
         self._sai_runner    = None
+        self._node_def_map  = {}  # id(pynode) -> registered DEF (real or synthetic)
         self._undo_push_fn  = None
         self._widgets    = {}   # field_name -> (widget, ftype)
 
@@ -394,6 +420,9 @@ class RKNodeFieldEditor(QWidget):
 
     def set_sai_runner(self, fn):
         self._sai_runner = fn
+
+    def set_node_def_map(self, m):
+        self._node_def_map = m
 
     def set_undo_push_fn(self, fn):
         self._undo_push_fn = fn
@@ -527,21 +556,15 @@ class RKNodeFieldEditor(QWidget):
     def _push_sai(self, fname, value, ftype):
         if self._sai_runner is None:
             return
-        def_ = getattr(self._node, 'DEF', '')
+        def_ = getattr(self._node, 'DEF', '') or ''
+        if not def_:
+            def_ = self._node_def_map.get(id(self._node), '')
         if not def_:
             return
-        js_val    = self._to_js(value, ftype, fname)
-        node_json = json.dumps(def_)
-        js = (
-            f'(function(){{'
-            f' var b=document.querySelector("x3d-canvas").browser;'
-            f' if(!b)return;'
-            f' try{{var n=b.currentScene.getNamedNode({node_json});'
-            f'  if(n)n.{fname}={js_val};'
-            f' }}catch(e){{console.log("SAI field: "+e);}}'
-            f'}})()'
-        )
-        self._sai_runner(js)
+        js_val  = self._to_js(value, ftype, fname)
+        def_js  = json.dumps(def_)
+        fname_js = json.dumps(fname)
+        self._sai_runner(f'RK.setField({def_js},{fname_js},{js_val})')
 
     def _to_js(self, value, ftype, fname):
         if ftype == 'SFBool':   return 'true' if value else 'false'
@@ -550,9 +573,8 @@ class RKNodeFieldEditor(QWidget):
         if ftype in ('SFFloat','SFDouble','SFTime'):
             return str(float(value) if value is not None else 0.0)
         if isinstance(value, tuple):
-            args = ','.join(str(v) for v in value)
-            return (f'(function(){{try{{return new n.{fname}.constructor({args});}}'
-                    f'catch(e){{return[{args}];}}}})()')
+            # Pass as array — RK.setField calls new field.constructor(...array)
+            return '[' + ','.join(str(v) for v in value) + ']'
         if isinstance(value, list):
             if not value: return '[]'
             if isinstance(value[0], tuple):
@@ -686,9 +708,10 @@ class RKSceneEditor(QMainWindow):
         self.bkHost    = None
         self.httpd    = None
         self._x3dObj  = None  # full rkx.X3D object kept in memory
-        self._file_url = None  # localhost URL of the open X3D file
         self._ai_batch    = False  # suppress per-node tree rebuild and X_ITE reload
         self._ai_new_defs: set = set()  # DEF names created in the current AI turn
+        self._node_def_map: dict = {}   # id(pynode) -> registered DEF (real or synthetic)
+        self._auto_def_counter: int = 0
         self._undo_stack: list = []
         self._redo_stack: list = []
         import threading as _threading
@@ -722,29 +745,14 @@ class RKSceneEditor(QMainWindow):
             return  # batch already pushed one snapshot at begin_ai_batch
         if self._x3dObj is None:
             return
-        # Serialize off the main thread so large scenes don't block the UI
-        import threading, io
-        x3d_ref = self._x3dObj
-        def _snap():
-            try:
-                from rawkee.io.RKSceneTraversal import RKSceneTraversal
-                buf = io.StringIO()
-                trv = RKSceneTraversal()
-                trv.collectProfileFromScene(x3d_ref)
-                trv.startExport(x3d_ref, buf, 'x3d')
-                xml = buf.getvalue()
-                if xml:
-                    with self._undo_lock:
-                        self._undo_stack.append(xml)
-                        if len(self._undo_stack) > self._MAX_UNDO:
-                            self._undo_stack.pop(0)
-                        self._redo_stack.clear()
-                    QtCore.QMetaObject.invokeMethod(
-                        self, '_update_undo_actions',
-                        QtCore.Qt.ConnectionType.QueuedConnection)
-            except Exception as exc:
-                print(f'[UNDO] snapshot failed: {exc}')
-        threading.Thread(target=_snap, daemon=True).start()
+        xml = self._serialize_scene()
+        if xml:
+            with self._undo_lock:
+                self._undo_stack.append(xml)
+                if len(self._undo_stack) > self._MAX_UNDO:
+                    self._undo_stack.pop(0)
+                self._redo_stack.clear()
+            self._update_undo_actions()
 
     def _restore_snapshot(self, xml_str: str):
         from rawkee.io.RKLoadSceneFromFile import RKLoadSceneFromFile
@@ -757,7 +765,8 @@ class RKSceneEditor(QMainWindow):
         if scene is not None:
             self.setX3DScene(scene)
         self.field_editor.set_node(None)
-        self._sync_xite_via_temp_file()
+        self._sync_xite_via_sai()
+        self._bind_first_nodes()
 
     def undo(self):
         if not self._undo_stack:
@@ -803,7 +812,7 @@ class RKSceneEditor(QMainWindow):
             expanded = self._capture_tree_expanded()
             self.setX3DScene(scene)
             self._restore_tree_expanded(expanded)
-        self._sync_xite_via_temp_file()
+        self._sync_xite_via_sai()
 
     def setX3DScene(self, x3dScene):
         """Populate the tree widget from an rkx.Scene object produced by maya2x3d()."""
@@ -944,7 +953,7 @@ class RKSceneEditor(QMainWindow):
         import atexit
         atexit.register(self.cleanUpOnEditorClose)
 
-        xite_abs = os.path.normpath(os.path.join(self.basePath, '..', 'examples', 'x_ite.html'))
+        xite_abs = os.path.normpath(os.path.join(self.basePath, 'x_ite.html'))
         self.x_itePath = self._local_url(xite_abs) + '?v=20260803'
         
         
@@ -987,7 +996,7 @@ class RKSceneEditor(QMainWindow):
         tools_menu  = self.menuBar().addMenu("Tools")
         tools_menu.addAction(self.toggleAIPanel)
         help_menu = self.menuBar().addMenu("Help")
-        about_action = help_menu.addAction("About RawKee")
+        about_action = help_menu.addAction("About RawKee X3D Interaction Editor")
         about_action.triggered.connect(self._on_about)
 
         file_menu.addAction(self.newX3DScene)
@@ -1113,6 +1122,7 @@ class RKSceneEditor(QMainWindow):
         self.node_editor_widget.view.set_add_node_callback(self._add_node_from_graph)
         self.tree_widget.set_reparent_callback(self._reparent_node)
         self.tree_widget.set_insert_key_callback(self._run_node_picker)
+        self.tree_widget.set_bind_key_callback(self._bind_selected_node)
         self.field_editor.set_sai_runner(lambda js: self.browser.page().runJavaScript(js))
         self.field_editor.set_undo_push_fn(self._push_undo_snapshot)
         self.toggleAIPanel.toggled.connect(self._ai_dock.setVisible)
@@ -1149,6 +1159,7 @@ class RKSceneEditor(QMainWindow):
     def _reparent_node(self, source_nodes, target_node):
         if self._x3dScene is None:
             return
+        self._push_undo_snapshot()
         for source_node in source_nodes:
             if source_node is target_node:
                 continue
@@ -1170,7 +1181,7 @@ class RKSceneEditor(QMainWindow):
         self._restore_tree_expanded(expanded)
         if source_nodes:
             self._reveal_tree_node(source_nodes[-1])
-        self._sync_xite_via_temp_file()
+        self._sync_xite_via_sai()
 
     def _add_node_from_graph(self, scene_pos):
         new_node = self._run_node_picker()
@@ -1359,7 +1370,7 @@ class RKSceneEditor(QMainWindow):
         self.setX3DScene(self._x3dScene)
         self._restore_tree_expanded(expanded)
         self.field_editor.set_node(None)
-        self._sync_xite_via_temp_file()
+        self._sync_xite_via_sai()
 
     def _remove_node_from_scenegraph(self, target):
         """Detach target from whichever parent field holds it."""
@@ -1417,15 +1428,13 @@ class RKSceneEditor(QMainWindow):
             "})()"
         )
     def _on_page_load_finished(self, ok):
-        if ok and self._file_url is not None:
-            self._push_file_to_xite()
+        pass  # src is never changed after initial load; SAI manages the scene
 
     def on_item_viewer_selection(self, index):
         pass  # player control dropdown removed
 
     def on_new_scene(self):
         self._x3dObj = None
-        self._file_url = None
         self._ai_new_defs.clear()
         with self._undo_lock:
             self._undo_stack.clear()
@@ -1434,12 +1443,27 @@ class RKSceneEditor(QMainWindow):
         self.node_editor_widget.clearGraph()
         self.setX3DScene(None)
         self.ai_panel.reset_for_new_scene()
-        empty_url = self._local_url(os.path.normpath(
-            os.path.join(self.basePath, '..', 'examples', 'empty.x3d')))
-        self.browser.page().runJavaScript(
-            f'document.querySelector("x3d-canvas").src = {json.dumps(empty_url)};'
-        )
+        self.browser.page().runJavaScript('RK.clearScene();')
         self.setWindowTitle("RawKee PE - X3D Interaction Editor")
+
+    def _bind_first_nodes(self):
+        """Bind the first of each bindable node type in X_ITE after a scene load or restore."""
+        self.browser.page().runJavaScript(
+            f'(async function(){{try{{'
+            f'const b=document.querySelector("x3d-canvas").browser;'
+            f'await b.nextFrame();'
+            f'const s=b.currentScene;'
+            f'var bindVp=true,bindNav=true,bindBg=true,bindFog=true;'
+            f'for(let i=0;i<s.rootNodes.length;i++){{'
+            f'const n=s.rootNodes[i];try{{const t=n&&n.getNodeTypeName();'
+            f'if(bindVp&&(t=="Viewpoint"||t=="OrthoViewpoint"||t=="GeoViewpoint")){{n.set_bind=true;bindVp=false;}}'
+            f'if(bindNav&&t=="NavigationInfo"){{n.set_bind=true;bindNav=false;}}'
+            f'if(bindBg&&(t=="Background"||t=="TextureBackground")){{n.set_bind=true;bindBg=false;}}'
+            f'if(bindFog&&t=="Fog"){{n.set_bind=true;bindFog=false;}}'
+            f'}}catch(_){{}}'
+            f'}}'
+            f'}}catch(e){{console.log("bind:"+e)}}}})();'
+        )
 
     def on_open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -1453,20 +1477,12 @@ class RKSceneEditor(QMainWindow):
             QMessageBox.warning(self, "Open Failed", f"Could not load:\n{file_path}")
             return
         self._x3dObj = x3d
-        self._file_url = self._local_url(os.path.abspath(file_path))
         self.node_editor_widget.clearGraph()
         scene_node = getattr(x3d, 'Scene', None)
         self.setX3DScene(scene_node)
         self.ai_panel.reset_for_new_scene()
-        self._push_file_to_xite()
-        #self.setWindowTitle(f"RawKee PE - {os.path.basename(file_path)}")
-
-    def _push_file_to_xite(self):
-        if self._file_url is None:
-            return
-        self.browser.page().runJavaScript(
-            f'document.querySelector("x3d-canvas").src = {json.dumps(self._file_url)};'
-        )
+        self._sync_xite_via_sai()
+        self._bind_first_nodes()
 
     def on_export_as(self):
         if self._x3dObj is None:
@@ -1502,16 +1518,31 @@ class RKSceneEditor(QMainWindow):
         self.node_editor_widget.clearGraph()
 
     def _on_about(self):
-        QMessageBox.about(self, "About RawKee",
+        dlg = QMessageBox(self)
+        dlg.setWindowTitle("About RawKee X3D Interaction Editor")
+        dlg.setText(
             "Created by Aaron Bergstrom\n"
             "Advanced Cyberinfrastructure Manager\n"
             "University of North Dakota\n"
             "Computational Research Center\n"
             "Laboratory for Digital Realism in Engineering and the Applied Metaverse\n(UND DREAM Lab - http://dream.und.edu)\n\n"
-            "In loving memory of his brother Eric (Awkie \u2013 Rocky) Bergstrom\n\n"
+            "In loving memory of his brother Eric (AwKie \u2013 Rocky) Bergstrom\n\n"
             "X3D Rendering using X_ITE (https://x-ite.github.io/)\n"
             "X_ITE is created by Holger Seelig\n"
         )
+        dlg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        from PySide6.QtGui import QColor, QIcon
+        _ico = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'x3d_interaction_editor3.ico')
+        dlg.setIconPixmap(QIcon(_ico).pixmap(64, 64))
+        # Swap only the highlight/glow color from green to icon-matching cyan-blue
+        btn = dlg.button(QMessageBox.StandardButton.Ok)
+        p = btn.palette()
+        from PySide6.QtGui import QColor
+        p.setColor(p.ColorRole.Highlight,      QColor('#29b6f6'))
+        p.setColor(p.ColorRole.HighlightedText, QColor('#ffffff'))
+        p.setColor(p.ColorRole.Button,          QColor('#29b6f6').darker(300))
+        btn.setPalette(p)
+        dlg.exec()
 
     @staticmethod
     def _build_x3d_component_map():
@@ -1588,6 +1619,9 @@ class RKSceneEditor(QMainWindow):
         except Exception:
             pass
 
+        _xite_parent = None  # resolved parent py-node for incremental SAI add
+        _xite_field  = 'children'
+
         if direct_parent is not None:
             # Bypass tree selection: insert directly into the given parent node
             field_name = override_field
@@ -1600,6 +1634,7 @@ class RKSceneEditor(QMainWindow):
             if not ok:
                 self.console_widget.appendPlainText(f'[AI] Cannot add {node_name}: {msg}')
                 return None
+            _xite_parent, _xite_field = direct_parent, field_name
         elif not selected:
             # No selection: append directly to Scene.children
             try:
@@ -1608,6 +1643,7 @@ class RKSceneEditor(QMainWindow):
                 QMessageBox.warning(self, "Cannot Add Node",
                     f"Could not append {node_name} to Scene children:\n{e}")
                 return
+            _xite_parent, _xite_field = None, 'children'
         else:
             sel_item = selected[0]
             sel_key  = sel_item.data(0, Qt.UserRole)
@@ -1643,13 +1679,14 @@ class RKSceneEditor(QMainWindow):
             if not ok:
                 QMessageBox.warning(self, "Cannot Add Node", msg)
                 return
+            _xite_parent, _xite_field = parent_node, field_name
 
         if not self._ai_batch:
             expanded = self._capture_tree_expanded()
             self.setX3DScene(self._x3dScene)
             self._restore_tree_expanded(expanded)
             self._reveal_tree_node(new_node)
-            self._sync_xite_via_temp_file()
+            self._add_node_to_xite(new_node, _xite_parent, _xite_field)
         else:
             # Register so _find_node_by_def can locate this node for subsequent parent lookups
             self.tree_widget.registerNode(new_node)
@@ -1657,6 +1694,51 @@ class RKSceneEditor(QMainWindow):
             if def_name:
                 self._ai_new_defs.add(def_name)
         return new_node
+
+    def _add_node_to_xite(self, node, parent_node, field_name):
+        """Incremental SAI add for a single newly-created node without clearing the scene."""
+        import rawkee.io.RKx3d as _rkx
+        node_type = type(node)
+        type_name = node_type.NAME() if hasattr(node_type, 'NAME') else node_type.__name__
+
+        def_ = getattr(node, 'DEF', '') or ''
+        if not def_:
+            def_ = f'__rk_{self._auto_def_counter}__'
+            self._auto_def_counter += 1
+            self._node_def_map[id(node)] = def_
+
+        scalar_fields = {}
+        if hasattr(node_type, 'FIELD_DECLARATIONS'):
+            for decl in node_type.FIELD_DECLARATIONS():
+                fname, _, ftype_obj, access = decl[0], decl[1], decl[2], decl[3]
+                if fname in self._SKIP_FIELDS:
+                    continue
+                if access == _rkx.AccessType.outputOnly:
+                    continue
+                if ftype_obj in (_rkx.FieldType.SFNode, _rkx.FieldType.MFNode):
+                    continue
+                try:
+                    val = getattr(node, fname)
+                except Exception:
+                    continue
+                if val is None:
+                    continue
+                js_val = self._scalar_to_json(val, ftype_obj)
+                if js_val is not None:
+                    scalar_fields[fname] = js_val
+
+        parent_def = None
+        if parent_node is not None:
+            parent_def = getattr(parent_node, 'DEF', '') or ''
+            if not parent_def:
+                parent_def = self._node_def_map.get(id(parent_node), '')
+
+        cmd = (
+            f'RK.addNode({json.dumps(type_name)},{json.dumps(def_)},'
+            f'{json.dumps(parent_def) if parent_def else "null"},'
+            f'{json.dumps(field_name)},{json.dumps(scalar_fields)});'
+        )
+        self.browser.page().runJavaScript(cmd)
 
     def _collect_defs(self, node, out=None):
         """Recursively collect all DEF values in the scenegraph as a set."""
@@ -1818,23 +1900,190 @@ class RKSceneEditor(QMainWindow):
             top = self.tree_widget.topLevelItem(i)
             visit(top, (top.text(0),))
 
-    def _sync_xite_via_temp_file(self):
-        """Write _x3dObj to temp.x3d in the examples folder and reload it in X_ITE."""
+    # ── SAI scenegraph sync ───────────────────────────────────────────────────
+
+    _BINDABLE_TYPES = frozenset({
+        'Viewpoint', 'OrthoViewpoint', 'GeoViewpoint',
+        'NavigationInfo', 'Background', 'TextureBackground', 'Fog',
+    })
+
+    def _bind_selected_node(self, node):
+        type_name = type(node).NAME() if hasattr(type(node), 'NAME') else ''
+        if type_name not in self._BINDABLE_TYPES:
+            return
+        def_ = getattr(node, 'DEF', '') or self._node_def_map.get(id(node), '')
+        if not def_:
+            return
+        self.browser.page().runJavaScript(
+            f'(function(){{var n=RK._node({json.dumps(def_)});if(n)n.set_bind=true;}})();'
+        )
+
+    _VIEWPOINT_TYPES = frozenset({'Viewpoint', 'OrthoViewpoint', 'GeoViewpoint'})
+
+    def _find_first_node_def(self, scene_node, type_names):
+        """Return the DEF of the first root node whose type name is in type_names, or None."""
+        for child in (getattr(scene_node, 'children', None) or []):
+            if child is None:
+                continue
+            if type(child).__name__ in type_names:
+                def_ = getattr(child, 'DEF', '') or ''
+                if def_:
+                    return def_
+        return None
+
+    _SKIP_FIELDS = frozenset({'DEF', 'USE', 'IS', 'class_', 'id_', 'style_',
+                              'metadata', 'bboxCenter', 'bboxSize', 'bboxDisplay'})
+
+    def _sync_xite_via_sai(self):
+        """Push the full Python X3D scenegraph into X_ITE via RK SAI calls."""
         if self._x3dObj is None or self._ai_batch:
             return
+        scene = getattr(self._x3dObj, 'Scene', None)
+        if scene is None:
+            return
+        self._auto_def_counter = 0
+        self._node_def_map.clear()
+        self.field_editor.set_node_def_map(self._node_def_map)
         try:
-            trv = RKSceneTraversal()
-            trv.collectProfileFromScene(self._x3dObj)
-            temp_abs = os.path.normpath(
-                os.path.join(self.basePath, '..', 'examples', 'temp.x3d'))
-            trv.x3d2disk(self._x3dObj, temp_abs, 'x3d')
-            # Cache-bust with a timestamp so X_ITE always reloads
-            temp_url = self._local_url(temp_abs) + f'?t={int(time.time())}'
-            self.browser.page().runJavaScript(
-                f'document.querySelector("x3d-canvas").src = {json.dumps(temp_url)};'
-            )
+            cmds = ['RK.clearScene();']
+            deferred_uses = []  # [(use_def, parent_def, field_name)] — flushed after all addNode
+            self._collect_sai_cmds(scene.children, None, 'children', cmds, deferred_uses)
+            # Emit USE references now that every DEF node is registered
+            for use_def, par_def, fld in deferred_uses:
+                if par_def:
+                    cmds.append(
+                        f'(function(){{var p=RK._node({json.dumps(par_def)});'
+                        f'var u=RK._node({json.dumps(use_def)});'
+                        f'if(p&&u){{try{{p[{json.dumps(fld)}].push(u);}}catch(e){{p[{json.dumps(fld)}]=u;}}}};}})();'
+                    )
+                else:
+                    cmds.append(
+                        f'(function(){{var u=RK._node({json.dumps(use_def)});'
+                        f'if(u){{document.querySelector("x3d-canvas").browser.currentScene.rootNodes.push(u);}}}})();'
+                    )
+            # Add ROUTEs last (they reference DEF names; all nodes are registered by now)
+            for node in scene.children:
+                self._collect_routes(node, cmds)
+            self.console_widget.appendPlainText(f'[SAI] {len(cmds)} commands generated')
+            cmds.append('console.log("RK sync complete: rootNodes="+document.querySelector("x3d-canvas").browser.currentScene.rootNodes.length);')
+            cmds.append('(function(){var b=document.querySelector("x3d-canvas").browser.currentScene;var c=b.getNamedNode("damagedHelmet_geom_Coord");console.log("Coord point count:",c?c.point.length:"not found");})()')
+            js = '\n'.join(cmds)
+            self.browser.page().runJavaScript(js)
         except Exception as e:
-            self.console_widget.appendPlainText(f'[ERROR] temp file sync: {e}')
+            self.console_widget.appendPlainText(f'[ERROR] SAI sync: {e}')
+
+    def _collect_sai_cmds(self, nodes, parent_def, field_name, cmds, deferred_uses):
+        """Recursively emit RK.addNode() calls for a list of X3D Python nodes."""
+        import rawkee.io.RKx3d as _rkx
+        for node in (nodes or []):
+            if node is None:
+                continue
+            node_type = type(node)
+            type_name = node_type.NAME() if hasattr(node_type, 'NAME') else node_type.__name__
+            if type_name in ('ROUTE', 'Scene', 'X3D'):
+                continue
+            def_ = getattr(node, 'DEF', '') or ''
+            use_ = getattr(node, 'USE', '') or ''
+            # Nodes without a DEF get a synthetic one so field edits can address them.
+            if not def_ and not use_:
+                def_ = f'__rk_{self._auto_def_counter}__'
+                self._auto_def_counter += 1
+                self._node_def_map[id(node)] = def_
+            if use_:
+                # Defer USE references until after all addNode calls so the DEF is guaranteed registered.
+                deferred_uses.append((use_, parent_def, field_name))
+                continue
+            # Collect non-node scalar fields
+            scalar_fields = {}
+            child_fields  = []  # [(field_name, [child_nodes])]  for SFNode/MFNode
+            if hasattr(node_type, 'FIELD_DECLARATIONS'):
+                for decl in node_type.FIELD_DECLARATIONS():
+                    fname    = decl[0]
+                    ftype_obj = decl[2]
+                    access   = decl[3]
+                    if fname in self._SKIP_FIELDS:
+                        continue
+                    if access == _rkx.AccessType.outputOnly:
+                        continue
+                    if ftype_obj in (_rkx.FieldType.SFNode, _rkx.FieldType.MFNode):
+                        try:
+                            val = getattr(node, fname)
+                        except Exception:
+                            continue
+                        if val is None:
+                            continue
+                        children = val if isinstance(val, list) else [val]
+                        children = [c for c in children if c is not None]
+                        if children:
+                            child_fields.append((fname, children))
+                        continue
+                    # Scalar field — convert to JSON-safe value
+                    try:
+                        val = getattr(node, fname)
+                    except Exception:
+                        continue
+                    if val is None:
+                        continue
+                    js_val = self._scalar_to_json(val, ftype_obj)
+                    if js_val is not None:
+                        scalar_fields[fname] = js_val
+            def_js      = json.dumps(def_) if def_ else 'null'
+            parent_js   = json.dumps(parent_def) if parent_def else 'null'
+            field_js    = json.dumps(field_name)
+            fields_json = json.dumps(scalar_fields)
+            cmds.append(
+                f'RK.addNode({json.dumps(type_name)},{def_js},{parent_js},{field_js},{fields_json});'
+            )
+            # Recurse into child node fields
+            for cf_name, cf_nodes in child_fields:
+                self._collect_sai_cmds(cf_nodes, def_ or None, cf_name, cmds, deferred_uses)
+
+    def _collect_routes(self, node, cmds):
+        """Emit RK.addRoute() for any ROUTE objects found in this node's children."""
+        import rawkee.io.RKx3d as _rkx
+        node_type = type(node)
+        if node_type.NAME() == 'ROUTE' if hasattr(node_type, 'NAME') else False:
+            fn = getattr(node, 'fromNode',  '')
+            ff = getattr(node, 'fromField', '')
+            tn = getattr(node, 'toNode',    '')
+            tf = getattr(node, 'toField',   '')
+            if fn and ff and tn and tf:
+                cmds.append(
+                    f'RK.addRoute({json.dumps(fn)},{json.dumps(ff)},{json.dumps(tn)},{json.dumps(tf)});'
+                )
+            return
+        if hasattr(node_type, 'FIELD_DECLARATIONS'):
+            for decl in node_type.FIELD_DECLARATIONS():
+                if decl[2] not in (_rkx.FieldType.SFNode, _rkx.FieldType.MFNode):
+                    continue
+                try:
+                    val = getattr(node, decl[0])
+                except Exception:
+                    continue
+                children = val if isinstance(val, list) else ([val] if val else [])
+                for child in children:
+                    if child is not None:
+                        self._collect_routes(child, cmds)
+
+    @staticmethod
+    def _scalar_to_json(val, ftype_obj):
+        """Convert a Python field value to a JSON-serialisable form for RK.addNode()."""
+        if isinstance(val, bool):
+            return val
+        if isinstance(val, (int, float)):
+            return val
+        if isinstance(val, str):
+            return val
+        if isinstance(val, tuple):
+            return list(val)
+        if isinstance(val, list):
+            if not val:
+                return []
+            if isinstance(val[0], tuple):
+                # Flatten MF tuple arrays — X_ITE expects flat [x,y,z,x,y,z,...]
+                return [x for t in val for x in t]
+            return list(val)
+        return None
 
     def stopWebserver(self):
         if self.httpd:

@@ -30,9 +30,12 @@ else:
                           '--ignore-gpu-blacklist --ignore-gpu-blocklist')
 
 from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, QTimer, QtMsgType, qInstallMessageHandler
 from rawkee.editor.RKSceneEditor import RKSceneEditor, apply_dark_palette as _apply_dark_palette
 import signal
+
+_ICON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'x3d_interaction_editor3.ico')
 
 
 def _qt_message_handler(msg_type, context, message):
@@ -43,6 +46,7 @@ def main():
     qInstallMessageHandler(_qt_message_handler)
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     app = QApplication.instance() or QApplication(sys.argv)
+    app.setWindowIcon(QIcon(_ICON_PATH))
     _apply_dark_palette(app)
     # Allow Ctrl+C to quit the Qt app on Windows
     signal.signal(signal.SIGINT, lambda *_: app.quit())
