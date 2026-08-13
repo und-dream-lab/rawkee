@@ -1081,8 +1081,8 @@ class RKOrganizer():
             
             elif depNode.typeName == "aiSkyDomeLight":
                 self.processEnviornmentLight(depNode, x3dPF[0], x3dPF[1], "EnvironmentLight", dagNode)
-    
-    
+
+
     def processNodeAsEnviornmentLight(self, envNode, texAttr, x3dParent, x3dField):
         # Use listConnections to find connected nodes
         # - source=True, destination=False: Look for upstream connections
@@ -1131,11 +1131,6 @@ class RKOrganizer():
             x3dParent.color = self.getSFColor(lcol[0], lcol[1], lcol[2])
         else:
             print("tFile - Is Not Valid")
-
-    '''
-    print("code that will crash app)
-    '''
-
     def processEnviornmentLight(self,       skyDomeLight, x3dParent, x3dField, x3dType, dagNode):
         print("EL - Print me")
         x3dNode = self.trv.processBasicNodeAddition(x3dParent, x3dField, x3dType, dagNode.name())
@@ -6696,4 +6691,3 @@ class RKOrganizer():
                     return True
 
         return False
-

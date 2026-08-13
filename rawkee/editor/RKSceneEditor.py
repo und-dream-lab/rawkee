@@ -1537,7 +1537,6 @@ class RKSceneEditor(QMainWindow):
         # Swap only the highlight/glow color from green to icon-matching cyan-blue
         btn = dlg.button(QMessageBox.StandardButton.Ok)
         p = btn.palette()
-        from PySide6.QtGui import QColor
         p.setColor(p.ColorRole.Highlight,      QColor('#29b6f6'))
         p.setColor(p.ColorRole.HighlightedText, QColor('#ffffff'))
         p.setColor(p.ColorRole.Button,          QColor('#29b6f6').darker(300))
@@ -1965,8 +1964,6 @@ class RKSceneEditor(QMainWindow):
             for node in scene.children:
                 self._collect_routes(node, cmds)
             self.console_widget.appendPlainText(f'[SAI] {len(cmds)} commands generated')
-            cmds.append('console.log("RK sync complete: rootNodes="+document.querySelector("x3d-canvas").browser.currentScene.rootNodes.length);')
-            cmds.append('(function(){var b=document.querySelector("x3d-canvas").browser.currentScene;var c=b.getNamedNode("damagedHelmet_geom_Coord");console.log("Coord point count:",c?c.point.length:"not found");})()')
             js = '\n'.join(cmds)
             self.browser.page().runJavaScript(js)
         except Exception as e:
