@@ -1132,6 +1132,9 @@ class RKOrganizer():
         else:
             print("tFile - Is Not Valid")
 
+    '''
+    print("code that will crash app)
+    '''
 
     def processEnviornmentLight(self,       skyDomeLight, x3dParent, x3dField, x3dType, dagNode):
         print("EL - Print me")
@@ -1946,7 +1949,8 @@ class RKOrganizer():
         
         if self.rkNormalOpts > 0 and len(skm) > 0:
             nName = nName + "_Normal"
-            normalbna = self.trv.processBasicNodeAddition(x3dParent, "skinNormal", "Normal", nName)
+            normalbna   = self.trv.processBasicNodeAddition(x3dParent, "skinNormal", "Normal", nName)
+            boundNormal = self.trv.processBasicNodeAddition(x3dParent, "skinBindingNormals", "Normal", nName + "_binding")
             if normalbna:
                 for sm in skm:
                     offset = 0
@@ -1959,6 +1963,8 @@ class RKOrganizer():
                                 for i in mia:
                                     n = sm.getFaceVertexNormal(mpIter.index(), i)
                                     normalbna.vector.append((n.x, n.y, n.z))
+                                    if boundNormal:
+                                        boundNormal.vector.append((n.x, n.y, n.z))
                                     offset += 1
                                 mpIter.next()
                         else:
@@ -1968,6 +1974,8 @@ class RKOrganizer():
                                 for i in range(pvc):
                                     n = smIter.getNormal(i)
                                     normalbna.vector.append((n.x, n.y, n.z))
+                                    if boundNormal:
+                                        boundNormal.vector.append((n.x, n.y, n.z))
                                     offset += 1
                                 smIter.next()
                     #Normal Per Vertex is False
@@ -1979,12 +1987,16 @@ class RKOrganizer():
                                 nt = smIter.numTriangles()
                                 for i in range(nt):
                                     normalbna.vector.append((fn.x, fn.y, fn.z))
+                                    if boundNormal:
+                                        boundNormal.vector.append((fn.x, fn.y, fn.z))
                                     offset += 1
                                 mIter.next()
                         else:
                             for i in range(sm.numPolygons):
                                 pn = sm.getPolygonNormal(i)
                                 normalbna.vector.append((pn.x, pn.y, pn.z))
+                                if boundNormal:
+                                    boundNormal.vector.append((pn.x, pn.y, pn.z))
                                 offset += 1
 
                     slen = len(sno)
@@ -2012,7 +2024,8 @@ class RKOrganizer():
         
         if skmLen > 0:
             cName = cName + "_Coord"
-            coordbna = self.trv.processBasicNodeAddition(x3dParent, "skinCoord", "Coordinate", cName)
+            coordbna   = self.trv.processBasicNodeAddition(x3dParent, "skinCoord",         "Coordinate", cName)
+            boundCoord = self.trv.processBasicNodeAddition(x3dParent, "skinBindingCoords", "Coordinate", cName + "_binding")
             for sm in skm:
                 # Multiplier to translate mesh verticies into character/avatar Model Space
                 sType=aom.MSpace.kWorld
@@ -2043,7 +2056,9 @@ class RKOrganizer():
                 for point in points:
                     point  = point * aom.MFloatMatrix(wssm)
                     if coordbna:
-                        coordbna.point.append((point.x, point.y, point.z))
+                        coordbna.point.append(  (point.x, point.y, point.z))
+                    if boundCoord:
+                        boundCoord.point.append((point.x, point.y, point.z))
                     offset += 1
                 if wlen > 0:
                     offset = offset + wio[wlen-1]

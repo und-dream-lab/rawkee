@@ -2,8 +2,14 @@
 <!DOCTYPE X3D PUBLIC "ISO//Web3D//DTD X3D 4.1//EN" "https://www.web3d.org/specifications/x3d-4.1.dtd">
 <X3D profile='Full' version='4.1' xmlns:xsd='http://www.w3.org/2001/XMLSchema-instance' xsd:noNamespaceSchemaLocation='https://www.web3d.org/specifications/x3d-4.1.xsd'>
 	<head>
+		<component name='X_ITE' level='1'/>
 		<meta name='generator' content='RawKee X3D Exporter for Maya 2025+ [Python Edition], https://github.com/und-dream-lab/rawkee/'/>
 	</head>
 	<Scene>
+		<Script DEF='__RKReadySentinel__' mustEvaluate='true'><![CDATA[ecmascript:
+			function initialize() {
+				if (typeof RK !== 'undefined') { RK._onSceneReady(); }
+			}
+		]]></Script>
 	</Scene>
 </X3D>

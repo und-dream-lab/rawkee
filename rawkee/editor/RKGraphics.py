@@ -186,6 +186,15 @@ class RKGraphicsView(QGraphicsView):
         self._drag_edge         = None
         self._drag_start_socket = None
 
+    def event(self, event):
+        # Tab is consumed by Qt focus traversal before keyPressEvent; handle it here.
+        if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key_Tab:
+            if self._add_node_cb is not None:
+                center = self.mapToScene(self.viewport().rect().center())
+                self._add_node_cb(center)
+            return True
+        return super().event(event)
+
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key_Delete, Qt.Key_Backspace):
             from rawkee.editor.RKXGraphicsEdge import RKXGraphicsEdge
