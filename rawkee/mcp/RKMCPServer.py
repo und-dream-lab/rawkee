@@ -862,9 +862,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._reply_plain(404, 'Not found')
             return
         accept = self.headers.get('Accept', '')
-        if 'text/event-stream' not in accept and 'application/json' not in accept:
-            self._reply_plain(406,
-                'Not Acceptable — include "text/event-stream" or "application/json" in Accept')
+        if 'text/event-stream' not in accept:
+            self._reply_plain(406, 'Not Acceptable — Accept must include "text/event-stream"')
             return
         length = int(self.headers.get('Content-Length', 0))
         try:
@@ -917,7 +916,7 @@ class _Handler(BaseHTTPRequestHandler):
             result    = _dispatch(tool_name, tool_args, sess)
             self._reply_sse({'jsonrpc': '2.0', 'id': rid, 'result': {
                 'content': [{'type': 'text', 'text': result}],
-                'isError': False,
+                'isError': result.startswith('Error'),
             }})
             return
 
@@ -931,7 +930,7 @@ class _Handler(BaseHTTPRequestHandler):
 # Public entry point
 # ---------------------------------------------------------------------------
 
-def run(host: str = '0.0.0.0', port: int = 8766):
+def run(host: str = '127.0.0.1', port: int = 8766):
     server = HTTPServer((host, port), _Handler)
     print(f'RawKee X3D MCP server  →  http://{host}:{port}/mcp')
     server.serve_forever()

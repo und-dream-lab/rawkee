@@ -1,12 +1,12 @@
 /**
- * rk_sai_helper.js � X_ITE SAI bridge for RawKee scene editor.
+ * rk_sai_helper.js - X_ITE SAI bridge for RawKee scene editor.
  * Loaded via <script> in x_ite.html before x_ite.min.js.
  * All RK.* calls made before the sentinel fires are queued and replayed.
  */
 (function () {
     'use strict';
 
-    // DEF name ? live X_ITE node reference
+    // DEF name -> live X_ITE node reference
     const _cache = Object.create(null);
 
     const _queue = [];
@@ -102,7 +102,7 @@
             return;
         }
 
-        // SF tuple � use X3D namespace constructor with spread.
+        // SF tuple - use X3D namespace constructor with spread.
         const SFCtor = (typeof X3D !== 'undefined' && tname && X3D[tname])
                      || (field && field.constructor);
         if (SFCtor) {
