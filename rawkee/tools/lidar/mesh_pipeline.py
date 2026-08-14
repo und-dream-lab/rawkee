@@ -3,8 +3,7 @@
 Strategy
 --------
 1. Extract LiDAR point clouds from the SLAM ROS bag (PandarXTM laser_horiz +
-   laser_vert).  Falls back to GPU depth estimation (Depth Anything V2) when
-   the bag does not expose raw scan topics.
+   laser_vert).
 2. Colorize point cloud: reproject each LiDAR point into every camera frame
    that sees it, average colour using inverse-distance weighting.
 3. Run Open3D Poisson surface reconstruction on the coloured cloud.
@@ -187,69 +186,7 @@ def _extract_lidar_from_bag(
 # Depth estimation fallback (Depth Anything V2 via transformers)
 # ---------------------------------------------------------------------------
 
-def _estimate_depth_gpu(
-    dataset: ScanDataset,
-    frame_indices: list[int],
-    device: 'torch.device',
-    stride: int = 5,
-) -> np.ndarray:
-    """Estimate depth for selected frames and return fused (N,3) world point cloud."""
-    try:
-        from transformers import pipeline as hf_pipeline
-    except ImportError:
-        raise RuntimeError(
-            'transformers required for depth fallback: pip install transformers'
-        )
 
-    log.info('Depth estimation fallback using Depth Anything V2 …')
-    depth_pipe = hf_pipeline(
-        task='depth-estimation',
-        model='depth-anything/Depth-Anything-V2-Large-hf',
-        device=0 if device.type == 'cuda' else -1,
-    )
-
-    all_pts: list[np.ndarray] = []
-
-    for fi in frame_indices[::stride]:
-        head_pos, R_head = dataset.frame_transform(fi)
-        for ci, cam in enumerate(dataset.cameras):
-            dng = dataset.dng_path(fi, ci)
-            if not dng.exists():
-                continue
-            try:
-                from PIL import Image
-                import rawpy
-                with rawpy.imread(str(dng)) as raw:
-                    rgb8 = raw.postprocess(output_bps=8, use_camera_wb=True)
-                pil_img = Image.fromarray(rgb8)
-                pil_img = pil_img.resize((512, 512))
-                depth_out = depth_pipe(pil_img)
-                depth = np.array(depth_out['depth'], dtype=np.float32)
-
-                h, w = depth.shape
-                col_g = np.arange(w, dtype=np.float32)
-                row_g = np.arange(h, dtype=np.float32)
-                cc, rr = np.meshgrid(col_g, row_g)
-                cc = cc * (cam.ocam.width  / w)
-                rr = rr * (cam.ocam.height / h)
-                uv = np.stack([cc.ravel(), rr.ravel()], axis=-1)
-                dirs_cam = cam.ocam.unproject(uv)
-                pts_cam = dirs_cam * depth.ravel()[:, None]
-
-                # Transform to world frame
-                R_cam_to_head = cam.R                     # (3,3)
-                pts_head = pts_cam @ R_cam_to_head.T + cam.position
-                pts_world = pts_head @ R_head.T + head_pos
-
-                all_pts.append(pts_world.astype(np.float32))
-            except Exception as exc:
-                log.debug('Depth estimation frame %d cam %d: %s', fi, ci, exc)
-
-    if not all_pts:
-        raise RuntimeError('Depth estimation produced no points')
-    combined = np.concatenate(all_pts, axis=0)
-    log.info('Depth fallback: %d world points from %d frames', len(combined), len(frame_indices[::stride]))
-    return combined
 
 
 # ---------------------------------------------------------------------------
@@ -428,13 +365,11 @@ class MeshPipeline:
         poisson_depth: int = 9,
         atlas_size: int = 4096,
         colorise_stride: int = 10,
-        depth_fallback_stride: int = 5,
         prefer_cuda: bool = True,
     ) -> None:
         self.poisson_depth = poisson_depth
         self.atlas_size = atlas_size
         self.colorise_stride = colorise_stride
-        self.depth_fallback_stride = depth_fallback_stride
         self.device = _get_device() if prefer_cuda else torch.device('cpu')
 
     # ------------------------------------------------------------------
@@ -534,10 +469,9 @@ class MeshPipeline:
         bag = dataset.bag_path('trajectory_slam')
         xyz = _extract_lidar_from_bag(bag)
         if xyz is None:
-            log.info('LiDAR bag extraction failed — using depth estimation fallback')
-            xyz = _estimate_depth_gpu(
-                dataset, valid_frames, self.device,
-                stride=self.depth_fallback_stride,
+            raise RuntimeError(
+                f'LiDAR bag extraction failed for {bag}. '
+                'Ensure the NavVis dataset includes a trajectory_slam bag with point-cloud topics.'
             )
         # Voxel downsample for tractable reconstruction
         if _O3D:

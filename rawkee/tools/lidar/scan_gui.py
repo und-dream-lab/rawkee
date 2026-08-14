@@ -69,7 +69,6 @@ class _PipelineWorker(QThread):
                     poisson_depth        = kw['poisson_depth'],
                     atlas_size           = kw['atlas_size'],
                     colorise_stride      = kw['colorise_stride'],
-                    depth_fallback_stride= kw['depth_stride'],
                 ).run(
                     dataset,
                     output_dir    = kw['output'],
@@ -163,7 +162,7 @@ class _SharedOptions(QGroupBox):
         self.trimble_edit = QLineEdit()
         self.trimble_edit.setPlaceholderText('Optional — for georeferencing')
         g.addWidget(self.trimble_edit, row, 1)
-        self.trimble_btn = QPushButton('Browse…')
+        self.trimble_btn = QPushButton('Browse CSV…')
         g.addWidget(self.trimble_btn, row, 2)
         row += 1
 
@@ -228,9 +227,8 @@ class _MeshTab(QWidget):
         self.poisson_depth   = self._spin(g2, 0, 'Poisson depth',    9,  4, 13)
         self.atlas_size      = self._spin(g2, 1, 'Atlas size (px)',   4096, 512, 16384, step=512)
         self.colorise_stride = self._spin(g2, 2, 'Colorise stride',   10, 1, 50)
-        self.depth_stride    = self._spin(g2, 3, 'Depth est. stride', 5,  1, 20)
-        self.envmap_w        = self._spin(g2, 4, 'Envmap width',      4096, 512, 8192, step=512)
-        self.envmap_h        = self._spin(g2, 5, 'Envmap height',     2048, 256, 4096, step=256)
+        self.envmap_w        = self._spin(g2, 3, 'Envmap width',      4096, 512, 8192, step=512)
+        self.envmap_h        = self._spin(g2, 4, 'Envmap height',     2048, 256, 4096, step=256)
         layout.addWidget(opt_box)
 
         self.run_btn = QPushButton('Run Mesh Pipeline')
@@ -324,7 +322,6 @@ class _MeshTab(QWidget):
             poisson_depth  = self.poisson_depth.value(),
             atlas_size     = self.atlas_size.value(),
             colorise_stride= self.colorise_stride.value(),
-            depth_stride   = self.depth_stride.value(),
             envmap_width   = self.envmap_w.value(),
             envmap_height  = self.envmap_h.value(),
         )
