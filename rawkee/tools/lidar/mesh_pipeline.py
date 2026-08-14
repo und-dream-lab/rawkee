@@ -83,27 +83,35 @@ def _get_device() -> 'torch.device':
 # LiDAR extraction from ROS bag
 # ---------------------------------------------------------------------------
 
-def _parse_pointcloud2(msg_data: bytes, fields_meta: list) -> Optional[np.ndarray]:
+# ROS sensor_msgs/PointField datatype codes → (numpy dtype, byte size)
+_ROS_DTYPE: dict[int, tuple[type, int]] = {
+    1: (np.int8,    1), 2: (np.uint8,   1),
+    3: (np.int16,   2), 4: (np.uint16,  2),
+    5: (np.int32,   4), 6: (np.uint32,  4),
+    7: (np.float32, 4), 8: (np.float64, 8),
+}
+
+
+def _parse_pointcloud2(msg_data: bytes, fields_meta: list, point_step: int) -> Optional[np.ndarray]:
     """Parse a ROS sensor_msgs/PointCloud2 blob to (N,3) float32 xyz."""
     try:
-        # Build field offset map
-        offsets = {f.name: (f.offset, f.datatype) for f in fields_meta}
-        point_step = None
-        # Attempt to find point_step from the raw header; we'll iterate offset-by-offset
-        x_off, x_dt = offsets.get('x', (0, 7))    # 7 = FLOAT32
-        y_off = offsets.get('y', (4, 7))[0]
-        z_off = offsets.get('z', (8, 7))[0]
-        # Try to infer point_step
-        sorted_offs = sorted(offsets.values(), key=lambda t: t[0])
-        last_off = sorted_offs[-1][0] + 4
-        point_step_guess = last_off
-        n_pts = len(msg_data) // point_step_guess
+        if point_step <= 0 or len(msg_data) == 0:
+            return None
+        n_pts = len(msg_data) // point_step
         if n_pts == 0:
             return None
-        pts = np.frombuffer(msg_data, dtype=np.uint8).reshape(n_pts, -1)
-        x = np.frombuffer(pts[:, x_off:x_off + 4].tobytes(), dtype=np.float32)
-        y = np.frombuffer(pts[:, y_off:y_off + 4].tobytes(), dtype=np.float32)
-        z = np.frombuffer(pts[:, z_off:z_off + 4].tobytes(), dtype=np.float32)
+
+        offsets = {f.name: (f.offset, f.datatype) for f in fields_meta}
+        raw = np.frombuffer(msg_data, dtype=np.uint8).reshape(n_pts, point_step)
+
+        def _extract(name: str, default_off: int) -> np.ndarray:
+            off, dt = offsets.get(name, (default_off, 7))  # 7 = FLOAT32
+            np_dtype, nbytes = _ROS_DTYPE.get(dt, (np.float32, 4))
+            return np.frombuffer(raw[:, off:off + nbytes].tobytes(), dtype=np_dtype).astype(np.float32)
+
+        x = _extract('x', 0)
+        y = _extract('y', 4)
+        z = _extract('z', 8)
         valid = np.isfinite(x) & np.isfinite(y) & np.isfinite(z)
         return np.stack([x[valid], y[valid], z[valid]], axis=-1).astype(np.float32)
     except Exception as exc:
@@ -158,7 +166,7 @@ def _extract_lidar_from_bag(
                     break
                 try:
                     msg = ts.deserialize_ros1(raw, conn.msgtype)
-                    xyz = _parse_pointcloud2(bytes(msg.data), msg.fields)
+                    xyz = _parse_pointcloud2(bytes(msg.data), msg.fields, msg.point_step)
                     if xyz is not None and len(xyz) > 0:
                         clouds.append(xyz)
                         count += 1
@@ -279,7 +287,7 @@ def _colorize_cloud(
             if not dng.exists():
                 continue
             try:
-                img_np = _load_dng_hdr(dng)
+                img_np = _load_image_hdr(dng)
                 img_t = torch.from_numpy(img_np).to(device).permute(2, 0, 1).unsqueeze(0)
 
                 pts_head = (xyz_t - head_pos_t) @ R_head_t

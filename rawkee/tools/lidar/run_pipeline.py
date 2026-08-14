@@ -58,6 +58,8 @@ def _build_parser() -> argparse.ArgumentParser:
     splat.add_argument('--iterations',    type=int,   default=10000,  metavar='INT')
     splat.add_argument('--frame-stride',  type=int,   default=5,      metavar='INT')
     splat.add_argument('--init-points',   type=int,   default=100000, metavar='INT')
+    splat.add_argument('--decode-sh',     action='store_true',
+                       help='Pre-decode SH coefficients to RGB in PLY output (for consumers without SH support)')
 
     return p
 
@@ -119,6 +121,7 @@ def main() -> None:
             output_format=args.format,
             trimble_csv=effective_csv,
             georef_epsg=args.epsg,
+            decode_sh=args.decode_sh,
         )
 
 

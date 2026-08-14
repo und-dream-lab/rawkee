@@ -93,6 +93,7 @@ class _PipelineWorker(QThread):
                     output_format = kw['fmt'],
                     trimble_csv   = effective_csv,
                     georef_epsg   = kw['epsg'],
+                    decode_sh     = kw.get('decode_sh', False),
                 )
             self.finished.emit(True, str(out))
         except Exception as exc:
@@ -389,6 +390,12 @@ class _SplatTab(QWidget):
         self.iterations   = self._spin(g2, 2, 'Iterations',        10000, 100, 100000, step=1000)
         self.frame_stride = self._spin(g2, 3, 'Frame stride',      5,    1,   20)
         self.init_points  = self._spin(g2, 4, 'Init points',       100000, 1000, 1000000, step=10000)
+        self.decode_sh    = QCheckBox('Pre-decode SH → RGB in PLY output')
+        self.decode_sh.setToolTip(
+            'Enable for PLY consumers that do not implement SH decoding.\n'
+            'Has no effect for non-PLY formats.'
+        )
+        g2.addWidget(self.decode_sh, 5, 0, 1, 2)
         layout.addWidget(opt_box)
 
         self.run_btn = QPushButton('Run Splat Pipeline')
@@ -484,6 +491,7 @@ class _SplatTab(QWidget):
             iterations    = self.iterations.value(),
             frame_stride  = self.frame_stride.value(),
             init_points   = self.init_points.value(),
+            decode_sh     = self.decode_sh.isChecked(),
         )
         self._start_worker('splat', kw)
 
