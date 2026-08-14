@@ -16,12 +16,135 @@ import numpy as np
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+# Coordinate system helpers
+# ---------------------------------------------------------------------------
+
+# ROS/NavVis world frame: Z-up right-handed
+# X3D / OBJ / glTF frame: Y-up right-handed
+# Conversion: (x, y, z)_ros -> (x, z, -y)_x3d
+_ROS_TO_X3D = np.array([[1., 0., 0.],
+                         [0., 0., 1.],
+                         [0.,-1., 0.]], dtype=np.float64)
+
+# Quaternion (w,x,y,z) for the -90° rotation around X that maps ROS→X3D
+_Q_ROS_TO_X3D = np.array([np.sqrt(2)/2, -np.sqrt(2)/2, 0.0, 0.0], dtype=np.float64)
+
+
+def _quat_apply_basis(q_basis: np.ndarray, quats: np.ndarray) -> np.ndarray:
+    """Left-multiply an (N,4) array of (w,x,y,z) quaternions by a single quaternion."""
+    w1, x1, y1, z1 = q_basis
+    w2, x2, y2, z2 = quats[:, 0], quats[:, 1], quats[:, 2], quats[:, 3]
+    return np.stack([
+        w1*w2 - x1*x2 - y1*y2 - z1*z2,
+        w1*x2 + x1*w2 + y1*z2 - z1*y2,
+        w1*y2 - x1*z2 + y1*w2 + z1*x2,
+        w1*z2 + x1*y2 - y1*x2 + z1*w2,
+    ], axis=-1)
+
+
+def _sh_wigner_d(R: np.ndarray, l_max: int) -> list:
+    """Numerically compute Wigner D matrices for real SH rotation by R for degrees 0..l_max.
+    Uses Fibonacci sphere sampling + least-squares; matches the gsplat real SH convention."""
+    try:
+        from scipy.special import sph_harm_y as _sph_harm_raw
+        def _sph_harm(m, l, phi, theta):   # adapt new API (n, m, theta, phi) to old call style
+            return _sph_harm_raw(l, m, theta, phi)
+    except ImportError:
+        from scipy.special import sph_harm as _sph_harm  # scipy < 1.15 old API
+    N = max(500, 200 * (l_max + 1) ** 2)
+    golden_angle = np.pi * (3.0 - np.sqrt(5.0))
+    i = np.arange(N, dtype=float)
+    y_fib = 1.0 - (2.0 * i + 1.0) / N
+    r_fib = np.sqrt(np.maximum(1.0 - y_fib**2, 0.0))
+    phi_fib = golden_angle * i
+    dirs = np.column_stack([r_fib * np.cos(phi_fib), y_fib, r_fib * np.sin(phi_fib)])
+    dirs_rt = dirs @ R  # R^T applied to each row direction
+
+    def _rsh(l, d):
+        th = np.arccos(np.clip(d[:, 2], -1.0, 1.0))
+        ph = np.arctan2(d[:, 1], d[:, 0])
+        Y = np.zeros((len(d), 2 * l + 1))
+        for j, m in enumerate(range(-l, l + 1)):
+            if m < 0:
+                Y[:, j] = np.sqrt(2) * (-1)**m * np.imag(_sph_harm(abs(m), l, ph, th))
+            elif m == 0:
+                Y[:, j] = np.real(_sph_harm(0, l, ph, th))
+            else:
+                Y[:, j] = np.sqrt(2) * (-1)**m * np.real(_sph_harm(m, l, ph, th))
+        return Y
+
+    D_list = [np.eye(1)]
+    for l in range(1, l_max + 1):
+        B, Br = _rsh(l, dirs), _rsh(l, dirs_rt)
+        # Br = B @ D^T  →  D = lstsq(B, Br)^T
+        D, _, _, _ = np.linalg.lstsq(B, Br, rcond=None)
+        D_list.append(np.ascontiguousarray(D))   # D[m',m] = D_{m'm}(R); c' = D @ c
+    return D_list
+
+
+def _rotate_sh_coeffs(sh_coeffs: np.ndarray, R: np.ndarray, sh_degree: int) -> np.ndarray:
+    """Rotate SH coefficients (N, n_sh, 3) by 3x3 rotation matrix R using Wigner D-matrices."""
+    if sh_degree == 0:
+        return sh_coeffs
+    D_list = _sh_wigner_d(R, sh_degree)
+    result = sh_coeffs.copy()
+    for l in range(1, sh_degree + 1):
+        s, e = l * l, (l + 1) * (l + 1)
+        result[:, s:e, :] = np.einsum('pm,nmc->npc', D_list[l], sh_coeffs[:, s:e, :])
+    return result
+
+
+def _linear_to_srgb(arr: np.ndarray) -> np.ndarray:
+    """Convert linear float32 [0,1] to gamma-encoded sRGB uint8. PNG is always interpreted as sRGB."""
+    a = np.clip(arr, 0.0, 1.0)
+    srgb = np.where(a <= 0.0031308, a * 12.92, 1.055 * np.power(a, 1.0 / 2.4) - 0.055)
+    return (np.clip(srgb, 0.0, 1.0) * 255).astype(np.uint8)
+
+
+def _ros_verts_to_x3d(verts: np.ndarray) -> np.ndarray:
+    return np.stack([verts[:, 0], verts[:, 2], -verts[:, 1]], axis=1)
+
+
+def _ros_mesh_to_x3d(mesh):
+    """Return a Y-up copy of an Open3D TriangleMesh whose vertices are in ROS Z-up."""
+    import copy
+    m = copy.deepcopy(mesh)
+    import open3d as o3d
+    v = np.asarray(m.vertices)
+    m.vertices = o3d.utility.Vector3dVector(_ros_verts_to_x3d(v))
+    if m.has_vertex_normals():
+        n = np.asarray(m.vertex_normals)
+        m.vertex_normals = o3d.utility.Vector3dVector(
+            np.stack([n[:, 0], n[:, 2], -n[:, 1]], axis=1)
+        )
+    return m
+
+
+def _viewpoint_orientation(R_ros: np.ndarray) -> tuple:
+    """Axis-angle from X3D default look (0,0,-1) to device forward in Y-up frame."""
+    fwd = _ROS_TO_X3D @ R_ros[0]           # device X-axis (forward) in X3D frame
+    fwd /= max(float(np.linalg.norm(fwd)), 1e-9)
+    default_look = np.array([0., 0., -1.])
+    axis = np.cross(default_look, fwd)
+    sin_a = float(np.linalg.norm(axis))
+    cos_a = float(np.dot(default_look, fwd))
+    if sin_a < 1e-6:
+        return (0., 1., 0., math.pi if cos_a < 0 else 0.)
+    axis /= sin_a
+    return (float(axis[0]), float(axis[1]), float(axis[2]), math.atan2(sin_a, cos_a))
+
+
+def _make_x3d_viewpoints(viewpoints: list, geo_origin, geo_system) -> list:
+    raise RuntimeError('_make_x3d_viewpoints is retired; use processBasicNodeAddition instead')
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
 def export_mesh(
     mesh,
-    atlas: np.ndarray,
+    cam_patches: list,
     spec_cubemap_paths: dict[str, Path],
     diff_cubemap_paths: dict[str, Path],
     output_dir: Path,
@@ -30,12 +153,14 @@ def export_mesh(
     equirect_spec_path: Optional[Path] = None,
     equirect_diff_path: Optional[Path] = None,
     geo_origin: Optional[tuple] = None,
+    viewpoints: Optional[list] = None,
 ) -> Path:
     """Export a textured polygon mesh in the requested format.
 
     Parameters
     ----------
-    geo_origin: (easting, northing, height, epsg) from ScanDataset.geo_origin(), or None.
+    geo_origin:  (easting, northing, height, epsg) from ScanDataset.geo_origin(), or None.
+    viewpoints:  list of (pos_ros, R_ros, description) from _collect_scan_viewpoints().
     """
     fmt = fmt.lower().lstrip('.')
     output_dir = Path(output_dir)
@@ -43,14 +168,14 @@ def export_mesh(
 
     if fmt in ('x3d', 'x3dv', 'x3dj'):
         return _export_mesh_x3d(
-            mesh, atlas, spec_cubemap_paths, diff_cubemap_paths,
+            mesh, cam_patches, spec_cubemap_paths, diff_cubemap_paths,
             equirect_spec_path, equirect_diff_path,
-            output_dir, stem, fmt, geo_origin,
+            output_dir, stem, fmt, geo_origin, viewpoints,
         )
     elif fmt == 'obj':
-        return _export_mesh_obj(mesh, atlas, output_dir, stem)
+        return _export_mesh_obj(mesh, cam_patches, output_dir, stem)
     elif fmt == 'glb':
-        return _export_mesh_glb(mesh, atlas, output_dir, stem)
+        return _export_mesh_glb(mesh, cam_patches, output_dir, stem)
     else:
         raise ValueError(f'Unknown mesh export format: {fmt!r}')
 
@@ -63,6 +188,7 @@ def export_splat(
     sh_degree: int = 3,
     geo_origin: Optional[tuple] = None,
     decode_sh: bool = False,
+    viewpoints: Optional[list] = None,
 ) -> Path:
     """Export trained Gaussian splat parameters in the requested format.
 
@@ -89,6 +215,7 @@ def export_splat(
         return _export_splat_x3d(
             means, scales, quats_wxyz, sh_coeffs, opacities,
             output_dir, stem, fmt, sh_degree, geo_origin,
+            viewpoints=viewpoints, decode_sh=decode_sh,
         )
     elif fmt == 'ply':
         return _export_splat_ply(
@@ -149,13 +276,14 @@ def _make_env_ktx2(equirect_path: Optional[Path], face_paths: dict[str, Path],
 
 
 def _export_mesh_x3d(
-    mesh, atlas: np.ndarray,
+    mesh, cam_patches: list,
     spec_paths: dict[str, Path],
     diff_paths: dict[str, Path],
     equirect_spec: Optional[Path],
     equirect_diff: Optional[Path],
     output_dir: Path, stem: str, fmt: str,
     geo_origin: Optional[tuple] = None,
+    viewpoints: Optional[list] = None,
 ) -> Path:
     try:
         import open3d as o3d
@@ -166,91 +294,144 @@ def _export_mesh_x3d(
     except ImportError:
         raise RuntimeError('imageio required: pip install imageio')
 
-    from rawkee.io.RKx3d import (
-        X3D, Scene, Shape, Appearance, PhysicalMaterial,
-        ImageTexture, IndexedTriangleSet, Coordinate, TextureCoordinate,
-        EnvironmentLight, ImageCubeMapTexture, GeoLocation,
-    )
     from rawkee.io.RKSceneTraversal import RKSceneTraversal
 
-    # --- Save atlas PNG ---
-    atlas_uint8 = (np.clip(atlas, 0, 1) * 255).astype(np.uint8)
-    atlas_path = output_dir / f'{stem}_atlas.png'
-    iio.imwrite(str(atlas_path), atlas_uint8)
-    log.info('Atlas → %s', atlas_path)
+    # --- Save camera patch images ---
+    for patch in cam_patches:
+        img_path = output_dir / f'{stem}_{patch["label"]}.png'
+        iio.imwrite(str(img_path), patch['image'])
+        log.info('Patch image → %s', img_path)
 
     # --- Prepare KTX2 / HDR env maps ---
     spec_env_path = _make_env_ktx2(equirect_spec, spec_paths, output_dir, f'{stem}_envmap_spec')
     diff_env_path = _make_env_ktx2(equirect_diff, diff_paths, output_dir, f'{stem}_envmap_diff')
 
-    # --- Mesh geometry ---
-    verts = np.asarray(mesh.vertices)           # (V, 3)
-    tris  = np.asarray(mesh.triangles)          # (T, 3) int
-
-    # UVs from triangle_uvs if present, else planar
-    if mesh.has_triangle_uvs():
-        uvs = np.asarray(mesh.triangle_uvs)     # (T*3, 2)
-    else:
-        uvs = np.zeros((len(tris) * 3, 2), dtype=np.float32)
-
-    # Flatten index list: each row of tris → 3 consecutive indices
-    idx_flat = tris.ravel().tolist()
+    # --- Mesh data ---
+    verts_ros = np.asarray(mesh.vertices)          # (V, 3) ROS Z-up
+    mesh_tris = np.asarray(mesh.triangles)         # (T, 3)
+    vcolors   = np.asarray(mesh.vertex_colors) if mesh.has_vertex_colors() else None
 
     # --- Build X3D scene ---
     trv = RKSceneTraversal()
+    trv.clearMemberLists()
     x3d_doc   = trv.getX3DObject()
     x3d_scene = trv.getSceneObject()
     x3d_doc.Scene = x3d_scene
 
+    # Viewpoints
+    if viewpoints:
+        geo_sys = _epsg_to_geo_system(geo_origin[3]) if geo_origin else None
+        for i, (pos_ros, R_ros, desc) in enumerate(viewpoints):
+            ori = _viewpoint_orientation(R_ros)
+            if geo_origin is not None:
+                vp = trv.processBasicNodeAddition(x3d_scene, "children", "GeoViewpoint", f'VP{i}')
+                if vp:
+                    e0, n0, h0, _ = geo_origin
+                    vp.geoCoords   = (e0 + pos_ros[0], n0 + pos_ros[1], h0 + pos_ros[2])
+                    vp.geoSystem   = geo_sys or ['GD', 'WE']
+                    vp.description = desc
+                    vp.orientation = ori
+                    vp.fieldOfView = 1.047
+            else:
+                vp = trv.processBasicNodeAddition(x3d_scene, "children", "Viewpoint", f'VP{i}')
+                if vp:
+                    vp.position    = tuple((_ROS_TO_X3D @ pos_ros).tolist())
+                    vp.description = desc
+                    vp.orientation = ori
+                    vp.fieldOfView = 1.047
+
     # EnvironmentLight
-    spec_url = [str(spec_env_path.name)] if spec_env_path else []
-    diff_url = [str(diff_env_path.name)] if diff_env_path else []
-    env_light = EnvironmentLight(
-        intensity=1.0,
-        specularTexture=ImageCubeMapTexture(url=spec_url, DEF='EnvSpec') if spec_url else None,
-        diffuseTexture =ImageCubeMapTexture(url=diff_url, DEF='EnvDiff') if diff_url else None,
-        global_=True,
-        DEF='EnvLight',
-    )
-    x3d_scene.children.append(env_light)
+    env_light = trv.processBasicNodeAddition(x3d_scene, "children", "EnvironmentLight", "EnvLight")
+    if env_light:
+        env_light.intensity = 1.0
+        env_light.global_   = True
+        if spec_env_path:
+            spec_tex = trv.processBasicNodeAddition(env_light, "specularTexture", "ImageCubeMapTexture", "EnvSpec")
+            if spec_tex:
+                spec_tex.url = [str(spec_env_path.name)]
+        if diff_env_path:
+            diff_tex = trv.processBasicNodeAddition(env_light, "diffuseTexture", "ImageCubeMapTexture", "EnvDiff")
+            if diff_tex:
+                diff_tex.url = [str(diff_env_path.name)]
 
-    # PhysicalMaterial with baked texture
-    mat = PhysicalMaterial(
-        baseColor=(1.0, 1.0, 1.0),
-        metallic=0.0,
-        roughness=0.6,
-        baseTexture=ImageTexture(url=[str(atlas_path.name)], DEF='AtlasTex'),
-        DEF='ScanMat',
-    )
-    appearance = Appearance(material=mat, DEF='ScanApp')
-
-    # Geometry
-    coord     = Coordinate(point=verts.tolist(), DEF='MeshCoord')
-    tex_coord = TextureCoordinate(point=uvs.tolist(), DEF='MeshUV')
-    geom = IndexedTriangleSet(
-        index=idx_flat,
-        coord=coord,
-        texCoord=tex_coord,
-        solid=False,
-        DEF='MeshGeom',
-    )
-
-    shape = Shape(appearance=appearance, geometry=geom, DEF='ScanShape')
-
-    # Wrap in GeoLocation when georeferenced anchor data is available
+    # Shape parent (GeoLocation wrapper when georeferenced)
     if geo_origin is not None:
         e, n, h, epsg = geo_origin
-        geo_node = GeoLocation(
-            geoCoords=(e, n, h),
-            geoSystem=_epsg_to_geo_system(epsg),
-            children=[shape],
-            DEF='GeoScanLocation',
-        )
-        x3d_scene.children.append(geo_node)
+        geo_node = trv.processBasicNodeAddition(x3d_scene, "children", "GeoLocation", "GeoScanLocation")
+        if geo_node:
+            geo_node.geoCoords = (e, n, h)
+            geo_node.geoSystem = _epsg_to_geo_system(epsg)
+        shape_parent, shape_field = geo_node, "children"
     else:
-        x3d_scene.children.append(shape)
+        shape_parent, shape_field = x3d_scene, "children"
 
-    # Write
+    # --- One Shape per camera patch (triangles duplicated per corner for unique UVs) ---
+    covered_tris = set()
+    for patch in cam_patches:
+        lbl   = patch['label']
+        t_idx = patch['tri_indices']                        # (M,)
+        uvs   = patch['uvs']                               # (M*3, 2)
+
+        corners = mesh_tris[t_idx].ravel()                 # (M*3,) global vert indices
+        vd      = _ros_verts_to_x3d(verts_ros[corners])   # (M*3, 3) Y-up
+        idx_seq = list(range(len(vd)))
+
+        img_path = output_dir / f'{stem}_{lbl}.png'
+        shape = trv.processBasicNodeAddition(shape_parent, shape_field, "Shape", f'Shape_{lbl}')
+        if shape:
+            app = trv.processBasicNodeAddition(shape, "appearance", "Appearance", f'App_{lbl}')
+            if app:
+                mat = trv.processBasicNodeAddition(app, "material", "PhysicalMaterial", f'Mat_{lbl}')
+                if mat:
+                    mat.baseColor = (1.0, 1.0, 1.0)
+                    mat.metallic  = 0.0
+                    mat.roughness = 0.6
+                    tex = trv.processBasicNodeAddition(mat, "baseTexture", "ImageTexture", f'Tex_{lbl}')
+                    if tex:
+                        tex.url = [img_path.name]
+            geom = trv.processBasicNodeAddition(shape, "geometry", "IndexedTriangleSet", f'Geom_{lbl}')
+            if geom:
+                geom.index = idx_seq
+                geom.solid = False
+                co = trv.processBasicNodeAddition(geom, "coord", "Coordinate", f'Coord_{lbl}')
+                if co:
+                    co.point = [tuple(v) for v in vd.tolist()]
+                tc = trv.processBasicNodeAddition(geom, "texCoord", "TextureCoordinate", f'UV_{lbl}')
+                if tc:
+                    tc.point = [tuple(uv) for uv in uvs.tolist()]
+        covered_tris.update(t_idx.tolist())
+
+    # Fallback shape for triangles not covered by any camera (vertex colors or gray)
+    uncovered = sorted(set(range(len(mesh_tris))) - covered_tris)
+    if uncovered:
+        unc_arr = np.array(uncovered, dtype=np.int32)
+        corners = mesh_tris[unc_arr].ravel()
+        vd      = _ros_verts_to_x3d(verts_ros[corners])
+        idx_seq = list(range(len(vd)))
+        vc      = np.clip(vcolors[corners], 0, 1) if vcolors is not None and len(vcolors) > 0 \
+                  else np.full((len(vd), 3), 0.5)
+        shape = trv.processBasicNodeAddition(shape_parent, shape_field, "Shape", "ShapeFallback")
+        if shape:
+            app = trv.processBasicNodeAddition(shape, "appearance", "Appearance", "AppFallback")
+            if app:
+                mat = trv.processBasicNodeAddition(app, "material", "PhysicalMaterial", "MatFallback")
+                if mat:
+                    mat.metallic  = 0.0
+                    mat.roughness = 0.8
+            geom = trv.processBasicNodeAddition(shape, "geometry", "IndexedTriangleSet", "GeomFallback")
+            if geom:
+                geom.index = idx_seq
+                geom.solid = False
+                co = trv.processBasicNodeAddition(geom, "coord", "Coordinate", "CoordFallback")
+                if co:
+                    co.point = [tuple(v) for v in vd.tolist()]
+                cn = trv.processBasicNodeAddition(geom, "color", "Color", "ColorFallback")
+                if cn:
+                    cn.color = [tuple(c) for c in vc.tolist()]
+        log.info('Fallback shape: %d uncovered triangles', len(uncovered))
+
+    trv.collectProfileFromScene(x3d_doc)
+
     out_path = output_dir / f'{stem}.{fmt}'
     trv.x3d2disk(x3d_doc, str(out_path), fmt)
     log.info('Mesh X3D → %s', out_path)
@@ -261,34 +442,18 @@ def _export_mesh_x3d(
 # Mesh — OBJ
 # ---------------------------------------------------------------------------
 
-def _export_mesh_obj(mesh, atlas: np.ndarray, output_dir: Path, stem: str) -> Path:
+def _export_mesh_obj(mesh, cam_patches: list, output_dir: Path, stem: str) -> Path:
     try:
         import open3d as o3d
-        import imageio.v3 as iio
     except ImportError:
-        raise RuntimeError('open3d and imageio required')
+        raise RuntimeError('open3d required')
 
-    atlas_uint8 = (np.clip(atlas, 0, 1) * 255).astype(np.uint8)
-    atlas_path = output_dir / f'{stem}_atlas.png'
-    iio.imwrite(str(atlas_path), atlas_uint8)
-
-    # Write MTL
-    mtl_path = output_dir / f'{stem}.mtl'
-    mtl_path.write_text(
-        f'newmtl ScanMaterial\n'
-        f'map_Kd {atlas_path.name}\n'
-        f'Ns 10.0\nKa 0.1 0.1 0.1\nKd 0.9 0.9 0.9\nKs 0.0 0.0 0.0\nd 1.0\n'
-    )
-
+    mesh = _ros_mesh_to_x3d(mesh)
     out_path = output_dir / f'{stem}.obj'
     o3d.io.write_triangle_mesh(
         str(out_path), mesh,
-        write_ascii=True, write_vertex_normals=True, write_vertex_colors=False,
+        write_ascii=True, write_vertex_normals=True, write_vertex_colors=True,
     )
-    # Inject mtllib reference
-    obj_text = out_path.read_text()
-    if 'mtllib' not in obj_text:
-        out_path.write_text(f'mtllib {mtl_path.name}\n' + obj_text)
     log.info('Mesh OBJ → %s', out_path)
     return out_path
 
@@ -297,17 +462,13 @@ def _export_mesh_obj(mesh, atlas: np.ndarray, output_dir: Path, stem: str) -> Pa
 # Mesh — GLB
 # ---------------------------------------------------------------------------
 
-def _export_mesh_glb(mesh, atlas: np.ndarray, output_dir: Path, stem: str) -> Path:
+def _export_mesh_glb(mesh, cam_patches: list, output_dir: Path, stem: str) -> Path:
     try:
         import open3d as o3d
-        import imageio.v3 as iio
     except ImportError:
-        raise RuntimeError('open3d and imageio required')
+        raise RuntimeError('open3d required')
 
-    atlas_uint8 = (np.clip(atlas, 0, 1) * 255).astype(np.uint8)
-    atlas_path = output_dir / f'{stem}_atlas.png'
-    iio.imwrite(str(atlas_path), atlas_uint8)
-
+    mesh = _ros_mesh_to_x3d(mesh)
     out_path = output_dir / f'{stem}.glb'
     o3d.io.write_triangle_mesh(str(out_path), mesh)
     log.info('Mesh GLB → %s', out_path)
@@ -332,75 +493,98 @@ def _export_splat_x3d(
     quats_wxyz: np.ndarray, sh_coeffs: np.ndarray, opacities: np.ndarray,
     output_dir: Path, stem: str, fmt: str, sh_degree: int,
     geo_origin: Optional[tuple] = None,
+    viewpoints: Optional[list] = None,
+    decode_sh: bool = True,
 ) -> Path:
-    from rawkee.io.RKx3d import X3D, Scene, GaussianSplats, GeoTransform
     from rawkee.io.RKSceneTraversal import RKSceneTraversal
 
     N = len(means)
-    log.info('Building X3D GaussianSplats node  N=%d  sh_degree=%d', N, sh_degree)
+    log.info('Building X3D GaussianSplats node  N=%d  sh_degree=%d  decode_sh=%s', N, sh_degree, decode_sh)
 
-    # Quaternion order: training stores (w,x,y,z); X3D spec says (x,y,z,w)
-    quats_xyzw = np.roll(quats_wxyz, -1, axis=1)   # (N,4) x,y,z,w
+    # Convert ROS Z-up world frame → X3D Y-up frame
+    means      = _ros_verts_to_x3d(means)
+    quats_wxyz = _quat_apply_basis(_Q_ROS_TO_X3D, quats_wxyz)
+    sh_coeffs  = _rotate_sh_coeffs(sh_coeffs, _ROS_TO_X3D, sh_degree)
+
+    # Quaternion order: training (w,x,y,z) → X3D spec (x,y,z,w)
+    quats_xyzw = np.roll(quats_wxyz, -1, axis=1)
 
     def _mf3(arr):
         return [tuple(r.tolist()) for r in arr]
 
-    def _sh(ci):
-        return _sh_flat(sh_coeffs, sh_degree, ci)
-
-    gs_kwargs: dict = dict(
-        positions   = _mf3(means),
-        orientations= [tuple(r.tolist()) for r in quats_xyzw],
-        scales      = _mf3(scales),
-        opacities   = opacities.tolist(),
-        sphericalHarmonicsDegree0Coef0 = _sh(0),
-        DEF='ScanSplats',
-    )
-    if sh_degree >= 1:
-        gs_kwargs.update(
-            sphericalHarmonicsDegree1Coef0=_sh(1),
-            sphericalHarmonicsDegree1Coef1=_sh(2),
-            sphericalHarmonicsDegree1Coef2=_sh(3),
-        )
-    if sh_degree >= 2:
-        gs_kwargs.update(
-            sphericalHarmonicsDegree2Coef0=_sh(4),
-            sphericalHarmonicsDegree2Coef1=_sh(5),
-            sphericalHarmonicsDegree2Coef2=_sh(6),
-            sphericalHarmonicsDegree2Coef3=_sh(7),
-            sphericalHarmonicsDegree2Coef4=_sh(8),
-        )
-    if sh_degree >= 3:
-        gs_kwargs.update(
-            sphericalHarmonicsDegree3Coef0=_sh(9),
-            sphericalHarmonicsDegree3Coef1=_sh(10),
-            sphericalHarmonicsDegree3Coef2=_sh(11),
-            sphericalHarmonicsDegree3Coef3=_sh(12),
-            sphericalHarmonicsDegree3Coef4=_sh(13),
-            sphericalHarmonicsDegree3Coef5=_sh(14),
-            sphericalHarmonicsDegree3Coef6=_sh(15),
-        )
-
-    gs_node = GaussianSplats(**gs_kwargs)
-
     trv = RKSceneTraversal()
+    trv.clearMemberLists()
     x3d_doc   = trv.getX3DObject()
     x3d_scene = trv.getSceneObject()
     x3d_doc.Scene = x3d_scene
 
-    # Wrap in GeoTransform when georeferenced anchor data is available
+    # Viewpoints (same pattern as mesh export)
+    if viewpoints:
+        geo_sys = _epsg_to_geo_system(geo_origin[3]) if geo_origin else None
+        for i, (pos_ros, R_ros, desc) in enumerate(viewpoints):
+            ori = _viewpoint_orientation(R_ros)
+            if geo_origin is not None:
+                vp = trv.processBasicNodeAddition(x3d_scene, 'children', 'GeoViewpoint', f'VP{i}')
+                if vp:
+                    e0, n0, h0, _ = geo_origin
+                    vp.geoCoords   = (e0 + pos_ros[0], n0 + pos_ros[1], h0 + pos_ros[2])
+                    vp.geoSystem   = geo_sys or ['GD', 'WE']
+                    vp.description = desc
+                    vp.orientation = ori
+                    vp.fieldOfView = 1.047
+            else:
+                vp = trv.processBasicNodeAddition(x3d_scene, 'children', 'Viewpoint', f'VP{i}')
+                if vp:
+                    vp.position    = tuple((_ROS_TO_X3D @ pos_ros).tolist())
+                    vp.description = desc
+                    vp.orientation = ori
+                    vp.fieldOfView = 1.047
+
+    # GeoTransform wrapper when georeferenced
     if geo_origin is not None:
         e, n, h, epsg = geo_origin
-        geo_node = GeoTransform(
-            geoCenter=(e, n, h),
-            geoSystem=_epsg_to_geo_system(epsg),
-            children=[gs_node],
-            DEF='GeoSplatTransform',
-        )
-        x3d_scene.children.append(geo_node)
+        geo_node = trv.processBasicNodeAddition(x3d_scene, 'children', 'GeoTransform', 'GeoSplatTransform')
+        if geo_node:
+            geo_node.geoCenter = (e, n, h)
+            geo_node.geoSystem = _epsg_to_geo_system(epsg)
+        gs_parent, gs_field = geo_node, 'children'
     else:
-        x3d_scene.children.append(gs_node)
+        gs_parent, gs_field = x3d_scene, 'children'
 
+    gs = trv.processBasicNodeAddition(gs_parent, gs_field, 'GaussianSplats', 'ScanSplats')
+    if gs:
+        gs.positions    = _mf3(means)
+        gs.orientations = [tuple(r.tolist()) for r in quats_xyzw]
+        gs.scales       = _mf3(scales)
+        gs.opacities    = opacities.tolist()
+
+        if decode_sh:
+            # Pre-decode DC SH to view-independent linear RGB so viewers without SH get correct colors
+            _C0 = 0.28209479177387814   # 1 / (2 * sqrt(pi))
+            dc_rgb = np.clip(sh_coeffs[:, 0, :] * _C0 + 0.5, 0.0, 1.0)
+            gs.sphericalHarmonicsDegree0Coef0 = _mf3(dc_rgb)
+        else:
+            gs.sphericalHarmonicsDegree0Coef0 = _sh_flat(sh_coeffs, sh_degree, 0)
+            if sh_degree >= 1:
+                gs.sphericalHarmonicsDegree1Coef0 = _sh_flat(sh_coeffs, sh_degree, 1)
+                gs.sphericalHarmonicsDegree1Coef1 = _sh_flat(sh_coeffs, sh_degree, 2)
+                gs.sphericalHarmonicsDegree1Coef2 = _sh_flat(sh_coeffs, sh_degree, 3)
+            if sh_degree >= 2:
+                gs.sphericalHarmonicsDegree2Coef0 = _sh_flat(sh_coeffs, sh_degree, 4)
+                gs.sphericalHarmonicsDegree2Coef1 = _sh_flat(sh_coeffs, sh_degree, 5)
+                gs.sphericalHarmonicsDegree2Coef2 = _sh_flat(sh_coeffs, sh_degree, 6)
+                gs.sphericalHarmonicsDegree2Coef3 = _sh_flat(sh_coeffs, sh_degree, 7)
+                gs.sphericalHarmonicsDegree2Coef4 = _sh_flat(sh_coeffs, sh_degree, 8)
+            if sh_degree >= 3:
+                gs.sphericalHarmonicsDegree3Coef0 = _sh_flat(sh_coeffs, sh_degree,  9)
+                gs.sphericalHarmonicsDegree3Coef1 = _sh_flat(sh_coeffs, sh_degree, 10)
+                gs.sphericalHarmonicsDegree3Coef2 = _sh_flat(sh_coeffs, sh_degree, 11)
+                gs.sphericalHarmonicsDegree3Coef3 = _sh_flat(sh_coeffs, sh_degree, 12)
+                gs.sphericalHarmonicsDegree3Coef4 = _sh_flat(sh_coeffs, sh_degree, 13)
+                gs.sphericalHarmonicsDegree3Coef5 = _sh_flat(sh_coeffs, sh_degree, 14)
+                gs.sphericalHarmonicsDegree3Coef6 = _sh_flat(sh_coeffs, sh_degree, 15)
+
+    trv.collectProfileFromScene(x3d_doc)
     out_path = output_dir / f'{stem}.{fmt}'
     trv.x3d2disk(x3d_doc, str(out_path), fmt)
     log.info('Splat X3D → %s', out_path)

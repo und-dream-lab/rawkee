@@ -15,7 +15,6 @@ encw: Final[int] = 4 # VRML 97      Encoding (*.wrl )
 
 class RKSceneTraversal():
     def __init__(self):
-        print("RKSceneTraversal")
         
         self.tabs = 0
         self.iofile = None
@@ -86,9 +85,9 @@ class RKSceneTraversal():
         
     # Function that writes to disk.
     def x3d2disk(self, x3dDoc, fullPath, exEncoding):
-        
         with open(fullPath, "w") as exFile:
             self.startExport(x3dDoc, exFile, exEncoding)
+        print("Saved:", fullPath)
 
 
     def startExport(self, x3dDoc, iofile, encoding):
@@ -121,8 +120,6 @@ class RKSceneTraversal():
         self.profDict.clear()
         self.compDict.clear()
         self.metatags.clear()
-        
-        print("File Output has completed.")
 
 
     def processNode(self, node, isMulti, addComma, cField=""):

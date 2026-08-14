@@ -14,10 +14,21 @@ Strategy
 from __future__ import annotations
 import logging
 import math
+import os
 from pathlib import Path
 from typing import Optional
 
 import numpy as np
+
+# Ensure the ninja binary bundled with the Python package is on PATH so that
+# PyTorch CUDA JIT (which calls `ninja --version` via subprocess) can find it.
+try:
+    import ninja as _ninja_pkg
+    _ninja_bin_dir = _ninja_pkg.BIN_DIR
+    if _ninja_bin_dir not in os.environ.get('PATH', ''):
+        os.environ['PATH'] = _ninja_bin_dir + os.pathsep + os.environ.get('PATH', '')
+except (ImportError, AttributeError):
+    pass
 
 try:
     import torch
@@ -32,6 +43,10 @@ try:
     _GSPLAT = True
 except ImportError:
     _GSPLAT = False
+except RuntimeError as _gsplat_err:
+    # gsplat found but CUDA JIT compilation failed — ninja is the usual culprit
+    _GSPLAT = False
+    _GSPLAT_ERR = str(_gsplat_err)
 
 try:
     import open3d as o3d
@@ -136,6 +151,42 @@ def _ocam_to_pinhole_approx(ocam) -> tuple[float, float, float, float]:
     return f, f, float(ocam.cy), float(ocam.cx)   # fx, fy, cx_col, cy_row
 
 
+def _undistort_ocam(img_rgb8: np.ndarray, ocam, target_size: int) -> np.ndarray:
+    """Remap a fisheye OCam image to a pinhole image matching _ocam_to_pinhole_approx."""
+    fx, _, _, _ = _ocam_to_pinhole_approx(ocam)
+    # Scale focal length to output image size (consistent with how training K is built)
+    f_out = fx * target_size / ocam.width
+    half  = target_size * 0.5
+
+    u = np.arange(target_size, dtype=np.float64)
+    v = np.arange(target_size, dtype=np.float64)
+    uu, vv = np.meshgrid(u, v)          # uu[row, col]=col, vv[row, col]=row
+
+    # OCam: X_cam -> row direction, Y_cam -> col direction, Z < 0 = forward
+    X_cam = (vv - half) / f_out         # row  -> X
+    Y_cam = (uu - half) / f_out         # col  -> Y
+    Z_cam = -np.ones_like(X_cam)
+    norms = np.sqrt(X_cam**2 + Y_cam**2 + 1.0)
+    xyz   = np.stack([X_cam.ravel() / norms.ravel(),
+                      Y_cam.ravel() / norms.ravel(),
+                      Z_cam.ravel() / norms.ravel()], axis=-1)
+
+    uv_src, _valid = ocam.project(xyz)  # (N, 2) col, row in source image
+    map_col = uv_src[:, 0].reshape(target_size, target_size).astype(np.float32)
+    map_row = uv_src[:, 1].reshape(target_size, target_size).astype(np.float32)
+
+    try:
+        import cv2
+        return cv2.remap(img_rgb8, map_col, map_row, cv2.INTER_LINEAR,
+                         borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    except ImportError:
+        # Nearest-neighbour fallback when OpenCV is absent
+        col_i = np.clip(map_col.ravel().round().astype(np.int32), 0, ocam.width  - 1)
+        row_i = np.clip(map_row.ravel().round().astype(np.int32), 0, ocam.height - 1)
+        out   = img_rgb8[row_i, col_i].reshape(target_size, target_size, 3)
+        return out
+
+
 def _load_training_images(
     dataset: ScanDataset,
     frame_indices: list[int],
@@ -167,11 +218,21 @@ def _load_training_images(
                     raise ImportError(
                         f'rawpy is required to load RAW images ({img_path.name}): pip install rawpy'
                     ) from exc
-                with rawpy.imread(str(img_path)) as raw:
-                    rgb8 = raw.postprocess(output_bps=8, use_camera_wb=True)
+                try:
+                    with rawpy.imread(str(img_path)) as raw:
+                        rgb8 = raw.postprocess(output_bps=8, use_camera_wb=True)
+                except Exception:
+                    preview = img_path.parent / 'preview' / (img_path.stem + '.jpg')
+                    if not preview.exists():
+                        raise
+                    rgb8 = np.array(_PILImage.open(preview).convert('RGB'))
             else:
                 rgb8 = np.array(_PILImage.open(img_path).convert('RGB'))
-            img = np.array(_PILImage.fromarray(rgb8).resize((target_size, target_size)))
+            # Undistort fisheye images; fall back to simple resize for pinhole cameras
+            if hasattr(cam.ocam, 'unproject'):
+                img = _undistort_ocam(rgb8, cam.ocam, target_size)
+            else:
+                img = np.array(_PILImage.fromarray(rgb8).resize((target_size, target_size)))
             img_t = torch.from_numpy(img).float().div(255.0).permute(2, 0, 1)
             if device is not None:
                 img_t = img_t.to(device)
@@ -316,6 +377,13 @@ def _train(
 ) -> dict[str, 'torch.Tensor']:
     """3DGS training loop using gsplat rasteriser, with optional multi-node DDP."""
     if not _GSPLAT:
+        err = globals().get('_GSPLAT_ERR', '')
+        if 'ninja' in err.lower():
+            raise RuntimeError(
+                'gsplat CUDA JIT compilation failed — ninja build tool is missing.\n'
+                'Fix:  pip install ninja\n'
+                'ninja is a small (~1 MB) C++ build helper, not a language model.'
+            )
         raise RuntimeError('gsplat required: pip install gsplat')
 
     if world_size > 1:
@@ -369,10 +437,12 @@ def _train(
         quats_n     = F.normalize(params['quats'].clamp(min=-1e6, max=1e6), dim=-1)
         opacities_a = torch.sigmoid(params['opacities'])
 
+        Rt     = torch.cat([R, t.unsqueeze(-1)], dim=-1)          # (1, 3, 4)
+        bottom = torch.tensor([[[0., 0., 0., 1.]]], device=device) # (1, 1, 4)
         rendered, _, _ = rasterization(
             means=params['means'], quats=quats_n, scales=scales_exp,
             opacities=opacities_a, colors=params['sh_coeffs'],
-            viewmats=torch.cat([R, t.unsqueeze(-1)], dim=-1),
+            viewmats=torch.cat([Rt, bottom], dim=1),               # (1, 4, 4)
             Ks=K, width=W, height=H, sh_degree=sh_degree, packed=True,
         )
         rendered = rendered.permute(0, 3, 1, 2).clamp(0, 1)
@@ -416,6 +486,8 @@ def _train(
                 scheduler = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=0.999)
             if rank == 0:
                 log.info('Density control: %d Gaussians remaining', keep.sum().item())
+
+    return {k: v.detach() for k, v in params.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -499,9 +571,9 @@ class SplatPipeline:
 
         # 1. Initialise from LiDAR or fallback
         xyz = None
-        bag = dataset.bag_path('trajectory_slam')
-        if bag.exists():
-            xyz = _extract_lidar_from_bag(bag, max_clouds=200)
+        bags = dataset.lidar_bag_paths()
+        if bags:
+            xyz = _extract_lidar_from_bag(bags, max_clouds=200)
         if xyz is None or len(xyz) < 1000:
             # Compute scene bbox from frame positions
             positions = np.array([dataset.frame_position(fi) for fi in valid])
@@ -557,6 +629,8 @@ class SplatPipeline:
         if rank != 0:
             return Path(output_dir)
         from .export import export_splat
+        from .mesh_pipeline import _collect_scan_viewpoints
+        viewpoints = _collect_scan_viewpoints(dataset)
         out_path = export_splat(
             gaussians=trained,
             output_dir=output_dir,
@@ -565,6 +639,7 @@ class SplatPipeline:
             sh_degree=self.sh_degree,
             geo_origin=dataset.geo_origin(),
             decode_sh=decode_sh,
+            viewpoints=viewpoints,
         )
         log.info('Splat export complete → %s', out_path)
         return out_path

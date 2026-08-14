@@ -194,6 +194,71 @@ def _cuda_from_driver() -> str:
 # Installation steps
 # ---------------------------------------------------------------------------
 
+def step_cxx_compiler():
+    section('0 / 7  C++ compiler check (required for gsplat CUDA compilation)')
+    import platform
+    if platform.system() == 'Windows':
+        import shutil as _shutil
+        cl_path = _shutil.which('cl')
+        if cl_path:
+            print(f'  {green("[+]")} cl.exe (MSVC) found: {cl_path}')
+        else:
+            # where failed — check known VS install locations so we can give a better message
+            import glob as _glob
+            _cl_candidates = _glob.glob(
+                r'C:\Program Files (x86)\Microsoft Visual Studio\**\cl.exe', recursive=True
+            ) + _glob.glob(
+                r'C:\Program Files\Microsoft Visual Studio\**\cl.exe', recursive=True
+            )
+            # Filter to host/x64 compiler only (skip cross-compilers)
+            _cl_candidates = [p for p in _cl_candidates if r'\Hostx64\x64' in p or r'\x64\cl.exe' in p.lower()]
+            if not _cl_candidates:
+                _cl_candidates = _glob.glob(
+                    r'C:\Program Files (x86)\Microsoft Visual Studio\**\cl.exe', recursive=True
+                ) + _glob.glob(
+                    r'C:\Program Files\Microsoft Visual Studio\**\cl.exe', recursive=True
+                )
+            if _cl_candidates:
+                print(f'  {yellow("[!]")} cl.exe found on disk but NOT on PATH:')
+                print(f'       {_cl_candidates[0]}')
+                print( '       You must launch from a Developer PowerShell so PATH is configured.')
+                print( '       Start menu -> "Developer PowerShell for VS 2022"')
+                print( '       Then re-run:  python -m rawkee.tools.lidar.install_workstation_deps')
+                WARNINGS.append('MSVC cl.exe not found. Install VS Build Tools and rerun from Developer PowerShell.')
+            else:
+                print(f'  {yellow("[!]")} cl.exe (MSVC) NOT found on PATH or on disk.')
+                print( '       gsplat CUDA JIT compilation will fail at runtime.')
+                print( '       Fix:')
+                print( '         1. Install Visual Studio Build Tools 2022 (free):')
+                print( '            https://visualstudio.microsoft.com/visual-cpp-build-tools/')
+                print( '            Select "Desktop development with C++"')
+                print( '         2. Relaunch from Developer PowerShell for VS 2022')
+                print( '            (Start menu -> "Developer PowerShell for VS 2022")')
+                WARNINGS.append('MSVC cl.exe not found. Install VS Build Tools and rerun from Developer PowerShell.')
+    else:
+        rc, out = _run(['gcc', '--version'])
+        if rc == 0:
+            ver = out.splitlines()[0] if out else 'unknown'
+            print(f'  {green("[+]")} gcc found: {ver.strip()}')
+        else:
+            print(f'  {yellow("[!]")} gcc NOT found.')
+            print( '       gsplat CUDA JIT compilation will fail at runtime.')
+            print( '       Fix (choose one):')
+            print( '         Ubuntu/Debian:  sudo apt install build-essential python3-dev')
+            print( '         RHEL/CentOS:    sudo yum groupinstall "Development Tools" && sudo yum install python3-devel')
+            print( '         HPC module:     module load gcc')
+            WARNINGS.append('gcc not found. Install build-essential / "Development Tools" before running the splat pipeline.')
+            return
+        rc2, _ = _run(['python3-config', '--includes'])
+        if rc2 != 0:
+            print(f'  {yellow("[!]")} python3-dev headers not found.')
+            print( '       C extension builds (gsplat) may fail.')
+            print( '       Fix: sudo apt install python3-dev   # or yum install python3-devel')
+            WARNINGS.append('python3-dev headers missing. Install python3-dev/python3-devel.')
+        else:
+            print(f'  {green("[+]")} python3-dev headers found')
+
+
 def step_pip_upgrade():
     section('1 / 7  Upgrading pip')
     pip_install(['pip'], label='pip (upgrade)')
@@ -221,11 +286,14 @@ def step_imageio():
     if not _is_installed(imp):
         pip_install(['imageio[freeimage]'], label='imageio + FreeImage')
     else:
-        # Check if FreeImage binary is loadable
+        # Verify FreeImage actually works by writing/reading a small HDR file
         fi_ok = False
         try:
-            import imageio.plugins.freeimage as _fi
-            _fi.load_lib()
+            import imageio.v3 as _iio3, numpy as _np, tempfile as _tf, os as _os
+            _tmp = _tf.mktemp(suffix='.hdr')
+            _iio3.imwrite(_tmp, _np.ones((4, 4, 3), dtype=_np.float32))
+            _iio3.imread(_tmp)
+            _os.unlink(_tmp)
             fi_ok = True
         except Exception:
             pass
@@ -299,7 +367,6 @@ def step_pipeline_extras():
         ('rosbags',      'rosbags',      'rosbags  (NavVis LiDAR bag reading)'),
         ('pye57',        'pye57',        'pye57  (E57 point cloud reading)'),
         ('pyproj',       'pyproj',       'pyproj  (precise UTM georeferencing)'),
-        ('transformers', 'transformers', 'transformers  (Depth Anything V2 fallback)'),
     ]
     for dist, imp, label in optional:
         if _is_installed(imp):
@@ -307,6 +374,13 @@ def step_pipeline_extras():
             print(f'  {green("[+]")} {label}  already installed  [{ver}]')
         else:
             pip_install([dist], label=label)
+
+    # ninja: small build tool required by PyTorch JIT / gsplat CUDA compilation
+    if _is_installed('ninja'):
+        ver = _installed_version('ninja')
+        print(f'  {green("[+]")} ninja  already installed  [{ver}]')
+    else:
+        pip_install(['ninja'], label='ninja  (C++ build tool for gsplat CUDA JIT)')
 
     # gsplat: requires CUDA toolkit — attempt but don't fail hard
     if _is_installed('gsplat'):
@@ -356,6 +430,7 @@ def step_verify() -> bool:
         ('rosbags',    'rosbags',   False),
         ('pye57',      'pye57',     False),
         ('pyproj',     'pyproj',    False),
+        ('ninja',      'ninja',     False),
         ('gsplat',     'gsplat',    False),
     ]
     all_required_ok = True
@@ -417,6 +492,7 @@ def main():
         print('\nRemoving existing torch installation …')
         _run([sys.executable, '-m', 'pip', 'uninstall', '-y', 'torch'])
 
+    step_cxx_compiler()
     step_pip_upgrade()
     step_core_gui()
     step_imageio()
@@ -443,12 +519,12 @@ def main():
 
     if not FAILURES and not WARNINGS and all_ok:
         print(green('\n[+] All packages installed successfully.'))
-        print(    '    Launch the GUI with:')
-        print(f'       python rawkee/tools/lidar/scan_gui.py')
+        print(    '    Launch the GUI with (from the rawkee root directory):')
+        print(f'       python -m rawkee.tools.lidar.scan_gui')
     elif not FAILURES and all_ok:
         print(yellow('\n[!] Required packages OK; some optional packages have warnings.'))
         print(    '    The GUI will launch but some features may be limited.')
-        print(f'    Launch with: python rawkee/tools/lidar/scan_gui.py')
+        print(f'    Launch with (from the rawkee root directory): python -m rawkee.tools.lidar.scan_gui')
     else:
         print(red('\n[X] Some required packages failed. Fix the errors above and re-run.'))
         print(    '    You can also run: python rawkee/tools/lidar/hpc_preflight_check.py')
