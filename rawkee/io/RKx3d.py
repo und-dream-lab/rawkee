@@ -221,6 +221,24 @@ def assertValidClosureType(fieldName, value):
         return True
     raise X3DTypeError(fieldName + ' value=\'' + MFString(value).XML() + '\' does not match allowed enumerations in CLOSURETYPECHOICES=' + str(CLOSURETYPECHOICES))
 
+COLORSPACECHOICES = (
+    # strict set of allowed values follow, no other values are valid
+    'SRGB_REC709_DISPLAY',  # sRGB color space with Rec. 709 primaries, display-referred
+    'LIN_REC709_DISPLAY'   # linear color space with Rec. 709 primaries, display-referred
+)
+def assertValidColorSpace(fieldName, value):
+    """
+    Utility function to assert type validity of colorSpaceChoices value, otherwise raise X3DTypeError with diagnostic message.
+    Note MFString enumeration values are provided in XML syntax, so check validity accordingly.
+    """
+    if  not value:
+        return True # no failure on empty defaults
+    if str(MFString(value).XML()) in COLORSPACECHOICES:
+        return True
+    if isinstance(value, (SFString, str)) and str(SFString(value).XML()) in COLORSPACECHOICES:
+        return True
+    raise X3DTypeError(fieldName + ' value=\'' + MFString(value).XML() + '\' does not match allowed enumerations in COLORSPACECHOICES=' + str(COLORSPACECHOICES))
+
 COMPONENTNAMECHOICES = (
     # strict set of allowed values follow, no other values are valid
     'Core',  # The Core component supplies the base functionality for the X3D run-time system, including the abstract base node type, field types, the event model, and routing.
@@ -231,6 +249,7 @@ COMPONENTNAMECHOICES = (
     'EnvironmentalSensor',  # The Environment Sensor nodes emit events indicating activity in the scene environment, usually based on interactions between the viewer and the world.
     'EventUtilities',  # The Event Utility nodes provide the capability to filter, trigger, convert, or sequence numerous event-types for common interactive applications without the use of a Script node.
     'Followers',  # The Follower nodes (Chasers and Dampers) support dynamic creation of smooth parameter transitions at run time.
+    'GaussianSplats',  # The Gaussian Splats component provides support for direct real-time radiance field rendering without converting into surface or line primitives.
     'Geometry2D',  # The Geometry2D component defines how two-dimensional geometry is specified and what shapes are available.
     'Geometry3D',  # The Geometry3D component describes how three-dimensional geometry is specified and defines ElevationGrid, Extrusion, IndexedFaceSet, and most primitive geometry nodes (Box, Cone, Cylinder, Sphere).
     'Geospatial',  # The Geospatial component defines how to associate real-world locations in an X3D scene and specifies nodes particularly tuned for geospatial applications.
@@ -340,7 +359,9 @@ FIELDTYPECHOICES = (
     'SFMatrix4d',  # Single Field (singleton) 4×4 matrix of double-precision floating point numbers
     'MFMatrix4d',  # Multiple Field (list) 4×4 matric3w of double-precision floating point numbers
     'SFMatrix4f',  # Single Field (singleton) 4×4 matrix of single-precision floating point numbers
-    'MFMatrix4f'  # Multiple Field (list) 4×4 matrices of single-precision floating point numbers
+    'MFMatrix4f',  # Multiple Field (list) 4×4 matrices of single-precision floating point numbers
+    'SFQuaternion',  # Single Field (singleton) unit quaternion value (x,y,z,w)
+    'MFQuaternion'  # Multiple Field (list) unit quaternion values (x,y,z,w)
 )
 def assertValidFieldType(fieldName, value):
     """
@@ -5465,6 +5486,48 @@ def assertValidMFVec4f(value):
         # https://stackoverflow.com/questions/66995878/consider-explicitly-re-raising-using-the-from-keyword-pylint-suggestion
         print(flush=True)
         raise X3DTypeError(str(value)[:100] + ' has type ' + str(type(value)) + ' but is not a valid MFVec4f') from error
+
+def isValidSFQuaternion(value):
+    """
+    Utility function to determine type validity of a SFQuaternion value.
+    """
+    try:
+        SFQuaternion(value)
+        return True
+    except Exception:
+        return False
+
+def assertValidSFQuaternion(value):
+    """
+    Utility function to assert type validity of a SFQuaternion value, otherwise raise X3DTypeError with diagnostic message.
+    """
+    try:
+        SFQuaternion(value)
+    except Exception as error:
+        print(flush=True)
+        raise X3DTypeError(str(value)[:100] + ' has type ' + str(type(value)) + ' but is not a valid SFQuaternion') from error
+    return True
+
+def isValidMFQuaternion(value):
+    """
+    Utility function to determine type validity of a MFQuaternion value.
+    """
+    try:
+        MFQuaternion(value)
+        return True
+    except Exception:
+        return False
+
+def assertValidMFQuaternion(value):
+    """
+    Utility function to assert type validity of a MFQuaternion value, otherwise raise X3DTypeError with diagnostic message.
+    """
+    try:
+        MFQuaternion(value)
+    except Exception as error:
+        print(flush=True)
+        raise X3DTypeError(str(value)[:100] + ' has type ' + str(type(value)) + ' but is not a valid MFQuaternion') from error
+    return True
     # if _DEBUG: print('...DEBUG... debug value.__class__=' + str(value.__class__) + ', issubclass(value.__class__, _X3DField)=' + str(issubclass(value.__class__, _X3DField)) + ', super(value.__class__)=' + str(super(value.__class__)), flush=True)
     # if _DEBUG: print('value=', value, 'str(value)=', str(value))
     ### if isinstance(value, _X3DField) and not isinstance(value, SFVec4f) and not isinstance(value, MFVec4f):
@@ -5565,6 +5628,10 @@ def assertValidFieldInitializationValue(name, fieldType, value, parent=''):
         assertValidSFVec4f(value)
     elif fieldType == 'MFVec4f':
         assertValidMFVec4f(value)
+    elif fieldType == 'SFQuaternion':
+        assertValidSFQuaternion(value)
+    elif fieldType == 'MFQuaternion':
+        assertValidMFQuaternion(value)
     elif fieldType == 'SFVec2d':
         assertValidSFVec2d(value)
     elif fieldType == 'MFVec2d':
@@ -5905,6 +5972,14 @@ class FieldType(_X3DField):
     def MFVec4f():
         """ Type MFVec4f https://www.web3d.org/x3d/tooltips/X3dTooltips.html#MFVec4f """
         return 'MFVec4f'
+    @staticmethod
+    def SFQuaternion():
+        """ Type SFQuaternion: unit quaternion (x,y,z,w), introduced in X3D 4.1 for GaussianSplats. """
+        return 'SFQuaternion'
+    @staticmethod
+    def MFQuaternion():
+        """ Type MFQuaternion: array of unit quaternions (x,y,z,w), introduced in X3D 4.1 for GaussianSplats. """
+        return 'MFQuaternion'
 
 class SFBool(_X3DField):
     """
@@ -9815,6 +9890,145 @@ class MFVec4f(_X3DArrayField):
     def __len__(self):
         return len(self.__value)
 
+class SFQuaternion(_X3DField):
+    """
+    Field type SFQuaternion is a unit quaternion value stored as a 4-tuple (x,y,z,w). Introduced in X3D 4.1.
+    """
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Field class. """
+        return 'SFQuaternion'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://www.web3d.org/specifications/X3Dv4Draft/ISO-IEC19775-1v4.1-CD/Part01/components/gaussianSplats.html#GaussianSplats'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://www.web3d.org/specifications/X3Dv4Draft/ISO-IEC19775-1v4.1-CD/Part01/components/gaussianSplats.html#GaussianSplats'
+    @classmethod
+    def DEFAULT_VALUE(cls):
+        """ Default value defined for this data type by the X3D Specification """
+        return (0.0, 0.0, 0.0, 1.0)  # identity quaternion
+    @classmethod
+    def ARRAY_TYPE(cls):
+        """ Whether or not this field class is array based. """
+        return False
+    @classmethod
+    def TUPLE_SIZE(cls):
+        """ How many values make up each data tuple. """
+        return 4
+    @classmethod
+    def REGEX_PYTHON(cls):
+        """ Regular expression for validating Python values. """
+        return r'\s*\(\s*(([+-]?((0|[1-9][0-9]*)(\.[0-9]*)?|\.[0-9]+)([Ee][+-]?[0-9]+)?)\s*\,?\s*){3}([+-]?((0|[1-9][0-9]*)(\.[0-9]*)?|\.[0-9]+)([Ee][+-]?[0-9]+)?)\s*\)\s*'
+    @classmethod
+    def REGEX_XML(cls):
+        """ Regular expression for validating XML values. """
+        return r'\s*(([+-]?((0|[1-9][0-9]*)(\.[0-9]*)?|\.[0-9]+)([Ee][+-]?[0-9]+)?)\s+){3}([+-]?((0|[1-9][0-9]*)(\.[0-9]*)?|\.[0-9]+)([Ee][+-]?[0-9]+)?)\s*'
+    def __init__(self, value=None):
+        self.value = value
+    @property
+    def value(self):
+        """ Provide typed value of this field instance. """
+        return self.__value
+    @value.setter
+    def value(self, value):
+        """ The value setter only allows correctly typed and sized values. """
+        if isinstance(value, SFQuaternion):
+            value = value.value  # dereference
+        elif value is None:
+            value = SFQuaternion.DEFAULT_VALUE()
+        elif isinstance(value, list):
+            if len(value) == 4:
+                value = (float(value[0]), float(value[1]), float(value[2]), float(value[3]))
+        elif isinstance(value, MFQuaternion) and isinstance(value.value, list) and len(value.value) == 1:
+            value = value.value[0]  # dereference
+        self.__value = value
+    def __bool__(self):
+        return self.__value is not None
+
+class MFQuaternion(_X3DArrayField):
+    """
+    Field type MFQuaternion is zero or more SFQuaternion values, each a unit quaternion (x,y,z,w). Introduced in X3D 4.1.
+    """
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Field class. """
+        return 'MFQuaternion'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://www.web3d.org/specifications/X3Dv4Draft/ISO-IEC19775-1v4.1-CD/Part01/components/gaussianSplats.html#GaussianSplats'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://www.web3d.org/specifications/X3Dv4Draft/ISO-IEC19775-1v4.1-CD/Part01/components/gaussianSplats.html#GaussianSplats'
+    @classmethod
+    def DEFAULT_VALUE(cls):
+        """ Default value defined for this data type by the X3D Specification """
+        return []  # use empty list object, don't keep resetting a mutable python DEFAULT_VALUE
+    @classmethod
+    def ARRAY_TYPE(cls):
+        """ Whether or not this field class is array based. """
+        return True
+    @classmethod
+    def TUPLE_SIZE(cls):
+        """ How many values make up each data tuple. """
+        return 4
+    @classmethod
+    def REGEX_PYTHON(cls):
+        """ Regular expression for validating Python values. """
+        return r'\s*\[?\s*(\s*\(?\s*((([+-]?((0|[1-9][0-9]*)(\.[0-9]*)?|\.[0-9]+)([Ee][+-]?[0-9]+)?)\s*\,?\s*){3}([+-]?((0|[1-9][0-9]*)(\.[0-9]*)?|\.[0-9]+)([Ee][+-]?[0-9]+)?)\s*,?\s*)*\)?\s*\,?)*\s*\]?\s*'
+    @classmethod
+    def REGEX_XML(cls):
+        """ Regular expression for validating XML values. """
+        return r'\s*((([+-]?((0|[1-9][0-9]*)(\.[0-9]*)?|\.[0-9]+)([Ee][+-]?[0-9]+)?)\s+){3}([+-]?((0|[1-9][0-9]*)(\.[0-9]*)?|\.[0-9]+)([Ee][+-]?[0-9]+)?)\s*,?\s*)*'
+    def __init__(self, value=None):
+        if value is None:
+            value = self.DEFAULT_VALUE()
+        self.value = value
+    @property
+    def value(self):
+        """ Provide typed value of this field instance. """
+        return self.__value
+    @value.setter
+    def value(self, value):
+        """ The value setter only allows correctly typed and sized values. """
+        if isinstance(value, SFQuaternion):
+            value = value.value  # dereference
+        elif value is None:
+            value = MFQuaternion.DEFAULT_VALUE()
+        elif isinstance(value, list):
+            result = []
+            for each in value:
+                if isinstance(each, SFQuaternion):
+                    result.append(each.value)
+                elif isinstance(each, (tuple, list)) and len(each) == 4:
+                    result.append((float(each[0]), float(each[1]), float(each[2]), float(each[3])))
+                else:
+                    result.append(each)
+            value = result
+        elif isinstance(value, str):
+            value = []
+        self.__value = value
+    def append(self, value=None):
+        """ Add to existing value list, first ensuring that a correctly typed value is applied. """
+        if value is not None:
+            if isinstance(value, SFQuaternion):
+                self.__value.append(value.value)  # dereference
+            elif not isinstance(value, list) and not isinstance(value, MFQuaternion):
+                self.__value.append(SFQuaternion(value).value)  # checks validity
+            elif (isinstance(value, list) and len(value) > 0) or isinstance(value, MFQuaternion):
+                for each in value:
+                    self.__value.append(SFQuaternion(each).value)  # checks validity
+    def __bool__(self):
+        if not isinstance(self.__value, list):
+            print('*** x3d.py internal error, MFQuaternion self.__value type=' + str(type(self.__value)) + ' is not a list', flush=True)
+        return len(self.__value) > 0
+    def __len__(self):
+        return len(self.__value)
+
 class _X3DNode:
     """
     All instantiable nodes implement X3DNode, which corresponds to SFNode type in the X3D specification.
@@ -10927,6 +11141,20 @@ class _X3DBoundedObject(_X3DNode):
     def SPECIFICATION_URL(cls):
         """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
         return 'https://www.web3d.org/specifications/X3Dv4/ISO-IEC19775-1v4-IS/Part01/components/grouping.html#X3DBoundedObject'
+
+class _X3DGaussianSplatsNode(_X3DChildNode, _X3DBoundedObject):
+    """
+    X3DGaussianSplatsNode is the abstract base type for all Gaussian splats nodes.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Abstract Type class. """
+        return '_X3DGaussianSplatsNode'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://www.web3d.org/specifications/X3Dv4Draft/ISO-IEC19775-1v4.1-CD/Part01/components/gaussianSplats.html#X3DGaussianSplatsNode'
 
 class _X3DFogObject(_X3DNode):
     """
@@ -26255,6 +26483,432 @@ class Gain(_X3DSoundProcessingNode):
     def hasChild(self):
         """ Whether or not this node has any child node or statement """
         return self.IS or self.metadata or (len(self.children) > 0)
+    # output function - - - - - - - - - -
+
+class GaussianSplats(_X3DGaussianSplatsNode):
+    """
+    GaussianSplats provides direct real-time radiance field rendering using 3D Gaussian splat primitives.
+    """
+    # immutable constant functions have getter but no setter - - - - - - - - - -
+    @classmethod
+    def NAME(cls):
+        """ Name of this X3D Node class. """
+        return 'GaussianSplats'
+    @classmethod
+    def SPECIFICATION_URL(cls):
+        """ Extensible 3D (X3D) Graphics International Standard governs X3D architecture for all file formats and programming languages. """
+        return 'https://www.web3d.org/specifications/X3Dv4Draft/ISO-IEC19775-1v4.1-CD/Part01/components/gaussianSplats.html#GaussianSplats'
+    @classmethod
+    def TOOLTIP_URL(cls):
+        """ X3D Tooltips provide authoring tips, hints and warnings for each node and field in X3D. """
+        return 'https://www.web3d.org/specifications/X3Dv4Draft/ISO-IEC19775-1v4.1-CD/Part01/components/gaussianSplats.html#GaussianSplats'
+    @classmethod
+    def FIELD_DECLARATIONS(cls):
+        """ Field declarations for this node: name, defaultValue, type, accessType, inheritedFrom """
+        return [
+        ('bboxCenter', (0, 0, 0), FieldType.SFVec3f, AccessType.initializeOnly, 'X3DGaussianSplatsNode'),
+        ('bboxDisplay', False, FieldType.SFBool, AccessType.inputOutput, 'X3DGaussianSplatsNode'),
+        ('bboxSize', (-1, -1, -1), FieldType.SFVec3f, AccessType.initializeOnly, 'X3DGaussianSplatsNode'),
+        ('castShadow', False, FieldType.SFBool, AccessType.inputOutput, 'X3DGaussianSplatsNode'),
+        ('colorSpace', 'SRGB_REC709_DISPLAY', FieldType.SFString, AccessType.inputOutput, 'X3DGaussianSplatsNode'),
+        ('opacities', [], FieldType.MFFloat, AccessType.inputOutput, 'GaussianSplats'),
+        ('orientations', [], FieldType.MFQuaternion, AccessType.inputOutput, 'GaussianSplats'),
+        ('pointerEvents', False, FieldType.SFBool, AccessType.inputOutput, 'X3DGaussianSplatsNode'),
+        ('positions', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('scales', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('sphericalHarmonicsDegree0Coef0', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('sphericalHarmonicsDegree1Coef0', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('sphericalHarmonicsDegree1Coef1', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('sphericalHarmonicsDegree1Coef2', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('sphericalHarmonicsDegree2Coef0', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('sphericalHarmonicsDegree2Coef1', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('sphericalHarmonicsDegree2Coef2', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('sphericalHarmonicsDegree2Coef3', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('sphericalHarmonicsDegree2Coef4', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('sphericalHarmonicsDegree3Coef0', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('sphericalHarmonicsDegree3Coef1', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('sphericalHarmonicsDegree3Coef2', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('sphericalHarmonicsDegree3Coef3', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('sphericalHarmonicsDegree3Coef4', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('sphericalHarmonicsDegree3Coef5', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('sphericalHarmonicsDegree3Coef6', [], FieldType.MFVec3f, AccessType.inputOutput, 'GaussianSplats'),
+        ('visible', True, FieldType.SFBool, AccessType.inputOutput, 'X3DGaussianSplatsNode'),
+        ('DEF', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('USE', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('IS', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('metadata', None, FieldType.SFNode, AccessType.inputOutput, 'X3DNode'),
+        ('class_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('id_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode'),
+        ('style_', '', FieldType.SFString, AccessType.inputOutput, 'X3DNode')]
+    def __init__(self,
+        bboxCenter=(0, 0, 0),
+        bboxDisplay=False,
+        bboxSize=(-1, -1, -1),
+        castShadow=False,
+        colorSpace='SRGB_REC709_DISPLAY',
+        opacities=None,
+        orientations=None,
+        pointerEvents=False,
+        positions=None,
+        scales=None,
+        sphericalHarmonicsDegree0Coef0=None,
+        sphericalHarmonicsDegree1Coef0=None,
+        sphericalHarmonicsDegree1Coef1=None,
+        sphericalHarmonicsDegree1Coef2=None,
+        sphericalHarmonicsDegree2Coef0=None,
+        sphericalHarmonicsDegree2Coef1=None,
+        sphericalHarmonicsDegree2Coef2=None,
+        sphericalHarmonicsDegree2Coef3=None,
+        sphericalHarmonicsDegree2Coef4=None,
+        sphericalHarmonicsDegree3Coef0=None,
+        sphericalHarmonicsDegree3Coef1=None,
+        sphericalHarmonicsDegree3Coef2=None,
+        sphericalHarmonicsDegree3Coef3=None,
+        sphericalHarmonicsDegree3Coef4=None,
+        sphericalHarmonicsDegree3Coef5=None,
+        sphericalHarmonicsDegree3Coef6=None,
+        visible=True,
+        DEF='',
+        USE='',
+        IS=None,
+        metadata=None,
+        class_='',
+        id_='',
+        style_=''):
+        # if _DEBUG: print('...DEBUG... in ConcreteNode GaussianSplats __init__ calling super.__init__(' + str(DEF) + ',' + str(USE) + ',' + str(class_) + ',' + str(id_) + ',' + str(style_) + ',' + str(metadata) + ',' + str(IS) + ')', flush=True)
+        super().__init__(DEF, USE, class_, id_, style_, IS, metadata) # fields for _X3DNode only
+        self.bboxCenter = bboxCenter
+        self.bboxDisplay = bboxDisplay
+        self.bboxSize = bboxSize
+        self.castShadow = castShadow
+        self.colorSpace = colorSpace
+        self.opacities = opacities
+        self.orientations = orientations
+        self.pointerEvents = pointerEvents
+        self.positions = positions
+        self.scales = scales
+        self.sphericalHarmonicsDegree0Coef0 = sphericalHarmonicsDegree0Coef0
+        self.sphericalHarmonicsDegree1Coef0 = sphericalHarmonicsDegree1Coef0
+        self.sphericalHarmonicsDegree1Coef1 = sphericalHarmonicsDegree1Coef1
+        self.sphericalHarmonicsDegree1Coef2 = sphericalHarmonicsDegree1Coef2
+        self.sphericalHarmonicsDegree2Coef0 = sphericalHarmonicsDegree2Coef0
+        self.sphericalHarmonicsDegree2Coef1 = sphericalHarmonicsDegree2Coef1
+        self.sphericalHarmonicsDegree2Coef2 = sphericalHarmonicsDegree2Coef2
+        self.sphericalHarmonicsDegree2Coef3 = sphericalHarmonicsDegree2Coef3
+        self.sphericalHarmonicsDegree2Coef4 = sphericalHarmonicsDegree2Coef4
+        self.sphericalHarmonicsDegree3Coef0 = sphericalHarmonicsDegree3Coef0
+        self.sphericalHarmonicsDegree3Coef1 = sphericalHarmonicsDegree3Coef1
+        self.sphericalHarmonicsDegree3Coef2 = sphericalHarmonicsDegree3Coef2
+        self.sphericalHarmonicsDegree3Coef3 = sphericalHarmonicsDegree3Coef3
+        self.sphericalHarmonicsDegree3Coef4 = sphericalHarmonicsDegree3Coef4
+        self.sphericalHarmonicsDegree3Coef5 = sphericalHarmonicsDegree3Coef5
+        self.sphericalHarmonicsDegree3Coef6 = sphericalHarmonicsDegree3Coef6
+        self.visible = visible
+        self.id_ = id_
+        self.style_ = style_
+    @property # getter - - - - - - - - - -
+    def bboxCenter(self):
+        """Bounding box center accompanies bboxSize and provides an optional hint for bounding box position offset from origin of local coordinate system."""
+        return self.__bboxCenter
+    @bboxCenter.setter
+    def bboxCenter(self, bboxCenter):
+        if  bboxCenter is None:
+            bboxCenter = (0, 0, 0)  # default
+        assertValidSFVec3f(bboxCenter)
+        self.__bboxCenter = bboxCenter
+    @property # getter - - - - - - - - - -
+    def bboxDisplay(self):
+        """Whether to display bounding box for associated geometry, aligned with world coordinates."""
+        return self.__bboxDisplay
+    @bboxDisplay.setter
+    def bboxDisplay(self, bboxDisplay):
+        if  bboxDisplay is None:
+            bboxDisplay = False  # default
+        assertValidSFBool(bboxDisplay)
+        self.__bboxDisplay = bboxDisplay
+    @property # getter - - - - - - - - - -
+    def bboxSize(self):
+        """or [0,+infinity) Bounding box size is usually omitted, and can easily be calculated automatically by an X3D player at scene-loading time with minimal computational cost."""
+        return self.__bboxSize
+    @bboxSize.setter
+    def bboxSize(self, bboxSize):
+        if  bboxSize is None:
+            bboxSize = (-1, -1, -1)  # default
+        assertValidSFVec3f(bboxSize)
+        assertBoundingBox('bboxSize', bboxSize)
+        self.__bboxSize = bboxSize
+    @property # getter - - - - - - - - - -
+    def castShadow(self):
+        """Whether this node casts shadows."""
+        return self.__castShadow
+    @castShadow.setter
+    def castShadow(self, castShadow):
+        if  castShadow is None:
+            castShadow = False  # default
+        assertValidSFBool(castShadow)
+        self.__castShadow = castShadow
+    @property # getter - - - - - - - - - -
+    def colorSpace(self):
+        """Color space of the reconstructed Gaussian splat color values as determined by the training process."""
+        return self.__colorSpace
+    @colorSpace.setter
+    def colorSpace(self, colorSpace):
+        if  colorSpace is None:
+            colorSpace = 'SRGB_REC709_DISPLAY'  # default
+        assertValidSFString(colorSpace)
+        assertValidColorSpace('colorSpace', colorSpace)
+        self.__colorSpace = colorSpace
+    @property # getter - - - - - - - - - -
+    def opacities(self):
+        """Opacity of each individual Gaussian splat, normalized between 0.0 (transparent) and 1.0 (opaque)."""
+        return self.__opacities
+    @opacities.setter
+    def opacities(self, opacities):
+        if  opacities is None:
+            opacities = MFFloat.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(MFFloat.DEFAULT_VALUE()))
+        assertValidMFFloat(opacities)
+        self.__opacities = opacities
+    @property # getter - - - - - - - - - -
+    def orientations(self):
+        """Orientation of each splat as a unit quaternion (x,y,z,w) in local space."""
+        return self.__orientations
+    @orientations.setter
+    def orientations(self, orientations):
+        if  orientations is None:
+            orientations = MFQuaternion.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(MFQuaternion.DEFAULT_VALUE()))
+        assertValidMFQuaternion(orientations)
+        self.__orientations = orientations
+    @property # getter - - - - - - - - - -
+    def pointerEvents(self):
+        """Whether this GaussianSplats node is a target for pointer events."""
+        return self.__pointerEvents
+    @pointerEvents.setter
+    def pointerEvents(self, pointerEvents):
+        if  pointerEvents is None:
+            pointerEvents = False  # default
+        assertValidSFBool(pointerEvents)
+        self.__pointerEvents = pointerEvents
+    @property # getter - - - - - - - - - -
+    def positions(self):
+        """Position (mean vector) of each individual Gaussian splat defining the center of its ellipsoid in local space."""
+        return self.__positions
+    @positions.setter
+    def positions(self, positions):
+        if  positions is None:
+            positions = MFVec3f.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(MFVec3f.DEFAULT_VALUE()))
+        assertValidMFVec3f(positions)
+        self.__positions = positions
+    @property # getter - - - - - - - - - -
+    def scales(self):
+        """Spread of the Gaussian along its local principal axes; values are linear and nonnegative."""
+        return self.__scales
+    @scales.setter
+    def scales(self, scales):
+        if  scales is None:
+            scales = MFVec3f.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(MFVec3f.DEFAULT_VALUE()))
+        assertValidMFVec3f(scales)
+        assertNonNegative('scales', scales)
+        self.__scales = scales
+    @property # getter - - - - - - - - - -
+    def sphericalHarmonicsDegree0Coef0(self):
+        """Degree-0 spherical harmonics coefficient 0 (DC term) defining base color."""
+        return self.__sphericalHarmonicsDegree0Coef0
+    @sphericalHarmonicsDegree0Coef0.setter
+    def sphericalHarmonicsDegree0Coef0(self, sphericalHarmonicsDegree0Coef0):
+        if  sphericalHarmonicsDegree0Coef0 is None:
+            sphericalHarmonicsDegree0Coef0 = MFVec3f.DEFAULT_VALUE()
+        assertValidMFVec3f(sphericalHarmonicsDegree0Coef0)
+        self.__sphericalHarmonicsDegree0Coef0 = sphericalHarmonicsDegree0Coef0
+    @property # getter - - - - - - - - - -
+    def sphericalHarmonicsDegree1Coef0(self):
+        """Degree-1 spherical harmonics coefficient 0."""
+        return self.__sphericalHarmonicsDegree1Coef0
+    @sphericalHarmonicsDegree1Coef0.setter
+    def sphericalHarmonicsDegree1Coef0(self, sphericalHarmonicsDegree1Coef0):
+        if  sphericalHarmonicsDegree1Coef0 is None:
+            sphericalHarmonicsDegree1Coef0 = MFVec3f.DEFAULT_VALUE()
+        assertValidMFVec3f(sphericalHarmonicsDegree1Coef0)
+        self.__sphericalHarmonicsDegree1Coef0 = sphericalHarmonicsDegree1Coef0
+    @property # getter - - - - - - - - - -
+    def sphericalHarmonicsDegree1Coef1(self):
+        """Degree-1 spherical harmonics coefficient 1."""
+        return self.__sphericalHarmonicsDegree1Coef1
+    @sphericalHarmonicsDegree1Coef1.setter
+    def sphericalHarmonicsDegree1Coef1(self, sphericalHarmonicsDegree1Coef1):
+        if  sphericalHarmonicsDegree1Coef1 is None:
+            sphericalHarmonicsDegree1Coef1 = MFVec3f.DEFAULT_VALUE()
+        assertValidMFVec3f(sphericalHarmonicsDegree1Coef1)
+        self.__sphericalHarmonicsDegree1Coef1 = sphericalHarmonicsDegree1Coef1
+    @property # getter - - - - - - - - - -
+    def sphericalHarmonicsDegree1Coef2(self):
+        """Degree-1 spherical harmonics coefficient 2."""
+        return self.__sphericalHarmonicsDegree1Coef2
+    @sphericalHarmonicsDegree1Coef2.setter
+    def sphericalHarmonicsDegree1Coef2(self, sphericalHarmonicsDegree1Coef2):
+        if  sphericalHarmonicsDegree1Coef2 is None:
+            sphericalHarmonicsDegree1Coef2 = MFVec3f.DEFAULT_VALUE()
+        assertValidMFVec3f(sphericalHarmonicsDegree1Coef2)
+        self.__sphericalHarmonicsDegree1Coef2 = sphericalHarmonicsDegree1Coef2
+    @property # getter - - - - - - - - - -
+    def sphericalHarmonicsDegree2Coef0(self):
+        """Degree-2 spherical harmonics coefficient 0."""
+        return self.__sphericalHarmonicsDegree2Coef0
+    @sphericalHarmonicsDegree2Coef0.setter
+    def sphericalHarmonicsDegree2Coef0(self, sphericalHarmonicsDegree2Coef0):
+        if  sphericalHarmonicsDegree2Coef0 is None:
+            sphericalHarmonicsDegree2Coef0 = MFVec3f.DEFAULT_VALUE()
+        assertValidMFVec3f(sphericalHarmonicsDegree2Coef0)
+        self.__sphericalHarmonicsDegree2Coef0 = sphericalHarmonicsDegree2Coef0
+    @property # getter - - - - - - - - - -
+    def sphericalHarmonicsDegree2Coef1(self):
+        """Degree-2 spherical harmonics coefficient 1."""
+        return self.__sphericalHarmonicsDegree2Coef1
+    @sphericalHarmonicsDegree2Coef1.setter
+    def sphericalHarmonicsDegree2Coef1(self, sphericalHarmonicsDegree2Coef1):
+        if  sphericalHarmonicsDegree2Coef1 is None:
+            sphericalHarmonicsDegree2Coef1 = MFVec3f.DEFAULT_VALUE()
+        assertValidMFVec3f(sphericalHarmonicsDegree2Coef1)
+        self.__sphericalHarmonicsDegree2Coef1 = sphericalHarmonicsDegree2Coef1
+    @property # getter - - - - - - - - - -
+    def sphericalHarmonicsDegree2Coef2(self):
+        """Degree-2 spherical harmonics coefficient 2."""
+        return self.__sphericalHarmonicsDegree2Coef2
+    @sphericalHarmonicsDegree2Coef2.setter
+    def sphericalHarmonicsDegree2Coef2(self, sphericalHarmonicsDegree2Coef2):
+        if  sphericalHarmonicsDegree2Coef2 is None:
+            sphericalHarmonicsDegree2Coef2 = MFVec3f.DEFAULT_VALUE()
+        assertValidMFVec3f(sphericalHarmonicsDegree2Coef2)
+        self.__sphericalHarmonicsDegree2Coef2 = sphericalHarmonicsDegree2Coef2
+    @property # getter - - - - - - - - - -
+    def sphericalHarmonicsDegree2Coef3(self):
+        """Degree-2 spherical harmonics coefficient 3."""
+        return self.__sphericalHarmonicsDegree2Coef3
+    @sphericalHarmonicsDegree2Coef3.setter
+    def sphericalHarmonicsDegree2Coef3(self, sphericalHarmonicsDegree2Coef3):
+        if  sphericalHarmonicsDegree2Coef3 is None:
+            sphericalHarmonicsDegree2Coef3 = MFVec3f.DEFAULT_VALUE()
+        assertValidMFVec3f(sphericalHarmonicsDegree2Coef3)
+        self.__sphericalHarmonicsDegree2Coef3 = sphericalHarmonicsDegree2Coef3
+    @property # getter - - - - - - - - - -
+    def sphericalHarmonicsDegree2Coef4(self):
+        """Degree-2 spherical harmonics coefficient 4."""
+        return self.__sphericalHarmonicsDegree2Coef4
+    @sphericalHarmonicsDegree2Coef4.setter
+    def sphericalHarmonicsDegree2Coef4(self, sphericalHarmonicsDegree2Coef4):
+        if  sphericalHarmonicsDegree2Coef4 is None:
+            sphericalHarmonicsDegree2Coef4 = MFVec3f.DEFAULT_VALUE()
+        assertValidMFVec3f(sphericalHarmonicsDegree2Coef4)
+        self.__sphericalHarmonicsDegree2Coef4 = sphericalHarmonicsDegree2Coef4
+    @property # getter - - - - - - - - - -
+    def sphericalHarmonicsDegree3Coef0(self):
+        """Degree-3 spherical harmonics coefficient 0."""
+        return self.__sphericalHarmonicsDegree3Coef0
+    @sphericalHarmonicsDegree3Coef0.setter
+    def sphericalHarmonicsDegree3Coef0(self, sphericalHarmonicsDegree3Coef0):
+        if  sphericalHarmonicsDegree3Coef0 is None:
+            sphericalHarmonicsDegree3Coef0 = MFVec3f.DEFAULT_VALUE()
+        assertValidMFVec3f(sphericalHarmonicsDegree3Coef0)
+        self.__sphericalHarmonicsDegree3Coef0 = sphericalHarmonicsDegree3Coef0
+    @property # getter - - - - - - - - - -
+    def sphericalHarmonicsDegree3Coef1(self):
+        """Degree-3 spherical harmonics coefficient 1."""
+        return self.__sphericalHarmonicsDegree3Coef1
+    @sphericalHarmonicsDegree3Coef1.setter
+    def sphericalHarmonicsDegree3Coef1(self, sphericalHarmonicsDegree3Coef1):
+        if  sphericalHarmonicsDegree3Coef1 is None:
+            sphericalHarmonicsDegree3Coef1 = MFVec3f.DEFAULT_VALUE()
+        assertValidMFVec3f(sphericalHarmonicsDegree3Coef1)
+        self.__sphericalHarmonicsDegree3Coef1 = sphericalHarmonicsDegree3Coef1
+    @property # getter - - - - - - - - - -
+    def sphericalHarmonicsDegree3Coef2(self):
+        """Degree-3 spherical harmonics coefficient 2."""
+        return self.__sphericalHarmonicsDegree3Coef2
+    @sphericalHarmonicsDegree3Coef2.setter
+    def sphericalHarmonicsDegree3Coef2(self, sphericalHarmonicsDegree3Coef2):
+        if  sphericalHarmonicsDegree3Coef2 is None:
+            sphericalHarmonicsDegree3Coef2 = MFVec3f.DEFAULT_VALUE()
+        assertValidMFVec3f(sphericalHarmonicsDegree3Coef2)
+        self.__sphericalHarmonicsDegree3Coef2 = sphericalHarmonicsDegree3Coef2
+    @property # getter - - - - - - - - - -
+    def sphericalHarmonicsDegree3Coef3(self):
+        """Degree-3 spherical harmonics coefficient 3."""
+        return self.__sphericalHarmonicsDegree3Coef3
+    @sphericalHarmonicsDegree3Coef3.setter
+    def sphericalHarmonicsDegree3Coef3(self, sphericalHarmonicsDegree3Coef3):
+        if  sphericalHarmonicsDegree3Coef3 is None:
+            sphericalHarmonicsDegree3Coef3 = MFVec3f.DEFAULT_VALUE()
+        assertValidMFVec3f(sphericalHarmonicsDegree3Coef3)
+        self.__sphericalHarmonicsDegree3Coef3 = sphericalHarmonicsDegree3Coef3
+    @property # getter - - - - - - - - - -
+    def sphericalHarmonicsDegree3Coef4(self):
+        """Degree-3 spherical harmonics coefficient 4."""
+        return self.__sphericalHarmonicsDegree3Coef4
+    @sphericalHarmonicsDegree3Coef4.setter
+    def sphericalHarmonicsDegree3Coef4(self, sphericalHarmonicsDegree3Coef4):
+        if  sphericalHarmonicsDegree3Coef4 is None:
+            sphericalHarmonicsDegree3Coef4 = MFVec3f.DEFAULT_VALUE()
+        assertValidMFVec3f(sphericalHarmonicsDegree3Coef4)
+        self.__sphericalHarmonicsDegree3Coef4 = sphericalHarmonicsDegree3Coef4
+    @property # getter - - - - - - - - - -
+    def sphericalHarmonicsDegree3Coef5(self):
+        """Degree-3 spherical harmonics coefficient 5."""
+        return self.__sphericalHarmonicsDegree3Coef5
+    @sphericalHarmonicsDegree3Coef5.setter
+    def sphericalHarmonicsDegree3Coef5(self, sphericalHarmonicsDegree3Coef5):
+        if  sphericalHarmonicsDegree3Coef5 is None:
+            sphericalHarmonicsDegree3Coef5 = MFVec3f.DEFAULT_VALUE()
+        assertValidMFVec3f(sphericalHarmonicsDegree3Coef5)
+        self.__sphericalHarmonicsDegree3Coef5 = sphericalHarmonicsDegree3Coef5
+    @property # getter - - - - - - - - - -
+    def sphericalHarmonicsDegree3Coef6(self):
+        """Degree-3 spherical harmonics coefficient 6."""
+        return self.__sphericalHarmonicsDegree3Coef6
+    @sphericalHarmonicsDegree3Coef6.setter
+    def sphericalHarmonicsDegree3Coef6(self, sphericalHarmonicsDegree3Coef6):
+        if  sphericalHarmonicsDegree3Coef6 is None:
+            sphericalHarmonicsDegree3Coef6 = MFVec3f.DEFAULT_VALUE()
+        assertValidMFVec3f(sphericalHarmonicsDegree3Coef6)
+        self.__sphericalHarmonicsDegree3Coef6 = sphericalHarmonicsDegree3Coef6
+    @property # getter - - - - - - - - - -
+    def visible(self):
+        """Whether or not renderable content within this node is visually displayed."""
+        return self.__visible
+    @visible.setter
+    def visible(self, visible):
+        if  visible is None:
+            visible = True  # default
+        assertValidSFBool(visible)
+        self.__visible = visible
+    @property # getter - - - - - - - - - -
+    def id_(self):
+        """ id_ attribute is a unique identifier for use within HTML pages. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__id_
+    @id_.setter
+    def id_(self, id_):
+        if  id_ is None:
+            id_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(id_)
+        self.__id_ = id_
+    @property # getter - - - - - - - - - -
+    def style_(self):
+        """ Space-separated list of classes, reserved for use by CSS cascading style_sheets. Appended underscore to field name to avoid naming collision with Python reserved word. """
+        return self.__style_
+    @style_.setter
+    def style_(self, style_):
+        if  style_ is None:
+            style_ = SFString.DEFAULT_VALUE()
+            # if _DEBUG: print('...DEBUG... set value to .DEFAULT_VALUE()=' + str(SFString.DEFAULT_VALUE()))
+        assertValidSFString(style_)
+        self.__style_ = style_
+    # hasChild() function - - - - - - - - - -
+    def hasChild(self):
+        """ Whether or not this node has any child node or statement """
+        return self.IS or self.metadata
     # output function - - - - - - - - - -
 
 class GeneratedCubeMapTexture(_X3DEnvironmentTextureNode):
@@ -60275,6 +60929,7 @@ def instantiateNodeFromString(x3dType, _cache={}):
         'ForcePhysicsModel':(ForcePhysicsModel(), {'Core':1, 'Grouping':1, 'ParticleSystems':1, 'Rendering':1, 'Shape':1}),
         ####################################### G
         'Gain':(Gain(), {'Core':1, 'Sound':2, 'Time':1}),
+        'GaussianSplats':(GaussianSplats(), {'Core':1, 'GaussianSplats':1, 'Grouping':1, 'Rendering':1, 'Shape':1}),
         'GeneratedCubeMapTexture':(GeneratedCubeMapTexture(), {'Core':1, 'Grouping':1, 'Rendering':1, 'Shape':1, 'CubeMapTexturing':3, 'Texturing':1}),
         'GeoCoordinate':(GeoCoordinate(), {'Core':1, 'Geometry3D':1, 'Geospatial':1, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':1, 'PointDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
         'GeoElevationGrid':(GeoElevationGrid(), {'Core':1, 'Geometry3D':1, 'Geospatial':1, 'Grouping':3, 'Interpolation':1, 'Navigation':1, 'Networking':1, 'PointDeviceSensor':1, 'Rendering':1, 'Shape':1, 'Time':1}),
