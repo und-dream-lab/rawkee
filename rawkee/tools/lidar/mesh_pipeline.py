@@ -102,7 +102,7 @@ def _parse_pointcloud2(msg_data: bytes, fields_meta: list, point_step: int) -> O
             return None
 
         offsets = {f.name: (f.offset, f.datatype) for f in fields_meta}
-        raw = np.frombuffer(msg_data, dtype=np.uint8).reshape(n_pts, point_step)
+        raw = np.frombuffer(msg_data[:n_pts * point_step], dtype=np.uint8).reshape(n_pts, point_step)
 
         def _extract(name: str, default_off: int) -> np.ndarray:
             off, dt = offsets.get(name, (default_off, 7))  # 7 = FLOAT32
