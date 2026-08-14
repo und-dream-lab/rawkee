@@ -44,7 +44,6 @@ def _build_parser() -> argparse.ArgumentParser:
     mesh.add_argument('--poisson-depth',    type=int,   default=9,    metavar='INT')
     mesh.add_argument('--atlas-size',       type=int,   default=4096, metavar='INT')
     mesh.add_argument('--colorise-stride',  type=int,   default=10,   metavar='INT')
-    mesh.add_argument('--depth-stride',     type=int,   default=5,    metavar='INT')
     mesh.add_argument('--envmap-width',     type=int,   default=4096, metavar='INT')
     mesh.add_argument('--envmap-height',    type=int,   default=2048, metavar='INT')
     mesh.add_argument('--hdri-frame',       type=int,   default=None, metavar='INT',
@@ -95,7 +94,6 @@ def main() -> None:
             poisson_depth=args.poisson_depth,
             atlas_size=args.atlas_size,
             colorise_stride=args.colorise_stride,
-            depth_fallback_stride=args.depth_stride,
         ).run(
             dataset,
             output_dir=args.output,
