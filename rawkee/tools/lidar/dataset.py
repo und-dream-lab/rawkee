@@ -1305,7 +1305,7 @@ class ScanDataset:
         try:
             project_dir = self.root if self.root.is_dir() else self.root.parent
             for p4d in project_dir.glob('*.p4d'):
-                text = ET.parse(p4d).getroot().iter().__next__() and p4d.read_text(errors='ignore')
+                text = p4d.read_text(errors='ignore')
                 m = _re.search(r'EPSG[:\s]+?(\d{4,5})\b', text, _re.IGNORECASE)
                 if m:
                     return int(m.group(1))

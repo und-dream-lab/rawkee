@@ -150,9 +150,6 @@ def _load_training_images(
         Rs      – list of (3,3) rotation matrices (world → camera)
         ts      – list of (3,) translation vectors (camera origin in world)
     """
-    import rawpy
-    from PIL import Image
-
     images, Rs, ts = [], [], []
     cam = dataset.cameras[cam_idx]
 
@@ -164,7 +161,12 @@ def _load_training_images(
             # Support DNG/RAW and standard JPEG/TIFF
             from PIL import Image as _PILImage
             if img_path.suffix.lower() in ('.dng', '.nef', '.cr2', '.arw', '.raw', '.rw2'):
-                import rawpy
+                try:
+                    import rawpy
+                except ImportError as exc:
+                    raise ImportError(
+                        f'rawpy is required to load RAW images ({img_path.name}): pip install rawpy'
+                    ) from exc
                 with rawpy.imread(str(img_path)) as raw:
                     rgb8 = raw.postprocess(output_bps=8, use_camera_wb=True)
             else:
@@ -221,6 +223,7 @@ def _init_gaussians_from_pcd(
     else:
         nn_dist = 0.05
 
+    nn_dist = max(nn_dist, 1e-6)
     log_scale_val = math.log(nn_dist)
     log_scales = torch.full((N, 3), log_scale_val, dtype=torch.float32, device=device)
 
@@ -231,7 +234,7 @@ def _init_gaussians_from_pcd(
     # Initialise SH DC with grey; higher-order = 0
     n_sh = (sh_degree + 1) ** 2
     sh_coeffs = torch.zeros(N, n_sh, 3, dtype=torch.float32, device=device)
-    sh_coeffs[:, 0] = 0.5 / math.sqrt(4 * math.pi)   # DC grey
+    # DC=0 decodes to rgb=0.5 (grey) via: rgb = dc * sh0 + 0.5
 
     # Opacity: inverse-sigmoid of 0.1
     opacities = torch.full((N,), math.log(0.1 / (1 - 0.1)), dtype=torch.float32, device=device)
@@ -309,6 +312,7 @@ def _train(
     densify_until: int = 7_000,
     rank: int = 0,
     world_size: int = 1,
+    sh_degree: int = 3,
 ) -> dict[str, 'torch.Tensor']:
     """3DGS training loop using gsplat rasteriser, with optional multi-node DDP."""
     if not _GSPLAT:
@@ -362,14 +366,14 @@ def _train(
         t      = t_tensors[ci]
 
         scales_exp  = torch.exp(params['log_scales'])
-        quats_n     = F.normalize(params['quats'], dim=-1)
+        quats_n     = F.normalize(params['quats'].clamp(min=-1e6, max=1e6), dim=-1)
         opacities_a = torch.sigmoid(params['opacities'])
 
         rendered, _, _ = rasterization(
             means=params['means'], quats=quats_n, scales=scales_exp,
             opacities=opacities_a, colors=params['sh_coeffs'],
             viewmats=torch.cat([R, t.unsqueeze(-1)], dim=-1),
-            Ks=K, width=W, height=H, sh_degree=3, packed=True,
+            Ks=K, width=W, height=H, sh_degree=sh_degree, packed=True,
         )
         rendered = rendered.permute(0, 3, 1, 2).clamp(0, 1)
 
@@ -392,13 +396,13 @@ def _train(
         if step % densify_every == 0 and step < densify_until:
             with torch.no_grad():
                 if world_size > 1:
-                    # Rank 0 decides which Gaussians to keep; all ranks obey
+                    dist.barrier()  # ensure all ranks finish their optimizer step first
                     keep = torch.zeros(len(params['means']), dtype=torch.bool, device=device)
                     if rank == 0:
-                        keep = torch.sigmoid(params['opacities']) > 0.005  # prune near-transparent splats
+                        keep = torch.sigmoid(params['opacities']) > 0.005
                     dist.broadcast(keep, src=0)
                 else:
-                    keep = torch.sigmoid(params['opacities']) > 0.005  # prune near-transparent splats
+                    keep = torch.sigmoid(params['opacities']) > 0.005
 
                 for k in params:
                     params[k] = nn.Parameter(params[k][keep])
@@ -409,6 +413,7 @@ def _train(
                         dist.broadcast(p.data, src=0)
 
                 opt = _make_opt()
+                scheduler = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=0.999)
             if rank == 0:
                 log.info('Density control: %d Gaussians remaining', keep.sum().item())
 
@@ -443,6 +448,7 @@ class SplatPipeline:
         output_format: str = 'x3d',
         trimble_csv: Optional[Path] = None,
         georef_epsg: int = 32605,
+        decode_sh: bool = False,
     ) -> Path:
         """Run the full Gaussian splat pipeline and export.
 
@@ -453,6 +459,8 @@ class SplatPipeline:
         output_format: One of x3d | x3dv | x3dj | ply | splat | glb.
         trimble_csv:   Optional path to a Trimble survey CSV for georeferencing.
         georef_epsg:   Target projected CRS (default 32605 = UTM Zone 5N).
+        decode_sh:     When True and output_format is ply, pre-decode SH coefficients
+                       to linear RGB so consumers without SH support see correct colours.
         """
         if not _TORCH:
             raise RuntimeError('PyTorch is required for Gaussian splat training')
@@ -479,6 +487,7 @@ class SplatPipeline:
                 gaussians=trained, output_dir=output_dir,
                 stem=dataset.dataset_name, fmt=output_format,
                 sh_degree=self.sh_degree, geo_origin=dataset.geo_origin(),
+                decode_sh=decode_sh,
             )
             log.info('E57 direct splat export → %s', out_path)
             return out_path
@@ -539,6 +548,7 @@ class SplatPipeline:
                 iterations=self.iterations,
                 rank=rank,
                 world_size=world_size,
+                sh_degree=self.sh_degree,
             )
         finally:
             _dist_teardown()
@@ -554,6 +564,7 @@ class SplatPipeline:
             fmt=output_format,
             sh_degree=self.sh_degree,
             geo_origin=dataset.geo_origin(),
+            decode_sh=decode_sh,
         )
         log.info('Splat export complete → %s', out_path)
         return out_path

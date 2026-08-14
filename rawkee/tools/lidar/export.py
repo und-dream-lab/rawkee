@@ -62,12 +62,16 @@ def export_splat(
     fmt: str = 'x3d',
     sh_degree: int = 3,
     geo_origin: Optional[tuple] = None,
+    decode_sh: bool = False,
 ) -> Path:
     """Export trained Gaussian splat parameters in the requested format.
 
     Parameters
     ----------
     geo_origin: (easting, northing, height, epsg) from ScanDataset.geo_origin(), or None.
+    decode_sh:  When True, PLY output stores pre-decoded linear RGB in f_dc_* fields
+                instead of raw SH coefficients. Use when the consumer does not
+                implement SH decoding.
     """
     fmt = fmt.lower().lstrip('.')
     output_dir = Path(output_dir)
@@ -89,7 +93,7 @@ def export_splat(
     elif fmt == 'ply':
         return _export_splat_ply(
             means, scales, quats_wxyz, sh_coeffs, params['opacities'],
-            params['log_scales'], output_dir, stem,
+            params['log_scales'], output_dir, stem, decode_sh=decode_sh,
         )
     elif fmt == 'splat':
         return _export_splat_binary(
@@ -412,6 +416,7 @@ def _export_splat_ply(
     quats_wxyz: np.ndarray, sh_coeffs: np.ndarray,
     raw_opacities: np.ndarray, log_scales: np.ndarray,
     output_dir: Path, stem: str,
+    decode_sh: bool = False,
 ) -> Path:
     """Write a 3DGS-compatible PLY file with pre-activation (raw) parameter values."""
     N = len(means)
@@ -419,8 +424,15 @@ def _export_splat_ply(
     n_rest = max(0, n_sh - 1)     # DC is f_dc_*, rest are f_rest_*
 
     # Build per-vertex property arrays (pre-activation, matching 3DGS convention)
-    dc    = sh_coeffs[:, 0, :]                                        # (N, 3)
-    rest  = sh_coeffs[:, 1:, :].reshape(N, -1)                       # (N, n_rest*3)
+    sh0 = 0.28209479177387814  # 1 / (2 * sqrt(pi))
+    if decode_sh:
+        # Pre-decode DC so consumers that don't implement SH get correct RGB
+        dc     = (sh_coeffs[:, 0, :] * sh0 + 0.5).clip(0.0, 1.0)  # (N, 3)
+        rest   = np.zeros((N, 0), dtype=np.float32)                 # omit higher-order
+        n_rest = 0
+    else:
+        dc    = sh_coeffs[:, 0, :]                                   # (N, 3)
+        rest  = sh_coeffs[:, 1:, :].reshape(N, -1)                  # (N, n_rest*3)
 
     out_path = output_dir / f'{stem}.ply'
     with open(out_path, 'wb') as f:
