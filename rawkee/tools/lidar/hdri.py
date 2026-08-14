@@ -111,13 +111,20 @@ def _load_image_hdr(path: Path) -> np.ndarray:
     if path.suffix.lower() in ('.dng', '.nef', '.cr2', '.arw', '.raw', '.rw2'):
         if not _RAWPY:
             raise RuntimeError('rawpy is required for raw images: pip install rawpy')
-        with rawpy.imread(str(path)) as raw:
-            rgb = raw.postprocess(
-                output_bps=16, no_auto_bright=True,
-                use_camera_wb=True, gamma=(1, 1),
-                output_color=rawpy.ColorSpace.sRGB,
-            )
-        return rgb.astype(np.float32) / 65535.0
+        try:
+            with rawpy.imread(str(path)) as raw:
+                rgb = raw.postprocess(
+                    output_bps=16, no_auto_bright=True,
+                    use_camera_wb=True, gamma=(1, 1),
+                    output_color=rawpy.ColorSpace.sRGB,
+                )
+            return rgb.astype(np.float32) / 65535.0
+        except Exception:
+            # NavVis DNGs use JPEG-XL compression; fall back to the JPEG preview
+            preview = path.parent / 'preview' / (path.stem + '.jpg')
+            if not preview.exists():
+                raise
+            return _load_image_hdr(preview)
     else:
         if not _IMAGEIO:
             raise RuntimeError('imageio is required: pip install imageio')

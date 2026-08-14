@@ -375,8 +375,166 @@ class RKNodeEditorDropView(RKGraphicsView):
             super().dropEvent(event)
 
 
+class _RKFieldLineEdit(QLineEdit):
+    """QLineEdit that reverts to its pre-focus text on blur unless Enter was pressed."""
+    committed = Signal(str)
+
+    def __init__(self, text='', parent=None):
+        super().__init__(text, parent)
+        self._snapshot = text
+
+    def focusInEvent(self, event):
+        self._snapshot = self.text()
+        super().focusInEvent(event)
+
+    def focusOutEvent(self, event):
+        self.setText(self._snapshot)
+        self.setStyleSheet('')
+        super().focusOutEvent(event)
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self._snapshot = self.text()   # freeze so FocusOut won't revert
+            self.committed.emit(self.text())
+        super().keyPressEvent(event)
+
+
+class RKMFFieldRow(QWidget):
+    """One MF field row: read-only display of val[idx] + optional inline edit."""
+
+    committed = Signal(str, object)   # (field_name, new_full_list)
+
+    _MF_WIDTHS = {
+        'MFVec2f':2,'MFVec2d':2,
+        'MFVec3f':3,'MFVec3d':3,'MFColor':3,
+        'MFVec4f':4,'MFVec4d':4,'MFColorRGBA':4,'MFRotation':4,
+    }
+
+    def __init__(self, fname, ftype, parent=None):
+        super().__init__(parent)
+        self.fname    = fname
+        self.ftype    = ftype
+        self._width   = self._MF_WIDTHS.get(ftype, 1)
+        self._value   = []
+        self._idx     = 0
+        self._editing = False
+
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(3)
+
+        self._display = QLineEdit()
+        self._display.setReadOnly(True)
+        self._display.setPlaceholderText('—')
+        self._display.setStyleSheet('color:#aaa;')
+        self._display.returnPressed.connect(self._commit)
+        self._display.installEventFilter(self)
+
+        self._edit_btn = QPushButton('\u270f')  # ✏ pencil
+        self._edit_btn.setFixedSize(24, 24)
+        self._edit_btn.setCheckable(True)
+        self._edit_btn.setToolTip('Edit this value')
+        self._edit_btn.setStyleSheet(
+            'QPushButton{color:#4CAF50;font-size:13px;padding:0;'
+            'border:1px solid #555;border-radius:3px;background:#333;}'
+            'QPushButton:checked{background:#1a3a1a;border-color:#4CAF50;}'
+            'QPushButton:hover{border-color:#81C784;}'
+        )
+        self._edit_btn.clicked.connect(self._toggle_edit)
+
+        lay.addWidget(self._display, 1)
+        lay.addWidget(self._edit_btn)
+
+    def load(self, full_list, idx=0):
+        self._value   = full_list
+        self._idx     = idx
+        self._editing = False
+        self._edit_btn.setChecked(False)
+        self._display.setReadOnly(True)
+        self._display.setStyleSheet('color:#aaa;')
+        self._refresh()
+
+    def set_index(self, idx):
+        if self._editing:
+            self._cancel()
+        self._idx = idx
+        self._refresh()
+
+    def _refresh(self):
+        if not self._value or self._idx >= len(self._value):
+            self._display.setText('')
+            return
+        elem = self._value[self._idx]
+        if isinstance(elem, tuple):
+            self._display.setText(' '.join(str(v) for v in elem))
+        elif isinstance(elem, bool):
+            self._display.setText('true' if elem else 'false')
+        else:
+            self._display.setText(str(elem))
+
+    def _toggle_edit(self, checked):
+        if checked:
+            self._editing = True
+            self._display.setReadOnly(False)
+            self._display.setStyleSheet('')
+            self._display.setFocus()
+            self._display.selectAll()
+        else:
+            self._cancel()
+
+    def _commit(self):
+        if not self._editing or not self._value or self._idx >= len(self._value):
+            return
+        text = self._display.text().strip()
+        try:
+            if self.ftype == 'MFBool':
+                elem = text.lower() in ('true', '1', 'yes')
+            elif self.ftype == 'MFString':
+                elem = text.strip('"\'')
+            elif self.ftype == 'MFInt32':
+                elem = int(float(text))
+            elif self._width > 1:
+                parts = [float(p) for p in text.split()]
+                elem  = tuple(parts[:self._width])
+            else:
+                elem = float(text)
+        except Exception:
+            self._display.setStyleSheet('background:#5a1a1a;')
+            return
+        new_list = list(self._value)
+        new_list[self._idx] = elem
+        self._value = new_list
+        self._editing = False
+        self._edit_btn.setChecked(False)
+        self._display.setReadOnly(True)
+        self._display.setStyleSheet('color:#aaa;')
+        self._display.setStyleSheet('')
+        self.committed.emit(self.fname, list(self._value))
+
+    def _cancel(self):
+        self._editing = False
+        self._edit_btn.setChecked(False)
+        self._display.setReadOnly(True)
+        self._display.setStyleSheet('color:#aaa;')
+        self._refresh()
+
+    def eventFilter(self, obj, event):
+        if obj is self._display and event.type() == QEvent.Type.KeyPress:
+            if event.key() == Qt.Key.Key_Escape:
+                self._cancel()
+                return True
+        if obj is self._display and event.type() == QEvent.Type.FocusOut:
+            if self._editing:
+                self._cancel()
+        return super().eventFilter(obj, event)
+
+
 class RKNodeFieldEditor(QWidget):
-    """Attribute-editor-style panel for the non-node fields of a selected X3D node."""
+    """Attribute-editor panel for scalar/vector fields of a selected X3D node.
+
+    MF fields display one element at a time via a shared or per-field index spinbox.
+    Parallel MF arrays (same length) share a single index control at the top.
+    """
 
     _SF_WIDTHS = {
         'SFVec2f':2,'SFVec2d':2,
@@ -395,13 +553,31 @@ class RKNodeFieldEditor(QWidget):
         super().__init__(parent)
         self._node          = None
         self._sai_runner    = None
-        self._node_def_map  = {}  # id(pynode) -> registered DEF (real or synthetic)
+        self._node_def_map  = {}
         self._undo_push_fn  = None
-        self._widgets    = {}   # field_name -> (widget, ftype)
+        self._field_undo_fn = None
+        self._widgets         = {}    # fname -> (widget, ftype)  — SF fields only
+        self._mf_rows         = {}    # fname -> RKMFFieldRow
+        self._per_field_spins = []    # explicit Python refs so GC can't sever signal
 
         self._header = QLabel('No selection')
         self._header.setContentsMargins(4, 3, 4, 3)
         f = self._header.font(); f.setBold(True); self._header.setFont(f)
+
+        # Shared MF index bar — visible when ≥2 MF fields share the same length
+        self._idx_bar  = QWidget()
+        _ilay          = QHBoxLayout(self._idx_bar)
+        _ilay.setContentsMargins(4, 2, 4, 2)
+        _ilay.setSpacing(4)
+        self._idx_spin = QSpinBox()
+        self._idx_spin.setMinimum(0)
+        self._idx_spin.setMaximum(0)
+        self._idx_of   = QLabel('of 0')
+        _ilay.addWidget(self._idx_spin)
+        _ilay.addWidget(self._idx_of)
+        _ilay.addStretch()
+        self._idx_bar.setVisible(False)
+        self._idx_spin.valueChanged.connect(self._on_shared_idx)
 
         self._scroll    = QScrollArea()
         self._scroll.setWidgetResizable(True)
@@ -416,22 +592,27 @@ class RKNodeFieldEditor(QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
         lay.addWidget(self._header)
+        lay.addWidget(self._idx_bar)
         lay.addWidget(self._scroll)
 
-    def set_sai_runner(self, fn):
-        self._sai_runner = fn
+    # ── public interface ──────────────────────────────────────────────────────
 
-    def set_node_def_map(self, m):
-        self._node_def_map = m
-
-    def set_undo_push_fn(self, fn):
-        self._undo_push_fn = fn
+    def set_sai_runner(self, fn):    self._sai_runner    = fn
+    def set_node_def_map(self, m):   self._node_def_map  = m
+    def set_undo_push_fn(self, fn):  self._undo_push_fn  = fn
+    def set_field_undo_fn(self, fn): self._field_undo_fn = fn
 
     def set_node(self, node):
         self._node = node
         self._widgets.clear()
+        self._mf_rows.clear()
+        self._per_field_spins.clear()
         while self._form.rowCount():
             self._form.removeRow(0)
+        self._idx_bar.setVisible(False)
+        self._idx_spin.blockSignals(True)
+        self._idx_spin.setValue(0)
+        self._idx_spin.blockSignals(False)
 
         if node is None:
             self._header.setText('No selection')
@@ -448,6 +629,8 @@ class RKNodeFieldEditor(QWidget):
             return
 
         _SKIP = frozenset({'DEF','USE','IS','class_','id_','style_','metadata'})
+        sf_rows, mf_rows = [], []
+
         for decl in type(node).FIELD_DECLARATIONS():
             fname = decl[0]
             if fname in _SKIP:
@@ -456,13 +639,19 @@ class RKNodeFieldEditor(QWidget):
             except: ftype  = ''
             try:    access = decl[3]()
             except: access = ''
-            if ftype in ('SFNode','MFNode'):
+            if ftype in ('SFNode', 'MFNode'):
                 continue
             try:    val = getattr(node, fname)
             except: continue
-
             ro = (access == 'outputOnly')
-            w  = self._make_widget(fname, ftype, val, ro)
+            if ftype.startswith('MF'):
+                mf_rows.append((fname, ftype, val, ro))
+            else:
+                sf_rows.append((fname, ftype, val, ro))
+
+        # SF fields
+        for fname, ftype, val, ro in sf_rows:
+            w = self._make_sf_widget(fname, ftype, val, ro)
             if w is None:
                 continue
             self._widgets[fname] = (w, ftype)
@@ -471,9 +660,84 @@ class RKNodeFieldEditor(QWidget):
                 lbl.setStyleSheet('color:#888;')
             self._form.addRow(lbl, w)
 
-    # ── widget factory ────────────────────────────────────────────────────────
+        # MF fields
+        if mf_rows:
+            lengths     = [len(v) for _, _, v, _ in mf_rows if isinstance(v, list) and v]
+            use_shared  = len(lengths) >= 2 and len(set(lengths)) == 1
+            shared_len  = lengths[0] if use_shared else 0
 
-    def _make_widget(self, fname, ftype, val, ro):
+            if use_shared:
+                self._idx_spin.blockSignals(True)
+                self._idx_spin.setMaximum(max(0, shared_len - 1))
+                self._idx_spin.setValue(0)
+                self._idx_spin.blockSignals(False)
+                self._idx_of.setText(f'of {shared_len}')
+                self._idx_bar.setVisible(True)
+
+            for fname, ftype, val, ro in mf_rows:
+                row = RKMFFieldRow(fname, ftype)
+                row.load(val if isinstance(val, list) else [], 0)
+                row.committed.connect(self._mf_committed)
+                self._mf_rows[fname] = row
+                lbl = QLabel(fname)
+                if ro:
+                    lbl.setStyleSheet('color:#888;')
+                    row.setEnabled(False)
+
+                if use_shared:
+                    self._form.addRow(lbl, row)
+                else:
+                    # Per-field index spinbox
+                    length  = len(val) if isinstance(val, list) else 0
+                    wrapper = QWidget()
+                    wlay    = QHBoxLayout(wrapper)
+                    wlay.setContentsMargins(0, 0, 0, 0)
+                    wlay.setSpacing(3)
+                    spin    = QSpinBox()
+                    spin.setMinimum(0)
+                    spin.setMaximum(max(0, length - 1))
+                    spin.setFixedWidth(60)
+                    spin.valueChanged.connect(lambda v, r=row: r.set_index(v))
+                    self._per_field_spins.append(spin)  # prevent GC
+                    wlay.addWidget(spin)
+                    wlay.addWidget(row, 1)
+                    wlay.addWidget(QLabel(f'/{length}'))
+                    self._form.addRow(lbl, wrapper)
+
+    # ── shared index ──────────────────────────────────────────────────────────
+
+    def _on_shared_idx(self, idx):
+        for row in self._mf_rows.values():
+            row.set_index(idx)
+
+    # ── MF commit ─────────────────────────────────────────────────────────────
+
+    def _mf_committed(self, fname, new_list):
+        if self._node is None:
+            return
+        if self._field_undo_fn:
+            try:    old = getattr(self._node, fname)
+            except: old = None
+            self._field_undo_fn(self._node, fname, old)
+        elif self._undo_push_fn:
+            self._undo_push_fn()
+        try:
+            setattr(self._node, fname, new_list)
+        except Exception:
+            return
+        ftype = ''
+        try:
+            for decl in type(self._node).FIELD_DECLARATIONS():
+                if decl[0] == fname:
+                    ftype = decl[2]()
+                    break
+        except Exception:
+            pass
+        self._push_sai(fname, new_list, ftype)
+
+    # ── SF widget factory ─────────────────────────────────────────────────────
+
+    def _make_sf_widget(self, fname, ftype, val, ro):
         if ftype == 'SFBool':
             w = QCheckBox()
             w.setChecked(bool(val))
@@ -485,14 +749,16 @@ class RKNodeFieldEditor(QWidget):
             text = ', '.join(f'"{v}"' for v in (val or []))
         else:
             text = self._val_to_str(val)
-        w = QLineEdit(text)
-        w.setReadOnly(ro)
         if ro:
+            w = QLineEdit(text)
+            w.setReadOnly(True)
             w.setStyleSheet('color:#888;')
         else:
-            w.editingFinished.connect(lambda fn=fname: self._changed(fn))
+            w = _RKFieldLineEdit(text)
+            w.committed.connect(lambda _t, fn=fname: self._changed(fn))
         return w
 
+    # kept for SAI / undo helpers that call _val_to_str
     def _val_to_str(self, val):
         if isinstance(val, bool):   return 'true' if val else 'false'
         if isinstance(val, tuple):  return ' '.join(str(v) for v in val)
@@ -503,7 +769,7 @@ class RKNodeFieldEditor(QWidget):
             return ' '.join(str(v) for v in val)
         return str(val) if val is not None else ''
 
-    # ── field change ──────────────────────────────────────────────────────────
+    # ── SF field change ───────────────────────────────────────────────────────
 
     def _changed(self, fname):
         if self._node is None:
@@ -518,7 +784,11 @@ class RKNodeFieldEditor(QWidget):
             if isinstance(w, QLineEdit): w.setStyleSheet('background:#5a1a1a;')
             return
         if isinstance(w, QLineEdit): w.setStyleSheet('')
-        if self._undo_push_fn:
+        if self._field_undo_fn:
+            try:    old_val = getattr(self._node, fname)
+            except: old_val = None
+            self._field_undo_fn(self._node, fname, old_val)
+        elif self._undo_push_fn:
             self._undo_push_fn()
         try:
             setattr(self._node, fname, parsed)
@@ -561,10 +831,8 @@ class RKNodeFieldEditor(QWidget):
             def_ = self._node_def_map.get(id(self._node), '')
         if not def_:
             return
-        js_val  = self._to_js(value, ftype, fname)
-        def_js  = json.dumps(def_)
-        fname_js = json.dumps(fname)
-        self._sai_runner(f'RK.setField({def_js},{fname_js},{js_val})')
+        js_val = self._to_js(value, ftype, fname)
+        self._sai_runner(f'RK.setField({json.dumps(def_)},{json.dumps(fname)},{js_val})')
 
     def _to_js(self, value, ftype, fname):
         if ftype == 'SFBool':   return 'true' if value else 'false'
@@ -573,7 +841,6 @@ class RKNodeFieldEditor(QWidget):
         if ftype in ('SFFloat','SFDouble','SFTime'):
             return str(float(value) if value is not None else 0.0)
         if isinstance(value, tuple):
-            # Pass as array — RK.setField calls new field.constructor(...array)
             return '[' + ','.join(str(v) for v in value) + ']'
         if isinstance(value, list):
             if not value: return '[]'
@@ -740,6 +1007,18 @@ class RKSceneEditor(QMainWindow):
         trv.startExport(self._x3dObj, buf, 'x3d')
         return buf.getvalue() or None
 
+    def _push_field_undo(self, node, fname, old_val):
+        """Lightweight undo entry for a single field change — no scene serialization."""
+        if self._ai_batch:
+            return
+        entry = ('field', node, fname, old_val)
+        with self._undo_lock:
+            self._undo_stack.append(entry)
+            if len(self._undo_stack) > self._MAX_UNDO:
+                self._undo_stack.pop(0)
+            self._redo_stack.clear()
+        self._update_undo_actions()
+
     def _push_undo_snapshot(self):
         if self._ai_batch:
             return  # batch already pushed one snapshot at begin_ai_batch
@@ -753,6 +1032,17 @@ class RKSceneEditor(QMainWindow):
                     self._undo_stack.pop(0)
                 self._redo_stack.clear()
             self._update_undo_actions()
+
+    def _apply_field_entry(self, entry):
+        """Apply a lightweight field undo/redo entry and return the reverse entry."""
+        _, node, fname, old_val = entry
+        try:
+            cur_val = getattr(node, fname)
+            setattr(node, fname, old_val)
+        except Exception:
+            return None
+        self._sync_xite_via_sai()
+        return ('field', node, fname, cur_val)
 
     def _restore_snapshot(self, xml_str: str):
         from rawkee.io.RKLoadSceneFromFile import RKLoadSceneFromFile
@@ -772,24 +1062,36 @@ class RKSceneEditor(QMainWindow):
         if not self._undo_stack:
             return
         with self._undo_lock:
-            xml_before = self._undo_stack.pop()
-        current = self._serialize_scene()
-        if current:
-            with self._undo_lock:
-                self._redo_stack.append(current)
-        self._restore_snapshot(xml_before)
+            entry = self._undo_stack.pop()
+        if isinstance(entry, tuple) and entry[0] == 'field':
+            reverse = self._apply_field_entry(entry)
+            if reverse:
+                with self._undo_lock:
+                    self._redo_stack.append(reverse)
+        else:
+            current = self._serialize_scene()
+            if current:
+                with self._undo_lock:
+                    self._redo_stack.append(current)
+            self._restore_snapshot(entry)
         self._update_undo_actions()
 
     def redo(self):
         if not self._redo_stack:
             return
         with self._undo_lock:
-            xml_after = self._redo_stack.pop()
-        current = self._serialize_scene()
-        if current:
-            with self._undo_lock:
-                self._undo_stack.append(current)
-        self._restore_snapshot(xml_after)
+            entry = self._redo_stack.pop()
+        if isinstance(entry, tuple) and entry[0] == 'field':
+            reverse = self._apply_field_entry(entry)
+            if reverse:
+                with self._undo_lock:
+                    self._undo_stack.append(reverse)
+        else:
+            current = self._serialize_scene()
+            if current:
+                with self._undo_lock:
+                    self._undo_stack.append(current)
+            self._restore_snapshot(entry)
         self._update_undo_actions()
 
     @Slot()
@@ -1125,6 +1427,7 @@ class RKSceneEditor(QMainWindow):
         self.tree_widget.set_bind_key_callback(self._bind_selected_node)
         self.field_editor.set_sai_runner(lambda js: self.browser.page().runJavaScript(js))
         self.field_editor.set_undo_push_fn(self._push_undo_snapshot)
+        self.field_editor.set_field_undo_fn(self._push_field_undo)
         self.toggleAIPanel.toggled.connect(self._ai_dock.setVisible)
         # Block toggleAIPanel signals when syncing check state to prevent minimize from hiding the dock
         self._ai_dock.visibilityChanged.connect(self._sync_ai_panel_action)

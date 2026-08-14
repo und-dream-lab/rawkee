@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 hpc_preflight_check.py
 ======================
@@ -85,7 +85,7 @@ def check_python():
     v = sys.version_info
     ver = f'{v.major}.{v.minor}.{v.micro}'
     if v < (3, 10):
-        error('Python', f'Version {ver} is too old. rawkee requires Python ≥ 3.10.',
+        error('Python', f'Version {ver} is too old. rawkee requires Python â‰¥ 3.10.',
               fix='module load python/3.11  # or use a virtualenv with Python 3.11+',
               version=ver)
     else:
@@ -102,7 +102,7 @@ def check_numpy():
     v = np.__version__
     major = int(v.split('.')[0])
     if major < 1 or (major == 1 and int(v.split('.')[1]) < 24):
-        warn('numpy', f'Version {v} is old; recommend ≥ 1.24.',
+        warn('numpy', f'Version {v} is old; recommend â‰¥ 1.24.',
              fix='pip install --upgrade "numpy>=1.24"', version=v)
     else:
         ok('numpy', version=v)
@@ -129,9 +129,9 @@ def check_torch():
               fix=(
                   '1. Check driver: nvidia-smi\n'
                   '  2. Match PyTorch CUDA build to driver:\n'
-                  '     driver ≥ 525  →  pip install torch --index-url https://download.pytorch.org/whl/cu121\n'
-                  '     driver ≥ 545  →  pip install torch --index-url https://download.pytorch.org/whl/cu124\n'
-                  '     Blackwell     →  use NGC container nvcr.io/nvidia/pytorch:26.05-py3'
+                  '     driver â‰¥ 525  â†’  pip install torch --index-url https://download.pytorch.org/whl/cu121\n'
+                  '     driver â‰¥ 545  â†’  pip install torch --index-url https://download.pytorch.org/whl/cu124\n'
+                  '     Blackwell     â†’  use NGC container nvcr.io/nvidia/pytorch:26.05-py3'
               ))
         return
 
@@ -145,7 +145,7 @@ def check_torch():
 
         if p.major < 6:
             error(f'GPU {i}', f'{p.name} ({sm}) is below sm_60. Training will fail.',
-                  fix='Upgrade to an NVIDIA GPU with compute capability ≥ 6.0 (Pascal or newer).',
+                  fix='Upgrade to an NVIDIA GPU with compute capability â‰¥ 6.0 (Pascal or newer).',
                   version=sm)
         elif p.major < 7:
             warn(f'GPU {i}', f'{p.name} ({sm}) is Pascal-era. gsplat training may be slow.',
@@ -159,7 +159,7 @@ def check_torch():
             cuda_b = torch.version.cuda or ''
             if not cuda_b.startswith('12.8') and 'nightly' not in tv:
                 warn(f'GPU {i} (Blackwell)', 
-                     f'{p.name} requires CUDA ≥ 12.8 or NGC container; detected torch CUDA {cuda_b}.',
+                     f'{p.name} requires CUDA â‰¥ 12.8 or NGC container; detected torch CUDA {cuda_b}.',
                      fix=(
                          'Use NVIDIA NGC container: nvcr.io/nvidia/pytorch:26.05-py3\n'
                          '  or: pip install torch --pre --index-url https://download.pytorch.org/whl/nightly/cu128'
@@ -208,11 +208,14 @@ def check_imageio():
               fix='pip install "imageio[freeimage]"')
         return
     iio_ver = _pkg_version('imageio')
-    # Verify the FreeImage binary actually loads (not just the plugin module)
+    # Verify FreeImage works by writing/reading a small HDR file
     fi_ok = False
     try:
-        import imageio.plugins.freeimage as _fi
-        _fi.load_lib()
+        import imageio.v3 as _iio3, numpy as _np, tempfile as _tf, os as _os
+        _tmp = _tf.mktemp(suffix='.hdr')
+        _iio3.imwrite(_tmp, _np.ones((4, 4, 3), dtype=_np.float32))
+        _iio3.imread(_tmp)
+        _os.unlink(_tmp)
         fi_ok = True
     except Exception:
         pass
@@ -273,13 +276,17 @@ def check_pyproj():
     ok('pyproj', version=_pkg_version('pyproj'))
 
 
-def check_transformers():
-    m = _try_import('transformers')
+def check_ninja():
+    m = _try_import('ninja')
     if m is None:
-        warn('transformers', 'Not installed. Depth Anything V2 fallback will be unavailable when no LiDAR bag is present.',
-             fix='pip install transformers')
+        warn('ninja', 'Not installed. gsplat CUDA JIT compilation will fail at runtime.',
+             fix='pip install ninja  # small C++ build tool, ~1 MB, not an LLM')
         return
-    ok('transformers', version=_pkg_version('transformers'))
+    try:
+        version = importlib.metadata.version('ninja')
+    except importlib.metadata.PackageNotFoundError:
+        version = 'unknown'
+    ok('ninja', version=version)
 
 
 def check_pyside6():
@@ -318,7 +325,7 @@ def check_nvidia_smi():
             drv_major = int(drv.split('.')[0]) if drv.split('.')[0].isdigit() else 0
             msg = f'{name}  driver {drv}  {mem}'
             if drv_major < 525:
-                warn('nvidia-smi', f'Driver {drv} is below 525; CUDA 12.x requires ≥ 525.',
+                warn('nvidia-smi', f'Driver {drv} is below 525; CUDA 12.x requires â‰¥ 525.',
                      fix='Update NVIDIA driver: contact your HPC sysadmin or use "module load cuda/12.x"',
                      version=drv)
             else:
@@ -335,6 +342,40 @@ def check_cuda_toolkit():
     m = re.search(r'release (\S+),', out)
     ver = m.group(1).rstrip(',') if m else 'unknown'
     ok('nvcc (CUDA toolkit)', version=ver)
+
+
+def check_cxx_compiler():
+    """Check for gcc needed by gsplat / PyTorch JIT."""
+    import platform
+    if platform.system() == 'Windows':
+        skip('C++ compiler', 'Windows check skipped — run install_workstation_deps.py instead')
+        return
+    rc, out = _run(['gcc', '--version'])
+        if rc != 0:
+            error('gcc',
+                  'GCC C++ compiler not found. gsplat CUDA JIT compilation will fail.',
+                  fix=(
+                      'Ubuntu/Debian: apt install build-essential python3-dev\n'
+                      'RHEL/CentOS:   yum groupinstall "Development Tools" && yum install python3-devel\n'
+                      'HPC module:    module load gcc'
+                  ))
+            return
+        import re as _re
+        m = _re.search(r'(\d+\.\d+\.\d+)', out.splitlines()[0])
+        ver = m.group(1) if m else 'unknown'
+        ok('gcc', version=ver)
+
+        # Also check python dev headers (needed to build C extensions)
+        rc2, _ = _run(['python3-config', '--includes'])
+        if rc2 != 0:
+            warn('python3-dev headers',
+                 'python3-config not found. Building C extensions may fail.',
+                 fix=(
+                     'Ubuntu/Debian: apt install python3-dev\n'
+                     'RHEL/CentOS:   yum install python3-devel'
+                 ))
+        else:
+            ok('python3-dev headers', msg='python3-config found')
 
 
 # ---------------------------------------------------------------------------
@@ -354,11 +395,12 @@ CHECKS = [
     check_rosbags,
     check_pye57,
     check_pyproj,
-    check_transformers,
+    check_ninja,
     check_pyside6,
     check_rawkee,
     check_nvidia_smi,
     check_cuda_toolkit,
+    check_cxx_compiler,
 ]
 
 STATUS_ICON  = {'OK': '[+]', 'WARN': '[!]', 'ERROR': '[X]', 'SKIP': '[-]'}
@@ -372,7 +414,7 @@ def main():
     args = parser.parse_args()
 
     print('=' * 70)
-    print('rawkee scan pipeline — HPC environment preflight check')
+    print('rawkee scan pipeline â€” HPC environment preflight check')
     print(f'Host    : {platform.node()}')
     print(f'OS      : {platform.system()} {platform.release()}  {platform.machine()}')
     print(f'Python  : {sys.executable}')
@@ -402,9 +444,9 @@ def main():
     fixable = [r for r in results if r.fix and r.status in ('ERROR', 'WARN')]
     if fixable:
         print()
-        print('─' * 70)
+        print('â”€' * 70)
         print('SUGGESTED FIXES')
-        print('─' * 70)
+        print('â”€' * 70)
         for r in fixable:
             tag = '[ ERROR ]' if r.status == 'ERROR' else '[ WARN  ]'
             print(f'\n{tag} {r.name}')
@@ -413,7 +455,7 @@ def main():
 
     # Summary
     print()
-    print('─' * 70)
+    print('â”€' * 70)
     n_ok   = sum(1 for r in results if r.status == 'OK')
     n_warn = len(warns)
     n_err  = len(errors)
@@ -436,3 +478,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

@@ -612,6 +612,18 @@ class ScanDataset:
     def bag_path(self, name: str = 'trajectory_slam') -> Path:
         return self.root / 'internal' / 'bags' / f'{name}.bag'
 
+    def lidar_bag_paths(self) -> list[Path]:
+        """Return the per-segment LiDAR bags, or the trajectory_slam bag as fallback."""
+        bags_dir = self.root / 'internal' / 'bags'
+        laser_bags = sorted(bags_dir.glob('bag_laser_horiz_*.bag')) + \
+                     sorted(bags_dir.glob('bag_laser_vert_*.bag'))
+        if laser_bags:
+            return laser_bags
+        slam_bag = self.root / 'internal' / 'trajectory_slam.bag'
+        if slam_bag.exists():
+            return [slam_bag]
+        return []
+
     def local_bag_path(self) -> Path:
         return self.root / 'internal' / 'artifacts' / 'trajectory_local.bag'
 

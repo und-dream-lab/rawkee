@@ -232,6 +232,51 @@ export PYTHONPATH=/path/to/rawkee:$PYTHONPATH
 python rawkee/tools/lidar/hpc_preflight_check.py
 ```
 
+### Windows-specific notes
+
+#### MSVC C++ compiler required for gsplat
+
+`gsplat` JIT-compiles CUDA kernels at first run using MSVC. You need
+**Visual Studio Build Tools 2022** with the *Desktop development with C++* workload:
+
+1. Download from <https://visualstudio.microsoft.com/visual-cpp-build-tools/>
+2. Run the installer and select **Desktop development with C++**.
+3. After install, verify `cl.exe` is accessible:
+
+   ```python
+   import shutil; print(shutil.which('cl'))
+   ```
+
+   If it returns `None`, add the MSVC bin directory to your PATH manually or launch
+   from a **Developer PowerShell for VS 2022** (Start menu shortcut).
+
+> **Note:** In PowerShell, `where cl` resolves to `Where-Object` (an alias), not the
+> Windows `where.exe` locator. Use `where.exe cl` or `shutil.which('cl')` in Python
+> to check whether `cl.exe` is actually on your PATH.
+
+#### PyTorch 2.11 + Windows SDK header conflict
+
+PyTorch 2.11's `CUDACachingAllocator.h` contains a parameter named `small`, which the
+Windows SDK header `rpcndr.h` macro-expands to `char` (`#define small char`). MSVC then
+rejects the resulting `bool char` combination as invalid C++.
+
+**Fix:** rename the conflicting parameter in the PyTorch header, then clear the JIT cache:
+
+```powershell
+# 1. Patch the header
+$h = "$env:LOCALAPPDATA\Programs\Python\Python312\Lib\site-packages\torch\include\c10\cuda\CUDACachingAllocator.h"
+(Get-Content $h -Raw) `
+    -replace 'bool small, size_t sz\)', 'bool is_small, size_t sz)' `
+    -replace 'is_small_pool\(small\)', 'is_small_pool(is_small)' `
+  | Set-Content $h -NoNewline
+
+# 2. Clear the JIT build cache
+Remove-Item "$env:USERPROFILE\AppData\Local\torch_extensions" -Recurse -Force -ErrorAction SilentlyContinue
+```
+
+Adjust the Python path if your installation is in a different location (e.g. a virtualenv).
+This patch is safe to apply; it only renames a local parameter.
+
 ---
 
 ## 6. HPC / SLURM Usage
@@ -423,5 +468,8 @@ Or use the provided NGC container for Blackwell nodes:
 | `rosbags` not found | NavVis LiDAR unavailable | `pip install rosbags`; pipeline falls back to Depth Anything V2 |
 | OOM on Grace/Hopper | Memory fraction not set | Add `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` to job |
 | `pye57` import error | E57 support unavailable | `pip install pye57`; pipeline falls back to `open3d` reader |
+| *(Windows)* gsplat CUDA JIT fails: `cl.exe not found` | MSVC not installed or not on PATH | Install VS Build Tools 2022 with *Desktop development with C++*; verify with `python -c "import shutil; print(shutil.which('cl'))"` |
+| *(Windows)* gsplat build error: `invalid combination of type specifiers` / `bool char` | `rpcndr.h` expands `small` → `char` in PyTorch 2.11+ header | Patch `CUDACachingAllocator.h` (rename `small` → `is_small`) then clear `%LOCALAPPDATA%\torch_extensions` — see Windows notes in section 5 |
+| *(Windows)* `where cl` finds nothing in PowerShell | `where` is a PowerShell alias for `Where-Object` | Use `where.exe cl` or `python -c "import shutil; print(shutil.which('cl'))"` |
 
 Run `python hpc_preflight_check.py` on the compute node image after any environment change to confirm everything is correct before re-enabling job submission.
