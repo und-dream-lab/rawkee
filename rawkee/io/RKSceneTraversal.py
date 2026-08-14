@@ -46,7 +46,7 @@ class RKSceneTraversal():
                             'EventUtilities':1,         'Shaders':1,                'CADGeometry':2,            'Texturing3D':2,
                             'CubeMapTexturing':3,       'Layering':1,               'Layout':2,                 'RigidBodyPhysics':2,
                             'Picking':3,                'Followers':1,              'ParticleSystems':3,        'VolumeRendering':4,
-                            'TextureProjection':2}
+                            'TextureProjection':2,      'GaussianSplats':1}
 
         # 20
         self.immersive      = {'Core':2,                'Time':1,                   'Networking':3,             'Grouping':2,
@@ -216,7 +216,8 @@ class RKSceneTraversal():
                         #print('S Field: ' + keyp[3])
                     else:
                         #if getattr(compNode,keyp[3]) != value:
-                        sNodeList.append(keyp[3])
+                        if keyp[3] != 'IS':
+                            sNodeList.append(keyp[3])
 
         compNode = None
         
