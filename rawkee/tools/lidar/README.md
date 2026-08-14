@@ -177,6 +177,7 @@ Run `python run_pipeline.py mesh --help` or `splat --help` for the full list of 
 | `--iterations` | 10000 | Training iterations |
 | `--frame-stride` | 5 | Use every Nth frame for training |
 | `--init-points` | 100000 | Number of Gaussians at initialisation |
+| `--decode-sh` | off | Pre-decode SH coefficients to RGB in PLY output (for consumers without SH support) |
 
 ---
 
