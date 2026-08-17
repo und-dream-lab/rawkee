@@ -2,8 +2,11 @@ import sys
 import os
 import re
 import json
+import logging
 from rawkee.io.RKx3d import *
 from typing import Final
+
+log = logging.getLogger(__name__)
 
 
 encx: Final[int] = 0 # X3D  XML     Encoding (*.x3d )
@@ -87,7 +90,7 @@ class RKSceneTraversal():
     def x3d2disk(self, x3dDoc, fullPath, exEncoding):
         with open(fullPath, "w") as exFile:
             self.startExport(x3dDoc, exFile, exEncoding)
-        print("Saved:", fullPath)
+        log.info('Saved: %s', fullPath)
 
 
     def startExport(self, x3dDoc, iofile, encoding):
@@ -371,37 +374,16 @@ class RKSceneTraversal():
             if not values:
                 continue
             if isinstance(values[0], tuple):
-                tvLen = len(values)
-                for vIdx in range(tvLen):
-                    tValue = ' '.join([str(item) for item in values[vIdx]])
-                    tValue = tValue.strip()
-                    sValue = sValue + tValue
-                    if vIdx < (tvLen - 1):
-                        sValue = sValue + ', '
+                sValue = ', '.join(' '.join(map(str, v)) for v in values)
                 
             elif isinstance(values[0], bool):
-                tvLen = len(values)
-                for vIdx in range(tvLen):
-                    if values[vIdx] == True:
-                        sValue = sValue + 'TRUE'
-                    else:
-                        sValue = sValue + 'FALSE'
-                    if vIdx < (tvLen - 1):
-                        sValue = sValue + ', '
+                sValue = ', '.join('TRUE' if v else 'FALSE' for v in values)
                 
             elif isinstance(values[0], str):
-                tvLen = len(values)
-                for vIdx in range(tvLen):
-                    sValue = sValue + '"' + values[vIdx] + '"'
-                    if vIdx < (tvLen - 1):
-                        sValue = sValue + ', '
+                sValue = ', '.join('"' + v + '"' for v in values)
                 
             else:
-                tvLen = len(values)
-                for vIdx in range(tvLen):
-                    sValue = sValue + str(values[vIdx])
-                    if vIdx < (tvLen - 1):
-                        sValue = sValue + ', '
+                sValue = ', '.join(map(str, values))
         
             pVal = field + ' [ ' + sValue + ' ]'
             
@@ -568,38 +550,16 @@ class RKSceneTraversal():
             if not values:
                 continue
             if isinstance(values[0], tuple):
-                tvLen = len(values)
-                for vIdx in range(tvLen):
-                    tValue = ', '.join([str(item) for item in values[vIdx]])
-                    tValue = tValue.strip()
-                    
-                    sValue = sValue + tValue
-                    if vIdx < (tvLen - 1):
-                        sValue = sValue + ', '
+                sValue = ', '.join(', '.join(map(str, v)) for v in values)
                 
             elif isinstance(values[0], bool):
-                tvLen = len(values)
-                for vIdx in range(tvLen):
-                    if values[vIdx] == True:
-                        sValue = sValue + 'true'
-                    else:
-                        sValue = sValue + 'false'
-                    if vIdx < (tvLen - 1):
-                        sValue = sValue + ', '
+                sValue = ', '.join('true' if v else 'false' for v in values)
                 
             elif isinstance(values[0], str):
-                tvLen = len(values)
-                for vIdx in range(tvLen):
-                    sValue = sValue + '"' + values[vIdx] + '"'
-                    if vIdx < (tvLen - 1):
-                        sValue = sValue + ', '
+                sValue = ', '.join('"' + v + '"' for v in values)
                 
             else:
-                tvLen = len(values)
-                for vIdx in range(tvLen):
-                    sValue = sValue + str(values[vIdx])
-                    if vIdx < (tvLen - 1):
-                        sValue = sValue + ', '
+                sValue = ', '.join(map(str, values))
         
             pVal = '"@' + field + '": [ ' + sValue + ' ]'
             
@@ -756,39 +716,16 @@ class RKSceneTraversal():
             if not values:
                 continue
             if   isinstance(values[0], tuple):
-                tvLen = len(values)
-                for vIdx in range(tvLen):
-                    tValue = " ".join([str(item) for item in values[vIdx]])
-                    tValue = tValue.strip()
-                    sValue = sValue + tValue
-                    if vIdx < (tvLen - 1):
-                        sValue += ", "
+                sValue = ', '.join(' '.join(map(str, v)) for v in values)
                 
             elif isinstance(values[0], bool):
-                tvLen = len(values)
-                for vIdx in range(tvLen):
-                    tValue = "true"
-                    if values[vIdx] == False:
-                        tValue = "false"
-                    sValue = sValue + tValue
-                    if vIdx < (tvLen - 1):
-                        sValue += ", "
+                sValue = ', '.join('true' if v else 'false' for v in values)
                 
             elif isinstance(values[0], str):
-                tvLen = len(values)
-                for vIdx in range(tvLen):
-                    tValue = '"' + values[vIdx] + '"'
-                    sValue = sValue + tValue
-                    if vIdx < (tvLen - 1):
-                        sValue += ", "
+                sValue = ', '.join('"' + v + '"' for v in values)
                 
             else:
-                tvLen = len(values)
-                for vIdx in range(tvLen):
-                    tValue = str(values[vIdx])
-                    sValue = sValue + tValue
-                    if vIdx < (tvLen - 1):
-                        sValue += ", "
+                sValue = ', '.join(map(str, values))
 
             fieldLine = fieldLine + sValue + "'"
             if idx == mflLen - 1:
@@ -909,39 +846,16 @@ class RKSceneTraversal():
             if not values:
                 continue
             if   isinstance(values[0], tuple):
-                tvLen = len(values)
-                for vIdx in range(tvLen):
-                    tValue = " ".join([str(item) for item in values[vIdx]])
-                    tValue = tValue.strip()
-                    sValue = sValue + tValue
-                    if vIdx < (tvLen - 1):
-                        sValue += ", "
+                sValue = ', '.join(' '.join(map(str, v)) for v in values)
                 
             elif isinstance(values[0], bool):
-                tvLen = len(values)
-                for vIdx in range(tvLen):
-                    tValue = "true"
-                    if values[vIdx] == False:
-                        tValue = "false"
-                    sValue = sValue + tValue
-                    if vIdx < (tvLen - 1):
-                        sValue += ", "
+                sValue = ', '.join('true' if v else 'false' for v in values)
                 
             elif isinstance(values[0], str):
-                tvLen = len(values)
-                for vIdx in range(tvLen):
-                    tValue = '"' + values[vIdx] + '"'
-                    sValue = sValue + tValue
-                    if vIdx < (tvLen - 1):
-                        sValue += ", "
+                sValue = ', '.join('"' + v + '"' for v in values)
                 
             else:
-                tvLen = len(values)
-                for vIdx in range(tvLen):
-                    tValue = str(values[vIdx])
-                    sValue = sValue + tValue
-                    if vIdx < (tvLen - 1):
-                        sValue += ", "
+                sValue = ', '.join(map(str, values))
 
             fieldLine = fieldLine + sValue + "'"
             if idx == mflLen - 1:

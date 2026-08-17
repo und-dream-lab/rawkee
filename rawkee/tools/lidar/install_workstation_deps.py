@@ -22,8 +22,10 @@ import importlib
 import importlib.metadata
 import os
 import re
+import shutil
 import subprocess
 import sys
+from pathlib import Path
 from typing import Optional
 
 
@@ -140,45 +142,64 @@ def _cuda_wheel_for_driver(driver_major: int) -> tuple[str, str]:
 
 
 def _check_torch_cuda_mismatch() -> list[str]:
-    """Return list of mismatch messages after torch is installed."""
+    """Return list of mismatch messages. Runs in a subprocess to see the freshly installed wheel."""
+    probe = (
+        'import sys, torch; '
+        'cuda_build = getattr(torch.version, "cuda", None); '
+        'avail = torch.cuda.is_available(); '
+        'ver = torch.__version__; '
+        'print(f"{ver}|{cuda_build or \"\"}|{avail}|{torch.cuda.device_count()}")'
+    )
+    rc, out = _run([sys.executable, '-c', probe])
     issues = []
-    try:
-        import torch
-        cuda_build = getattr(torch.version, 'cuda', None)
-        if not cuda_build:
+    if rc != 0:
+        return issues  # torch not importable yet — skip
+    parts = out.strip().split('|')
+    if len(parts) < 4:
+        return issues
+    ver, cuda_build, avail_str, ndev_str = parts[0], parts[1], parts[2], parts[3]
+    avail = avail_str == 'True'
+    if not cuda_build:
+        issues.append(
+            f'PyTorch {ver} was not compiled with CUDA support.\n'
+            '  Gaussian splat training will be unavailable.\n'
+            '  Fix: pip install torch --index-url https://download.pytorch.org/whl/cu124'
+        )
+        return issues
+    if not avail:
+        issues.append(
+            f'PyTorch CUDA build ({cuda_build}) installed but torch.cuda.is_available() is False.\n'
+            '  This usually means the NVIDIA driver is too old for the CUDA version.\n'
+            '  Fix: update your NVIDIA driver or install PyTorch for a lower CUDA version.\n'
+            f'  Your driver supports up to CUDA {_cuda_from_driver()} — reinstall with:\n'
+            '    python install_workstation_deps.py --reinstall-torch'
+        )
+        return issues
+    # Per-GPU checks via subprocess to avoid device-count init issues
+    ndev = int(ndev_str) if ndev_str.isdigit() else 0
+    for i in range(ndev):
+        prop_probe = (
+            f'import torch; p = torch.cuda.get_device_properties({i}); '
+            f'print(p.name, p.major, p.minor)'
+        )
+        rc2, pout = _run([sys.executable, '-c', prop_probe])
+        if rc2 != 0:
+            continue
+        tokens = pout.strip().rsplit(None, 2)
+        if len(tokens) < 3:
+            continue
+        name, major, minor = ' '.join(tokens[:-2]), int(tokens[-2]), int(tokens[-1])
+        if major < 6:
             issues.append(
-                f'PyTorch {torch.__version__} was not compiled with CUDA support.\n'
-                '  Gaussian splat training will be unavailable.\n'
-                '  Fix: pip install torch --index-url https://download.pytorch.org/whl/cu124'
+                f'GPU {i} ({name}, sm_{major}{minor}) is below sm_60.\n'
+                '  Gaussian splat training requires Pascal (sm_60) or newer.'
             )
-            return issues
-
-        if not torch.cuda.is_available():
+        elif major >= 10 and not cuda_build.startswith('12.8'):
             issues.append(
-                f'PyTorch CUDA build ({cuda_build}) installed but torch.cuda.is_available() is False.\n'
-                '  This usually means the NVIDIA driver is too old for the CUDA version.\n'
-                '  Fix: update your NVIDIA driver or install PyTorch for a lower CUDA version.\n'
-                f'  Your driver supports up to CUDA {_cuda_from_driver()} — reinstall with:\n'
-                '    python install_workstation_deps.py --reinstall-torch'
+                f'GPU {i} ({name}) is Blackwell (sm_{major}{minor}) and requires CUDA 12.8.\n'
+                f'  Detected PyTorch CUDA build: {cuda_build}.\n'
+                '  Fix: use the NGC container nvcr.io/nvidia/pytorch:26.05-py3'
             )
-            return issues
-
-        for i in range(torch.cuda.device_count()):
-            p = torch.cuda.get_device_properties(i)
-            if p.major < 6:
-                issues.append(
-                    f'GPU {i} ({p.name}, sm_{p.major}{p.minor}) is below sm_60.\n'
-                    '  Gaussian splat training requires Pascal (sm_60) or newer.'
-                )
-            elif p.major >= 10:
-                if not (cuda_build or '').startswith('12.8'):
-                    issues.append(
-                        f'GPU {i} ({p.name}) is Blackwell (sm_{p.major}{p.minor}) and requires CUDA 12.8.\n'
-                        f'  Detected PyTorch CUDA build: {cuda_build}.\n'
-                        '  Fix: use the NGC container nvcr.io/nvidia/pytorch:26.05-py3'
-                    )
-    except ImportError:
-        pass
     return issues
 
 
@@ -267,7 +288,7 @@ def step_pip_upgrade():
 def step_core_gui():
     section('2 / 7  Core GUI and numeric packages')
     pkgs = [
-        ('numpy>=1.24',         'numpy',    'numpy'),
+        ('numpy>=2.0',          'numpy',    'numpy'),
         ('Pillow',              'PIL',      'Pillow'),
         ('scipy',               'scipy',    'scipy'),
         ('PySide6',             'PySide6',  'PySide6'),
@@ -278,6 +299,17 @@ def step_core_gui():
             print(f'  {green("[+]")} {label} already installed  [{ver}]')
         else:
             pip_install([dist], label=label)
+
+    # Verify numpy is >=2.0 — rembg/numba/scipy use np.long which was removed in 1.20
+    # and only reliably restored in 2.0.
+    try:
+        import numpy as _np
+        from packaging.version import Version
+        if Version(_np.__version__) < Version('2.0.0'):
+            print(f'  {yellow("[!]")} numpy {_np.__version__} is too old (rembg needs ≥2.0) — upgrading…')
+            pip_install(['numpy>=2.0'], label='numpy (upgrade to ≥2.0 for rembg/numba compatibility)')
+    except Exception:
+        pass
 
 
 def step_imageio():
@@ -367,6 +399,8 @@ def step_pipeline_extras():
         ('rosbags',      'rosbags',      'rosbags  (NavVis LiDAR bag reading)'),
         ('pye57',        'pye57',        'pye57  (E57 point cloud reading)'),
         ('pyproj',       'pyproj',       'pyproj  (precise UTM georeferencing)'),
+        ('pycolmap',     'pycolmap',     'pycolmap  (COLMAP SfM for Folder→Splat pipeline)'),
+        ('pymupdf',      'pymupdf',      'pymupdf  (PDF reading utilities)'),
     ]
     for dist, imp, label in optional:
         if _is_installed(imp):
@@ -375,6 +409,174 @@ def step_pipeline_extras():
         else:
             pip_install([dist], label=label)
 
+    # hloc: deep-learned feature matching (SuperPoint + LightGlue) — installed from GitHub
+    try:
+        import importlib.util
+        hloc_present = importlib.util.find_spec('hloc') is not None
+    except Exception:
+        hloc_present = False
+    if hloc_present:
+        print(f'  {green("[+]")} hloc (SuperPoint+LightGlue)  already installed')
+    else:
+        pip_install(
+            ['git+https://github.com/cvg/Hierarchical-Localization'],
+            label='hloc  (SuperPoint+LightGlue deep-learned feature matching for low-texture objects)',
+        )
+
+    # SuperGluePretrainedNetwork: required by hloc's SuperPoint extractor.
+    # Cannot be pip-installed (no setup.py); academic users must clone it manually.
+    # See the "Optional: SuperPoint features" section in rawkee/tools/lidar/README.md.
+    try:
+        import importlib.util
+        sgpn_present = importlib.util.find_spec('SuperGluePretrainedNetwork') is not None
+    except Exception:
+        sgpn_present = False
+    if sgpn_present:
+        print(f'  {green("[+]")} SuperGluePretrainedNetwork  available (SuperPoint enabled)')
+    else:
+        print(f'  {yellow("[!]")} SuperGluePretrainedNetwork  not found — hloc will use DISK+LightGlue')
+        print(f'       Academic users: see README.md → "Optional: SuperPoint features" for install steps.')
+
+    # Pre-download LightGlue model weights so they are present before first pipeline run.
+    # torch.hub caches them to ~/.cache/torch/hub/checkpoints/.
+    # We trigger one download per extractor that may be used (superpoint or disk).
+    _lg_cache = Path.home() / '.cache' / 'torch' / 'hub' / 'checkpoints'
+    _hub_downloads = [
+        # LightGlue matcher weights (one per feature extractor)
+        ('superpoint_lightglue_v0-1_arxiv.pth',
+         'https://github.com/cvg/LightGlue/releases/download/v0.1_arxiv/superpoint_lightglue.pth',
+         'LightGlue matcher weights for SuperPoint'),
+        ('disk_lightglue_v0-1_arxiv.pth',
+         'https://github.com/cvg/LightGlue/releases/download/v0.1_arxiv/disk_lightglue.pth',
+         'LightGlue matcher weights for DISK'),
+        # DISK feature extractor weights (kornia, ~21 MB)
+        ('depth-save.pth',
+         'https://raw.githubusercontent.com/cvlab-epfl/disk/master/depth-save.pth',
+         'DISK feature extractor weights (depth model)'),
+    ]
+    for fname, url, desc in _hub_downloads:
+        dest = _lg_cache / fname
+        if dest.exists():
+            print(f'  {green("[+]")} {desc}  already cached')
+        else:
+            print(f'  Downloading {desc} … ', end='', flush=True)
+            if DRY_RUN:
+                print(cyan('[dry-run]'))
+            else:
+                try:
+                    import urllib.request
+                    _lg_cache.mkdir(parents=True, exist_ok=True)
+                    urllib.request.urlretrieve(url, dest)
+                    print(green('OK'))
+                except Exception as exc:
+                    print(red('FAILED'))
+                    WARNINGS.append(
+                        f'{desc} download failed: {exc}\n'
+                        f'  Will be downloaded automatically on first pipeline run.'
+                    )
+
+    # rembg: onnxruntime backend selected by platform for best GPU acceleration without
+    # requiring manual toolkit installs.
+    #   Windows + GPU  → onnxruntime-directml  (DirectX 12, no CUDA toolkit needed)
+    #   Linux   + GPU  → onnxruntime-gpu>=1.20  (CUDA 12+, numpy 2.x compatible)
+    #   macOS          → onnxruntime + coremltools  (CoreML / Neural Engine)
+    #   No GPU         → onnxruntime  (CPU fallback)
+    try:
+        importlib.metadata.version('rembg')
+        rembg_installed = True
+    except importlib.metadata.PackageNotFoundError:
+        rembg_installed = False
+
+    rc_smi, _ = _run(['nvidia-smi', '--query-gpu=name', '--format=csv,noheader'])
+    has_nvidia = rc_smi == 0
+    is_windows = sys.platform == 'win32'
+    is_mac     = sys.platform == 'darwin'
+
+    if is_windows and has_nvidia:
+        onnx_dist   = 'onnxruntime-directml'
+        onnx_pkg    = 'onnxruntime-directml'
+        rembg_extra = 'gpu'
+        backend_label = 'DirectML (DirectX 12 GPU — no CUDA toolkit required)'
+        def _onnx_ok(ver): return True
+    elif is_mac:
+        onnx_dist   = 'onnxruntime'
+        onnx_pkg    = 'onnxruntime'
+        rembg_extra = 'cpu'
+        backend_label = 'CoreML / Neural Engine (via coremltools)'
+        def _onnx_ok(ver): return True
+    elif has_nvidia:
+        onnx_dist   = 'onnxruntime-gpu'
+        onnx_pkg    = 'onnxruntime-gpu>=1.20.0'
+        rembg_extra = 'gpu'
+        backend_label = 'CUDA GPU'
+        def _onnx_ok(ver):
+            from packaging.version import Version
+            return Version(ver) >= Version('1.20.0')
+    else:
+        onnx_dist   = 'onnxruntime'
+        onnx_pkg    = 'onnxruntime'
+        rembg_extra = 'cpu'
+        backend_label = 'CPU'
+        def _onnx_ok(ver): return True
+
+    # Remove any conflicting onnxruntime packages before installing the correct one
+    all_onnx = {'onnxruntime-gpu', 'onnxruntime-directml', 'onnxruntime'}
+    for pkg in all_onnx - {onnx_dist}:
+        try:
+            importlib.metadata.version(pkg)
+            if not DRY_RUN:
+                _run([sys.executable, '-m', 'pip', 'uninstall', '-y', pkg])
+                print(f'  Removed conflicting {pkg}')
+        except importlib.metadata.PackageNotFoundError:
+            pass
+
+    onnx_installed = False
+    onnx_version_ok = False
+    try:
+        onnx_ver = importlib.metadata.version(onnx_dist)
+        onnx_installed = True
+        onnx_version_ok = _onnx_ok(onnx_ver)
+    except importlib.metadata.PackageNotFoundError:
+        pass
+    except Exception:
+        onnx_version_ok = onnx_installed
+
+    if rembg_installed and onnx_installed and onnx_version_ok:
+        ver = _installed_version('rembg')
+        onnx_ver_str = _installed_version(onnx_dist) or '?'
+        print(f'  {green("[+]")} rembg  already installed  [{ver}]  backend: {onnx_dist}=={onnx_ver_str}  [{backend_label}]')
+    else:
+        if onnx_installed and not onnx_version_ok:
+            print(f'  {yellow("[!]")} {onnx_dist} version incompatible — reinstalling for {backend_label}')
+        elif rembg_installed and not onnx_installed:
+            print(f'  {yellow("[!]")} rembg present but {onnx_dist} missing — installing')
+        pip_install([f'rembg[{rembg_extra}]'], label=f'rembg[{rembg_extra}]  (AI background removal)')
+        pip_install([onnx_pkg], label=f'{onnx_pkg}  ({backend_label})')
+
+    if is_mac:
+        if _is_installed('coremltools'):
+            print(f'  {green("[+]")} coremltools  already installed  [{_installed_version("coremltools")}]')
+        else:
+            pip_install(['coremltools'], label='coremltools  (CoreML execution provider for rembg on macOS)')
+
+    # Pre-download the u2net.onnx model so it is present before first pipeline run.
+    # rembg caches it to ~/.u2net/u2net.onnx (Apache 2.0 licensed model weights).
+    _u2net_path = Path.home() / '.u2net' / 'u2net.onnx'
+    if _u2net_path.exists():
+        print(f'  {green("[+]")} u2net.onnx  already downloaded  [{_u2net_path}]')
+    else:
+        print(f'  Downloading u2net.onnx model (~176 MB) to {_u2net_path} … ', end='', flush=True)
+        if DRY_RUN:
+            print(f'{cyan("[dry-run]")}')
+        else:
+            try:
+                from rembg.session_factory import new_session as _new_session
+                _new_session('u2net')   # triggers the model download into ~/.u2net/
+                print(green('OK'))
+            except Exception as exc:
+                print(red('FAILED'))
+                WARNINGS.append(f'u2net.onnx download failed: {exc}\n'
+                                 '  Run manually: python -c "from rembg.session_factory import new_session; new_session(\'u2net\')"')
     # ninja: small build tool required by PyTorch JIT / gsplat CUDA compilation
     if _is_installed('ninja'):
         ver = _installed_version('ninja')
@@ -412,6 +614,43 @@ def step_pipeline_extras():
             print(f'  {yellow("[!]")} gsplat skipped — nvcc not found '
                   f'(CUDA toolkit required for compilation)')
 
+    # Re-verify torch CUDA after optional packages — hloc silently downgrades torch to CPU-only.
+    # Use a subprocess so we see the on-disk state, not the in-process cached import.
+    section('6b / 7  Re-verifying PyTorch CUDA (optional packages may have downgraded it)')
+    rc_smi2, _ = _run(['nvidia-smi', '--query-gpu=name', '--format=csv,noheader'])
+    if rc_smi2 != 0:
+        print(f'  {yellow("[-]")} No GPU detected — CPU-only torch is correct for this machine.')
+    else:
+        probe = ('import torch; '
+                 'print("ok" if torch.cuda.is_available() else "cpu", torch.__version__)')
+        rc_probe, probe_out = _run([sys.executable, '-c', probe])
+        probe_out = probe_out.strip()
+        if rc_probe != 0 or probe_out.startswith('cpu'):
+            ver_str = probe_out.split()[-1] if probe_out else 'unknown'
+            print(f'  {yellow("[!]")} torch {ver_str} has no CUDA — hloc overwrote it. Reinstalling…')
+            driver2 = _detect_cuda_driver_version()
+            if driver2:
+                _label2, _index2 = _cuda_wheel_for_driver(driver2)
+                label2 = f'torch (CUDA {_label2} restore after optional-package install)'
+                if not DRY_RUN:
+                    print(f'  Installing {bold(label2)} … ', end='', flush=True)
+                    # --force-reinstall required: pip treats +cpu and +cu128 as same version otherwise
+                    rc2, out2 = _run([sys.executable, '-m', 'pip', 'install',
+                                      '--force-reinstall', '--quiet',
+                                      'torch', 'torchvision',
+                                      '--index-url', _index2])
+                    if rc2 == 0:
+                        WARNINGS[:] = [w for w in WARNINGS if 'not compiled with CUDA' not in w
+                                       and 'CPU-only' not in w]
+                        print(green('OK'))
+                        print(f'  {green("[+]")} torch CUDA restored successfully')
+                    else:
+                        print(red('FAILED'))
+                        WARNINGS.append(f'torch CUDA restore failed: {out2[:300]}')
+        else:
+            ver_str = probe_out.split()[-1] if probe_out else ''
+            print(f'  {green("[+]")} torch CUDA intact  [{ver_str}]')
+
 
 def step_verify() -> bool:
     section('7 / 7  Verifying installs')
@@ -428,6 +667,7 @@ def step_verify() -> bool:
         ('torch',      'torch',     True),
         ('rawpy',      'rawpy',     False),
         ('rosbags',    'rosbags',   False),
+        ('pycolmap',   'pycolmap',  False),
         ('pye57',      'pye57',     False),
         ('pyproj',     'pyproj',    False),
         ('ninja',      'ninja',     False),

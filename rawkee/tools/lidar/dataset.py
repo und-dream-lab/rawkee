@@ -502,7 +502,9 @@ class ScanDataset:
 
     @property
     def num_frames(self) -> int:
-        return int(self.meta['statistics']['capture_locations'])
+        if self._poses is not None:
+            return len(self._poses)
+        return int(self.meta.get('statistics', {}).get('capture_locations', 0))
 
     @property
     def dataset_name(self) -> str:
@@ -563,10 +565,14 @@ class ScanDataset:
     def poses(self) -> list[dict]:
         if self._poses is None:
             info = self.root / 'info'
+            # Capture the count before mutating _poses, so num_frames stays correct
+            n = self.num_frames
             self._poses = []
-            for i in range(self.num_frames):
-                with open(info / f'{i:05d}-info.json') as f:
-                    self._poses.append(json.load(f))
+            for i in range(n):
+                p = info / f'{i:05d}-info.json'
+                if p.exists():
+                    with open(p) as f:
+                        self._poses.append(json.load(f))
         return self._poses
 
     def frame_position(self, idx: int) -> np.ndarray:
@@ -913,7 +919,7 @@ class ScanDataset:
         if self.platform == 'pix4d':
             return self._geo_origin_pix4d()
         if self.platform in ('colmap', 'e57'):
-            return self._geo_origin_pix4d()   # reuse: both use _utm key in poses
+            return None   # COLMAP/E57 world coords are not georeferenced UTM
         return self._geo_origin_navvis()
 
     def _geo_origin_navvis(self) -> tuple[float, float, float, int] | None:
