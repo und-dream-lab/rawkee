@@ -8,10 +8,26 @@ This GitHub site supports the latest version of the RawKee X3D exporter plugin f
 - Let me know if it doesn't work for you.
 
 ### New Major Features
+
+## Gaussian Splat Converter
+- Converts Gaussian splat files between all formats supported by the splat pipeline
+- **Supported formats:** PLY (3DGS standard), `.splat` (binary web viewer), GLB (`KHR_gaussian_splatting`), X3D / X3DV / X3DJ
+- **Auto-detects coordinate system:** external 3DGS/COLMAP PLY files (SuperSplat/PlayCanvas convention, +180° Z) vs. RawKee NavVis/ROS pipeline PLY files (tagged header, −90° X)
+- All conversions preserve spherical harmonic coefficients (degree 0–3) where the format supports them; `.splat` and GLB carry DC colour only
+- Available as a **GUI tab** ("Convert Splat") in the Scan Pipeline desktop app and as a **CLI subcommand**
+- CLI usage: `python run_pipeline.py convert --input FILE --output DIR --format FMT [--stem NAME] [--sh-degree INT] [--decode-sh] [--verbose]`
+
+## Mobile LiDAR Scan Pipelines
+- **Mesh pipeline** — NavVis / Metashape / Meshroom / Pix4D / COLMAP / E57 → textured polygon mesh in X3D, X3DV, X3DJ, OBJ, or GLB
+- **Gaussian splat pipeline** — same scanner inputs → trained 3D Gaussian splats exported to X3D, PLY, `.splat`, or GLB
+- Optional georeferencing via Trimble survey CSV (UTM / geodetic GeoLocation / GeoTransform wrapping in X3D)
+- Desktop GUI (`python -m rawkee.tools.lidar.scan_gui`) with Mesh, Gaussian Splat, and Convert Splat tabs
+- CLI entry point: `python run_pipeline.py mesh|splat|convert --help`
+
 ## X3D Interaction Editor (Experimental)
 - Integrated X_ITE Browser for visualizing X3D scene
 - Graph Editor for adding/deleting ROUTEs
-- AI Assitant GUI for local AI and remote AI with API Keys
+- AI Assistant GUI for local AI and remote AI with API Keys
 - Supports DCC integration for Maya 2024+ and Blender 5.0+
 - Standalone version included.
 

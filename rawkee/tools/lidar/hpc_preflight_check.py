@@ -85,11 +85,30 @@ def check_python():
     v = sys.version_info
     ver = f'{v.major}.{v.minor}.{v.micro}'
     if v < (3, 10):
-        error('Python', f'Version {ver} is too old. rawkee requires Python â‰¥ 3.10.',
+        error('Python', f'Version {ver} is too old. rawkee requires Python ≥ 3.10.',
               fix='module load python/3.11  # or use a virtualenv with Python 3.11+',
               version=ver)
     else:
-        ok('Python', version=ver)
+        ok('Python', version=ver, msg=sys.executable)
+
+    # Detect PATH mismatch — the single most common cause of wrong package installs
+    import shutil
+    python_in_path = shutil.which('python')
+    if python_in_path:
+        try:
+            from pathlib import Path
+            if Path(python_in_path).resolve() != Path(sys.executable).resolve():
+                error('Python PATH mismatch',
+                      f'"python" in PATH → {python_in_path}\n'
+                      f'  This script runs as → {sys.executable}\n'
+                      '  These are DIFFERENT interpreters. Packages installed by\n'
+                      '  install_workstation_deps.py will not be visible when you\n'
+                      '  run "python scan_gui.py" or "python hpc_preflight_check.py".',
+                      fix=f'Always invoke using the full path:\n'
+                          f'    {sys.executable} rawkee/tools/lidar/scan_gui.py\n'
+                          f'    {sys.executable} rawkee/tools/lidar/install_workstation_deps.py')
+        except Exception:
+            pass
 
 
 
@@ -97,13 +116,16 @@ def check_numpy():
     np = _try_import('numpy')
     if np is None:
         error('numpy', 'Not installed.',
-              fix='pip install "numpy>=1.24"')
+              fix='pip install "numpy>=2.0"')
         return
     v = np.__version__
-    major = int(v.split('.')[0])
-    if major < 1 or (major == 1 and int(v.split('.')[1]) < 24):
-        warn('numpy', f'Version {v} is old; recommend â‰¥ 1.24.',
-             fix='pip install --upgrade "numpy>=1.24"', version=v)
+    major, minor = int(v.split('.')[0]), int(v.split('.')[1])
+    if major < 2:
+        error('numpy', f'Version {v} is too old. numpy ≥2.0 is required for rembg and numba.\n'
+                       '  numpy 1.x removed np.long, causing rembg to fail silently and fall\n'
+                       '  back to chroma-key masking instead of AI background removal.',
+              fix='pip install "numpy>=2.0"  # or run install_workstation_deps.py',
+              version=v)
     else:
         ok('numpy', version=v)
 
@@ -227,6 +249,15 @@ def check_imageio():
              version=iio_ver)
 
 
+def check_pycolmap():
+    m = _try_import('pycolmap')
+    if m is None:
+        warn('pycolmap', 'Not installed. The Folder→Splat pipeline will fall back to the colmap binary.',
+             fix='pip install pycolmap')
+        return
+    ok('pycolmap', version=_pkg_version('pycolmap'))
+
+
 def check_rawpy():
     m = _try_import('rawpy')
     if m is None:
@@ -274,6 +305,117 @@ def check_pyproj():
              fix='pip install pyproj')
         return
     ok('pyproj', version=_pkg_version('pyproj'))
+
+
+def check_rembg():
+    m = _try_import('rembg')
+    if m is None:
+        warn('rembg', 'Not installed. AI background removal (auto-mask) in the Folder→Splat pipeline will be unavailable.',
+             fix='pip install rembg')
+        return
+    ok('rembg', version=_pkg_version('rembg'))
+
+
+def check_onnxruntime():
+    # Check for GPU variant first; fall back to CPU
+    ver = _pkg_version('onnxruntime-gpu') or _pkg_version('onnxruntime')
+    if ver is None:
+        warn('onnxruntime', 'Not installed. rembg auto-masking will fail.',
+             fix='pip install "onnxruntime-gpu==1.18.1"  # CUDA 12\n'
+                 '  # or: pip install onnxruntime  # CPU fallback')
+        return
+    # Warn if the installed GPU version is 1.19+ (requires cublasLt64_13 / CUDA 13)
+    gpu_ver = _pkg_version('onnxruntime-gpu')
+    if gpu_ver:
+        try:
+            major, minor = [int(x) for x in gpu_ver.split('.')[:2]]
+            if major > 1 or (major == 1 and minor >= 19):
+                warn('onnxruntime-gpu', f'Version {gpu_ver} requires cublasLt64_13.dll (CUDA 13). '
+                     'On CUDA 12 systems this causes load errors; rembg falls back to CPU.',
+                     fix='pip install "onnxruntime-gpu==1.18.1"')
+                return
+        except ValueError:
+            pass
+    ok('onnxruntime', version=ver)
+
+
+def check_u2net():
+    import pathlib
+    u2net = pathlib.Path.home() / '.u2net' / 'u2net.onnx'
+    if not u2net.exists():
+        warn('u2net.onnx', f'Model not found at {u2net}. rembg auto-masking will download it (~176 MB) on first use.',
+             fix='Pre-download by running install_workstation_deps.py, or:\n'
+                 '  python -c "from rembg.session_factory import new_session; new_session(\'u2net\')"')
+        return
+    size_mb = u2net.stat().st_size / (1024 * 1024)
+    ok('u2net.onnx', msg=f'{u2net}  ({size_mb:.0f} MB)')
+
+
+def check_hloc():
+    import importlib.util
+    if importlib.util.find_spec('hloc') is None:
+        warn('hloc', 'Not installed. SuperPoint+LightGlue feature matching will not be available.\n'
+                     '  Without hloc, low-texture objects (rocks, minerals) may register poorly in COLMAP.',
+             fix='pip install git+https://github.com/cvg/Hierarchical-Localization\n'
+                 '  or run install_workstation_deps.py')
+        return
+    missing = [m for m in ('hloc.extract_features', 'hloc.match_features', 'hloc.reconstruction')
+               if importlib.util.find_spec(m) is None]
+    if missing:
+        warn('hloc', f'Installed but sub-modules missing: {missing}. Reinstall hloc.',
+             fix='pip install --force-reinstall git+https://github.com/cvg/Hierarchical-Localization')
+        return
+    # SuperGluePretrainedNetwork provides the SuperPoint model weights used by hloc
+    if importlib.util.find_spec('SuperGluePretrainedNetwork') is None:
+        ok('hloc', msg='DISK+LightGlue available (SuperGluePretrainedNetwork not present — see check below)')
+    else:
+        ok('hloc', msg='SuperPoint+LightGlue available (SuperGluePretrainedNetwork present)')
+
+
+def check_superglue():
+    import importlib.util
+    if importlib.util.find_spec('SuperGluePretrainedNetwork') is None:
+        warn('SuperGluePretrainedNetwork',
+             'Not installed. hloc will use DISK+LightGlue (Apache 2.0) instead of SuperPoint.\n'
+             '  SuperPoint generally produces denser, more accurate matches on low-texture\n'
+             '  objects (rocks, minerals). Recommended for academic/research deployments.\n'
+             '\n'
+             '  License: Magic Leap Non-Commercial License\n'
+             '    https://github.com/magicleap/SuperGluePretrainedNetwork/blob/master/LICENSE\n'
+             '    Free for non-commercial academic and research use ONLY.\n'
+             '    Commercial use is prohibited.\n'
+             '\n'
+             '  Source: https://github.com/magicleap/SuperGluePretrainedNetwork',
+             fix='See rawkee/tools/lidar/README.md → "Optional: SuperPoint features"\n'
+                 '  for the one-time git clone + .pth registration steps.\n'
+                 '  No pip install is available; manual setup takes ~2 minutes.')
+    else:
+        ok('SuperGluePretrainedNetwork', msg='SuperPoint model weights available')
+
+
+def check_lightglue_weights():
+    from pathlib import Path
+    cache = Path.home() / '.cache' / 'torch' / 'hub' / 'checkpoints'
+    weights = {
+        'superpoint_lightglue_v0-1_arxiv.pth': ('LightGlue/SuperPoint matcher', 'MIT'),
+        'disk_lightglue_v0-1_arxiv.pth':        ('LightGlue/DISK matcher',      'MIT'),
+        'depth-save.pth':                        ('DISK feature extractor',      'Apache 2.0'),
+    }
+    missing = []
+    for fname, (desc, lic) in weights.items():
+        p = cache / fname
+        if p.exists():
+            mb = p.stat().st_size / (1024 * 1024)
+            ok(f'weights/{fname}', msg=f'{desc}  ({lic})  {mb:.0f} MB')
+        else:
+            missing.append((fname, desc))
+    if missing:
+        names = ', '.join(d for _, d in missing)
+        warn('LightGlue weights',
+             f'Missing: {names}.\n'
+             '  These will download automatically on first pipeline run (~45 MB each).\n'
+             '  Pre-download by running install_workstation_deps.py.',
+             fix='python rawkee/tools/lidar/install_workstation_deps.py')
 
 
 def check_ninja():
@@ -395,6 +537,13 @@ CHECKS = [
     check_rosbags,
     check_pye57,
     check_pyproj,
+    check_rembg,
+    check_onnxruntime,
+    check_u2net,
+    check_hloc,
+    check_superglue,
+    check_lightglue_weights,
+    check_pycolmap,
     check_ninja,
     check_pyside6,
     check_rawkee,

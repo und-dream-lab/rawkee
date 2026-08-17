@@ -62,6 +62,47 @@ def _build_parser() -> argparse.ArgumentParser:
     splat.add_argument('--decode-sh',     action='store_true',
                        help='Pre-decode SH coefficients to RGB in PLY output (for consumers without SH support)')
 
+    # ---- convert subcommand ---------------------------------------------
+    conv = sub.add_parser('convert',
+                          help='Convert a Gaussian splat file between formats')
+    conv.add_argument('--input',      required=True, metavar='FILE',
+                      help='Source file (.ply, .splat, .glb, .x3d, .x3dv, .x3dj)')
+    conv.add_argument('--output',     required=True, metavar='DIR',
+                      help='Output directory')
+    conv.add_argument('--stem',       default=None,  metavar='NAME',
+                      help='Output filename stem (default: source stem)')
+    conv.add_argument('--format',     required=True, metavar='FMT',
+                      help='Target format: ply | splat | glb | x3d | x3dv | x3dj')
+    conv.add_argument('--sh-degree',  type=int, default=None, metavar='INT',
+                      help='Override SH degree in output (default: match source)')
+    conv.add_argument('--decode-sh',  action='store_true',
+                      help='Pre-decode SH DC to RGB (for viewers without SH decoding)')
+    conv.add_argument('--verbose',    action='store_true',
+                      help='Enable INFO logging')
+
+    # ---- folder-splat subcommand -----------------------------------------
+    fs = sub.add_parser('folder-splat',
+                        help='COLMAP SfM + 3DGS pipeline for a plain image folder')
+    fs.add_argument('--images',       required=True,  metavar='DIR',
+                    help='Folder containing only the input images')
+    fs.add_argument('--output',       required=True,  metavar='DIR',
+                    help='Output directory')
+    fs.add_argument('--format',       default='x3d',  metavar='FMT',
+                    help='Export format: x3d | x3dv | x3dj | ply | splat | glb (default: x3d)')
+    fs.add_argument('--focal-px',     type=float,     default=None, metavar='FLOAT',
+                    help='Camera focal length in pixels (auto-extracted from EXIF if omitted)')
+    fs.add_argument('--image-size',   type=int,       default=512,  metavar='INT')
+    fs.add_argument('--sh-degree',    type=int,       default=3,    metavar='INT')
+    fs.add_argument('--iterations',   type=int,       default=10000,metavar='INT')
+    fs.add_argument('--matcher',      default='exhaustive', metavar='NAME',
+                    help='COLMAP matcher: exhaustive | sequential (default: exhaustive)')
+    fs.add_argument('--frame-stride', type=int,       default=1,    metavar='INT',
+                    help='Use every N-th registered image for training (default: 1 = all)')
+    fs.add_argument('--decode-sh',    action='store_true')
+    fs.add_argument('--colmap-bin',   default='colmap', metavar='PATH',
+                    help='colmap binary path (used when pycolmap is not installed)')    fs.add_argument('--turntable',    action='store_true',
+                    help='Use synthetic circular poses (bypass COLMAP mapper) — recommended for turntable captures')    fs.add_argument('--verbose',      action='store_true')
+
     return p
 
 
@@ -73,6 +114,44 @@ def main() -> None:
         format='%(levelname)s %(name)s %(message)s',
         stream=sys.stdout,
     )
+
+    # folder-splat — no dataset/georef needed, handle early
+    if args.mode == 'folder-splat':
+        from rawkee.tools.lidar import FolderSplatPipeline
+        out = FolderSplatPipeline(
+            image_size      = args.image_size,
+            sh_degree       = args.sh_degree,
+            iterations      = args.iterations,
+            matcher         = args.matcher,
+            turntable_mode  = args.turntable,
+            colmap_bin      = args.colmap_bin,
+        ).run(
+            image_dir     = args.images,
+            output_dir    = args.output,
+            output_format = args.format,
+            focal_px      = args.focal_px,
+            decode_sh     = args.decode_sh,
+            frame_stride  = args.frame_stride,
+        )
+        print(f'Saved: {out}')
+        return
+
+    # convert subcommand has no dataset/georef — handle it early
+    if args.mode == 'convert':
+        from pathlib import Path as _Path
+        from rawkee.tools.lidar import convert_splat
+        in_path = _Path(args.input)
+        stem    = args.stem or in_path.stem
+        out     = convert_splat(
+            input_path = in_path,
+            output_dir = args.output,
+            stem       = stem,
+            fmt        = args.format,
+            sh_degree  = args.sh_degree,
+            decode_sh  = args.decode_sh,
+        )
+        print(f'Converted: {out}')
+        return
 
     from rawkee.tools.lidar import ScanDataset
 

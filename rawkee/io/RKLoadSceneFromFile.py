@@ -98,6 +98,7 @@ class RKLoadSceneFromFile:
         'MFVec2f': 2,    'MFVec2d': 2,
         'MFVec3f': 3,    'MFVec3d': 3,    'MFColor': 3,
         'MFVec4f': 4,    'MFVec4d': 4,    'MFRotation': 4,  'MFColorRGBA': 4,
+        'MFQuaternion': 4,
         'MFMatrix3f': 9, 'MFMatrix3d': 9,
         'MFMatrix4f': 16,'MFMatrix4d': 16,
     }

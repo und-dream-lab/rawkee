@@ -203,18 +203,29 @@ _PANDAR_BSIZE = 130     # bytes per block: 2 (azimuth) + 32*4 (returns)
 _PANDAR_PKT        = 820   # expected data bytes per UDP packet
 _PANDAR_MIN_RANGE  = 0.5   # metres (NavVis Range/Minimum)
 _PANDAR_MAX_RANGE  = 150.0 # metres (NavVis Range/Maximum)
+# XTM sensor-housing offsets from Hesai SDK pandarGeneral_internal.h
+_PANDAR_H = 0.0305   # horizontal aperture offset (metres)
+_PANDAR_B = 0.013    # baseline aperture offset (metres)
 
 
 def _navvis_lidar_extrinsic(dataset: ScanDataset) -> 'tuple[np.ndarray, np.ndarray] | None':
     """Return (position, quat_wxyz) of laser_horiz in device frame from sensor_frame.xml."""
+    result = _navvis_lidar_extrinsics(dataset)
+    return result.get('laser_horiz') or next(iter(result.values()), None) if result else None
+
+
+def _navvis_lidar_extrinsics(dataset: ScanDataset) -> 'dict[str, tuple[np.ndarray, np.ndarray]]':
+    """Return {sensor_name: (position, quat_wxyz)} for every laser sensor in sensor_frame.xml."""
     import xml.etree.ElementTree as ET
     xml_path = dataset.root / 'sensor_frame.xml'
     if not xml_path.exists():
-        return None
+        return {}
+    result = {}
     try:
         root = ET.parse(xml_path).getroot()
         for laser in root.findall('.//VelodyneLaserModel'):
-            if laser.findtext('SensorName') != 'laser_horiz':
+            name = laser.findtext('SensorName', '')
+            if not name:
                 continue
             pose = laser.find('Pose')
             if pose is None:
@@ -227,10 +238,10 @@ def _navvis_lidar_extrinsic(dataset: ScanDataset) -> 'tuple[np.ndarray, np.ndarr
                             dtype=np.float64)
             quat = np.array([float(ori_el.findtext(k, '0')) for k in ('w', 'x', 'y', 'z')],
                             dtype=np.float64)
-            return pos, quat
+            result[name] = (pos, quat)
     except Exception as exc:
         log.warning('sensor_frame.xml read failed: %s', exc)
-    return None
+    return result
 
 
 def _pandar_elevation_rad(bag_paths: list[Path]) -> 'np.ndarray | None':
@@ -312,10 +323,12 @@ def _decode_pandar_pkt(
         d = dist * dis_mul
         valid = (dist > 0) & (d >= _PANDAR_MIN_RANGE) & (d <= _PANDAR_MAX_RANGE)
         d = d[valid]
-        r = d * cos_elev[valid]
-        xs.append(r * sin_az)
-        ys.append(r * cos_az)
-        zs.append(d * sin_elev[valid])
+        # XTM aperture-offset correction (azimuth offset is 0 for all XTM channels)
+        d_c = d - _PANDAR_H * cos_elev[valid]
+        r   = d_c * cos_elev[valid]
+        xs.append(r * sin_az - _PANDAR_B * cos_az + _PANDAR_H * sin_az)
+        ys.append(r * cos_az + _PANDAR_B * sin_az + _PANDAR_H * cos_az)
+        zs.append(d_c * sin_elev[valid])
     if not xs:
         return None
     return np.stack([np.concatenate(xs), np.concatenate(ys), np.concatenate(zs)], axis=-1)
@@ -327,6 +340,7 @@ def _decode_navvis_lidar(
     extr_pos: np.ndarray,
     extr_quat: np.ndarray,
     max_packets: int = 6000,
+    sensor_name: str = 'laser_horiz',
 ) -> 'np.ndarray | None':
     """Decode NavVis PandarXTM bags → (N,3) float32 world-space point cloud."""
     if not _ROSBAGS:
@@ -350,9 +364,10 @@ def _decode_navvis_lidar(
     all_pts: list[np.ndarray] = []
     count = 0
 
-    # Only decode horiz bags to avoid duplicating geometry from the vert sensor
-    horiz_bags = [p for p in bag_paths if 'horiz' in p.name]
-    decode_bags = horiz_bags if horiz_bags else bag_paths
+    # Filter bags to the requested sensor head
+    key = sensor_name.split('_')[-1]   # 'horiz' or 'vert'
+    sensor_bags = [p for p in bag_paths if key in p.name]
+    decode_bags = sensor_bags if sensor_bags else bag_paths
 
     for bag_path in decode_bags:
         if count >= max_packets:
@@ -401,7 +416,7 @@ def _decode_navvis_lidar(
     if not all_pts:
         return None
     combined = np.concatenate(all_pts, axis=0).astype(np.float32)
-    log.info('PandarXTM: %d packets → %d points', count, len(combined))
+    log.info('PandarXTM [%s]: %d packets → %d points', sensor_name, count, len(combined))
     return combined
 
 
@@ -798,13 +813,18 @@ class MeshPipeline:
                 'Expected bag_laser_horiz_*.bag / bag_laser_vert_*.bag in internal/bags/.'
             )
 
-        # NavVis PandarXTM: bags contain raw Hesai packets, not PointCloud2
-        extr = _navvis_lidar_extrinsic(dataset)
-        if extr is not None:
+        # NavVis PandarXTM: decode both laser heads and merge before voxel downsample
+        extrinsics = _navvis_lidar_extrinsics(dataset)
+        if extrinsics:
             traj_bag = dataset.root / 'internal' / 'trajectory_slam.bag'
-            extr_pos, extr_quat = extr
-            xyz = _decode_navvis_lidar(bags, traj_bag, extr_pos, extr_quat, max_packets=max_packets)
-            if xyz is not None and len(xyz) > 0:
+            head_pts = []
+            for sensor_name, (extr_pos, extr_quat) in extrinsics.items():
+                pts = _decode_navvis_lidar(bags, traj_bag, extr_pos, extr_quat,
+                                           max_packets=max_packets, sensor_name=sensor_name)
+                if pts is not None and len(pts):
+                    head_pts.append(pts)
+            if head_pts:
+                xyz = np.concatenate(head_pts, axis=0)
                 if _O3D:
                     pcd = o3d.geometry.PointCloud()
                     pcd.points = o3d.utility.Vector3dVector(xyz.astype(np.float64))

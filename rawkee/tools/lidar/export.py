@@ -189,6 +189,8 @@ def export_splat(
     geo_origin: Optional[tuple] = None,
     decode_sh: bool = False,
     viewpoints: Optional[list] = None,
+    apply_coord_transform: bool = True,
+    sky_face_paths: Optional[dict] = None,
 ) -> Path:
     """Export trained Gaussian splat parameters in the requested format.
 
@@ -198,6 +200,8 @@ def export_splat(
     decode_sh:  When True, PLY output stores pre-decoded linear RGB in f_dc_* fields
                 instead of raw SH coefficients. Use when the consumer does not
                 implement SH decoding.
+    apply_coord_transform: Apply ROS Z-up → X3D Y-up rotation on X3D export.
+                Set False for COLMAP/Metashape data already in Y-up space.
     """
     fmt = fmt.lower().lstrip('.')
     output_dir = Path(output_dir)
@@ -216,6 +220,8 @@ def export_splat(
             means, scales, quats_wxyz, sh_coeffs, opacities,
             output_dir, stem, fmt, sh_degree, geo_origin,
             viewpoints=viewpoints, decode_sh=decode_sh,
+            apply_coord_transform=apply_coord_transform,
+            sky_face_paths=sky_face_paths,
         )
     elif fmt == 'ply':
         return _export_splat_ply(
@@ -495,22 +501,26 @@ def _export_splat_x3d(
     geo_origin: Optional[tuple] = None,
     viewpoints: Optional[list] = None,
     decode_sh: bool = True,
+    apply_coord_transform: bool = True,
+    sky_face_paths: Optional[dict] = None,
 ) -> Path:
     from rawkee.io.RKSceneTraversal import RKSceneTraversal
 
     N = len(means)
     log.info('Building X3D GaussianSplats node  N=%d  sh_degree=%d  decode_sh=%s', N, sh_degree, decode_sh)
 
-    # Convert ROS Z-up world frame → X3D Y-up frame
-    means      = _ros_verts_to_x3d(means)
-    quats_wxyz = _quat_apply_basis(_Q_ROS_TO_X3D, quats_wxyz)
-    sh_coeffs  = _rotate_sh_coeffs(sh_coeffs, _ROS_TO_X3D, sh_degree)
+    if apply_coord_transform:
+        # Convert ROS Z-up world frame → X3D Y-up frame
+        means      = _ros_verts_to_x3d(means)
+        quats_wxyz = _quat_apply_basis(_Q_ROS_TO_X3D, quats_wxyz)
+        sh_coeffs  = _rotate_sh_coeffs(sh_coeffs, _ROS_TO_X3D, sh_degree)
 
-    # Quaternion order: training (w,x,y,z) → X3D spec (x,y,z,w)
+    # Quaternion order: (w,x,y,z) → X3D spec (x,y,z,w)
     quats_xyzw = np.roll(quats_wxyz, -1, axis=1)
 
+    # bulk numpy→Python conversion; arr.tolist() is a single C call, far faster than row iteration
     def _mf3(arr):
-        return [tuple(r.tolist()) for r in arr]
+        return list(map(tuple, arr.tolist()))
 
     trv = RKSceneTraversal()
     trv.clearMemberLists()
@@ -518,11 +528,44 @@ def _export_splat_x3d(
     x3d_scene = trv.getSceneObject()
     x3d_doc.Scene = x3d_scene
 
+    # Sky background: 6-face cube map → Background node
+    # face order matches X3D Background field names
+    _FACE_FIELDS = ('front', 'back', 'left', 'right', 'top', 'bottom')
+    if sky_face_paths and any(f in sky_face_paths for f in _FACE_FIELDS):
+        bg = trv.processBasicNodeAddition(x3d_scene, 'children', 'Background', 'SkyBackground')
+        if bg:
+            for face in _FACE_FIELDS:
+                p = sky_face_paths.get(face)
+                if p and Path(p).exists():
+                    field = f'{face}Url'
+                    mf = getattr(bg, field, None)
+                    if isinstance(mf, list):
+                        mf.append(Path(p).name)
+                    else:
+                        setattr(bg, field, [Path(p).name])
+            log.info('Background node added with %d sky faces',
+                     sum(1 for f in _FACE_FIELDS if sky_face_paths.get(f)))
+
     # Viewpoints (same pattern as mesh export)
     if viewpoints:
         geo_sys = _epsg_to_geo_system(geo_origin[3]) if geo_origin else None
         for i, (pos_ros, R_ros, desc) in enumerate(viewpoints):
-            ori = _viewpoint_orientation(R_ros)
+            if apply_coord_transform:
+                # NavVis: device X-axis is forward, convert ROS frame → X3D Y-up
+                ori = _viewpoint_orientation(R_ros)
+            else:
+                # COLMAP/non-NavVis: camera -Z column is look dir, already in Y-up frame
+                fwd = -np.asarray(R_ros)[:, 2]
+                fwd = fwd / max(float(np.linalg.norm(fwd)), 1e-9)
+                default_look = np.array([0., 0., -1.])
+                ax = np.cross(default_look, fwd)
+                sin_a = float(np.linalg.norm(ax))
+                cos_a = float(np.dot(default_look, fwd))
+                if sin_a < 1e-6:
+                    ori = (0., 1., 0., math.pi if cos_a < 0 else 0.)
+                else:
+                    ax /= sin_a
+                    ori = (float(ax[0]), float(ax[1]), float(ax[2]), math.atan2(sin_a, cos_a))
             if geo_origin is not None:
                 vp = trv.processBasicNodeAddition(x3d_scene, 'children', 'GeoViewpoint', f'VP{i}')
                 if vp:
@@ -535,7 +578,9 @@ def _export_splat_x3d(
             else:
                 vp = trv.processBasicNodeAddition(x3d_scene, 'children', 'Viewpoint', f'VP{i}')
                 if vp:
-                    vp.position    = tuple((_ROS_TO_X3D @ pos_ros).tolist())
+                    # Apply coord transform only when the scene itself is transformed
+                    vp_pos = (_ROS_TO_X3D @ pos_ros) if apply_coord_transform else pos_ros
+                    vp.position    = tuple(vp_pos.tolist())
                     vp.description = desc
                     vp.orientation = ori
                     vp.fieldOfView = 1.047
@@ -553,8 +598,9 @@ def _export_splat_x3d(
 
     gs = trv.processBasicNodeAddition(gs_parent, gs_field, 'GaussianSplats', 'ScanSplats')
     if gs:
+        log.info('Converting arrays to X3D field lists  N=%d', N)
         gs.positions    = _mf3(means)
-        gs.orientations = [tuple(r.tolist()) for r in quats_xyzw]
+        gs.orientations = list(map(tuple, quats_xyzw.tolist()))
         gs.scales       = _mf3(scales)
         gs.opacities    = opacities.tolist()
 
@@ -586,8 +632,73 @@ def _export_splat_x3d(
 
     trv.collectProfileFromScene(x3d_doc)
     out_path = output_dir / f'{stem}.{fmt}'
+    log.info('Writing Splat X3D → %s', out_path)
     trv.x3d2disk(x3d_doc, str(out_path), fmt)
     log.info('Splat X3D → %s', out_path)
+    return out_path
+
+
+def _export_splat_x3d_inline(
+    glb_path: Path,
+    output_dir: Path,
+    stem: str,
+    fmt: str,
+    viewpoints: Optional[list] = None,
+    geo_origin: Optional[tuple] = None,
+    apply_coord_transform: bool = False,
+) -> Path:
+    """Create a lightweight X3D wrapper with viewpoints + an Inline node referencing a GLB."""
+    from rawkee.io.RKSceneTraversal import RKSceneTraversal
+
+    trv = RKSceneTraversal()
+    trv.clearMemberLists()
+    x3d_doc   = trv.getX3DObject()
+    x3d_scene = trv.getSceneObject()
+    x3d_doc.Scene = x3d_scene
+
+    if viewpoints:
+        geo_sys = _epsg_to_geo_system(geo_origin[3]) if geo_origin else None
+        for i, (pos_ros, R_ros, desc) in enumerate(viewpoints):
+            if apply_coord_transform:
+                ori = _viewpoint_orientation(R_ros)
+            else:
+                fwd = -np.asarray(R_ros)[:, 2]
+                fwd = fwd / max(float(np.linalg.norm(fwd)), 1e-9)
+                default_look = np.array([0., 0., -1.])
+                ax = np.cross(default_look, fwd)
+                sin_a = float(np.linalg.norm(ax))
+                cos_a = float(np.dot(default_look, fwd))
+                if sin_a < 1e-6:
+                    ori = (0., 1., 0., math.pi if cos_a < 0 else 0.)
+                else:
+                    ax /= sin_a
+                    ori = (float(ax[0]), float(ax[1]), float(ax[2]), math.atan2(sin_a, cos_a))
+            if geo_origin is not None:
+                vp = trv.processBasicNodeAddition(x3d_scene, 'children', 'GeoViewpoint', f'VP{i}')
+                if vp:
+                    e0, n0, h0, _ = geo_origin
+                    vp.geoCoords   = (e0 + pos_ros[0], n0 + pos_ros[1], h0 + pos_ros[2])
+                    vp.geoSystem   = geo_sys or ['GD', 'WE']
+                    vp.description = desc
+                    vp.orientation = ori
+                    vp.fieldOfView = 1.047
+            else:
+                vp = trv.processBasicNodeAddition(x3d_scene, 'children', 'Viewpoint', f'VP{i}')
+                if vp:
+                    vp_pos = (_ROS_TO_X3D @ pos_ros) if apply_coord_transform else pos_ros
+                    vp.position    = tuple(vp_pos.tolist())
+                    vp.description = desc
+                    vp.orientation = ori
+                    vp.fieldOfView = 1.047
+
+    inline = trv.processBasicNodeAddition(x3d_scene, 'children', 'Inline', 'SplatInline')
+    if inline:
+        inline.url.append(glb_path.name)   # relative URL — GLB lives beside the X3D
+
+    trv.collectProfileFromScene(x3d_doc)
+    out_path = output_dir / f'{stem}.{fmt}'
+    trv.x3d2disk(x3d_doc, str(out_path), fmt)
+    log.info('Splat X3D Inline → %s', out_path)
     return out_path
 
 
@@ -601,6 +712,7 @@ def _export_splat_ply(
     raw_opacities: np.ndarray, log_scales: np.ndarray,
     output_dir: Path, stem: str,
     decode_sh: bool = False,
+    ros_tag: bool = True,
 ) -> Path:
     """Write a 3DGS-compatible PLY file with pre-activation (raw) parameter values."""
     N = len(means)
@@ -631,7 +743,8 @@ def _export_splat_ply(
         )
         header = (
             'ply\nformat binary_little_endian 1.0\n'
-            f'element vertex {N}\n'
+            + ('comment rawkee coordinate_system ros-zup\n' if ros_tag else '')
+            + f'element vertex {N}\n'
         )
         for p in props:
             header += f'property float {p}\n'

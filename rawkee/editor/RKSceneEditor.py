@@ -253,8 +253,8 @@ class RKX3DTreeWidget(QTreeWidget):
                 self.setCursor(Qt.DragMoveCursor)
                 return
         item = self.itemAt(event.pos())
-        # Note deselect intent before super() changes selection state
-        self._deselect_on_release = (item is None or item in self.selectedItems())
+        # Deselect only when clicking empty space, not when re-clicking a selected item
+        self._deselect_on_release = (item is None)
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):

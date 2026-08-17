@@ -60960,7 +60960,7 @@ def instantiateNodeFromString(x3dType, _cache={}):
         'IndexedTriangleFanSet':(IndexedTriangleFanSet(), {'Core':1, 'Grouping':1, 'Rendering':3}),
         'IndexedTriangleSet':(IndexedTriangleSet(), {'Core':1, 'Grouping':1, 'Rendering':5}),
         'IndexedTriangleStripSet':(IndexedTriangleStripSet(), {'Core':1, 'Grouping':1, 'Rendering':3}),
-        'Inline':(Inline,{'Core':1, 'Grouping':1, 'Shape':2, 'Lighting':3, 'Networking':4}),
+        'Inline':(Inline(),{'Core':1, 'Grouping':1, 'Shape':2, 'Lighting':3, 'Networking':4}),
         'IntegerSequencer':(IntegerSequencer(), {'Core':1, 'Grouping':1, 'EventUtilities':1}),
         'IntegerTrigger':(IntegerTrigger(), {'Core':1, 'Grouping':1, 'EventUtilities':1}),
         'IORMaterialExtension':(IORMaterialExtension(), {'X_ITE':1}), # X_ITE - glTF extension
