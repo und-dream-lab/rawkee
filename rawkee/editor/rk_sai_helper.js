@@ -35,6 +35,17 @@
             } catch (_) {}
             delete _cache['__RKReadySentinel__'];
         }
+        // Route Browser.println() output to the Python console via console.log
+        try {
+            const b = _browser();
+            if (b && typeof b.print === 'function') {
+                const _orig = b.print.bind(b);
+                b.print = function (msg) {
+                    console.log('[Script] ' + msg);
+                    try { _orig(msg); } catch (_) {}
+                };
+            }
+        } catch (_) {}
         console.log('RK: ready, draining ' + _queue.length + ' queued commands');
         _drainQueue();
     }

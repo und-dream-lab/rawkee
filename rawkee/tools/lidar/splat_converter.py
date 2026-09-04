@@ -11,15 +11,21 @@ Supported formats
 
 Coordinate systems
 ------------------
-PLY, .splat, and GLB produced by this pipeline are stored in the native
-training frame (ROS/NavVis Z-up right-handed).  X3D files store splats in
-the X3D Y-up right-handed frame after applying:
+The internal dict always stores Gaussians in the **training frame** — the frame
+in which the splat was produced.  The training frame depends on the pipeline:
 
-    (x, y, z)_native → (x, z, -y)_x3d
+* **NavVis / scan pipelines** — ROS Z-up right-handed (x-forward, y-left, z-up).
+* **Folder→Splat (turntable)** — OpenCV/COLMAP convention (x-right, y-down, z-forward).
+  The `apply_coord_transform=False` flag is passed at export time, so PLY/GLB/X3D
+  all share the same frame for this pipeline.
 
-The internal representation used here is always the native training frame.
-X3D sources are rotated back to native on load; X3D targets are rotated on
-export by the existing _export_splat_x3d helper.
+X3D output always stores splats in the **X3D Y-up right-handed frame**.  When
+``apply_coord_transform=True`` (NavVis pipeline default), the exporter applies:
+
+    (x, y, z)_ros_zup → (x, z, -y)_x3d
+
+X3D inputs are rotated back to the training frame on load.
+All non-X3D formats (PLY, .splat, GLB) are stored as-is in the training frame.
 
 Internal dict layout
 --------------------

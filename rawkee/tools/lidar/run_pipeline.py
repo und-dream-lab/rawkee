@@ -22,7 +22,7 @@ def _build_parser() -> argparse.ArgumentParser:
     # ---- shared arguments ------------------------------------------------
     shared = argparse.ArgumentParser(add_help=False)
     shared.add_argument('--dataset',   required=True, metavar='DIR',
-                        help='Path to scan dataset directory')
+                        help='Path to scan dataset: NavVis folder, Metashape .psx/.psz, Meshroom .mg, Pix4D .p4d, COLMAP sparse folder, or .e57 file')
     shared.add_argument('--output',    required=True, metavar='DIR',
                         help='Output directory')
     shared.add_argument('--format',    default='x3d', metavar='FMT',
@@ -91,17 +91,49 @@ def _build_parser() -> argparse.ArgumentParser:
                     help='Export format: x3d | x3dv | x3dj | ply | splat | glb (default: x3d)')
     fs.add_argument('--focal-px',     type=float,     default=None, metavar='FLOAT',
                     help='Camera focal length in pixels (auto-extracted from EXIF if omitted)')
-    fs.add_argument('--image-size',   type=int,       default=512,  metavar='INT')
+    fs.add_argument('--image-size',   type=int,       default=1024, metavar='INT',
+                    help='Training image resolution in pixels (default: 1024)')
     fs.add_argument('--sh-degree',    type=int,       default=3,    metavar='INT')
-    fs.add_argument('--iterations',   type=int,       default=10000,metavar='INT')
-    fs.add_argument('--matcher',      default='exhaustive', metavar='NAME',
-                    help='COLMAP matcher: exhaustive | sequential (default: exhaustive)')
+    fs.add_argument('--iterations',   type=int,       default=30000,metavar='INT',
+                    help='3DGS training iterations (default: 30000)')
+    fs.add_argument('--matcher',      default='exhaustive-hloc', metavar='NAME',
+                    help='Feature matcher: exhaustive-hloc | sequential-hloc | exhaustive | sequential')
     fs.add_argument('--frame-stride', type=int,       default=1,    metavar='INT',
                     help='Use every N-th registered image for training (default: 1 = all)')
+    fs.add_argument('--turntable',    action='store_true',
+                    help='Use synthetic circular poses — recommended for turntable captures')
+    fs.add_argument('--n-sets',       type=int,       default=1,    metavar='INT',
+                    help='Number of distinct turntable passes (default: 1)')
+    fs.add_argument('--turntable-elevation', type=float, default=0.0, metavar='DEG',
+                    help='Camera elevation override in degrees (0 = auto-estimate from COLMAP)')
+    fs.add_argument('--turntable-radius',    type=float, default=0.0, metavar='M',
+                    help='Camera-to-object distance override in metres (0 = auto-estimate)')
+    fs.add_argument('--masks-dir',    default=None,   metavar='DIR',
+                    help='Folder of pre-made mask images (white=foreground)')
+    fs.add_argument('--auto-mask',    action='store_true',
+                    help='Auto-generate masks using rembg AI model')
+    fs.add_argument('--chroma-rgb',   type=float,     nargs=3,      default=None, metavar=('R', 'G', 'B'),
+                    help='Background colour for chroma-key masking (e.g. 0 80 180 for blue)')
+    fs.add_argument('--chroma-tolerance', type=float, default=30.0, metavar='DEG',
+                    help='Hue tolerance for chroma-key masking (default: 30)')
+    fs.add_argument('--mask-erosion-px',  type=int,   default=8,    metavar='INT',
+                    help='Shrink masks inward by this many pixels (default: 8; 0 = disable)')
+    fs.add_argument('--densify-until',    type=int,   default=0,    metavar='INT',
+                    help='Step at which Gaussian growth stops (0 = auto = iterations//2)')
+    fs.add_argument('--densify-every',    type=int,   default=100,  metavar='INT',
+                    help='Run density control every N steps (default: 100)')
+    fs.add_argument('--opacity-reset-every', type=int, default=0,   metavar='INT',
+                    help='Reset opacities every N steps (0 = never; paper default: 3000)')
+    fs.add_argument('--grad-thresh-mult', type=float, default=1.5,  metavar='FLOAT',
+                    help='Gradient threshold multiplier for split/clone decisions (default: 1.5)')
+    fs.add_argument('--grad-mode',    default='2d',   metavar='MODE',
+                    help='Density gradient mode: 2d (screen-space) | 3d (world-space) (default: 2d)')
     fs.add_argument('--decode-sh',    action='store_true')
+    fs.add_argument('--colmap-only',  action='store_true',
+                    help='Run COLMAP + mask generation only; skip 3DGS training')
     fs.add_argument('--colmap-bin',   default='colmap', metavar='PATH',
-                    help='colmap binary path (used when pycolmap is not installed)')    fs.add_argument('--turntable',    action='store_true',
-                    help='Use synthetic circular poses (bypass COLMAP mapper) — recommended for turntable captures')    fs.add_argument('--verbose',      action='store_true')
+                    help='colmap binary path (used when pycolmap is not installed)')
+    fs.add_argument('--verbose',      action='store_true')
 
     return p
 
@@ -118,20 +150,40 @@ def main() -> None:
     # folder-splat — no dataset/georef needed, handle early
     if args.mode == 'folder-splat':
         from rawkee.tools.lidar import FolderSplatPipeline
+        from pathlib import Path as _Path
+        _use_hloc = 'hloc' in args.matcher
+        _matcher  = 'exhaustive' if 'exhaustive' in args.matcher else 'sequential'
+        _hloc_win = 0 if 'exhaustive' in args.matcher else 10
         out = FolderSplatPipeline(
-            image_size      = args.image_size,
-            sh_degree       = args.sh_degree,
-            iterations      = args.iterations,
-            matcher         = args.matcher,
-            turntable_mode  = args.turntable,
-            colmap_bin      = args.colmap_bin,
+            image_size              = args.image_size,
+            sh_degree               = args.sh_degree,
+            iterations              = args.iterations,
+            matcher                 = _matcher,
+            turntable_mode          = args.turntable,
+            n_sets                  = args.n_sets,
+            turntable_elevation_deg = args.turntable_elevation,
+            turntable_radius        = args.turntable_radius,
+            masks_dir               = _Path(args.masks_dir) if args.masks_dir else None,
+            auto_mask               = args.auto_mask,
+            chroma_rgb              = tuple(args.chroma_rgb) if args.chroma_rgb else None,
+            chroma_tolerance        = args.chroma_tolerance,
+            mask_erosion_px         = args.mask_erosion_px,
+            opacity_reset_every     = args.opacity_reset_every,
+            hloc_window             = _hloc_win,
+            densify_every           = args.densify_every,
+            grad_thresh_mult        = args.grad_thresh_mult,
+            use_hloc                = _use_hloc,
+            colmap_bin              = args.colmap_bin,
         ).run(
-            image_dir     = args.images,
-            output_dir    = args.output,
-            output_format = args.format,
-            focal_px      = args.focal_px,
-            decode_sh     = args.decode_sh,
-            frame_stride  = args.frame_stride,
+            image_dir         = args.images,
+            output_dir        = args.output,
+            output_format     = args.format,
+            focal_px          = args.focal_px,
+            decode_sh         = args.decode_sh,
+            frame_stride      = args.frame_stride,
+            densify_grad_mode = args.grad_mode,
+            densify_until     = args.densify_until,
+            colmap_only       = args.colmap_only,
         )
         print(f'Saved: {out}')
         return
