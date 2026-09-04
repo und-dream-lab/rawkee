@@ -545,6 +545,9 @@ def _train(
     sh_degree: int = 3,
     backgrounds: 'Optional[list[torch.Tensor]]' = None,
     densify_grad_mode: str = '2d',   # '2d' = screen-space (robust for masked training); '3d' = world-space
+    opacity_reset_every: int = 0,     # 0 = never reset; >0 = reset interval in steps
+    grad_thresh_mult: float = 1.5,    # multiplier on mean gradient to set split/clone threshold
+    cancel_event=None,                # threading.Event; training loop exits cleanly when set
 ) -> dict[str, 'torch.Tensor']:
     """3DGS training loop using gsplat rasteriser, with optional multi-node DDP."""
     if not _GSPLAT:
@@ -595,10 +598,13 @@ def _train(
         ])
 
     def _make_schedulers(opt):
-        # Per-parameter-group schedulers: only positions decay aggressively
-        pos_sched   = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=_lr_means_gamma)
-        other_sched = torch.optim.lr_scheduler.ExponentialLR(opt, gamma=0.9999)
-        return pos_sched, other_sched
+        # Single LambdaLR with per-group gammas so groups decay independently.
+        # Two ExponentialLR instances on the same optimizer would multiply ALL groups
+        # by both gammas each step.
+        gammas = [_lr_means_gamma] + [0.9999] * (len(opt.param_groups) - 1)
+        return torch.optim.lr_scheduler.LambdaLR(
+            opt, [lambda step, g=g: g ** step for g in gammas]
+        )
 
     # Pre-compute intrinsics and pose tensors to avoid per-iteration allocation
     def _make_K(fx, fy):
@@ -623,7 +629,7 @@ def _train(
             densify_grad_mode = '3d'
 
     opt = _make_opt()
-    pos_sched, other_sched = _make_schedulers(opt)
+    lr_sched = _make_schedulers(opt)
 
     # Per-Gaussian 2D-gradient accumulator for adaptive density control
     _grads2d   = torch.zeros(len(params['means']), device=device)
@@ -646,6 +652,9 @@ def _train(
                  len(params['means']), iterations, world_size, N_local)
 
     for step in range(1, iterations + 1):
+        if cancel_event is not None and cancel_event.is_set():
+            log.info('Training cancelled at step %d', step)
+            break
         # SH degree curriculum: increase active degree every 1000 steps
         _active_sh = min(sh_degree, (step - 1) // 1000)
 
@@ -716,9 +725,7 @@ def _train(
             _dist_all_reduce_grads(params, world_size)
 
         opt.step()
-        # Step position LR separately from other params
-        pos_sched.step()
-        other_sched.step()
+        lr_sched.step()
 
         if step % 500 == 0 and rank == 0:
             log.info('step %5d / %d  loss=%.5f  N=%d',
@@ -735,7 +742,7 @@ def _train(
                 avg_grad   = _grads2d[:N] / max(_grads2d_n, 1)
                 # Catch all Gaussians above the mean gradient (paper uses fixed 2e-4;
                 # mean×1.5 is adaptive and equivalent for any scene scale)
-                grad_thresh = avg_grad.mean().item() * 1.5
+                grad_thresh = avg_grad.mean().item() * grad_thresh_mult
                 high_grad  = avg_grad > max(grad_thresh, 1e-10)
                 clone_mask = high_grad & (max_sc < 0.05)
                 split_mask = high_grad & (max_sc >= 0.05)
@@ -792,7 +799,7 @@ def _train(
                         dist.broadcast(p.data, src=0)
 
                 opt = _make_opt()
-                pos_sched, other_sched = _make_schedulers(opt)
+                lr_sched = _make_schedulers(opt)
                 _n_clone = clone_mask.sum().item()
                 _n_split = split_mask.sum().item()
                 _n_prune = prune_mask.sum().item()
@@ -805,7 +812,10 @@ def _train(
         # Resetting while N is still at the sparse-init count kills gradients —
         # near-zero opacities cause the packed rasterizer to skip all Gaussians,
         # returning a constant zero image with no gradient to params['means'].
-        if step % 1500 == 0 and step < densify_until and len(params['means']) > 2000:
+        if (opacity_reset_every > 0
+                and step % opacity_reset_every == 0
+                and step < densify_until
+                and len(params['means']) > 2000):
             with torch.no_grad():
                 params['opacities'].fill_(math.log(0.01 / 0.99))  # sigmoid^-1(0.01)
             if rank == 0:

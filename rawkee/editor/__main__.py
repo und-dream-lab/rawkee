@@ -37,12 +37,27 @@ import signal
 
 _ICON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'x3d_interaction_editor3.ico')
 
+# (pip-package, import-name, fatal)
+_REQUIRED_PACKAGES = [
+    ('PySide6', 'PySide6', True),
+]
+
+def _check_dependencies():
+    import importlib, subprocess
+    missing = [pip for pip, imp, _ in _REQUIRED_PACKAGES
+               if not importlib.util.find_spec(imp)]
+    if missing:
+        print(f'[RawKee] Required packages missing: {", ".join(missing)}\n'
+              f'Run:  pip install {" ".join(missing)}', flush=True)
+        sys.exit(1)
+
 
 def _qt_message_handler(msg_type, context, message):
     pass
 
 
 def main():
+    _check_dependencies()
     qInstallMessageHandler(_qt_message_handler)
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     app = QApplication.instance() or QApplication(sys.argv)

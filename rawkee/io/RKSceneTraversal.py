@@ -220,7 +220,11 @@ class RKSceneTraversal():
                             sNodeList.append(keyp[3])
 
         compNode = None
-        
+
+        # sourceCode is Python-only; exclude from normal field serialization
+        if type(node).__name__ == 'Script':
+            sFieldsList = [f for f in sFieldsList if f != 'sourceCode']
+
         self.processSortedNode(node.NAME(), node, sFieldsList, mFieldsList, sNodeList, mNodeList, isMulti, addComma, cField)
 
 
@@ -281,7 +285,7 @@ class RKSceneTraversal():
 
 
     def processFieldAsClassic(self, node, sFieldList, mFieldList, isMulti):
-        fieldText = "field " + node.accessType + " " + node.type + " " + node.name
+        fieldText = node.accessType + " " + node.type + " " + node.name
         if node.type == "SFNode":
             self.writePrefix(fieldText)
             if len(node.children) > 0:
@@ -299,7 +303,8 @@ class RKSceneTraversal():
                 self.writeLine("]")
             
         else:
-            fieldText = fieldText + " " + node.value
+            if node.value != '':
+                fieldText = fieldText + " " + str(node.value)
             if isMulti == True:
                 self.writeLine(fieldText)
             else:
@@ -413,6 +418,16 @@ class RKSceneTraversal():
                 self.dtabs()
                 self.writeLine(']')
         
+        # Emit Script sourceCode as inline url field; indent content lines to match block
+        if nType == 'Script':
+            src = getattr(node, 'sourceCode', '') or ''
+            if src:
+                escaped = src.replace('"', '\\"')
+                tabs = '\t' * self.tabs
+                lines = escaped.split('\n')
+                indented = lines[0] + (('\n' + tabs).join([''] + lines[1:]) if len(lines) > 1 else '')
+                self.writeLine(f'url "{indented}"')
+
         self.dtabs()
         self.writeLine("}")
 
@@ -447,35 +462,37 @@ class RKSceneTraversal():
     # This is only setup to handle Shader custom fields
     # TODO Change update Function to handle fields for Script, ExternProto, and Proto nodes
     def processFieldAsJSON(self, node, sFieldList, mNodeList, isMulti, addComma):
-        if isMulti == True:
-            self.writeLine(     '{ "field":')
+        # Flat format: { "@name": ..., "@type": ..., "@accessType": ..., ["@value": ...,] ["-children": [...]] }
+        if isMulti:
+            self.writeLine(     '{')
         else:
-            self.writeRemaining('{ "field":')
-        self.itabs()
-        self.writeLine('{')
+            self.writeRemaining('{')
         self.itabs()
         fieldName  = '"@name": "' + node.name + '",'
         fieldType  = '"@type": "' + node.type + '",'
-        fieldAType = '"@accessType": "' + node.accessType + '",'
+        has_mfnode_children = node.type == 'MFNode' and bool(node.children)
+        has_scalar_value    = node.type not in ('SFNode', 'MFNode') and bool(node.value)
+        needs_comma = node.type == 'SFNode' or has_mfnode_children or has_scalar_value
+        fieldAType = '"@accessType": "' + node.accessType + ('",' if needs_comma else '"')
         self.writeLine(fieldName)
         self.writeLine(fieldType)
         self.writeLine(fieldAType)
-        if node.type == "SFNode":
+        if node.type == 'SFNode':
             sValue = '"-children":'
             self.writePrefix(sValue)
-            hasComma = False
-            self.processNode(node.children[0], False, hasComma)
-            
-        elif node.type == "MFNode":
-            pass # TODO Implement Later for Script, ExternProto, and Proto nodes
-            
-        else:
-            fieldValue = '"@value": "' + node.value + '"'
-            self.writeLine(fieldValue)
+            self.processNode(node.children[0], False, False)
+        elif node.type == 'MFNode':
+            if node.children:
+                self.writeLine('"-children": [')
+                self.itabs()
+                for i, child in enumerate(node.children):
+                    self.processNode(child, True, i < len(node.children) - 1)
+                self.dtabs()
+                self.writeLine(']')
+        elif has_scalar_value:
+            self.writeLine('"@value": "' + str(node.value) + '"')
         self.dtabs()
-        self.writeLine('}')
-        self.dtabs()
-        if addComma == True:
+        if addComma:
             self.writeLine('},')
         else:
             self.writeLine('}')
@@ -504,6 +521,8 @@ class RKSceneTraversal():
         mflLen = len(mFieldList) # mflLen
         snlLen = len(sNodeList)  # snlLen
         mnlLen = len(mNodeList)  # mnlLen
+        # Pre-compute so comma conditions below know whether @url follows
+        script_src = (getattr(node, 'sourceCode', '') or '') if nType == 'Script' else ''
         for fIdx in range(sflLen):
             tField = sFieldList[fIdx]
 
@@ -537,7 +556,7 @@ class RKSceneTraversal():
                 
             pVal = '"@' + tField + '": ' + sValue
             
-            if fIdx < (sflLen - 1) or mflLen > 0 or snlLen > 0 or mnlLen > 0:
+            if fIdx < (sflLen - 1) or mflLen > 0 or snlLen > 0 or mnlLen > 0 or script_src:
                 pVal = pVal + ','
 
             self.writeLine(pVal)
@@ -563,7 +582,7 @@ class RKSceneTraversal():
         
             pVal = '"@' + field + '": [ ' + sValue + ' ]'
             
-            if idx < (mflLen - 1) or snlLen > 0 or mnlLen > 0:
+            if idx < (mflLen - 1) or snlLen > 0 or mnlLen > 0 or script_src:
                 pVal = pVal + ','
                 
             self.writeLine(pVal)
@@ -578,7 +597,7 @@ class RKSceneTraversal():
             self.writePrefix(sValue)
             
             hasComma = False
-            if nIdx < (snlLen - 1) or mnlLen > 0:
+            if nIdx < (snlLen - 1) or mnlLen > 0 or script_src:
                 hasComma = True
                 
             self.processNode(tNode, False, hasComma)
@@ -586,8 +605,10 @@ class RKSceneTraversal():
         for nIdx in range(mnlLen):
             mField = mNodeList[nIdx]
             mList = getattr(node, mField)
-            
-            vValue = '"-' + mField + '": ['
+
+            # Script UDF field declarations use "field" key (spec), not "-field"
+            json_key = 'field' if (nType == 'Script' and mField == 'field') else ('-' + mField)
+            vValue = '"' + json_key + '": ['
             self.writeLine(vValue)
             self.itabs()
                         
@@ -602,12 +623,16 @@ class RKSceneTraversal():
             self.dtabs()
             self.writePrefix(']')
             
-            if nIdx < (mnlLen - 1):
+            if nIdx < (mnlLen - 1) or script_src:
                 self.writeRemaining(',')
             else:
                 self.writeRemaining('')
                 
         
+        # Emit Script sourceCode as #sourceCode line array (X3D JSON encoding spec)
+        if script_src:
+            self.writeLine('"#sourceCode": ' + json.dumps(script_src.split('\n')))
+
         self.dtabs()
         self.writeLine('}')
         self.dtabs()
@@ -631,8 +656,8 @@ class RKSceneTraversal():
     # TODO Change update Function to handle fields for Script, ExternProto, and Proto nodes
     def processFieldAsXML(self, node, sFieldList, mNodeList):
         fieldText = "<field name='" + node.name + "' type='" + node.type + "' accessType='" + node.accessType
-        if node.type == "SFNode":
-            fieldText += ">"
+        if node.type == "SFNode" or node.type == "MFNode":
+            fieldText += "'>"
             self.writeLine(fieldText)
             self.itabs()
             for child in node.children:
@@ -640,17 +665,20 @@ class RKSceneTraversal():
             self.dtabs()
             self.writeLine("</field>")
             
-        elif node.type == "MFNode":
-            fieldText += ">"
-            self.writeLine(fieldText)
-            self.itabs()
-            for child in node.children:
-                self.processNode(child, True, False)
-            self.dtabs()
-            self.writeLine("</field>")
+        #elif node.type == "MFNode":
+        #    fieldText += "'>"
+        #    self.writeLine(fieldText)
+        #    self.itabs()
+        #    for child in node.children:
+        #        self.processNode(child, True, False)
+        #    self.dtabs()
+        #    self.writeLine("</field>")
             
         else:
-            fieldText += " value='" + node.value + "'/>"
+            if node.value != '':
+                fieldText += "' value='" + str(node.value) + "'/>"
+            else:
+                fieldText += "'/>"
             self.writeLine(fieldText)
         
 
@@ -664,6 +692,7 @@ class RKSceneTraversal():
             return
 
         cap = "/>"
+        src = getattr(node, 'sourceCode', '') if nType == 'Script' else ''
         mainline = "<" + nType
         for field in sFieldList:
             tField = field
@@ -699,15 +728,15 @@ class RKSceneTraversal():
         if cField != "":
             mainline = mainline + " containerField='" + cField + "'"
         
-        if len(sNodeList) > 0 or len(mNodeList) > 0:
+        if len(sNodeList) > 0 or len(mNodeList) > 0 or src:
             cap = ">"
-        
+
         if len(mFieldList) == 0:
             mainline += cap
-            
+
         self.writeLine(mainline)
         self.itabs()
-        
+
         mflLen = len(mFieldList)
         for idx in range(mflLen):
             fieldLine = mFieldList[idx] + "='"
@@ -717,13 +746,13 @@ class RKSceneTraversal():
                 continue
             if   isinstance(values[0], tuple):
                 sValue = ', '.join(' '.join(map(str, v)) for v in values)
-                
+
             elif isinstance(values[0], bool):
                 sValue = ', '.join('true' if v else 'false' for v in values)
-                
+
             elif isinstance(values[0], str):
                 sValue = ', '.join('"' + v + '"' for v in values)
-                
+
             else:
                 sValue = ', '.join(map(str, values))
 
@@ -731,20 +760,28 @@ class RKSceneTraversal():
             if idx == mflLen - 1:
                 fieldLine += cap
             self.writeLine(fieldLine)
-            
+
         for field in sNodeList:
             fNode = getattr(node, field)
             self.processNode(fNode, False, False, cField=field)
-            
+
         for field in mNodeList:
             fList = getattr(node, field)
             for fNode in fList:
                 self.processNode(fNode, True, False, cField=field)
-                
+
+        # Emit CDATA block for Script source code after UDF <field> children
+        if src:
+            tabs = '\t' * self.tabs
+            self.iofile.write(f'{tabs}<![CDATA[\n')
+            for line in src.split('\n'):
+                self.iofile.write(f'{tabs}{line}\n')
+            self.iofile.write(f'{tabs}]]>\n')
+
         self.dtabs()
-        if len(sNodeList) > 0 or len(mNodeList) > 0:
+        if len(sNodeList) > 0 or len(mNodeList) > 0 or src:
             self.writeLine("</" + nType + ">")
-                
+
 
     def processROUTEAsHTML(self, node, sFieldList):
         fromNode  = sFieldList[1] + "='" + getattr(node, sFieldList[1]) + "'"
@@ -761,7 +798,7 @@ class RKSceneTraversal():
     def processFieldAsHTML(self, node, sFieldList, mNodeList):
         fieldText = "<field name='" + node.name + "' type='" + node.type + "' accessType='" + node.accessType
         if node.type == "SFNode" or node.type == "MFNode":
-            fieldText += ">"
+            fieldText += "'>"
             self.writeLine(fieldText)
             self.itabs()
             for child in node.children:
@@ -770,7 +807,7 @@ class RKSceneTraversal():
             self.writeLine("</field>")
             
         #elif node.type == "MFNode": # TODO Implement Later for Script, ExternProto, and Proto nodes
-            #fieldText += ">"
+            #fieldText += "'>"
             #self.writeLine(fieldText)
             #self.itabs()
 
@@ -780,7 +817,7 @@ class RKSceneTraversal():
             #        self.processNode(fNode, True, False, cField=field)
             #self.dtabs()
             #self.writeLine("</field>")
-            pass
+            #pass
             
         else:
             fieldText += " value='" + node.value + "'></field>"
@@ -1294,6 +1331,10 @@ class RKSceneTraversal():
 
             py_fname = 'global_' if keyp[3] == 'global' else keyp[3]
             js_fname = 'global'  if keyp[3] == 'global' else keyp[3]
+
+            # Script.field contains rkx.field statements, not X_ITE SAI nodes
+            if x3d_type == 'Script' and py_fname in ('field', 'sourceCode'):
+                continue
 
             try:
                 default_val = getattr(compNode, py_fname)

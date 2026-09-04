@@ -296,7 +296,7 @@ class _MeshTab(QWidget):
 
     def _browse_dataset_psx(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, 'Select Metashape project', '', 'Metashape Projects (*.psx);;All files (*)')
+            self, 'Select Metashape project', '', 'Metashape Projects (*.psx *.psz);;All files (*)')
         if path:
             self.ds_edit.setText(path)
             self._shared.platform.setCurrentText('metashape')
@@ -478,7 +478,7 @@ class _SplatTab(QWidget):
 
     def _browse_dataset_psx(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, 'Select Metashape project', '', 'Metashape Projects (*.psx);;All files (*)')
+            self, 'Select Metashape project', '', 'Metashape Projects (*.psx *.psz);;All files (*)')
         if path:
             self.ds_edit.setText(path)
             self._shared.platform.setCurrentText('metashape')
@@ -753,6 +753,11 @@ class _FolderSplatWorker(QThread):
     def __init__(self, kwargs: dict):
         super().__init__()
         self._kw = kwargs
+        import threading
+        self._cancel = threading.Event()
+
+    def cancel(self):
+        self._cancel.set()
 
     def run(self):
         handler = _QtLogHandler(self.log_line)
@@ -777,6 +782,10 @@ class _FolderSplatWorker(QThread):
                 chroma_rgb               = kw.get('chroma_rgb'),
                 chroma_tolerance         = kw.get('chroma_tolerance', 30.0),
                 mask_erosion_px          = kw.get('mask_erosion_px', 8),
+                opacity_reset_every      = kw.get('opacity_reset_every', 0),
+                hloc_window              = kw.get('hloc_window', 10),
+                densify_every            = kw.get('densify_every', 100),
+                grad_thresh_mult         = kw.get('grad_thresh_mult', 1.5),
                 use_hloc                 = kw.get('use_hloc', False),
                 colmap_bin               = kw.get('colmap_bin', 'colmap'),
             ).run(
@@ -788,6 +797,8 @@ class _FolderSplatWorker(QThread):
                 frame_stride      = kw.get('frame_stride', 1),
                 densify_grad_mode = kw.get('grad_mode', '2d'),
                 densify_until     = kw.get('densify_until', 0),
+                colmap_only       = kw.get('colmap_only', False),
+                cancel_event      = self._cancel,
             )
             self.finished.emit(True, str(out))
         except Exception as exc:
@@ -836,16 +847,23 @@ class _FolderSplatTab(QWidget):
 
         g2.addWidget(QLabel('COLMAP matcher'), 1, 0)
         self.matcher = QComboBox()
-        self.matcher.addItems(['hloc (SuperPoint+LightGlue)', 'Sequential (SIFT only)', 'Exhaustive (SIFT only)'])
+        self.matcher.addItems([
+            'Exhaustive — hloc (SuperPoint+LightGlue)',
+            'Sequential — hloc (SuperPoint+LightGlue)',
+            'Exhaustive — SIFT only',
+            'Sequential — SIFT only',
+        ])
         self.matcher.setToolTip(
-            'hloc: DISK+LightGlue deep-learned features — best for low-texture objects (default)\n'
-            '  Requires: pip install git+https://github.com/cvg/Hierarchical-Localization\n'
-            'Sequential (SIFT only): matches adjacent frames — fallback for ordered footage\n'
-            'Exhaustive (SIFT only): tests every pair — fallback for small unordered collections'
+            'Exhaustive hloc: matches every image pair — best registration, slow (~75 min for 256 images, cached)\n'
+            'Sequential hloc: matches adjacent frames only — fast, good for ordered turntable sequences\n'
+            'Exhaustive SIFT: fallback without hloc installed, every pair\n'
+            'Sequential SIFT: fallback without hloc installed, adjacent frames\n'
+            'hloc requires: pip install git+https://github.com/cvg/Hierarchical-Localization'
         )
         g2.addWidget(self.matcher, 1, 1)
 
         g2.addWidget(QLabel('Focal length (px)'), 2, 0)
+
         focal_row = QHBoxLayout()
         self.focal_auto = QCheckBox('Auto from EXIF')
         self.focal_auto.setChecked(True)
@@ -910,17 +928,55 @@ class _FolderSplatTab(QWidget):
             '  Building:      30 000–50 000\n'
             '  Large outdoor: 50 000+'
         )
-        g2.addWidget(self.densify_until, 6, 1)
+        g2.addWidget(self.densify_until, 7, 1)
 
-        g2.addWidget(QLabel('Frame stride'), 7, 0)
+        g2.addWidget(QLabel('Opacity reset (steps)'), 7, 0)
+        self.opacity_reset = QSpinBox()
+        self.opacity_reset.setRange(0, 200000)
+        self.opacity_reset.setValue(0)
+        self.opacity_reset.setSingleStep(500)
+        self.opacity_reset.setToolTip(
+            '0 = never reset opacity (default, recommended for turntable captures).\n'
+            'When > 0, resets all Gaussian opacities to near-zero every N steps during\n'
+            'densification. Paper default: 3000. Can disrupt training if set too low.'
+        )
+        g2.addWidget(self.opacity_reset, 7, 1)
+
+        g2.addWidget(QLabel('Densify every (steps)'), 8, 0)
+        self.densify_every_spin = QSpinBox()
+        self.densify_every_spin.setRange(10, 10000)
+        self.densify_every_spin.setValue(100)
+        self.densify_every_spin.setSingleStep(50)
+        self.densify_every_spin.setToolTip(
+            'Run adaptive density control every N training steps.\n'
+            '100 = aggressive growth (paper default).\n'
+            '200–500 = slower, more controlled growth.\n'
+            'Increase if Gaussian count grows too fast.'
+        )
+        g2.addWidget(self.densify_every_spin, 8, 1)
+
+        g2.addWidget(QLabel('Grad threshold ×'), 9, 0)
+        self.grad_thresh_mult = QDoubleSpinBox()
+        self.grad_thresh_mult.setRange(0.1, 10.0)
+        self.grad_thresh_mult.setValue(1.5)
+        self.grad_thresh_mult.setSingleStep(0.5)
+        self.grad_thresh_mult.setDecimals(1)
+        self.grad_thresh_mult.setToolTip(
+            'Multiplier on mean gradient to set the split/clone threshold.\n'
+            '1.5 = paper default (adaptive, scene-scale independent).\n'
+            'Higher = fewer splits (controls Gaussian count); lower = more splits.'
+        )
+        g2.addWidget(self.grad_thresh_mult, 9, 1)
+
+        g2.addWidget(QLabel('Frame stride'), 10, 0)
         self.frame_stride = QSpinBox()
         self.frame_stride.setRange(1, 32)
         self.frame_stride.setValue(1)
         self.frame_stride.setToolTip('Use every N-th registered image for training (1 = all)')
-        g2.addWidget(self.frame_stride, 7, 1)
+        g2.addWidget(self.frame_stride, 10, 1)
 
         self.decode_sh = QCheckBox('Pre-decode SH → RGB on export')
-        g2.addWidget(self.decode_sh, 8, 0, 1, 2)
+        g2.addWidget(self.decode_sh, 11, 0, 1, 2)
 
         self.grad_mode_2d = QCheckBox('Screen-space density gradients (2D) — recommended')
         self.grad_mode_2d.setChecked(True)
@@ -929,7 +985,7 @@ class _FolderSplatTab(QWidget):
             'More robust than 3D world-space gradients, especially for masked training.\n'
             'Uncheck to fall back to 3D gradients (useful for debugging).'
         )
-        g2.addWidget(self.grad_mode_2d, 9, 0, 1, 2)
+        g2.addWidget(self.grad_mode_2d, 12, 0, 1, 2)
 
         self.turntable = QCheckBox(
             'Turntable mode  —  use synthetic circular poses (recommended for object-on-turntable captures)'
@@ -945,16 +1001,16 @@ class _FolderSplatTab(QWidget):
             '  • Color-calibrate with a color checker (Darktable is free)\n'
             '  • 130–270 images per pass is the recommended sweet spot'
         )
-        g2.addWidget(self.turntable, 10, 0, 1, 2)
+        g2.addWidget(self.turntable, 13, 0, 1, 2)
 
-        g2.addWidget(QLabel('Turntable sets'), 11, 0)
+        g2.addWidget(QLabel('Turntable sets'), 14, 0)
         self.n_sets = QSpinBox()
         self.n_sets.setRange(1, 8)
         self.n_sets.setValue(1)
         self.n_sets.setToolTip('Number of distinct turntable passes (e.g. 2 = top + flipped bottom)')
-        g2.addWidget(self.n_sets, 11, 1)
+        g2.addWidget(self.n_sets, 14, 1)
 
-        g2.addWidget(QLabel('Elevation override (°)'), 12, 0)
+        g2.addWidget(QLabel('Elevation override (°)'), 15, 0)
         self.turntable_elevation = QDoubleSpinBox()
         self.turntable_elevation.setRange(0.0, 89.0)
         self.turntable_elevation.setValue(0.0)
@@ -966,9 +1022,9 @@ class _FolderSplatTab(QWidget):
             'This is the camera elevation above the object equator for pass 1;\n'
             'pass 2 (flipped) mirrors it below.'
         )
-        g2.addWidget(self.turntable_elevation, 12, 1)
+        g2.addWidget(self.turntable_elevation, 15, 1)
 
-        g2.addWidget(QLabel('Radius override (m)'), 13, 0)
+        g2.addWidget(QLabel('Radius override (m)'), 16, 0)
         self.turntable_radius = QDoubleSpinBox()
         self.turntable_radius.setRange(0.0, 100.0)
         self.turntable_radius.setValue(0.0)
@@ -978,7 +1034,7 @@ class _FolderSplatTab(QWidget):
             '0 = auto-estimate from COLMAP.\n'
             'Set to the actual camera-to-object distance (metres) if COLMAP gives a wrong scale.'
         )
-        g2.addWidget(self.turntable_radius, 13, 1)
+        g2.addWidget(self.turntable_radius, 16, 1)
         layout.addWidget(opt_box)
 
         # ── Background masking ────────────────────────────────────────────
@@ -1050,6 +1106,14 @@ class _FolderSplatTab(QWidget):
         gm.addWidget(self.mask_erosion, 3, 1)
 
         layout.addWidget(mask_box)
+
+        self.colmap_only = QCheckBox('COLMAP + masks only  —  skip 3DGS training')
+        self.colmap_only.setToolTip(
+            'Run COLMAP SfM and generate rembg masks, then stop.\n'
+            'Use this to inspect registration quality and mask coverage\n'
+            'before committing to a full training run.'
+        )
+        layout.addWidget(self.colmap_only)
 
         self.run_btn = QPushButton('Run  (COLMAP → 3DGS)')
         self.run_btn.setFixedHeight(36)
@@ -1211,9 +1275,9 @@ class _FolderSplatTab(QWidget):
             images       = self.img_edit.text(),
             output       = self.out_edit.text(),
             fmt          = self.fmt.currentText(),
-            use_hloc     = self.matcher.currentText().startswith('hloc'),
-            matcher      = ('sequential' if self.matcher.currentText().startswith('Sequential')
-                            else 'exhaustive'),  # used only when hloc unavailable (fallback)
+            use_hloc     = 'hloc' in self.matcher.currentText(),
+            matcher      = ('exhaustive' if 'Exhaustive' in self.matcher.currentText() else 'sequential'),
+            hloc_window  = (0 if 'Exhaustive' in self.matcher.currentText() else 10),
             focal_px     = None if self.focal_auto.isChecked() else float(self.focal_px.value()),
             image_size   = self.image_size.value(),
             sh_degree    = self.sh_degree.value(),
@@ -1229,8 +1293,12 @@ class _FolderSplatTab(QWidget):
             chroma_rgb               = self._chroma_color if self.chroma_enable.isChecked() else None,
             chroma_tolerance         = float(self.chroma_tolerance.value()),
             mask_erosion_px          = self.mask_erosion.value(),
+            opacity_reset_every      = self.opacity_reset.value(),
+            densify_every            = self.densify_every_spin.value(),
+            grad_thresh_mult         = self.grad_thresh_mult.value(),
             densify_until            = self.densify_until.value(),
             grad_mode                = '2d' if self.grad_mode_2d.isChecked() else '3d',
+            colmap_only              = self.colmap_only.isChecked(),
         )
         if self._worker is not None and self._worker.isRunning():
             self._worker.quit()
@@ -1287,19 +1355,17 @@ class ScanPipelineApp(QMainWindow):
         self._tabs_widget = tabs
 
     def closeEvent(self, event):
-        # Terminate all running pipeline workers before the window closes so that
-        # COLMAP mapper threads don't continue consuming CPU after the GUI exits.
+        # Signal all workers to stop cooperatively, wait briefly, then exit cleanly.
         if self._tabs_widget:
             for i in range(self._tabs_widget.count()):
                 tab = self._tabs_widget.widget(i)
                 inner = getattr(tab, 'widget', lambda: tab)()
                 worker = getattr(inner, '_worker', None)
                 if worker is not None and worker.isRunning():
-                    worker.terminate()
-                    worker.wait(3000)
+                    if hasattr(worker, 'cancel'):
+                        worker.cancel()
+                    worker.wait(5000)
         event.accept()
-        import os
-        os._exit(0)
 
     def _build_ui(self):
         central = QWidget()

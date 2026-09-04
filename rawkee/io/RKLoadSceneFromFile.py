@@ -104,6 +104,24 @@ class RKLoadSceneFromFile:
     }
 
     @staticmethod
+    def _lift_inline_script(node, urls):
+        """Move any ecmascript:/javascript: url entry into node.sourceCode."""
+        _PFX = ('ecmascript:', 'javascript:')
+        inline = [u for u in urls if u.strip().lower().startswith(_PFX)]
+        rest   = [u for u in urls if not u.strip().lower().startswith(_PFX)]
+        if inline:
+            import textwrap
+            src = inline[0]
+            # Strip block-level indentation added during Classic encoding (lines after first)
+            nl = src.find('\n')
+            if nl >= 0:
+                src = src[:nl] + textwrap.dedent(src[nl:])
+            src = src.strip()
+            try:    node.sourceCode = src
+            except Exception: pass
+        return rest
+
+    @staticmethod
     def _fieldTypeMap(nodeClass):
         """Return {fieldName: fieldTypeString} for a node class."""
         return {decl[0]: decl[2]() for decl in nodeClass.FIELD_DECLARATIONS()}
@@ -140,7 +158,8 @@ class RKLoadSceneFromFile:
         """Resolve URL strings to server-relative paths (leading '/'), forward slashes only."""
         if not self._baseDir or not urls:
             return urls
-        _ABS = ('http://', 'https://', 'ftp://', 'ftps://', 'data:', 'urn:', '#')
+        _ABS = ('http://', 'https://', 'ftp://', 'ftps://', 'data:', 'urn:', '#',
+                'ecmascript:', 'javascript:')  # inline scripts are not file paths
         result = []
         for url in urls:
             s = url.strip()
@@ -186,9 +205,8 @@ class RKLoadSceneFromFile:
 
         # ---- SFString ------------------------------------------------------
         elif fType == 'SFString':
-            # Classic encoding wraps strings in double-quotes; strip them.
             if strVal.startswith('"') and strVal.endswith('"') and len(strVal) >= 2:
-                return strVal[1:-1]
+                return re.sub(r'\\(.)', r'\1', strVal[1:-1])
             return strVal
 
         # ---- SFImage -------------------------------------------------------
@@ -237,7 +255,9 @@ class RKLoadSceneFromFile:
         # ---- MFString ------------------------------------------------------
         elif fType == 'MFString':
             # Each element is delimited by double-quotes: "val1" "val2"
-            return re.findall(r'"((?:[^"\\]|\\.)*)"', strVal)
+            # Unescape VRML Classic escape sequences (\\ → \, \" → ")
+            raw = re.findall(r'"((?:[^"\\]|\\.)*)"', strVal)
+            return [re.sub(r'\\(.)', r'\1', s) for s in raw]
 
         # ---- MF vector / colour / matrix / rotation ------------------------
         elif fType in self._MF_VECTOR_SIZES:
@@ -405,6 +425,24 @@ class RKLoadSceneFromFile:
                 except Exception: pass
             return routeNode
 
+        # ---- field (Script/Proto user-defined field declaration) -----------
+        if tag == 'field':
+            fNode = field()
+            for attr in ('name', 'type', 'accessType'):
+                v = elem.get(attr)
+                if v is not None:
+                    try:    setattr(fNode, attr, v)
+                    except Exception: pass
+            val = elem.get('value')
+            if val is not None:
+                try:    fNode.value = val
+                except Exception: pass
+            for child in elem:
+                childNode = self._parseXMLNode(child)
+                if childNode is not None:
+                    fNode.children.append(childNode)
+            return fNode
+
         # ---- Instantiate the node ------------------------------------------
         nodeTuple = instantiateNodeFromString(tag)
         if nodeTuple is None or nodeTuple[0] is None:
@@ -429,7 +467,7 @@ class RKLoadSceneFromFile:
 
         # ---- Map XML attributes to node fields ----------------------------
         for attrName, attrVal in elem.attrib.items():
-            if attrName == 'containerField':
+            if attrName in ('containerField', 'sourceCode'):  # sourceCode stored as CDATA
                 continue
             # 'global' is a Python keyword; RKx3d uses 'global_'
             pName = 'global_' if attrName == 'global' else attrName
@@ -440,11 +478,26 @@ class RKLoadSceneFromFile:
                 parsed = self._parseStrValue(attrVal, fType)
                 if fType == 'MFString' and pName.lower() == 'url':
                     parsed = self._resolveUrls(parsed)
+                    if tag == 'Script':
+                        parsed = self._lift_inline_script(tNode, parsed)
                 setattr(tNode, pName, parsed)
                 if attrName == 'DEF':
                     self._defNodes[attrVal] = tNode
             except Exception as exc:
                 print(f'RKLoadSceneFromFile: {tag}.{pName}="{attrVal}": {exc}')
+
+        # ---- CDATA / text content (Script sourceCode) --------------------
+        # Collect elem.text + every child's .tail to handle CDATA placed anywhere
+        if tag == 'Script':
+            parts = [elem.text or '']
+            for child in elem:
+                parts.append(child.tail or '')
+            text = ''.join(parts)
+            if text.strip():
+                import textwrap
+                text = textwrap.dedent(text).strip()
+                try:    tNode.sourceCode = text
+                except Exception: pass
 
         # ---- Recurse into child elements -----------------------------------
         for child in elem:
@@ -676,6 +729,28 @@ class RKLoadSceneFromFile:
                     except Exception: pass
             return routeNode
 
+        # ---- field (Script/Proto user-defined field declaration) -----------
+        if nodeType == 'field':
+            fNode = field()
+            for attr in ('name', 'type', 'accessType'):
+                v = nodeBody.get('@' + attr)
+                if v is not None:
+                    try:    setattr(fNode, attr, v)
+                    except Exception: pass
+            val = nodeBody.get('@value')
+            if val is not None:
+                try:    fNode.value = val
+                except Exception: pass
+            for child_key, child_val in nodeBody.items():
+                if not child_key.startswith('-'):
+                    continue
+                children = child_val if isinstance(child_val, list) else [child_val]
+                for childData in children:
+                    childNode = self._parseJSONNode(childData)
+                    if childNode is not None:
+                        fNode.children.append(childNode)
+            return fNode
+
         # ---- Instantiate the node ------------------------------------------
         nodeTuple = instantiateNodeFromString(nodeType)
         if nodeTuple is None or nodeTuple[0] is None:
@@ -705,11 +780,45 @@ class RKLoadSceneFromFile:
                     parsed = self._parseJSONValue(val, fType)
                     if fType == 'MFString' and pName.lower() == 'url':
                         parsed = self._resolveUrls(parsed)
+                        if nodeType == 'Script':
+                            parsed = self._lift_inline_script(tNode, parsed)
                     setattr(tNode, pName, parsed)
                     if attrName == 'DEF':
                         self._defNodes[val] = tNode
                 except Exception as exc:
                     print(f'RKLoadSceneFromFile: {nodeType}.{pName}: {exc}')
+
+            # ---- #sourceCode / #sourceText (Script inline ECMAScript) -----
+            elif key in ('#sourceCode', '#sourceText', '@sourceCode'):
+                if nodeType == 'Script' and isinstance(val, list):
+                    self._lift_inline_script(tNode, ['\n'.join(val)])
+
+            # ---- "field": [...] (Script UDF declarations, flat array) ------
+            elif key == 'field' and nodeType == 'Script' and isinstance(val, list):
+                for fieldData in val:
+                    if not isinstance(fieldData, dict):
+                        continue
+                    fobj = field()
+                    for attr in ('name', 'type', 'accessType'):
+                        v = fieldData.get('@' + attr)
+                        if v is not None:
+                            try: setattr(fobj, attr, str(v))
+                            except Exception: pass
+                    v = fieldData.get('@value')
+                    if v is not None:
+                        try: fobj.value = str(v)
+                        except Exception: pass
+                    for child_key, child_val in fieldData.items():
+                        if not child_key.startswith('-'):
+                            continue
+                        children = child_val if isinstance(child_val, list) else [child_val]
+                        for childData in children:
+                            childNode = self._parseJSONNode(childData)
+                            if childNode is not None:
+                                fobj.children.append(childNode)
+                    if not isinstance(getattr(tNode, 'field', None), list):
+                        tNode.field = []
+                    tNode.field.append(fobj)
 
             # ---- Child nodes (-fieldName) ----------------------------------
             elif key.startswith('-'):
@@ -934,6 +1043,41 @@ class RKLoadSceneFromFile:
             fieldName = self._classicConsume()
             if fieldName is None:
                 break
+
+            _ACCESS_TYPES = ('inputOutput', 'inputOnly', 'outputOnly', 'initializeOnly')
+
+            # Script UDF: "accessType type name [value]" (canonical)
+            # Also accept legacy "field accessType type name [value]" for older saved files
+            if nodeType == 'Script' and (fieldName in _ACCESS_TYPES or fieldName == 'field'):
+                import rawkee.io.RKx3d as _rkx_cl
+                fobj = _rkx_cl.field()
+                try:    fobj.accessType = fieldName if fieldName in _ACCESS_TYPES else (self._classicConsume() or '')
+                except Exception: self._classicConsume()
+                try:    fobj.type       = self._classicConsume() or ''
+                except Exception: self._classicConsume()
+                try:    fobj.name       = self._classicConsume() or ''
+                except Exception: self._classicConsume()
+                if fobj.type in ('SFNode', 'MFNode'):
+                    if self._classicPeek() == '[':
+                        self._classicConsume()  # '['
+                        while self._classicPos < len(self._classicTokens) and self._classicPeek() != ']':
+                            child = self._parseClassicNode()
+                            if child is not None:
+                                fobj.children.append(child)
+                        if self._classicPeek() == ']':
+                            self._classicConsume()
+                    else:
+                        child = self._parseClassicNode()
+                        if child is not None:
+                            fobj.children.append(child)
+                else:
+                    rawToks = self._readClassicSFTokens(fobj.type)
+                    try:    fobj.value = self._parseStrValue(rawToks, fobj.type)
+                    except Exception: pass
+                if not isinstance(getattr(tNode, 'field', None), list):
+                    tNode.field = []
+                tNode.field.append(fobj)
+                continue
             pName = 'global_' if fieldName == 'global' else fieldName
             fType = ftMap.get(pName)
 
@@ -978,8 +1122,10 @@ class RKLoadSceneFromFile:
                 # Collect all raw tokens for this MF value then parse
                 rawToks = self._readClassicMFTokens()
                 try:
-                    setattr(tNode, pName,
-                            self._parseStrValue(' '.join(rawToks), fType))
+                    parsed = self._parseStrValue(' '.join(rawToks), fType)
+                    if nodeType == 'Script' and pName == 'url' and isinstance(parsed, list):
+                        parsed = self._lift_inline_script(tNode, parsed)
+                    setattr(tNode, pName, parsed)
                 except Exception as exc:
                     print(f'RKLoadSceneFromFile: {nodeType}.{pName}: {exc}')
 

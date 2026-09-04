@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 def _detect_platform(path: str | Path) -> str:
     """Return 'navvis', 'metashape', 'meshroom', 'pix4d', 'colmap', or 'e57'."""
     p = Path(path)
-    if p.suffix.lower() == '.psx':
+    if p.suffix.lower() in ('.psx', '.psz'):
         return 'metashape'
     if p.suffix.lower() == '.mg':
         return 'meshroom'
@@ -37,7 +37,7 @@ def _detect_platform(path: str | Path) -> str:
     if p.is_dir():
         if (p / 'dataset.json').exists():
             return 'navvis'
-        if list(p.glob('*.psx')):
+        if list(p.glob('*.psx')) or list(p.glob('*.psz')):
             return 'metashape'
         if list(p.glob('*.mg')):
             return 'meshroom'
@@ -53,7 +53,7 @@ def _detect_platform(path: str | Path) -> str:
             return 'e57'
     raise ValueError(
         f'Cannot detect platform from: {path}\n'
-        '  Expected a NavVis folder, Metashape .psx, Meshroom .mg,\n'
+        '  Expected a NavVis folder, Metashape .psx/.psz, Meshroom .mg,\n'
         '  Pix4D .p4d / folder, COLMAP sparse folder, or E57 file.'
     )
 
@@ -651,40 +651,89 @@ class ScanDataset:
     # ------------------------------------------------------------------
 
     def _parse_metashape(self) -> None:
-        """Parse a Metashape .psx project file (ZIP containing doc.xml)."""
-        import zipfile
+        """Parse a Metashape project (.psx XML stub or .psz ZIP archive).
 
-        psx_path = self.root
-        if psx_path.is_dir():
-            candidates = sorted(psx_path.glob('*.psx'))
+        PSX structure: plain XML with a 'path' attribute pointing to
+        <stem>.files/project.zip which contains doc.xml.
+
+        PSZ structure: ZIP archive containing the full project; we extract
+        it to a temp directory and then parse the embedded PSX.
+        """
+        import tempfile, zipfile
+
+        proj_path = self.root
+        if proj_path.is_dir():
+            candidates = sorted(proj_path.glob('*.psz')) or sorted(proj_path.glob('*.psx'))
             if not candidates:
-                raise FileNotFoundError(f'No .psx file found in {psx_path}')
-            psx_path = candidates[0]
+                raise FileNotFoundError(f'No .psx or .psz file found in {proj_path}')
+            proj_path = candidates[0]
 
-        with zipfile.ZipFile(psx_path, 'r') as zf:
-            with zf.open('doc.xml') as fh:
-                xml_content = fh.read()
+        # ── PSZ: extract to a temp directory, then treat as PSX ──────────
+        self._tmpdir = None
+        if proj_path.suffix.lower() == '.psz':
+            self._tmpdir = tempfile.TemporaryDirectory(prefix='rawkee_psz_')
+            tmp = Path(self._tmpdir.name)
+            with zipfile.ZipFile(proj_path, 'r') as zf:
+                zf.extractall(tmp)
+            # Find the .psx inside the extracted directory
+            psx_candidates = sorted(tmp.rglob('*.psx'))
+            if not psx_candidates:
+                raise ValueError(f'No .psx found inside {proj_path.name}')
+            proj_path = psx_candidates[0]
+
+        # ── PSX: plain XML stub → resolve path to <stem>.files/project.zip ─
+        psx_dir = proj_path.parent
+        try:
+            stub_tree = ET.parse(proj_path)
+            stub_root = stub_tree.getroot()
+        except ET.ParseError:
+            # Fallback: maybe it really is a ZIP (older Metashape versions)
+            stub_root = None
+
+        if stub_root is not None and stub_root.tag == 'document':
+            # Canonical path from the stub: replace {projectname} with stem
+            rel_path = stub_root.get('path', '')
+            rel_path = rel_path.replace('{projectname}', proj_path.stem)
+            project_zip = psx_dir / rel_path
+            if not project_zip.exists():
+                # Try guessing the conventional location
+                project_zip = psx_dir / f'{proj_path.stem}.files' / 'project.zip'
+            if not project_zip.exists():
+                raise FileNotFoundError(
+                    f'Metashape project data not found.\n'
+                    f'Expected: {project_zip}\n'
+                    f'The .psx file points to a .files/ directory that must be '
+                    f'in the same folder as the .psx.'
+                )
+            with zipfile.ZipFile(project_zip, 'r') as zf:
+                with zf.open('doc.xml') as fh:
+                    xml_content = fh.read()
+        else:
+            # Older format: the PSX itself is the ZIP containing doc.xml
+            with zipfile.ZipFile(proj_path, 'r') as zf:
+                with zf.open('doc.xml') as fh:
+                    xml_content = fh.read()
 
         root_elem = ET.fromstring(xml_content)
         chunk = self._metashape_find_chunk(root_elem)
 
         self._meta = {
             'dataset': {
-                'name': chunk.get('label', psx_path.stem),
-                'dataset_id': psx_path.stem,
+                'name': chunk.get('label', proj_path.stem),
+                'dataset_id': proj_path.stem,
             }
         }
 
         sensors = self._metashape_parse_sensors(chunk)
         if not sensors:
-            raise ValueError(f'No frame sensors found in {psx_path.name}')
+            raise ValueError(f'No frame sensors found in {proj_path.name}')
 
         chunk_T = self._metashape_chunk_transform(chunk)
         self._cameras = [sensors[sid] for sid in sorted(sensors, key=int)]
         self._sensor_id_to_cam_idx = {sid: i for i, sid in enumerate(sorted(sensors, key=int))}
 
         self._poses = []
-        psx_dir = psx_path.parent
+        psx_dir = proj_path.parent
         cameras_elem = chunk.find('cameras')
         if cameras_elem is None:
             raise ValueError('No cameras element found in Metashape project')

@@ -140,6 +140,7 @@ def _run_hloc(
     focal_px: Optional[float],
     image_width: int,
     image_height: int,
+    hloc_window: int = 10,
 ) -> None:
     """Feature extraction + matching via SuperPoint/LightGlue (hloc), then COLMAP mapper.
 
@@ -186,10 +187,10 @@ def _run_hloc(
     image_names = sorted(p.name for p in image_dir.iterdir()
                          if p.suffix.lower() in ('.jpg', '.jpeg', '.png', '.tif', '.tiff'))
     n_images = len(image_names)
-    exhaustive_threshold = 100   # images; above this, sequential window is used
-    window = 10                  # each image matches ±10 neighbours in sorted order
+    exhaustive_threshold = 100   # images; above this, use sequential window by default
+    window = hloc_window         # 0 = exhaustive; >0 = sequential ±window
     with open(sfm_pairs, 'w') as f:
-        if n_images <= exhaustive_threshold:
+        if n_images <= exhaustive_threshold or window == 0:
             for i, a in enumerate(image_names):
                 for b in image_names[i + 1:]:
                     f.write(f'{a} {b}\n')
@@ -243,6 +244,7 @@ def _run_colmap(
     matcher: str = 'exhaustive',
     colmap_bin: str = 'colmap',
     use_hloc: bool = False,
+    hloc_window: int = 10,
 ) -> Path:
     """Run COLMAP SfM on *image_dir* and write the sparse model to *work_dir/sparse/0/*.
 
@@ -274,7 +276,8 @@ def _run_colmap(
 
         if use_hloc:
             try:
-                _run_hloc(image_dir, db_path, sparse_dir, focal_px, image_width, image_height)
+                _run_hloc(image_dir, db_path, sparse_dir, focal_px, image_width, image_height,
+                          hloc_window=hloc_window)
             except (ImportError, ModuleNotFoundError) as exc:
                 # Only fall back to SIFT if hloc itself is missing — not for extractor sub-deps
                 if 'hloc' in str(exc).lower() or 'hierarchical' in str(exc).lower():
@@ -814,6 +817,10 @@ class FolderSplatPipeline:
         chroma_rgb:             Optional[tuple] = None,
         chroma_tolerance:       float = 30.0,
         mask_erosion_px:        int   = 8,
+        opacity_reset_every:    int   = 0,
+        hloc_window:            int   = 10,
+        densify_every:          int   = 100,
+        grad_thresh_mult:       float = 1.5,
         use_hloc:               bool  = False,
         colmap_bin:             str   = 'colmap',
     ) -> None:
@@ -830,6 +837,10 @@ class FolderSplatPipeline:
         self.chroma_rgb              = chroma_rgb
         self.chroma_tolerance        = chroma_tolerance
         self.mask_erosion_px         = mask_erosion_px
+        self.opacity_reset_every     = opacity_reset_every
+        self.hloc_window             = hloc_window
+        self.densify_every           = densify_every
+        self.grad_thresh_mult        = grad_thresh_mult
         self.use_hloc                = use_hloc
         self.colmap_bin              = colmap_bin
 
@@ -844,6 +855,8 @@ class FolderSplatPipeline:
         n_sets:            int  = -1,
         densify_grad_mode: str  = '2d',
         densify_until:     int  = 0,
+        colmap_only:       bool = False,
+        cancel_event=None,
     ) -> Path:
         """Run the full pipeline.
 
@@ -913,6 +926,7 @@ class FolderSplatPipeline:
                 matcher=self.matcher,
                 colmap_bin=self.colmap_bin,
                 use_hloc=self.use_hloc,
+                hloc_window=self.hloc_window,
             )
         except RuntimeError as _colmap_err:
             if not self.turntable_mode:
@@ -948,6 +962,10 @@ class FolderSplatPipeline:
             )
             if masks:
                 log.info('Background masking active: %d masks loaded', len(masks))
+
+            if colmap_only:
+                log.info('COLMAP + masks only mode — skipping 3DGS training')
+                return output_dir
 
             n_per_set = len(images) // n_sets
             # Build poses around origin so the rock is centred at (0,0,0) in the export
@@ -1034,6 +1052,10 @@ class FolderSplatPipeline:
                 sh_degree=self.sh_degree,
                 densify_grad_mode=densify_grad_mode,
                 densify_until=densify_until if densify_until > 0 else -1,
+                opacity_reset_every=self.opacity_reset_every,
+                densify_every=self.densify_every,
+                grad_thresh_mult=self.grad_thresh_mult,
+                cancel_event=cancel_event,
             )
         finally:
             _dist_teardown()

@@ -166,7 +166,7 @@ Run `python run_pipeline.py mesh --help` or `splat --help` for the full list of 
 | `--poisson-depth` | 9 | Poisson reconstruction depth (higher = more detail, slower) |
 | `--atlas-size` | 4096 | Texture atlas resolution in pixels |
 | `--colorise-stride` | 10 | Process every Nth frame for colorisation (lower = better quality) |
-| `--depth-stride` | 5 | Use every Nth frame for depth estimation fallback |
+| `--max-packets` | 6000 | Maximum LiDAR packets to process (reduce for memory-constrained systems) |
 | `--hdri-frame` | auto | Frame index used for HDRI environment map generation |
 | `--envmap-width/height` | 4096/2048 | HDRI environment map resolution |
 
@@ -174,10 +174,10 @@ Run `python run_pipeline.py mesh --help` or `splat --help` for the full list of 
 
 | Flag | Default | Description |
 |---|---|---|
-| `--image-size` | 512 | Training image size in pixels |
+| `--image-size` | 1024 | Training image size in pixels |
 | `--sh-degree` | 3 | Spherical harmonics degree (0–3; higher = better colour) |
-| `--iterations` | 10000 | Training iterations |
-| `--frame-stride` | 5 | Use every Nth frame for training |
+| `--iterations` | 30000 | Training iterations |
+| `--frame-stride` | 1 | Use every Nth frame for training |
 | `--init-points` | 100000 | Number of Gaussians at initialisation |
 | `--decode-sh` | off | Pre-decode SH coefficients to RGB in PLY output (for consumers without SH support) |
 
@@ -347,13 +347,19 @@ If neither is present the pipeline will raise a clear error listing the install 
 4. Set an **output folder**. It will be auto-suggested as `<images_folder>_splat/` next to the source.
 5. Leave **Auto from EXIF** checked unless you know the exact focal length in pixels. For a Canon T7i at 55 mm on an APS-C sensor that is approximately **14 800 px**.
 6. Choose a **COLMAP matcher**:
-   - *sequential* — matches each frame only to its neighbours. Default; best for ordered turntable footage.
-   - *exhaustive* — tests every image pair. Better for small unordered collections (≤ 500 images).
-   - **hloc (SuperPoint+LightGlue)** — deep-learned feature extraction and matching. Strongly recommended for low-texture objects (rocks, minerals, smooth surfaces) where SIFT often registers only a fraction of frames. Requires the `hloc` package (see [installation](#installing-hloc)).
+   - **Exhaustive — hloc (SuperPoint+LightGlue)** — matches every image pair using deep-learned features. Best registration for low-texture objects; generates 32,640 pairs for 256 images (~75 min first run, cached after). Requires `hloc`.
+   - **Sequential — hloc (SuperPoint+LightGlue)** — matches each frame to its ±10 nearest neighbours only. Fast (~6 min for 256 images), good for ordered turntable sequences. Requires `hloc`.
+   - *Exhaustive — SIFT only* — fallback when hloc is not installed; matches every pair using SIFT.
+   - *Sequential — SIFT only* — fallback; adjacent-frame SIFT matching.
 7. For turntable datasets, check **Turntable mode**, set **Turntable sets**, and optionally set the **Elevation override** and **Radius override** if COLMAP gives bad geometry estimates.
-8. To remove a coloured background from training images, expand the **Background Masking** section and enable **rembg** (AI auto-mask), **Chroma-key** (colour threshold), or point to a pre-made **Masks folder**. Set **Edge erosion (px)** to shrink masks inward and remove uncertain boundary pixels (default 8 px).
-9. Adjust training parameters (image size, SH degree, iterations, densify until, 2D density gradients) if needed.
-10. Click **Run (COLMAP → 3DGS)**.
+8. To remove a coloured background from training images, expand the **Background Masking** section and enable **rembg** (AI auto-mask), **Chroma-key** (colour threshold), or point to a pre-made **Masks folder**. Set **Edge erosion (px)** to shrink masks inward (default 8 px).
+9. Adjust training parameters as needed:
+   - **Densify until** — step at which new Gaussians stop being added (0 = auto = half of iterations). Set to 5 000–10 000 for turntable objects to keep Gaussian count manageable.
+   - **Opacity reset** — interval in steps to reset all opacities to near-zero (0 = never, recommended for turntable captures).
+   - **Densify every** — how often density control runs in steps (default 100; increase to 200–500 to slow Gaussian growth).
+   - **Grad threshold ×** — multiplier on mean gradient for split/clone decisions (default 1.5; increase to reduce Gaussian count).
+10. Optionally check **COLMAP + masks only** to run SfM and mask generation then stop — useful for verifying registration quality before a long training run.
+11. Click **Run (COLMAP → 3DGS)**.
 
 The status label advances through phases:
 
@@ -376,19 +382,21 @@ python rawkee/tools/lidar/run_pipeline.py folder-splat \
     --images /path/to/2020_05_30 \
     --output /path/to/splat_out
 
-# Full example — turntable with two passes
+# Full example — turntable with four sets, exhaustive hloc matching
 python run_pipeline.py folder-splat \
-    --images     /path/to/photos \
-    --output     /path/to/output \
-    --format     x3d \
-    --focal-px   14800 \
-    --matcher    exhaustive \
+    --images         /path/to/photos \
+    --output         /path/to/output \
+    --format         ply \
+    --focal-px       14800 \
+    --matcher        exhaustive-hloc \
     --turntable \
-    --n-sets     2 \
-    --image-size 512 \
-    --sh-degree  3 \
-    --iterations 30000 \
-    --frame-stride 1 \
+    --n-sets         4 \
+    --turntable-elevation 25 \
+    --image-size     1024 \
+    --sh-degree      3 \
+    --iterations     30000 \
+    --densify-until  5000 \
+    --auto-mask \
     --verbose
 ```
 
@@ -400,24 +408,27 @@ python run_pipeline.py folder-splat \
 | `--output DIR` | *(required)* | Output directory |
 | `--format FMT` | `x3d` | Export format: `x3d` \| `x3dv` \| `x3dj` \| `ply` \| `splat` \| `glb` |
 | `--focal-px FLOAT` | auto-EXIF | Camera focal length in pixels. Omit to read from EXIF |
-| `--matcher NAME` | `sequential` | COLMAP feature matcher: `sequential` \| `exhaustive` \| `hloc` |
-| `--use-hloc` | off | Use SuperPoint+LightGlue (hloc) for feature extraction and matching. Equivalent to `--matcher hloc`. Recommended for low-texture objects. Requires `pip install git+https://github.com/cvg/Hierarchical-Localization` |
+| `--matcher NAME` | `exhaustive-hloc` | COLMAP feature matcher: `exhaustive-hloc` \| `sequential-hloc` \| `exhaustive` \| `sequential` |
+| `--use-hloc` | off | Use hloc (SuperPoint+LightGlue) for feature extraction and matching. Requires `pip install git+https://github.com/cvg/Hierarchical-Localization` |
 | `--image-size INT` | `1024` | Training image resolution (square, pixels) — see hardware guide below |
 | `--sh-degree INT` | `3` | Spherical harmonics degree (0 = colour only, 3 = best for luster/iridescence) |
 | `--iterations INT` | `30000` | 3DGS training iterations |
 | `--frame-stride INT` | `1` | Use every N-th registered image for training |
-| `--turntable` | off | Enable turntable mode (synthetic circular poses; recommended for object-on-turntable captures) |
-| `--n-sets INT` | `1` | Number of distinct turntable passes (e.g. `2` = upright + inverted) |
-| `--turntable-elevation FLOAT` | `0` | Camera elevation above object equator in degrees. `0` = auto-estimate from COLMAP (clamped to ≥ 15°). Set to `20`–`35` for typical desktop shots if COLMAP gives a bad estimate. |
-| `--turntable-radius FLOAT` | `0` | Camera-to-object distance in metres. `0` = auto-estimate. Measure physically or calculate from EXIF focal + object size. |
-| `--masks-dir PATH` | — | Folder of pre-made mask images (white = foreground). Matched by filename stem. |
-| `--auto-mask` | off | Auto-generate masks using rembg AI model. Requires `pip install "rembg[gpu]"` and the u2net model pre-downloaded by `install_workstation_deps.py`. Masks cached to `_colmap_work/masks/`. |
-| `--chroma-rgb R G B` | — | Background colour for chroma-key masking (e.g. `0 80 180` for blue). |
-| `--chroma-tolerance FLOAT` | `30` | Hue tolerance in degrees for chroma-key (lower = more precise). |
-| `--mask-erosion-px INT` | `8` | Shrink generated masks inward by this many pixels. Removes uncertain edge pixels where background colour bleeds through at object boundaries. Set to `0` to disable. |
-| `--densify-until INT` | `0` | Step at which adaptive density control stops spawning new Gaussians. `0` = auto (half of `--iterations`). Increase for large outdoor scenes. |
-| `--grad-mode` | `2d` | Density gradient mode: `2d` (screen-space, recommended) or `3d` (world-space). 2D gradients are more robust for masked training. |
-| `--decode-sh` | off | Pre-decode SH to RGB on export (for viewers without SH support) |
+| `--densify-until INT` | `0` | Step at which density control stops adding Gaussians. `0` = auto (half of `--iterations`). Set to 5 000–10 000 for turntable objects to control count. |
+| `--densify-every INT` | `100` | Density control runs every N steps. Increase to 200–500 to slow Gaussian growth. |
+| `--opacity-reset-every INT` | `0` | Reset all opacities to near-zero every N steps. `0` = never (recommended for turntable). Paper default: 3000. |
+| `--grad-thresh-mult FLOAT` | `1.5` | Multiplier on mean gradient for split/clone threshold. Higher = fewer Gaussians. |
+| `--grad-mode` | `2d` | Density gradient mode: `2d` (screen-space, recommended) or `3d` (world-space). |
+| `--turntable` | off | Enable turntable mode (synthetic circular poses) |
+| `--n-sets INT` | `1` | Number of distinct turntable passes |
+| `--turntable-elevation FLOAT` | `0` | Camera elevation above object equator in degrees (`0` = auto, clamped ≥ 15°) |
+| `--turntable-radius FLOAT` | `0` | Camera-to-object distance in metres (`0` = auto) |
+| `--masks-dir PATH` | — | Folder of pre-made mask images (white = foreground) |
+| `--auto-mask` | off | Auto-generate masks using rembg AI model |
+| `--chroma-rgb R G B` | — | Background colour for chroma-key masking |
+| `--chroma-tolerance FLOAT` | `30` | Hue tolerance in degrees for chroma-key |
+| `--mask-erosion-px INT` | `8` | Shrink masks inward by this many pixels (0 = disable) |
+| `--decode-sh` | off | Pre-decode SH to RGB on export |
 | `--colmap-bin PATH` | `colmap` | Path to the `colmap` binary (only used if `pycolmap` is absent) |
 | `--verbose` | off | Enable detailed logging |
 
@@ -527,7 +538,7 @@ python install_workstation_deps.py --reinstall-torch --yes
 ```bash
 pip install numpy scipy Pillow "imageio[freeimage]" PySide6 open3d
 pip install torch --index-url https://download.pytorch.org/whl/cu124   # adjust for your CUDA
-pip install gsplat rawpy rosbags pye57 pyproj transformers
+pip install gsplat rawpy rosbags pye57 pyproj
 pip install git+https://github.com/cvg/Hierarchical-Localization   # hloc: DISK+LightGlue
 
 # rembg + onnxruntime — choose ONE based on your platform:
@@ -803,7 +814,6 @@ python hpc_preflight_check.py --strict
 | `rosbags` | NavVis LiDAR ROS bag reading | NavVis only |
 | `pye57` | E57 point cloud reading | E57 only |
 | `pyproj` | Precise UTM georeferencing | Recommended |
-| `transformers` | Depth Anything V2 (LiDAR fallback) | Optional |
 
 ### PyTorch / CUDA wheel selection
 
