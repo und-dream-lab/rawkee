@@ -259,7 +259,7 @@ def _pandar_elevation_rad(bag_paths: list[Path]) -> 'np.ndarray | None':
                         off += 8  # packet stamp
                         dl = struct.unpack_from('<I', raw, off)[0]; off += 4
                         pkt = raw[off:off + dl]; off += dl
-                        off += 12  # size(4) + duration(8)
+                        off += 4  # PandarPacket.size (uint32)
                         if dl != _PANDAR_PKT:
                             try:
                                 text = bytes(pkt).decode('ascii')
@@ -334,17 +334,22 @@ def _decode_pandar_pkt(
     return np.stack([np.concatenate(xs), np.concatenate(ys), np.concatenate(zs)], axis=-1)
 
 
-def _decode_navvis_lidar(
+def _iter_navvis_lidar_packets(
     bag_paths: list[Path],
-    traj_bag: Path,
     extr_pos: np.ndarray,
     extr_quat: np.ndarray,
-    max_packets: int = 6000,
+    max_packets: int = 10_000_000,
     sensor_name: str = 'laser_horiz',
-) -> 'np.ndarray | None':
-    """Decode NavVis PandarXTM bags → (N,3) float32 world-space point cloud."""
+):
+    """Yield (msg_ns, pts_head_frame) per PandarXTM message, with the fixed
+    sensor→head extrinsic already applied but *no* device-pose transform.
+
+    This is the shared low-level decoder used both by ``_decode_navvis_lidar``
+    (world-frame decode using the raw/uncorrected trajectory) and by the SLAM
+    backend's submap builder (which applies its own, drift-corrected poses).
+    """
     if not _ROSBAGS:
-        return None
+        return
 
     elev_rad = _pandar_elevation_rad(bag_paths)
     if elev_rad is None:
@@ -354,17 +359,10 @@ def _decode_navvis_lidar(
     sin_elev = np.sin(elev_rad).astype(np.float32)
     cos_elev = np.cos(elev_rad).astype(np.float32)
 
-    traj = _read_slam_trajectory(traj_bag)
-    if traj is None:
-        log.warning('No SLAM trajectory; LiDAR points will be in sensor frame only')
+    R_extr = _quat_to_rot(extr_quat).astype(np.float32)
+    t_extr = extr_pos.astype(np.float32)
 
-    R_extr = _quat_to_rot(extr_quat)
-    t_extr = extr_pos
-
-    all_pts: list[np.ndarray] = []
     count = 0
-
-    # Filter bags to the requested sensor head
     key = sensor_name.split('_')[-1]   # 'horiz' or 'vert'
     sensor_bags = [p for p in bag_paths if key in p.name]
     decode_bags = sensor_bags if sensor_bags else bag_paths
@@ -386,37 +384,80 @@ def _decode_navvis_lidar(
                     off += fid_len
                     n_pkts  = struct.unpack_from('<I', raw, off)[0]; off += 4
 
-                    if traj is not None:
-                        traj_ts, traj_pos, traj_q = traj
-                        idx = int(np.searchsorted(traj_ts, msg_ns))
-                        idx = min(max(idx, 0), len(traj_ts) - 1)
-                        R_dev = _quat_to_rot(traj_q[idx])
-                        t_dev = traj_pos[idx]
-                    else:
-                        R_dev = np.eye(3, dtype=np.float64)
-                        t_dev = np.zeros(3, dtype=np.float64)
-
-                    R_total = (R_dev @ R_extr).astype(np.float32)
-                    t_total = (R_dev @ t_extr + t_dev).astype(np.float32)
-
+                    pkt_pts = []
                     for _ in range(n_pkts):
                         off += 8  # packet stamp
                         dl = struct.unpack_from('<I', raw, off)[0]; off += 4
                         pkt = raw[off:off + dl]; off += dl
-                        off += 12  # size(4) + duration(8)
+                        off += 4  # PandarPacket.size (uint32)
                         if dl != _PANDAR_PKT:
                             continue
                         pts = _decode_pandar_pkt(bytes(pkt), sin_elev, cos_elev)
                         if pts is not None and len(pts):
-                            all_pts.append(pts @ R_total.T + t_total)
-                            count += 1
+                            pkt_pts.append(pts)
+                        count += 1
+                    if pkt_pts:
+                        pts_sensor = np.concatenate(pkt_pts, axis=0)
+                        pts_head = pts_sensor @ R_extr.T + t_extr
+                        yield msg_ns, pts_head
         except Exception as exc:
             log.warning('PandarXTM decode error %s: %s', bag_path.name, exc)
 
+
+def _apply_trajectory_to_packets(
+    packets: list,
+    traj: 'tuple[np.ndarray, np.ndarray, np.ndarray] | None',
+) -> 'np.ndarray | None':
+    """Transform a list of (msg_ns, pts_head_frame) packets into a single
+    (N,3) float32 world-space point cloud using nearest-neighbour trajectory
+    lookup. Shared by ``_decode_navvis_lidar`` and the SLAM-corrected path in
+    ``MeshPipeline._get_point_cloud``."""
+    all_pts: list[np.ndarray] = []
+    for msg_ns, pts_head in packets:
+        if traj is not None:
+            traj_ts, traj_pos, traj_q = traj
+            idx = int(np.searchsorted(traj_ts, msg_ns))
+            idx = min(max(idx, 0), len(traj_ts) - 1)
+            R_dev = _quat_to_rot(traj_q[idx]).astype(np.float32)
+            t_dev = traj_pos[idx].astype(np.float32)
+        else:
+            R_dev = np.eye(3, dtype=np.float32)
+            t_dev = np.zeros(3, dtype=np.float32)
+        all_pts.append(pts_head @ R_dev.T + t_dev)
     if not all_pts:
         return None
-    combined = np.concatenate(all_pts, axis=0).astype(np.float32)
-    log.info('PandarXTM [%s]: %d packets → %d points', sensor_name, count, len(combined))
+    return np.concatenate(all_pts, axis=0).astype(np.float32)
+
+
+def _decode_navvis_lidar(
+    bag_paths: list[Path],
+    traj_bag: Path,
+    extr_pos: np.ndarray,
+    extr_quat: np.ndarray,
+    max_packets: int = 10_000_000,
+    sensor_name: str = 'laser_horiz',
+    traj_override: 'tuple[np.ndarray, np.ndarray, np.ndarray] | None' = None,
+) -> 'np.ndarray | None':
+    """Decode NavVis PandarXTM bags → (N,3) float32 world-space point cloud.
+
+    ``traj_override``, if given, replaces the trajectory read from
+    ``traj_bag`` — used to feed in a drift-corrected trajectory produced by
+    the SLAM backend (see :mod:`rawkee.tools.lidar.slam_backend`).
+    """
+    if not _ROSBAGS:
+        return None
+
+    traj = traj_override if traj_override is not None else _read_slam_trajectory(traj_bag)
+    if traj is None:
+        log.warning('No SLAM trajectory; LiDAR points will be in sensor frame only')
+
+    packets = list(_iter_navvis_lidar_packets(
+        bag_paths, extr_pos, extr_quat, max_packets=max_packets, sensor_name=sensor_name,
+    ))
+    combined = _apply_trajectory_to_packets(packets, traj)
+    if combined is None:
+        return None
+    log.info('PandarXTM [%s]: %d messages → %d points', sensor_name, len(packets), len(combined))
     return combined
 
 
@@ -434,6 +475,7 @@ def _decode_navvis_lidar(
 def _collect_scan_viewpoints(
     dataset: ScanDataset,
     max_viewpoints: int = 16,
+    slam_correction=None,
 ) -> list:
     """Return (pos_ros, R_ros, description) for evenly-spaced valid frames."""
     try:
@@ -447,6 +489,9 @@ def _collect_scan_viewpoints(
     for fi in valid[::step][:max_viewpoints]:
         try:
             pos, R = dataset.frame_transform(fi)
+            if slam_correction is not None:
+                frame_ns = int(dataset.frame_timestamp(fi) * 1e9)
+                pos, R = slam_correction.correct_pose(pos, R, frame_ns)
             result.append((pos.copy(), R.copy(), f'Frame {fi}'))
         except Exception:
             pass
@@ -464,8 +509,14 @@ def _colorize_cloud(
     device: 'torch.device',
     stride: int = 10,
     max_dist: float = 20.0,
+    slam_correction=None,
 ) -> np.ndarray:
-    """Return (N,3) float32 RGB colours for each world-frame point in xyz."""
+    """Return (N,3) float32 RGB colours for each world-frame point in xyz.
+
+    ``slam_correction``, if given, applies the SLAM backend's drift
+    correction to each frame's raw head pose so colour reprojection matches
+    the (also corrected) point cloud.
+    """
     from .hdri import _load_image_hdr
 
     N = len(xyz)
@@ -480,6 +531,9 @@ def _colorize_cloud(
 
     for fi in frame_indices[::stride]:
         head_pos, R_head = dataset.frame_transform(fi)
+        if slam_correction is not None:
+            frame_ns = int(dataset.frame_timestamp(fi) * 1e9)
+            head_pos, R_head = slam_correction.correct_pose(head_pos, R_head, frame_ns)
         head_pos_t = torch.tensor(head_pos, device=device, dtype=torch.float32)
         R_head_t   = torch.tensor(R_head.T, device=device, dtype=torch.float32)  # world→head
 
@@ -547,8 +601,12 @@ def _poisson_mesh(xyz: np.ndarray, colours: np.ndarray, depth: int = 9) -> 'o3d.
     pcd.orient_normals_consistent_tangent_plane(k=15)
 
     log.info('Poisson reconstruction (depth=%d) …', depth)
+    # n_threads=1: PoissonRecon's multithreaded isosurface extraction has a known
+    # race condition (upstream mkazhdan/PoissonRecon#139) that crashes the process
+    # ("Failed to close loop" + SIGABRT), especially on ARM64. Single-threaded
+    # execution is slower but deterministic and avoids the crash entirely.
     mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-        pcd, depth=depth, scale=1.1, linear_fit=False
+        pcd, depth=depth, scale=1.1, linear_fit=False, n_threads=1
     )
     # Prune low-density vertices (artefacts)
     thresh = np.quantile(np.asarray(densities), 0.05)
@@ -589,10 +647,16 @@ def _project_mesh_uvs_per_camera(
     device: 'torch.device',
     max_dist: float = 30.0,
     stride: int = 10,
+    slam_correction=None,
 ) -> list:
     """Project mesh vertices through each camera/frame and assign each triangle to its
     closest visible camera.  Returns a list of patch dicts:
       { tri_indices, uvs (M*3,2) [0,1] X3D, image (H,W,3) uint8 sRGB, label }
+
+    ``slam_correction``, if given (a ``slam_backend.SlamCorrection``), applies
+    the same drift correction to each frame's raw head pose that was applied
+    to the LiDAR point cloud/mesh, so camera texture stays aligned to the
+    corrected geometry.
     """
     from .hdri import _load_image_hdr
 
@@ -613,6 +677,9 @@ def _project_mesh_uvs_per_camera(
 
     for fi in frame_indices[::stride]:
         head_pos, R_head = dataset.frame_transform(fi)
+        if slam_correction is not None:
+            frame_ns = int(dataset.frame_timestamp(fi) * 1e9)
+            head_pos, R_head = slam_correction.correct_pose(head_pos, R_head, frame_ns)
         head_pos_t = torch.tensor(head_pos, device=device, dtype=torch.float32)
         R_head_t   = torch.tensor(R_head.T, device=device, dtype=torch.float32)
 
@@ -700,7 +767,7 @@ class MeshPipeline:
         poisson_depth: int = 9,
         atlas_size: int = 4096,
         colorise_stride: int = 10,
-        max_packets: int = 6000,
+        max_packets: int = 10_000_000,
         prefer_cuda: bool = True,
     ) -> None:
         self.poisson_depth = poisson_depth
@@ -708,6 +775,7 @@ class MeshPipeline:
         self.colorise_stride = colorise_stride
         self.max_packets = max_packets
         self.device = _get_device() if prefer_cuda else torch.device('cpu')
+        self._slam_correction = None  # set by _get_point_cloud; reused for camera pose correction
 
     # ------------------------------------------------------------------
 
@@ -754,6 +822,7 @@ class MeshPipeline:
             colours = _colorize_cloud(
                 xyz, dataset, valid_frames, self.device,
                 stride=self.colorise_stride,
+                slam_correction=self._slam_correction,
             )
 
         # 3. Poisson reconstruction + per-camera UV projection
@@ -764,6 +833,7 @@ class MeshPipeline:
         cam_patches = _project_mesh_uvs_per_camera(
             mesh, dataset, valid_frames, self.device,
             stride=self.colorise_stride,
+            slam_correction=self._slam_correction,
         )
 
         # 4. HDRI for environment light
@@ -782,7 +852,7 @@ class MeshPipeline:
 
         # 5. Export
         from .export import export_mesh
-        viewpoints = _collect_scan_viewpoints(dataset)
+        viewpoints = _collect_scan_viewpoints(dataset, slam_correction=self._slam_correction)
         out_path = export_mesh(
             mesh=mesh,
             cam_patches=cam_patches,
@@ -804,7 +874,7 @@ class MeshPipeline:
     # ------------------------------------------------------------------
 
     def _get_point_cloud(
-        self, dataset: ScanDataset, valid_frames: list[int], max_packets: int = 6000
+        self, dataset: ScanDataset, valid_frames: list[int], max_packets: int = 10_000_000
     ) -> np.ndarray:
         bags = dataset.lidar_bag_paths()
         if not bags:
@@ -817,11 +887,37 @@ class MeshPipeline:
         extrinsics = _navvis_lidar_extrinsics(dataset)
         if extrinsics:
             traj_bag = dataset.root / 'internal' / 'trajectory_slam.bag'
+            raw_traj = _read_slam_trajectory(traj_bag)
+
+            # Decode packets once per sensor — reused both for SLAM-backend
+            # submap building and for the final world-frame point transform.
+            packets_by_sensor = {
+                sensor_name: list(_iter_navvis_lidar_packets(
+                    bags, extr_pos, extr_quat, max_packets=max_packets, sensor_name=sensor_name))
+                for sensor_name, (extr_pos, extr_quat) in extrinsics.items()
+            }
+
+            traj = raw_traj
+            self._slam_correction = None
+            if raw_traj is not None:
+                from .slam_backend import compute_slam_correction
+                correction = compute_slam_correction(packets_by_sensor, raw_traj)
+                if correction is not None:
+                    traj = correction.correct_trajectory(raw_traj)
+                    self._slam_correction = correction
+                    log.info('SLAM backend: drift-corrected trajectory applied')
+                else:
+                    log.warning(
+                        'SLAM backend: drift correction unavailable; falling back to the '
+                        'raw (uncorrected) trajectory — geometry may be warped by SLAM drift.'
+                    )
+
             head_pts = []
-            for sensor_name, (extr_pos, extr_quat) in extrinsics.items():
-                pts = _decode_navvis_lidar(bags, traj_bag, extr_pos, extr_quat,
-                                           max_packets=max_packets, sensor_name=sensor_name)
+            for sensor_name, packets in packets_by_sensor.items():
+                pts = _apply_trajectory_to_packets(packets, traj)
                 if pts is not None and len(pts):
+                    log.info('PandarXTM [%s]: %d messages → %d points',
+                              sensor_name, len(packets), len(pts))
                     head_pts.append(pts)
             if head_pts:
                 xyz = np.concatenate(head_pts, axis=0)
