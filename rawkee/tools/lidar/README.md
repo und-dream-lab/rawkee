@@ -768,6 +768,103 @@ export OMP_NUM_THREADS=20   # all Arm Cortex-X925 cores on DGX Spark
 
 The pipeline automatically detects sm_90+ and sm_100 architectures and sets the memory fraction to 90%.
 
+### Building Open3D with CUDA on NVIDIA DGX Spark (GB10 / aarch64)
+
+The `open3d` wheel installed by `pip install open3d` (used by the mesh pipeline's
+SLAM backend for ICP registration, Poisson reconstruction, and voxel
+downsampling) is **CPU-only on aarch64**. NVIDIA does not currently publish
+CUDA-enabled Open3D wheels for ARM64 on PyPI or in Open3D's own dev-wheel
+channel — this is true even for GB10 (DGX Spark), whose `sm_121` (Blackwell)
+compute capability isn't in Open3D's release build's hardcoded architecture
+list anyway. To get a CUDA-accelerated `open3d.t.*` tensor API on DGX Spark,
+you must build Open3D from source.
+
+> **Note:** RawKee's own mesh pipeline (`mesh_pipeline.py`, `slam_backend.py`)
+> currently uses Open3D's **legacy** `o3d.geometry` / `o3d.pipelines.registration`
+> API, which stays CPU-only regardless of how Open3D was built — only code
+> written against the newer `o3d.t.geometry` / `o3d.t.pipelines.registration`
+> tensor API can run on `CUDA:0`. Building Open3D with CUDA support is a
+> prerequisite for GPU-accelerated ICP/SLAM, not a guarantee of it, until that
+> code is migrated to the tensor API.
+
+**1. Install system build dependencies** (Ubuntu; one-time, requires `sudo`):
+
+```bash
+sudo apt update
+sudo apt install -y \
+  gfortran \
+  libgl1-mesa-dev libegl1-mesa-dev libglu1-mesa-dev libopengl-dev \
+  libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libxfixes-dev \
+  libwayland-dev wayland-protocols libwayland-bin libxkbcommon-dev \
+  libcurl4-openssl-dev libssl-dev
+```
+
+**2. Clone Open3D and install its Python build tooling into your venv:**
+
+```bash
+git clone https://github.com/isl-org/Open3D.git ~/Source/Open3D
+source /path/to/venv/bin/activate
+python3 -m pip install -r ~/Source/Open3D/python/requirements_build.txt
+```
+
+**3. Configure the build.** Leave `CMAKE_CUDA_ARCHITECTURES` unset — Open3D
+then auto-detects your GPU (`native`) via `nvidia-smi` and compiles
+specifically for `sm_121`. Explicitly setting it to Open3D's "common
+architectures" list would silently miss GB10, since that list only goes up to
+Hopper (`sm_90`):
+
+```bash
+cd ~/Source/Open3D
+mkdir build && cd build
+
+cmake -DBUILD_CUDA_MODULE=ON \
+      -DBUILD_GUI=OFF \
+      -DBUILD_PYTORCH_OPS=OFF \
+      -DBUILD_TENSORFLOW_OPS=OFF \
+      -DBUILD_UNIT_TESTS=OFF \
+      -DBUILD_PYTHON_MODULE=ON \
+      -DUSE_SYSTEM_CURL=ON \
+      -DUSE_SYSTEM_OPENSSL=ON \
+      -DWITH_STUBGEN=OFF \
+      -DPython3_EXECUTABLE=$(which python3) \
+      ..
+```
+
+| Flag | Why it's needed |
+|---|---|
+| `BUILD_CUDA_MODULE=ON` | Enables the CUDA backend (off by default) |
+| `USE_SYSTEM_CURL=ON` / `USE_SYSTEM_OPENSSL=ON` | Open3D's default bundled BoringSSL has a static-archive linking bug that leaves runtime symbols unresolved (`undefined symbol: X509_INFO_free` and similar) when linked into `libOpen3D.so`. Using the system OpenSSL/curl avoids it. |
+| `WITH_STUBGEN=OFF` | Skips `pybind11_stubgen`, which errors on a few C++ rendering types (`TriangleMeshModel`, `MaterialRecord`) in their docstrings. Stub files are IDE autocomplete only — not required to run Open3D. |
+| `BUILD_GUI=OFF`, `BUILD_PYTORCH_OPS=OFF`, `BUILD_TENSORFLOW_OPS=OFF` | Not needed by RawKee; reduces build time and failure surface |
+
+**4. Build and install directly into your venv.** Target the pip-package
+build specifically rather than `make -j$(nproc)`/`all` — the latter also
+builds Open3D's C++ example binaries and tools (`OfflineReconstruction`,
+`GLInfo`, etc.), some of which fail to link against system OpenSSL for
+reasons unrelated to the Python module:
+
+```bash
+make install-pip-package -j$(nproc)
+```
+
+Expect roughly 35–50 minutes on a 20-core DGX Spark (mostly LAPACK, VTK, and
+pybind compilation).
+
+**5. Verify CUDA is active:**
+
+```bash
+python3 -c "
+import open3d as o3d
+print(o3d.__version__, o3d.__DEVICE_API__)
+print('CUDA devices:', o3d.core.cuda.device_count())
+"
+```
+
+Expect `<version>+<commit hash> cuda` and `CUDA devices: 1`. If `__DEVICE_API__`
+prints `cpu` instead, the build did not pick up CUDA — re-check step 3's
+`cmake` configure output for a `-- Using native CUDA architecture.` line and
+confirm `nvcc --version` / `nvidia-smi` both succeed before reconfiguring.
+
 ---
 
 ## 7. HPC System Administrator Guide

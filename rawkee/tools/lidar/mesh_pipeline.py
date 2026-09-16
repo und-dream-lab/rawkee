@@ -585,7 +585,7 @@ def _colorize_cloud(
 # Poisson reconstruction + texturing
 # ---------------------------------------------------------------------------
 
-def _poisson_mesh(xyz: np.ndarray, colours: np.ndarray, depth: int = 9) -> 'o3d.geometry.TriangleMesh':
+def _poisson_mesh(xyz: np.ndarray, colours: np.ndarray, depth: int = 9, quick: bool = False) -> 'o3d.geometry.TriangleMesh':
     """Run Open3D Poisson surface reconstruction."""
     if not _O3D:
         raise RuntimeError('open3d required: pip install open3d')
@@ -595,10 +595,17 @@ def _poisson_mesh(xyz: np.ndarray, colours: np.ndarray, depth: int = 9) -> 'o3d.
     pcd.colors = o3d.utility.Vector3dVector(np.clip(colours, 0, 1).astype(np.float64))
 
     log.info('Estimating normals …')
-    pcd.estimate_normals(
-        search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30)
-    )
-    pcd.orient_normals_consistent_tangent_plane(k=15)
+    if quick:
+        # Quick mode: use faster, coarser normals
+        pcd.estimate_normals(
+            search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=10)
+        )
+        pcd.orient_normals_consistent_tangent_plane(k=5)
+    else:
+        pcd.estimate_normals(
+            search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.05, max_nn=15)
+        )
+        pcd.orient_normals_consistent_tangent_plane(k=10)
 
     log.info('Poisson reconstruction (depth=%d) …', depth)
     # n_threads=1: PoissonRecon's multithreaded isosurface extraction has a known
@@ -769,13 +776,15 @@ class MeshPipeline:
         colorise_stride: int = 10,
         max_packets: int = 10_000_000,
         prefer_cuda: bool = True,
+        quick: bool = False,
     ) -> None:
-        self.poisson_depth = poisson_depth
-        self.atlas_size = atlas_size
-        self.colorise_stride = colorise_stride
+        self.poisson_depth = poisson_depth if not quick else 7
+        self.atlas_size = atlas_size if not quick else 1024
+        self.colorise_stride = colorise_stride if not quick else 50
         self.max_packets = max_packets
         self.device = _get_device() if prefer_cuda else torch.device('cpu')
         self._slam_correction = None  # set by _get_point_cloud; reused for camera pose correction
+        self._quick = quick
 
     # ------------------------------------------------------------------
 
@@ -808,27 +817,34 @@ class MeshPipeline:
             dataset.apply_trimble_georef(trimble_csv, epsg=georef_epsg)
 
         valid_frames = dataset.valid_frame_indices()
+        log.info('Found %d valid frames', len(valid_frames))
 
         # 1. Point cloud (and optional pre-coloured E57 cloud)
         e57_colours: 'np.ndarray | None' = None
+        log.info('Decoding LiDAR point cloud...')
         if dataset.platform == 'e57':
             xyz, e57_colours = _extract_e57_cloud(dataset)
         else:
             xyz = self._get_point_cloud(dataset, valid_frames, max_packets=self.max_packets)
+        log.info('Point cloud decoded: %d points', len(xyz) if xyz is not None else 0)
         if e57_colours is not None:
             colours = e57_colours
             log.info('Using embedded E57 RGB colours — skipping camera reprojection')
         else:
+            log.info('Colorizing point cloud (stride=%d)...', self.colorise_stride)
             colours = _colorize_cloud(
                 xyz, dataset, valid_frames, self.device,
                 stride=self.colorise_stride,
                 slam_correction=self._slam_correction,
             )
+            log.info('Colorization complete')
 
         # 3. Poisson reconstruction + per-camera UV projection
         if not _O3D:
             raise RuntimeError('open3d required for mesh reconstruction: pip install open3d')
-        mesh = _poisson_mesh(xyz, colours, depth=self.poisson_depth)
+        log.info('Starting Poisson reconstruction...')
+        mesh = _poisson_mesh(xyz, colours, depth=self.poisson_depth, quick=self._quick)
+        log.info('Poisson reconstruction complete')
         mesh = _assign_vertex_colors(mesh, xyz, colours)
         cam_patches = _project_mesh_uvs_per_camera(
             mesh, dataset, valid_frames, self.device,
@@ -913,18 +929,25 @@ class MeshPipeline:
                     )
 
             head_pts = []
-            for sensor_name, packets in packets_by_sensor.items():
+            for sensor_name in list(packets_by_sensor.keys()):
+                packets = packets_by_sensor.pop(sensor_name)  # free as we go
+                n_messages = len(packets)
                 pts = _apply_trajectory_to_packets(packets, traj)
+                packets = None
                 if pts is not None and len(pts):
                     log.info('PandarXTM [%s]: %d messages → %d points',
-                              sensor_name, len(packets), len(pts))
+                              sensor_name, n_messages, len(pts))
                     head_pts.append(pts)
+            del packets_by_sensor
             if head_pts:
                 xyz = np.concatenate(head_pts, axis=0)
+                head_pts = None  # release the per-sensor arrays before downsampling
                 if _O3D:
                     pcd = o3d.geometry.PointCloud()
                     pcd.points = o3d.utility.Vector3dVector(xyz.astype(np.float64))
-                    pcd = pcd.voxel_down_sample(voxel_size=0.02)
+                    xyz = None  # release the raw numpy array; pcd now owns the data
+                    voxel_size = 0.1 if self._quick else 0.05
+                    pcd = pcd.voxel_down_sample(voxel_size=voxel_size)
                     xyz = np.asarray(pcd.points).astype(np.float32)
                     log.info('After voxel downsample: %d points', len(xyz))
                 return xyz
@@ -940,7 +963,8 @@ class MeshPipeline:
         if _O3D:
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(xyz.astype(np.float64))
-            pcd = pcd.voxel_down_sample(voxel_size=0.02)
+            voxel_size = 0.1 if self._quick else 0.05
+            pcd = pcd.voxel_down_sample(voxel_size=voxel_size)
             xyz = np.asarray(pcd.points).astype(np.float32)
             log.info('After voxel downsample: %d points', len(xyz))
         return xyz
