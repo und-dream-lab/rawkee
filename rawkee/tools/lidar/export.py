@@ -482,6 +482,60 @@ def _export_mesh_glb(mesh, cam_patches: list, output_dir: Path, stem: str) -> Pa
 
 
 # ---------------------------------------------------------------------------
+# Point cloud — E57
+# ---------------------------------------------------------------------------
+
+def export_point_cloud_e57(
+    xyz: np.ndarray,
+    colours: 'np.ndarray | None',
+    output_dir: Path,
+    stem: str,
+) -> Path:
+    """Write a colorized point cloud directly to an ASTM E57 scan file.
+
+    Unlike the mesh export functions above, this bypasses Poisson
+    reconstruction / UV projection / HDRI entirely — E57 is a point-cloud
+    container format, not a mesh format, so there is no meshing step here.
+
+    Parameters
+    ----------
+    xyz:     (N, 3) float array, world-frame coordinates (no axis conversion
+             applied — E57 does not enforce a particular up-axis convention,
+             matching how ``dataset.py``'s ``e57_point_cloud()`` reads E57
+             files back with no conversion either).
+    colours: (N, 3) float array in [0, 1], or None if uncolored.
+    """
+    try:
+        import pye57
+    except ImportError:
+        raise RuntimeError(
+            'pye57 is required to write E57 files: pip install pye57\n'
+            '  On Linux/aarch64 this builds from source and requires the '
+            'libxerces-c-dev system package: sudo apt install libxerces-c-dev'
+        )
+
+    out_path = output_dir / f'{stem}.e57'
+    xyz = np.asarray(xyz, dtype=np.float64)
+    data = {
+        'cartesianX': xyz[:, 0],
+        'cartesianY': xyz[:, 1],
+        'cartesianZ': xyz[:, 2],
+    }
+    if colours is not None:
+        colours_u8 = np.clip(np.asarray(colours, dtype=np.float64) * 255.0, 0, 255).astype(np.uint8)
+        data['colorRed']   = colours_u8[:, 0]
+        data['colorGreen'] = colours_u8[:, 1]
+        data['colorBlue']  = colours_u8[:, 2]
+
+    with pye57.E57(str(out_path), mode='w') as e57_write:
+        e57_write.write_scan_raw(data)
+
+    log.info('Point cloud E57 (%d points%s) → %s',
+              len(xyz), ' with RGB' if colours is not None else '', out_path)
+    return out_path
+
+
+# ---------------------------------------------------------------------------
 # Splat — X3D / X3DV / X3DJ
 # ---------------------------------------------------------------------------
 

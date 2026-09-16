@@ -40,7 +40,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     # ---- mesh subcommand -------------------------------------------------
     mesh = sub.add_parser('mesh', parents=[shared],
-                          help='Textured polygon mesh pipeline')
+                          help='Textured polygon mesh pipeline (formats: x3d, x3dv, x3dj, obj, glb, e57)')
     mesh.add_argument('--poisson-depth',    type=int,   default=9,    metavar='INT')
     mesh.add_argument('--atlas-size',       type=int,   default=4096, metavar='INT')
     mesh.add_argument('--colorise-stride',  type=int,   default=10,   metavar='INT')

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import logging
 import math
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -234,6 +235,9 @@ def optimize_pose_graph(
 
     odometry = np.eye(4)
     n_loop = 0
+    log.info('SLAM backend: registering %d odometry edges...', n - 1)
+    t_start = time.monotonic()
+    t_last_log = t_start
     for i in range(n - 1):
         src_pcd = _submap_pcd(submaps[i + 1])   # later submap = source
         tgt_pcd = _submap_pcd(submaps[i])       # earlier submap = target
@@ -256,34 +260,55 @@ def optimize_pose_graph(
         pose_graph.edges.append(o3d.pipelines.registration.PoseGraphEdge(
             i, i + 1, transformation, information, uncertain=False))
 
-    # Loop closures: any non-adjacent pair whose raw XY positions are close
+        now = time.monotonic()
+        if now - t_last_log >= 10.0 or i == n - 2:
+            log.info('SLAM backend: odometry %d/%d edges registered (%.0fs elapsed)',
+                      i + 1, n - 1, now - t_start)
+            t_last_log = now
+
+    # Loop closures: any non-adjacent pair whose raw XY positions are close.
+    # Candidates are counted up-front (cheap XY-distance check) so progress
+    # can be reported as "checked X/Y" while the expensive ICP calls run.
     centers_xy = np.array([sm.raw_pose[:2, 3] for sm in submaps])
-    for i in range(n):
-        for j in range(i + min_loop_gap, n):
-            if np.linalg.norm(centers_xy[i] - centers_xy[j]) > loop_xy_radius:
-                continue
-            src_pcd = _submap_pcd(submaps[j])
-            tgt_pcd = _submap_pcd(submaps[i])
-            # Coarse initial guess: align centroids only (rotation drift is
-            # usually small relative to translation/Z drift over a long scan).
-            src_centroid = np.asarray(src_pcd.points).mean(axis=0) if len(src_pcd.points) else np.zeros(3)
-            tgt_centroid = np.asarray(tgt_pcd.points).mean(axis=0) if len(tgt_pcd.points) else np.zeros(3)
-            trans_init = np.eye(4)
-            trans_init[:3, 3] = tgt_centroid - src_centroid
-            try:
-                result, info = _pairwise_icp(
-                    src_pcd, tgt_pcd, trans_init,
-                    max_dist_coarse=max(2.0, loop_xy_radius), max_dist_fine=max_dist_fine,
-                )
-            except Exception:
-                continue
-            if result.fitness < fitness_threshold:
-                continue
-            pose_graph.edges.append(o3d.pipelines.registration.PoseGraphEdge(
-                i, j, result.transformation, info, uncertain=True))
-            n_loop += 1
-            log.info('Loop closure %d↔%d accepted (fitness=%.2f, rmse=%.3f)',
-                      i, j, result.fitness, result.inlier_rmse)
+    candidates = [
+        (i, j)
+        for i in range(n)
+        for j in range(i + min_loop_gap, n)
+        if np.linalg.norm(centers_xy[i] - centers_xy[j]) <= loop_xy_radius
+    ]
+    log.info('SLAM backend: checking %d loop-closure candidates...', len(candidates))
+    t_start = time.monotonic()
+    t_last_log = t_start
+    for n_checked, (i, j) in enumerate(candidates, start=1):
+        src_pcd = _submap_pcd(submaps[j])
+        tgt_pcd = _submap_pcd(submaps[i])
+        # Coarse initial guess: align centroids only (rotation drift is
+        # usually small relative to translation/Z drift over a long scan).
+        src_centroid = np.asarray(src_pcd.points).mean(axis=0) if len(src_pcd.points) else np.zeros(3)
+        tgt_centroid = np.asarray(tgt_pcd.points).mean(axis=0) if len(tgt_pcd.points) else np.zeros(3)
+        trans_init = np.eye(4)
+        trans_init[:3, 3] = tgt_centroid - src_centroid
+        accepted = False
+        try:
+            result, info = _pairwise_icp(
+                src_pcd, tgt_pcd, trans_init,
+                max_dist_coarse=max(2.0, loop_xy_radius), max_dist_fine=max_dist_fine,
+            )
+            if result.fitness >= fitness_threshold:
+                pose_graph.edges.append(o3d.pipelines.registration.PoseGraphEdge(
+                    i, j, result.transformation, info, uncertain=True))
+                n_loop += 1
+                accepted = True
+                log.info('Loop closure %d↔%d accepted (fitness=%.2f, rmse=%.3f)',
+                          i, j, result.fitness, result.inlier_rmse)
+        except Exception:
+            pass
+
+        now = time.monotonic()
+        if not accepted and (now - t_last_log >= 10.0 or n_checked == len(candidates)):
+            log.info('SLAM backend: loop-closure candidates %d/%d checked, %d accepted so far (%.0fs elapsed)',
+                      n_checked, len(candidates), n_loop, now - t_start)
+            t_last_log = now
 
     log.info('SLAM backend: pose graph has %d nodes, %d odometry edges, %d loop closures',
               len(pose_graph.nodes), n - 1, n_loop)

@@ -839,6 +839,16 @@ class MeshPipeline:
             )
             log.info('Colorization complete')
 
+        # 2. E57 point-cloud export (no meshing) — bypass Poisson/UV/HDRI
+        # entirely, since E57 is a point-cloud container format, not a mesh
+        # format. Much faster than the mesh formats below when a full
+        # textured mesh isn't needed.
+        if output_format.lower().lstrip('.') == 'e57':
+            from .export import export_point_cloud_e57
+            out_path = export_point_cloud_e57(xyz, colours, output_dir, dataset.dataset_name)
+            log.info('Point cloud export complete → %s', out_path)
+            return out_path
+
         # 3. Poisson reconstruction + per-camera UV projection
         if not _O3D:
             raise RuntimeError('open3d required for mesh reconstruction: pip install open3d')

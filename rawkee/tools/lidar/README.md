@@ -73,6 +73,14 @@ For Metashape, Meshroom, and Pix4D, georeferencing is read directly from the pro
 | **X3DJ** | `--format x3dj` | X3D JSON encoding |
 | **OBJ + MTL** | `--format obj` | Widely compatible; no PBR or georef |
 | **GLB** | `--format glb` | glTF 2.0 binary; compatible with Three.js, Babylon.js, Unity, Unreal |
+| **E57** | `--format e57` | Raw colorized point cloud (no mesh); ASTM E57 scan format, compatible with CloudCompare, NavVis IVION, Leica Cyclone, etc. Skips Poisson reconstruction/UV projection entirely. |
+
+> **Note on E57 output:** unlike the other formats above, E57 is a
+> point-cloud container format, not a mesh format. Requesting
+> `--format e57` bypasses Poisson surface reconstruction, per-camera UV
+> projection, and HDRI generation entirely — the pipeline writes the
+> colorized point cloud directly, which is substantially faster than the
+> mesh formats when a full textured mesh isn't needed.
 
 ### Gaussian splat pipeline outputs
 
@@ -779,13 +787,19 @@ compute capability isn't in Open3D's release build's hardcoded architecture
 list anyway. To get a CUDA-accelerated `open3d.t.*` tensor API on DGX Spark,
 you must build Open3D from source.
 
-> **Note:** RawKee's own mesh pipeline (`mesh_pipeline.py`, `slam_backend.py`)
-> currently uses Open3D's **legacy** `o3d.geometry` / `o3d.pipelines.registration`
-> API, which stays CPU-only regardless of how Open3D was built — only code
-> written against the newer `o3d.t.geometry` / `o3d.t.pipelines.registration`
-> tensor API can run on `CUDA:0`. Building Open3D with CUDA support is a
-> prerequisite for GPU-accelerated ICP/SLAM, not a guarantee of it, until that
-> code is migrated to the tensor API.
+> **Known limitation (tested and measured):** Open3D's CUDA tensor
+> nearest-neighbor search (`o3d.core.nns.NearestNeighborSearch`, used
+> internally by `o3d.t.pipelines.registration.icp`) was benchmarked on this
+> build and found to be **~36x slower** than the legacy CPU KD-tree
+> implementation for real NavVis submap sizes (~700K points): a single GPU
+> KNN query took 24s vs. 2.32s for an *entire* CPU ICP call with identical
+> correctness (same fitness score). For this reason, RawKee's SLAM backend
+> (`slam_backend.py`) intentionally uses Open3D's **legacy CPU-only API** for
+> ICP/pose-graph registration, not the tensor/GPU API — do not re-attempt
+> migrating ICP to `o3d.t.pipelines.registration` without re-benchmarking on
+> real (not small/synthetic) submap data first. This CUDA build remains
+> useful for other, more GPU-parallelism-friendly operations (see the E57
+> export path, which optionally uses GPU-accelerated voxel downsampling).
 
 **1. Install system build dependencies** (Ubuntu; one-time, requires `sudo`):
 
