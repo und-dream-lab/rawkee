@@ -11,6 +11,7 @@ Strategy
 5. Export via scan.export in the requested format.
 """
 from __future__ import annotations
+import json
 import logging
 import math
 import struct
@@ -250,12 +251,37 @@ def _navvis_lidar_extrinsics(dataset: ScanDataset) -> 'dict[str, tuple[np.ndarra
     return result
 
 
+def _pandar_packet_trailer_bytes(conn) -> int:
+    """Return the number of extra bytes appended after ``PandarPacket.size``.
+
+    NavVis has shipped at least two PandarPacket schemas across firmware
+    releases:
+
+    * ``hesai_lidar/PandarPacket``: ``time stamp; uint8[] data; uint32 size``
+    * ``navvis_msgs/PandarPacket``: same fields plus a trailing
+      ``duration offset`` (an extra 8-byte ROS ``duration``).
+
+    The manual byte-offset parser below must skip this trailing field on
+    newer datasets or every packet after the first in a message is misread
+    (cascading misalignment that eventually manifests as bogus, huge
+    "packet length" values pulled from misaligned timestamp bytes).
+    """
+    try:
+        msgdef_text = conn.msgdef[1] if isinstance(conn.msgdef, tuple) else str(conn.msgdef)
+    except Exception:
+        msgdef_text = ''
+    return 8 if 'duration offset' in msgdef_text else 0
+
+
 def _pandar_elevation_rad(bag_paths: list[Path]) -> 'np.ndarray | None':
     """Extract per-channel elevation angles from the ASCII calibration packet in a laser bag."""
     for bag_path in bag_paths:
         try:
             with Rosbag1Reader(bag_path) as reader:
+                trailer_bytes: dict = {}
                 for conn, _ts, raw in reader.messages(connections=list(reader.connections)):
+                    trailer = trailer_bytes.setdefault(
+                        conn.msgtype, _pandar_packet_trailer_bytes(conn))
                     raw = bytes(raw)
                     off = 4 + 8  # seq + header stamp
                     fid_len = struct.unpack_from('<I', raw, off)[0]; off += 4
@@ -266,6 +292,7 @@ def _pandar_elevation_rad(bag_paths: list[Path]) -> 'np.ndarray | None':
                         dl = struct.unpack_from('<I', raw, off)[0]; off += 4
                         pkt = raw[off:off + dl]; off += dl
                         off += 4  # PandarPacket.size (uint32)
+                        off += trailer  # PandarPacket.offset (duration), if present
                         if dl != _PANDAR_PKT:
                             try:
                                 text = bytes(pkt).decode('ascii')
@@ -378,9 +405,12 @@ def _iter_navvis_lidar_packets(
             break
         try:
             with Rosbag1Reader(bag_path) as reader:
+                trailer_bytes: dict = {}
                 for conn, _bag_ts, raw in reader.messages(connections=list(reader.connections)):
                     if count >= max_packets:
                         break
+                    trailer = trailer_bytes.setdefault(
+                        conn.msgtype, _pandar_packet_trailer_bytes(conn))
                     raw = bytes(raw)
                     off = 4
                     h_secs  = struct.unpack_from('<I', raw, off)[0]; off += 4
@@ -396,6 +426,7 @@ def _iter_navvis_lidar_packets(
                         dl = struct.unpack_from('<I', raw, off)[0]; off += 4
                         pkt = raw[off:off + dl]; off += dl
                         off += 4  # PandarPacket.size (uint32)
+                        off += trailer  # PandarPacket.offset (duration), if present
                         if dl != _PANDAR_PKT:
                             continue
                         pts = _decode_pandar_pkt(bytes(pkt), sin_elev, cos_elev)
@@ -835,27 +866,64 @@ class MeshPipeline:
         if trimble_csv is not None:
             dataset.apply_trimble_georef(trimble_csv, epsg=georef_epsg)
 
+        # Checkpoint directory for resuming interrupted runs
+        ckpt_dir = output_dir / '.checkpoint'
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        ckpt_state = ckpt_dir / 'state.json'
+        ckpt_xyz = ckpt_dir / 'pointcloud.npz'
+        ckpt_colours = ckpt_dir / 'colours.npz'
+
         valid_frames = dataset.valid_frame_indices()
         log.info('Found %d valid frames', len(valid_frames))
 
         # 1. Point cloud (and optional pre-coloured E57 cloud)
         e57_colours: 'np.ndarray | None' = None
-        log.info('Decoding LiDAR point cloud...')
-        if dataset.platform == 'e57':
-            xyz, e57_colours = _extract_e57_cloud(dataset)
+        # Try to resume from checkpoint
+        if ckpt_xyz.exists() and ckpt_colours.exists() and ckpt_state.exists():
+            log.info('Resuming from checkpoint...')
+            try:
+                with open(ckpt_state, 'r') as f:
+                    state = json.load(f)
+                xyz = np.load(ckpt_xyz, allow_pickle=False)['xyz']
+                colours = np.load(ckpt_colours, allow_pickle=False)['colours']
+                log.info('Checkpoint loaded: %d points, colours restored', len(xyz))
+                # Skip to export phase
+            except Exception as e:
+                log.warning('Checkpoint resume failed: %s, starting from scratch', e)
+                xyz = None
+                colours = None
         else:
-            xyz = self._get_point_cloud(dataset, valid_frames, max_packets=self.max_packets)
-        log.info('Point cloud decoded: %d points', len(xyz) if xyz is not None else 0)
+            xyz = None
+            colours = None
+
+        if xyz is None:
+            log.info('Decoding LiDAR point cloud...')
+            if dataset.platform == 'e57':
+                xyz, e57_colours = _extract_e57_cloud(dataset)
+            else:
+                xyz = self._get_point_cloud(dataset, valid_frames, max_packets=self.max_packets)
+            log.info('Point cloud decoded: %d points', len(xyz) if xyz is not None else 0)
+            # Save checkpoint for point cloud
+            np.savez_compressed(ckpt_xyz, xyz=xyz)
+            log.info('Checkpoint saved: point cloud')
+
         if e57_colours is not None:
             colours = e57_colours
             log.info('Using embedded E57 RGB colours — skipping camera reprojection')
         else:
-            colours = _colorize_cloud(
-                xyz, dataset, valid_frames, self.device,
-                stride=self.colorise_stride,
-                slam_correction=self._slam_correction,
-            )
-            log.info('Colorization complete')
+            if colours is None:
+                colours = _colorize_cloud(
+                    xyz, dataset, valid_frames, self.device,
+                    stride=self.colorise_stride,
+                    slam_correction=self._slam_correction,
+                )
+                log.info('Colorization complete')
+                # Save checkpoint for colours
+                np.savez_compressed(ckpt_colours, colours=colours)
+                state = {'phase': 'colorization_complete'}
+                with open(ckpt_state, 'w') as f:
+                    json.dump(state, f)
+                log.info('Checkpoint saved: colours')
 
         # 2. E57 point-cloud export (no meshing) — bypass Poisson/UV/HDRI
         # entirely, since E57 is a point-cloud container format, not a mesh
