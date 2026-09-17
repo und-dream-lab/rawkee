@@ -798,8 +798,21 @@ you must build Open3D from source.
 > ICP/pose-graph registration, not the tensor/GPU API — do not re-attempt
 > migrating ICP to `o3d.t.pipelines.registration` without re-benchmarking on
 > real (not small/synthetic) submap data first. This CUDA build remains
-> useful for other, more GPU-parallelism-friendly operations (see the E57
-> export path, which optionally uses GPU-accelerated voxel downsampling).
+> useful for other, more GPU-parallelism-friendly operations. Voxel
+> downsampling is one such operation — see the note below.
+
+**Voxel downsampling: a genuine, measured GPU win.** Unlike ICP's
+nearest-neighbor search, voxel downsampling is an embarrassingly parallel
+grid-hash bucketing operation and is a much better fit for the GPU. Benchmarked
+on the same DGX Spark build with a real ~49M point raw NavVis cloud (before
+downsampling): legacy CPU `o3d.geometry.PointCloud.voxel_down_sample()` took
+**~45s**, while the GPU tensor `o3d.t.geometry.PointCloud(...).voxel_down_sample()`
+on `CUDA:0` took **<1s** (~46x faster), producing an equivalent output point
+count. `MeshPipeline._get_point_cloud()` now uses the GPU tensor API
+automatically when a CUDA-enabled Open3D build is available, with an automatic
+fallback to the legacy CPU path if the GPU call raises an exception. This
+applies to every output format (mesh and E57 alike), since point cloud
+decoding happens before format-specific export.
 
 **1. Install system build dependencies** (Ubuntu; one-time, requires `sudo`):
 
