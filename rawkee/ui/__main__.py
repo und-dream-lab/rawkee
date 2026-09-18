@@ -1,6 +1,6 @@
 """
 File Author: Thomaz Diaz, UND Dream Lab;
-Description: "Rawkee Scan Studio" entery point for the application? [DL-4]:
+Description: "Rawkee Scan Studio" entery point for the application [DL-4]:
 
 Librays Used: 
 -Pyside6 on Python 3.14 Interpreter

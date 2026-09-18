@@ -1,8 +1,10 @@
-"""Compact RawKee Scan Studio shell implementation.
+"""
+File Author: Thomaz Diaz, UND Dream Lab;
+Description: "Rawkee Scan Studio Main Aplication"  [DL-4]:
 
-This lighter implementation keeps the same public API required by the
-story while avoiding excess code that previously caused accidental
-duplication in the file during edits.
+Librays Used: 
+-Pyside6 on Python 3.14 Interpreter
+-
 """
 
 import sys
@@ -27,8 +29,11 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QGridLayout,
     QSpinBox,
+    QDoubleSpinBox,
+    QComboBox,
     QGroupBox,
     QCheckBox,
+    QScrollArea,
 )
 
 from .theme import apply_theme
@@ -38,7 +43,8 @@ class RawKeeMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("RawKee Scan Studio")
-        self.resize(1100, 750)
+        self.resize(1200, 700)
+        self.setMinimumSize(900, 500)
 
         self._page_index: Dict[str, int] = {}
 
@@ -56,7 +62,7 @@ class RawKeeMainWindow(QMainWindow):
         self.nav_group = QButtonGroup(self)
         self.nav_group.setExclusive(True)
         self.nav_buttons: Dict[str, QPushButton] = {}
-        for name, icon in [("Mesh","⛶"),("Gaussian Splat","⁕"),("Folder → Splat","📂"),("Convert Splat","⇄")]:
+        for name, icon in [("Mesh","⛶"),("Gaussian Splat","⁕"),("Folder → Splat","🖿"),("Convert Splat","⇄")]:
             b = QPushButton(f"  {icon}  {name}")
             b.setCheckable(True)
             b.setProperty("class", "rk_navButton")
@@ -96,6 +102,8 @@ class RawKeeMainWindow(QMainWindow):
         # console dock
         dock = QDockWidget("Console")
         dock.setAllowedAreas(Qt.BottomDockWidgetArea)
+        dock.setMinimumHeight(70)
+        dock.setMaximumHeight(220)
         console = QTextEdit()
         console.setReadOnly(True)
         console.setLineWrapMode(QTextEdit.NoWrap)
@@ -193,7 +201,7 @@ class MeshPage(QWidget):
         main.addWidget(header)
 
         # Input / Output group
-        io_box = QWidget()
+        io_box = QGroupBox("Input / Output")
         io_box_layout = QFormLayout(io_box)
 
         ds_row = QWidget()
@@ -219,7 +227,7 @@ class MeshPage(QWidget):
         main.addWidget(io_box)
 
         # Mesh Options
-        opts = QWidget()
+        opts = QGroupBox("Mesh Options")
         opts_grid = QGridLayout(opts)
         opts_grid.setSpacing(12)
 
@@ -372,8 +380,19 @@ class GaussianSplatPage(QWidget):
 class FolderSplatPage(QWidget):
     def __init__(self):
         super().__init__()
-        main = QVBoxLayout(self)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        content = QWidget()
+        main = QVBoxLayout(content)
         main.setContentsMargins(20, 20, 20, 20)
+        main.setSpacing(12)
 
         # Header
         header = QWidget()
@@ -381,7 +400,7 @@ class FolderSplatPage(QWidget):
         h_layout = QHBoxLayout(header)
         h_layout.setContentsMargins(0, 0, 0, 10)
 
-        icon = QLabel("📂")
+        icon = QLabel("🖿")
         icon.setObjectName("headerIcon")
         icon.setFixedSize(36, 36)
         icon.setAlignment(Qt.AlignCenter)
@@ -434,10 +453,18 @@ class FolderSplatPage(QWidget):
         opts_grid = QGridLayout()
         opts_grid.setSpacing(12)
 
+        output_format = QComboBox()
+        output_format.addItems(["x3d", "ply", "splat", "glb"])
+        output_format.setCurrentText("x3d")
+
+        matcher = QComboBox()
+        matcher.addItems(["Exhaustive — hloc (SfM)", "Sequential — hloc (SfM)", "Vocabulary tree"])
+        matcher.setCurrentText("Exhaustive — hloc (SfM)")
+
         opts_grid.addWidget(QLabel("Output format"), 0, 0)
-        opts_grid.addWidget(QLineEdit("x3d"), 0, 1)
+        opts_grid.addWidget(output_format, 0, 1)
         opts_grid.addWidget(QLabel("COLMAP matcher"), 0, 2)
-        opts_grid.addWidget(QLineEdit("Exhaustive — hloc (SfM)"), 0, 3)
+        opts_grid.addWidget(matcher, 0, 3)
 
         opts_grid.addWidget(QLabel("Focal length (px)"), 1, 0)
         opts_grid.addWidget(QSpinBox(), 1, 1)
@@ -452,12 +479,112 @@ class FolderSplatPage(QWidget):
         opts_box.setLayout(opts_grid)
         main.addWidget(opts_box)
 
-        # Advanced box placeholder
+        # Advanced Training Options
         adv = QGroupBox("Advanced Training Options")
-        adv_layout = QVBoxLayout(adv)
-        adv_layout.addWidget(QLabel("(advanced options placeholder)"))
+        adv_layout = QGridLayout(adv)
+        adv_layout.setSpacing(12)
+
+        densify_until = QSpinBox()
+        opacity_reset = QSpinBox()
+        densify_every = QSpinBox()
+        grad_threshold = QDoubleSpinBox()
+        frame_stride = QSpinBox()
+
+        adv_layout.addWidget(QLabel("Densify until"), 0, 0)
+        adv_layout.addWidget(densify_until, 0, 1)
+        adv_layout.addWidget(QLabel("Opacity reset (steps)"), 0, 2)
+        adv_layout.addWidget(opacity_reset, 0, 3)
+
+        adv_layout.addWidget(QLabel("Densify every (steps)"), 1, 0)
+        adv_layout.addWidget(densify_every, 1, 1)
+        adv_layout.addWidget(QLabel("Grad threshold"), 1, 2)
+        adv_layout.addWidget(grad_threshold, 1, 3)
+
+        adv_layout.addWidget(QLabel("Frame stride"), 2, 0)
+        adv_layout.addWidget(frame_stride, 2, 1)
+
+        adv_row = QWidget()
+        adv_row_layout = QHBoxLayout(adv_row)
+        adv_row_layout.setContentsMargins(0, 0, 0, 0)
+        adv_row_layout.addWidget(QCheckBox("Pre-decode SH → RGB"))
+        adv_row_layout.addStretch()
+        adv_row_layout.addWidget(QCheckBox("Screen-space density gradients (2D)"))
+        adv_layout.addWidget(adv_row, 3, 0, 1, 4)
+
         main.addWidget(adv)
 
+        # Turntable capture
+        turntable = QGroupBox("Turntable Capture")
+        turn_layout = QVBoxLayout(turntable)
+        turn_layout.setContentsMargins(10, 10, 10, 10)
+
+        turn_mode = QCheckBox("Turntable mode")
+        turn_mode.setChecked(False)
+        turn_layout.addWidget(turn_mode)
+        turn_layout.addWidget(QLabel("Use synthetic circular poses for object-on-turntable captures."))
+
+        turn_params = QWidget()
+        turn_params_layout = QGridLayout(turn_params)
+        turn_params_layout.setContentsMargins(0, 0, 0, 0)
+        turn_params_layout.setSpacing(12)
+
+        turntable_sets = QSpinBox()
+        elevation = QDoubleSpinBox()
+        radius = QDoubleSpinBox()
+
+        turn_params_layout.addWidget(QLabel("Turntable sets"), 0, 0)
+        turn_params_layout.addWidget(turntable_sets, 0, 1)
+        turn_params_layout.addWidget(QLabel("Elevation override (°)"), 0, 2)
+        turn_params_layout.addWidget(elevation, 0, 3)
+
+        turn_params_layout.addWidget(QLabel("Radius override (m)"), 1, 0)
+        turn_params_layout.addWidget(radius, 1, 1)
+
+        turn_layout.addWidget(turn_params)
+        main.addWidget(turntable)
+
+        # Background masking
+        masking = QGroupBox("Background Masking")
+        mask_layout = QVBoxLayout(masking)
+        mask_layout.setContentsMargins(10, 10, 10, 10)
+
+        mask_folder_row = QWidget()
+        mask_folder_layout = QHBoxLayout(mask_folder_row)
+        mask_folder_layout.setContentsMargins(0, 0, 0, 0)
+        mask_folder_layout.addWidget(QLabel("Mask folder"))
+        mask_folder_layout.addStretch()
+        mask_input = QLineEdit("Auto-detect masks/ subfolder, or browse...")
+        mask_folder_layout.addWidget(mask_input)
+        mask_browse = QPushButton("Browse...")
+        mask_browse.setProperty("class", "rk_browse")
+        mask_folder_layout.addWidget(mask_browse)
+        mask_layout.addWidget(mask_folder_row)
+
+        mask_flags = QWidget()
+        mask_flags_layout = QGridLayout(mask_flags)
+        mask_flags_layout.setContentsMargins(0, 0, 0, 0)
+        mask_flags_layout.setSpacing(12)
+
+        auto_mask = QCheckBox("Auto-mask with rembg")
+        edge_erosion = QSpinBox()
+        chroma_key = QCheckBox("Chroma-key color")
+        chroma_tolerance = QSpinBox()
+
+        mask_flags_layout.addWidget(auto_mask, 0, 0)
+        mask_flags_layout.addWidget(QLabel("Edge erosion (px)"), 0, 2)
+        mask_flags_layout.addWidget(edge_erosion, 0, 3)
+
+        mask_flags_layout.addWidget(chroma_key, 1, 0)
+        mask_flags_layout.addWidget(QLabel("Tolerance"), 1, 2)
+        mask_flags_layout.addWidget(chroma_tolerance, 1, 3)
+
+        mask_layout.addWidget(mask_flags)
+
+        colmap_only = QCheckBox("COLMAP + masks only")
+        colmap_only.setChecked(False)
+        mask_layout.addWidget(colmap_only)
+
+        main.addWidget(masking)
         main.addStretch()
 
         footer = QWidget()
@@ -467,6 +594,9 @@ class FolderSplatPage(QWidget):
         run_btn.setObjectName("rk_primary")
         f_layout.addWidget(run_btn)
         main.addWidget(footer)
+
+        scroll.setWidget(content)
+        outer.addWidget(scroll)
 
 
 class ConvertSplatPage(QWidget):
