@@ -7,70 +7,64 @@ Librays Used:
 -
 """
 
-DARK_BLUE = "#18364E"
-BLUE = "#008CFF"
-BACKGROUND = "#0f1113"
-SURFACE = "#16181a"
-DARK_GREY = "#1F1F1F"
-WHITE = "#ffffff"
+DARK_AZUL = "#18364E"
+AZUL = "#008CFF"
+MAIN = "#181818" 
+GRIS = "#3D3D3D"
+DARK_GRIS = "#1E1E1E"
+BLANCO = "#ffffff"
 
 THEME_QSS_RAW = """
 /* Root and window */
 QWidget {
-    background-color: {BACKGROUND};
-    color: {WHITE};
+    background-color: {MAIN};
+    color: {BLANCO};
     font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
     font-size: 14px;
 }
-
 QMainWindow {
-    background-color: {DARK_GREY};
+    background-color: {DARK_GRIS};
 }
 
 /* Sidebar */
 QWidget#rk_sidebar {
-    background-color: {DARK_GREY};
-    border-right: 1px solid #222426;
+    background-color: {DARK_GRIS};
+    border-right: 1px solid {BLANCO};
     min-width: 190px;
     max-width: 190px;
 }
-
 QPushButton.rk_navButton {
     background: transparent;
     border: none;
-    color: {WHITE};
+    color: {BLANCO};
     padding: 10px 14px;
     text-align: left;
     border-left: 4px solid transparent;
 }
-
 QPushButton.rk_navButton:hover {
-    background-color: #4b4d50;
-    color: {WHITE};
+    background-color: {GRIS};
+    color: {BLANCO};
 }
-
 QPushButton.rk_navButton:checked {
-    background-color: {DARK_BLUE};
-    color: {WHITE};
-    border-left: 4px solid {BLUE};
+    background-color: {DARK_AZUL};
+    color: {BLANCO};
+    border-left: 4px solid {AZUL};
 }
 
 /* Central content */
 QStackedWidget#rk_stack {
-    background-color: {BACKGROUND};
+    background-color: {MAIN};
 }
 
 /* Dock and console */
 QDockWidget {
-    background-color: {SURFACE};
+    background-color: {DARK_GRIS};
     titlebar-close-icon: none;
     titlebar-normal-icon: none;
-    border-top: 1px solid #222426;
 }
-
 QTextEdit#rk_console {
-    background-color: #0b0b0b;
-    color: {WHITE};
+    background-color: {MAIN};
+    color: {BLANCO};
     font-family: 'Consolas', 'Courier New', monospace;
     font-size: 14px;
     border: none;
@@ -78,50 +72,49 @@ QTextEdit#rk_console {
 
 /* Status bar */
 QStatusBar {
-    background-color: {BLUE};
-    color: {WHITE};
-    border-top: 1px solid {BLUE};
+    background-color: {AZUL};
+    color: {BLANCO};
+    border-top: 1px solid {AZUL};
     min-height: 22px;
 }
 
 QStatusBar QLabel {
-    color: {WHITE};
+    color: {BLANCO};
 }
 
 /* Left status label (small badge) */
 QLabel#rk_status_left {
-    background-color: {DARK_BLUE};
-    color: {WHITE};
+    background-color: {AZUL};
+    color: {BLANCO};
     padding: 2px 10px;
     border-radius: 2px;
 }
 
 /* Right activity badge (console idle) */
 QLabel#rk_status_right {
-    background-color: {DARK_BLUE};
-    color: {WHITE};
+    background-color: {AZUL};
+    color: {BLANCO};
     padding: 2px 10px;
     border-radius: 2px;
 }
 
 /* Controls foundation */
 QPushButton#rk_primary {
-    background-color: {BLUE};
-    color: {WHITE};
+    background-color: {AZUL};
+    color: {BLANCO};
     padding: 6px 12px;
     border-radius: 3px;
 }
-
 QPushButton.rk_browse {
     background-color: transparent;
-    color: {DARK_GREY};
-    border: 1px solid #2a2b2c;
+    color: {BLANCO};
+    border: 1px solid {BLANCO};
     padding: 4px 8px;
     border-radius: 4px;
 }
 
 QPushButton.rk_browse:hover {
-    background-color: #1b1c1d;
+    background-color: {GRIS}};
 }
 
 /* Header */
@@ -129,73 +122,66 @@ QWidget#headerContainer {
     background: transparent;
     padding: 12px 0px;
 }
-
 QLabel#pageTitle {
     font-size: 20px;
     font-weight: 600;
-    color: {WHITE};
+    color: {BLANCO};
 }
-
 QLabel#pageDescription {
     font-size: 14px;
-    color: {WHITE};
+    color: {BLANCO};
 }
-
 QLabel#headerIcon {
-    background-color: #0d2b3f;
-    border: 1px solid {DARK_BLUE};
-    color: {BLUE};
+    background-color: {DARK_AZUL};
+    border: 1px solid {AZUL};
+    color: {AZUL};
     padding: 8px;
     border-radius: 6px;
 }
 
 /* Group boxes */
 QGroupBox {
-    background-color: #0f1113;
-    border: 1px solid #232526;
+    background-color: {DARK_GRIS};
+    border: 1px solid {BLANCO};
     border-radius: 6px;
     margin-top: 12px;
     padding: 10px;
-    color: {WHITE};
+    color: {BLANCO};
 }
-
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
     padding: 0 6px;
     left: 8px;
-    color: {WHite};
+    color: {BLANCO};
 }
-
+QGroupBox QWidget {
+    background-color: transparent;
+}
 QPushButton#rk_primary:disabled {
-    background-color: #2b2c2e;
-    color: #6f777f;
+    background-color: {MAIN};
+    color: #ff00b3;
 }
-
 QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
-    background-color: #121314;
-    color: {DARK_GREY};
-    border: 1px solid #1f2123;
+    background-color: {MAIN};
+    color: {BLANCO};
+    border: 1px solid {BLANCO};
     padding: 4px 6px;
     min-height: 22px;
 }
-
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
-    border: 1px solid {DARK_BLUE};
+    border: 1px solid {DARK_AZUL};
 }
-
 QCheckBox {
-    color: {DARK_GREY};
+    color: {BLANCO};
 }
-
 QCheckBox::indicator:unchecked {
-    background: #101213;
-    border: 1px solid #232526;
+    background: {MAIN}};
+    border: 1px solid {BLANCO};
 }
-
 QCheckBox::indicator:checked {
-    background: {DARK_BLUE};
-    border: 1px solid {DARK_BLUE};
+    background: {AZUL};
+    border: 1px solid {BLANCO};
 }
 
 /* Scrollbars: minimal, theme-aware */
@@ -204,30 +190,29 @@ QScrollBar:vertical {
     width: 12px;
 }
 QScrollBar::handle:vertical {
-    background: #232526;
+    background: {GRIS};
     min-height: 20px;
     border-radius: 6px;
 }
-
 QScrollBar:horizontal {
     background: transparent;
     height: 12px;
 }
 QScrollBar::handle:horizontal {
-    background: #232526;
+    background: #ff00b3;
     min-width: 20px;
     border-radius: 6px;
 }
 
 /* Disabled */
 *:disabled {
-    color: #5a6065;
+    color: #ff00b3;
 }
 """
 
 
 THEME_QSS = THEME_QSS_RAW.replace("{{", "{").replace("}}", "}")
-THEME_QSS = THEME_QSS.replace("{BACKGROUND}", BACKGROUND).replace("{SURFACE}", SURFACE).replace("{DARK_BLUE}", DARK_BLUE).replace("{DARK_GREY}", DARK_GREY).replace("{WHITE}", WHITE).replace("{BLUE}", BLUE)
+THEME_QSS = THEME_QSS.replace("{MAIN}", MAIN).replace("{DARK_AZUL}", DARK_AZUL).replace("{DARK_GRIS}", DARK_GRIS).replace("{BLANCO}", BLANCO).replace("{AZUL}", AZUL).replace("{GRIS}", GRIS)
 
 
 def apply_theme(app):

@@ -24,7 +24,6 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QStatusBar,
     QLabel,
-    QSizePolicy,
     QLineEdit,
     QFormLayout,
     QGridLayout,
@@ -34,6 +33,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QCheckBox,
     QScrollArea,
+    QToolButton,
 )
 
 from .theme import apply_theme
@@ -81,6 +81,7 @@ class RawKeeMainWindow(QMainWindow):
         layout.addWidget(self.sidebar)
         layout.addWidget(self.stack, 1)
         self.setCentralWidget(container)
+        self._last_console_message = ""
 
         # register pages for each sidebar item (Mesh + real pages)
         for pname in list(self.nav_buttons.keys()):
@@ -101,14 +102,40 @@ class RawKeeMainWindow(QMainWindow):
 
         # console dock
         dock = QDockWidget("Console")
+        dock.setObjectName("rk_console_dock")
         dock.setAllowedAreas(Qt.BottomDockWidgetArea)
+        dock.setFeatures(QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetMovable)
         dock.setMinimumHeight(70)
         dock.setMaximumHeight(220)
+        dock.setStyleSheet(
+            "QDockWidget#rk_console_dock { border-top: 1px solid white; }"
+            "QDockWidget#rk_console_dock::title { background: transparent; }"
+        )
+
         console = QTextEdit()
         console.setReadOnly(True)
         console.setLineWrapMode(QTextEdit.NoWrap)
         console.append("Ready to process scan data.")
         dock.setWidget(console)
+
+        title_bar = QWidget()
+        title_layout = QHBoxLayout(title_bar)
+        title_layout.setContentsMargins(8, 0, 0, 0)
+        title_layout.setSpacing(6)
+
+        toggle_btn = QToolButton()
+        toggle_btn.setToolTip("Collapse / expand console")
+        toggle_btn.setArrowType(Qt.DownArrow)
+        toggle_btn.setFixedSize(18, 18)
+        toggle_btn.clicked.connect(lambda: self._toggle_console_dock(dock, console, toggle_btn))
+
+        title_label = QLabel("Console")
+        title_label.setObjectName("rk_console_title")
+        title_layout.addWidget(toggle_btn)
+        title_layout.addWidget(title_label)
+        title_layout.addStretch()
+        dock.setTitleBarWidget(title_bar)
+
         self.addDockWidget(Qt.BottomDockWidgetArea, dock)
         self._console = console
 
@@ -157,11 +184,30 @@ class RawKeeMainWindow(QMainWindow):
                 btn.setChecked(True)
 
     def append_console_output(self, message: str) -> None:
+        if message == self._last_console_message:
+            return
         self._console.append(message)
+        self._last_console_message = message
 
     def update_status(self, status_text: str, activity_state: str = "Idle") -> None:
         self._status_label.setText(status_text)
         self._activity_label.setText(activity_state)
+
+    def _toggle_console_dock(self, dock: QDockWidget, console: QTextEdit, toggle_btn: QToolButton) -> None:
+        is_expanded = console.isVisible()
+
+        if is_expanded:
+            console.hide()
+            dock.setMinimumHeight(28)
+            dock.setMaximumHeight(28)
+            toggle_btn.setArrowType(Qt.RightArrow)
+            dock.resize(dock.width(), 28)
+        else:
+            console.show()
+            dock.setMinimumHeight(70)
+            dock.setMaximumHeight(220)
+            toggle_btn.setArrowType(Qt.DownArrow)
+            dock.resize(dock.width(), 120)
 
 
 class MeshPage(QWidget):
@@ -354,16 +400,11 @@ class GaussianSplatPage(QWidget):
         opts_grid.addWidget(QLabel("Init points"), 2, 2)
         opts_grid.addWidget(QSpinBox(), 2, 3)
 
+        opts_grid.addWidget(QCheckBox("Pre-decode SH → RGB"), 3, 0)
+        opts_grid.addWidget(QCheckBox("Screen-space density gradients (2D)"), 3, 1, 1, 3)
+
         opts_box.setLayout(opts_grid)
         main.addWidget(opts_box)
-
-        # Checkboxes row
-        cb_row = QWidget()
-        cb_layout = QHBoxLayout(cb_row)
-        cb_layout.addWidget(QCheckBox("Pre-decode SH → RGB"))
-        cb_layout.addStretch()
-        cb_layout.addWidget(QCheckBox("Screen-space density gradients (2D)"))
-        main.addWidget(cb_row)
 
         main.addStretch()
 
