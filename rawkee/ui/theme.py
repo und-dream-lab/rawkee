@@ -12,7 +12,7 @@ AZUL = "#008CFF"
 MAIN = "#181818" 
 GRIS = "#3D3D3D"
 DARK_GRIS = "#1E1E1E"
-BLANCO = "#ffffff"
+BLANCO = "#eeeeee"
 
 THEME_QSS_RAW = """
 /* Root and window */
@@ -62,6 +62,21 @@ QDockWidget {
     titlebar-close-icon: none;
     titlebar-normal-icon: none;
 }
+QDockWidget#rk_console_dock {
+    background-color: {DARK_GRIS};
+}
+QDockWidget#rk_console_dock QWidget {
+    background-color: {DARK_GRIS};
+}
+QWidget#rk_console_titlebar {
+    border-bottom: 1px solid {BLANCO};
+    border-top: 1px solid {BLANCO};
+}
+QWidget#rk_console_titlebar QLabel, QWidget#rk_console_titlebar QToolButton {
+    background-color: transparent;
+}
+
+
 QTextEdit#rk_console {
     background-color: {MAIN};
     color: {BLANCO};

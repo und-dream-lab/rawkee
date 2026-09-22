@@ -104,21 +104,20 @@ class RawKeeMainWindow(QMainWindow):
         dock = QDockWidget("Console")
         dock.setObjectName("rk_console_dock")
         dock.setAllowedAreas(Qt.BottomDockWidgetArea)
-        dock.setFeatures(QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetMovable)
+        dock.setFeatures(QDockWidget.DockWidgetClosable)
         dock.setMinimumHeight(70)
         dock.setMaximumHeight(220)
-        dock.setStyleSheet(
-            "QDockWidget#rk_console_dock { border-top: 1px solid white; }"
-            "QDockWidget#rk_console_dock::title { background: transparent; }"
-        )
+        
 
         console = QTextEdit()
+        console.setObjectName("rk_console")
         console.setReadOnly(True)
         console.setLineWrapMode(QTextEdit.NoWrap)
         console.append("Ready to process scan data.")
         dock.setWidget(console)
 
         title_bar = QWidget()
+        title_bar.setObjectName("rk_console_titlebar")
         title_layout = QHBoxLayout(title_bar)
         title_layout.setContentsMargins(8, 0, 0, 0)
         title_layout.setSpacing(6)
@@ -126,7 +125,7 @@ class RawKeeMainWindow(QMainWindow):
         toggle_btn = QToolButton()
         toggle_btn.setToolTip("Collapse / expand console")
         toggle_btn.setArrowType(Qt.DownArrow)
-        toggle_btn.setFixedSize(18, 18)
+        toggle_btn.setFixedSize(18, 30)
         toggle_btn.clicked.connect(lambda: self._toggle_console_dock(dock, console, toggle_btn))
 
         title_label = QLabel("Console")
@@ -198,8 +197,8 @@ class RawKeeMainWindow(QMainWindow):
 
         if is_expanded:
             console.hide()
-            dock.setMinimumHeight(28)
-            dock.setMaximumHeight(28)
+            dock.setMinimumHeight(30)
+            dock.setMaximumHeight(30)
             toggle_btn.setArrowType(Qt.RightArrow)
             dock.resize(dock.width(), 28)
         else:
