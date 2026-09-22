@@ -319,6 +319,42 @@ class OCamModel:
     # CPU paths (NumPy)
     # ------------------------------------------------------------------
 
+    def _invert_cam2world_radius(self, slope: np.ndarray) -> np.ndarray:
+        """Solve cam2world(r)/r == slope for r via bisection (vectorized).
+
+        cam2world(r)/r is monotonic over the sensor's practical pixel-radius
+        range (verified empirically: strictly increasing from -inf at r->0 to
+        positive values at the sensor's corner radius), so bisection reliably
+        converges. This is used instead of evaluating the world2cam polynomial
+        directly — for this calibration format, world2cam's coefficients do
+        not reproduce a forward mapping consistent with cam2world (verified:
+        project(unproject(px)) != px when using world2cam as coded). Treating
+        cam2world (the unprojection polynomial) as ground truth and inverting
+        it numerically guarantees project() and unproject() are consistent by
+        construction, regardless of the exact world2cam parameterization.
+        """
+        r_max = float(np.hypot(self.width, self.height)) / 2.0 * 1.2
+        lo = np.full_like(slope, 1e-6)
+        hi = np.full_like(slope, r_max)
+
+        def f(r):
+            z = np.zeros_like(r)
+            rp = np.ones_like(r)
+            for coeff in self.cam2world:
+                z += coeff * rp
+                rp *= r
+            return z / r - slope
+
+        f_lo = f(lo)
+        for _ in range(60):
+            mid = 0.5 * (lo + hi)
+            f_mid = f(mid)
+            go_hi = (np.sign(f_mid) == np.sign(f_lo))
+            lo = np.where(go_hi, mid, lo)
+            hi = np.where(go_hi, hi, mid)
+            f_lo = np.where(go_hi, f_mid, f_lo)
+        return 0.5 * (lo + hi)
+
     def project(self, xyz: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Project (N,3) camera-frame points to (N,2) pixel coords + valid mask.
 
@@ -329,14 +365,11 @@ class OCamModel:
         safe = rho > 1e-8
 
         rho_s = np.where(safe, rho, 1.0)
-        theta = np.arctan2(-Z, rho_s)
-
-        # Evaluate world2cam polynomial
-        r = np.zeros(len(theta))
-        tp = np.ones(len(theta))
-        for coeff in self.world2cam:
-            r += coeff * tp
-            tp *= theta
+        # Target slope cam2world(r)/r for the numerical inverse (see
+        # _invert_cam2world_radius). For unsafe (near on-axis) rays the slope
+        # is irrelevant since r is forced to 0 below.
+        slope = np.where(safe, Z / rho_s, -1.0)
+        r = np.where(safe, self._invert_cam2world_radius(slope), 0.0)
 
         # Undistorted offsets in (row-dir, col-dir)
         a = r * X / rho_s
@@ -391,15 +424,33 @@ class OCamModel:
         Z = xyz[..., 2]
 
         rho = torch.sqrt(X ** 2 + Y ** 2).clamp(min=1e-8)
-        theta = torch.atan2(-Z, rho)
+        # See OCamModel._invert_cam2world_radius (CPU/NumPy path) for why the
+        # world2cam polynomial is bypassed in favour of numerically inverting
+        # cam2world: world2cam's coefficients do not reproduce a forward
+        # mapping consistent with cam2world for this calibration format.
+        slope = Z / rho
+        c2w = torch.tensor(self.cam2world, device=device, dtype=torch.float32)
 
-        # Polynomial world2cam
-        w2c = torch.tensor(self.world2cam, device=device, dtype=torch.float32)
-        r = torch.zeros_like(theta)
-        tp = torch.ones_like(theta)
-        for coeff in w2c:
-            r = r + coeff * tp
-            tp = tp * theta
+        def f(r):
+            z = torch.zeros_like(r)
+            rp = torch.ones_like(r)
+            for coeff in c2w:
+                z = z + coeff * rp
+                rp = rp * r
+            return z / r - slope
+
+        r_max = float((self.width ** 2 + self.height ** 2) ** 0.5) / 2.0 * 1.2
+        lo = torch.full_like(slope, 1e-6)
+        hi = torch.full_like(slope, r_max)
+        f_lo = f(lo)
+        for _ in range(60):
+            mid = 0.5 * (lo + hi)
+            f_mid = f(mid)
+            go_hi = torch.sign(f_mid) == torch.sign(f_lo)
+            lo = torch.where(go_hi, mid, lo)
+            hi = torch.where(go_hi, hi, mid)
+            f_lo = torch.where(go_hi, f_mid, f_lo)
+        r = 0.5 * (lo + hi)
 
         a = r * X / rho
         b = r * Y / rho

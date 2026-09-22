@@ -396,6 +396,7 @@ def step_pipeline_extras():
     section('6 / 7  Optional pipeline packages')
     optional = [
         ('rawpy',        'rawpy',        'rawpy  (DNG/RAW camera images)'),
+        ('opencv-python-headless', 'cv2', 'opencv-python-headless  (fisheye undistortion for splat training images)'),
         ('rosbags',      'rosbags',      'rosbags  (NavVis LiDAR bag reading)'),
         ('pye57',        'pye57',        'pye57  (E57 point cloud reading)'),
         ('pyproj',       'pyproj',       'pyproj  (precise UTM georeferencing)'),
@@ -666,6 +667,7 @@ def step_verify() -> bool:
         ('open3d',     'open3d',    True),
         ('torch',      'torch',     True),
         ('rawpy',      'rawpy',     False),
+        ('cv2',        'opencv-python-headless', False),
         ('rosbags',    'rosbags',   False),
         ('pycolmap',   'pycolmap',  False),
         ('pye57',      'pye57',     False),

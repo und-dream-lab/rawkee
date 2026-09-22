@@ -493,31 +493,31 @@ def check_cxx_compiler():
         skip('C++ compiler', 'Windows check skipped — run install_workstation_deps.py instead')
         return
     rc, out = _run(['gcc', '--version'])
-        if rc != 0:
-            error('gcc',
-                  'GCC C++ compiler not found. gsplat CUDA JIT compilation will fail.',
-                  fix=(
-                      'Ubuntu/Debian: apt install build-essential python3-dev\n'
-                      'RHEL/CentOS:   yum groupinstall "Development Tools" && yum install python3-devel\n'
-                      'HPC module:    module load gcc'
-                  ))
-            return
-        import re as _re
-        m = _re.search(r'(\d+\.\d+\.\d+)', out.splitlines()[0])
-        ver = m.group(1) if m else 'unknown'
-        ok('gcc', version=ver)
+    if rc != 0:
+        error('gcc',
+              'GCC C++ compiler not found. gsplat CUDA JIT compilation will fail.',
+              fix=(
+                  'Ubuntu/Debian: apt install build-essential python3-dev\n'
+                  'RHEL/CentOS:   yum groupinstall "Development Tools" && yum install python3-devel\n'
+                  'HPC module:    module load gcc'
+              ))
+        return
+    import re as _re
+    m = _re.search(r'(\d+\.\d+\.\d+)', out.splitlines()[0])
+    ver = m.group(1) if m else 'unknown'
+    ok('gcc', version=ver)
 
-        # Also check python dev headers (needed to build C extensions)
-        rc2, _ = _run(['python3-config', '--includes'])
-        if rc2 != 0:
-            warn('python3-dev headers',
-                 'python3-config not found. Building C extensions may fail.',
-                 fix=(
-                     'Ubuntu/Debian: apt install python3-dev\n'
-                     'RHEL/CentOS:   yum install python3-devel'
-                 ))
-        else:
-            ok('python3-dev headers', msg='python3-config found')
+    # Also check python dev headers (needed to build C extensions)
+    rc2, _ = _run(['python3-config', '--includes'])
+    if rc2 != 0:
+        warn('python3-dev headers',
+             'python3-config not found. Building C extensions may fail.',
+             fix=(
+                 'Ubuntu/Debian: apt install python3-dev\n'
+                 'RHEL/CentOS:   yum install python3-devel'
+             ))
+    else:
+        ok('python3-dev headers', msg='python3-config found')
 
 
 # ---------------------------------------------------------------------------

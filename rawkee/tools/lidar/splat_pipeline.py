@@ -335,9 +335,20 @@ def _undistort_ocam(img_rgb8: np.ndarray, ocam, target_size: int) -> np.ndarray:
                       Y_cam.ravel() / norms.ravel(),
                       Z_cam.ravel() / norms.ravel()], axis=-1)
 
-    uv_src, _valid = ocam.project(xyz)  # (N, 2) col, row in source image
+    uv_src, _valid = ocam.project(xyz)  # (N, 2) col, row in calibration-resolution pixel space
     map_col = uv_src[:, 0].reshape(target_size, target_size).astype(np.float32)
     map_row = uv_src[:, 1].reshape(target_size, target_size).astype(np.float32)
+
+    # ocam.project() returns coordinates in the calibration's native resolution
+    # (ocam.width x ocam.height, from sensor_frame.xml). img_rgb8 may be at a
+    # different resolution — e.g. a downscaled preview JPEG used as a fallback
+    # when the source DNG can't be decoded by rawpy. Rescale the projected
+    # coordinates into img_rgb8's actual pixel space so sampling stays correct
+    # (and in-bounds) regardless of the source image's resolution.
+    src_h, src_w = img_rgb8.shape[:2]
+    if (src_w, src_h) != (ocam.width, ocam.height):
+        map_col = map_col * (src_w / ocam.width)
+        map_row = map_row * (src_h / ocam.height)
 
     try:
         import cv2
@@ -345,8 +356,8 @@ def _undistort_ocam(img_rgb8: np.ndarray, ocam, target_size: int) -> np.ndarray:
                          borderMode=cv2.BORDER_CONSTANT, borderValue=0)
     except ImportError:
         # Nearest-neighbour fallback when OpenCV is absent
-        col_i = np.clip(map_col.ravel().round().astype(np.int32), 0, ocam.width  - 1)
-        row_i = np.clip(map_row.ravel().round().astype(np.int32), 0, ocam.height - 1)
+        col_i = np.clip(map_col.ravel().round().astype(np.int32), 0, src_w - 1)
+        row_i = np.clip(map_row.ravel().round().astype(np.int32), 0, src_h - 1)
         out   = img_rgb8[row_i, col_i].reshape(target_size, target_size, 3)
         return out
 
