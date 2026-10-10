@@ -511,7 +511,7 @@ class RKMFFieldRow(QWidget):
     _MF_WIDTHS = {
         'MFVec2f':2,'MFVec2d':2,
         'MFVec3f':3,'MFVec3d':3,'MFColor':3,
-        'MFVec4f':4,'MFVec4d':4,'MFColorRGBA':4,'MFRotation':4,
+        'MFVec4f':4,'MFVec4d':4,'MFColorRGBA':4,'MFRotation':4,'MFQuaternion':4,
     }
 
     def __init__(self, fname, ftype, parent=None):
@@ -643,14 +643,14 @@ class RKNodeFieldEditor(QWidget):
     _SF_WIDTHS = {
         'SFVec2f':2,'SFVec2d':2,
         'SFVec3f':3,'SFVec3d':3,'SFColor':3,
-        'SFVec4f':4,'SFVec4d':4,'SFColorRGBA':4,'SFRotation':4,
+        'SFVec4f':4,'SFVec4d':4,'SFColorRGBA':4,'SFRotation':4,'SFQuaternion':4,
         'SFMatrix3f':9,'SFMatrix3d':9,
         'SFMatrix4f':16,'SFMatrix4d':16,
     }
     _MF_WIDTHS = {
         'MFVec2f':2,'MFVec2d':2,
         'MFVec3f':3,'MFVec3d':3,'MFColor':3,
-        'MFVec4f':4,'MFVec4d':4,'MFColorRGBA':4,'MFRotation':4,
+        'MFVec4f':4,'MFVec4d':4,'MFColorRGBA':4,'MFRotation':4,'MFQuaternion':4,
     }
 
     def __init__(self, parent=None):
@@ -1388,11 +1388,53 @@ class RKSceneEditor(QMainWindow):
         trv.startExport(self._x3dObj, buf, 'x3d')
         return buf.getvalue() or None
 
+    @staticmethod
+    def _child_nodes(node):
+        """Yield (slot, child) for every child node held in SFNode/MFNode fields of node."""
+        try:
+            decls = type(node).FIELD_DECLARATIONS()
+        except AttributeError:
+            return
+        for decl in decls:
+            ftype = decl[2]()
+            if ftype == 'SFNode':
+                child = getattr(node, decl[0], None)
+                if child is not None and hasattr(type(child), 'FIELD_DECLARATIONS'):
+                    yield (decl[0], None), child
+            elif ftype == 'MFNode':
+                for i, child in enumerate(getattr(node, decl[0], None) or []):
+                    yield (decl[0], i), child
+
+    def _node_path(self, target):
+        """Scene-relative slot path to target, or None when it is not in the scene."""
+        scene = getattr(self._x3dObj, 'Scene', None) if self._x3dObj is not None else None
+        if scene is None:
+            return None
+        def walk(node):
+            for slot, child in self._child_nodes(node):
+                if child is target:
+                    return [slot]
+                sub = walk(child)
+                if sub is not None:
+                    return [slot] + sub
+            return None
+        return walk(scene)
+
+    def _resolve_node_path(self, path):
+        node = getattr(self._x3dObj, 'Scene', None) if self._x3dObj is not None else None
+        for fname, idx in path:
+            if node is None:
+                return None
+            val = getattr(node, fname, None)
+            node = val if idx is None else (val[idx] if val is not None and idx < len(val) else None)
+        return node
+
     def _push_field_undo(self, node, fname, old_val):
         """Lightweight undo entry for a single field change — no scene serialization."""
         if self._ai_batch:
             return
-        entry = ('field', node, fname, old_val)
+        # Snapshot restores rebuild every node object, so the entry is addressed by scene path.
+        entry = ('field', node, fname, old_val, self._node_path(node))
         with self._undo_lock:
             self._undo_stack.append(entry)
             if len(self._undo_stack) > self._MAX_UNDO:
@@ -1416,14 +1458,16 @@ class RKSceneEditor(QMainWindow):
 
     def _apply_field_entry(self, entry):
         """Apply a lightweight field undo/redo entry and return the reverse entry."""
-        _, node, fname, old_val = entry
+        _, node, fname, old_val, path = entry
+        if path is not None:
+            node = self._resolve_node_path(path)
         try:
             cur_val = getattr(node, fname)
             setattr(node, fname, old_val)
         except Exception:
             return None
         self._sync_xite_via_sai()
-        return ('field', node, fname, cur_val)
+        return ('field', node, fname, cur_val, path)
 
     def _restore_snapshot(self, xml_str: str):
         from rawkee.io.RKLoadSceneFromFile import RKLoadSceneFromFile

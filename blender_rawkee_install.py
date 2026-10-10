@@ -10,7 +10,8 @@ The script will:
      that it is importable on every Blender launch.
   3. Copy the 'rawkee4blender' package to Blender's user modules directory.
   4. Copy Blender_RawKee_Python_X3D.py to Blender's user addons directory.
-  5. Enable the addon and save user preferences.
+  5. Copy LICENSE and README.md into the installed 'rawkee' package folder.
+  6. Enable the addon and save user preferences.
 
 Restart Blender after running to confirm the installation is fully active.
 
@@ -99,6 +100,14 @@ def _copy_package(repo_root, modules_dir, package_name):
 
     shutil.copytree(src, dst, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     return dst
+
+
+def _copy_docs(repo_root, rawkee_dst):
+    """Copy LICENSE and README.md next to the installed rawkee package contents."""
+    for name in ("LICENSE", "README.md"):
+        src = os.path.join(repo_root, name)
+        if os.path.isfile(src):
+            shutil.copy2(src, os.path.join(rawkee_dst, name))
 
 
 def _copy_addon_entry_point(repo_root, addons_dir):
@@ -262,6 +271,7 @@ def install():
     addons_dir  = _get_addons_dir()
 
     rawkee_dst          = _copy_package(repo_root, modules_dir, "rawkee")
+    _copy_docs(repo_root, rawkee_dst)
     rawkee4blender_dst  = _copy_package(repo_root, modules_dir, "rawkee4blender")
     addon_dst           = _copy_addon_entry_point(repo_root, addons_dir)
     status_msg          = _enable_addon(modules_dir)

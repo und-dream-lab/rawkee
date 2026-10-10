@@ -9890,6 +9890,16 @@ class MFVec4f(_X3DArrayField):
     def __len__(self):
         return len(self.__value)
 
+def _isRealNumber(value):
+    """ True for int/float values, excluding bool. """
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+def _toQuaternionTuple(value):
+    """ Strictly convert a 4-component numeric tuple/list to a float 4-tuple, otherwise raise. """
+    if not isinstance(value, (tuple, list)) or len(value) != 4 or not all(_isRealNumber(each) for each in value):
+        raise TypeError('quaternion requires exactly four numeric components (x,y,z,w), got ' + str(value)[:100])
+    return (float(value[0]), float(value[1]), float(value[2]), float(value[3]))
+
 class SFQuaternion(_X3DField):
     """
     Field type SFQuaternion is a unit quaternion value stored as a 4-tuple (x,y,z,w). Introduced in X3D 4.1.
@@ -9939,12 +9949,9 @@ class SFQuaternion(_X3DField):
             value = value.value  # dereference
         elif value is None:
             value = SFQuaternion.DEFAULT_VALUE()
-        elif isinstance(value, list):
-            if len(value) == 4:
-                value = (float(value[0]), float(value[1]), float(value[2]), float(value[3]))
         elif isinstance(value, MFQuaternion) and isinstance(value.value, list) and len(value.value) == 1:
             value = value.value[0]  # dereference
-        self.__value = value
+        self.__value = _toQuaternionTuple(value)
     def __bool__(self):
         return self.__value is not None
 
@@ -9995,23 +10002,20 @@ class MFQuaternion(_X3DArrayField):
     @value.setter
     def value(self, value):
         """ The value setter only allows correctly typed and sized values. """
-        if isinstance(value, SFQuaternion):
-            value = value.value  # dereference
-        elif value is None:
+        if value is None:
             value = MFQuaternion.DEFAULT_VALUE()
-        elif isinstance(value, list):
-            result = []
-            for each in value:
-                if isinstance(each, SFQuaternion):
-                    result.append(each.value)
-                elif isinstance(each, (tuple, list)) and len(each) == 4:
-                    result.append((float(each[0]), float(each[1]), float(each[2]), float(each[3])))
-                else:
-                    result.append(each)
-            value = result
-        elif isinstance(value, str):
-            value = []
-        self.__value = value
+        if isinstance(value, SFQuaternion):
+            value = [value.value]
+        elif isinstance(value, MFQuaternion):
+            value = list(value.value)
+        if not isinstance(value, (list, tuple)):
+            raise TypeError('MFQuaternion requires a list of 4-component quaternions, got ' + str(type(value)))
+        if len(value) > 0 and all(_isRealNumber(each) for each in value):
+            # flat list of numbers, group into 4-tuples
+            if len(value) % 4 != 0:
+                raise ValueError('MFQuaternion flat list length must be a multiple of 4, got ' + str(len(value)))
+            value = [tuple(value[i:i + 4]) for i in range(0, len(value), 4)]
+        self.__value = [_toQuaternionTuple(each.value if isinstance(each, SFQuaternion) else each) for each in value]
     def append(self, value=None):
         """ Add to existing value list, first ensuring that a correctly typed value is applied. """
         if value is not None:

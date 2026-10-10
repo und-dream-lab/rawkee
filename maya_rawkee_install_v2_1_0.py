@@ -6,14 +6,31 @@ Drag and drop this file into the Maya viewport to install.
 The script will:
   1. Detect the repo root from this file's location.
   2. Find Maya's user modules directory for the current OS.
-  3. Write a RawKee.mod file there pointing back to the repo root.
+  3. Copy the plugin files into <modules>/RawKee (replacing any previous copy).
+  4. Write a RawKee.mod file in <modules> pointing at that folder.
+
+The repo itself is left untouched, so it can be moved or deleted after installing.
+Run maya_rawkee_uninstall_v2_1_0.py to remove the plugin.
 
 No manual path editing required. Works on Windows, macOS, and Linux.
 Restart Maya after running to load the plugin via the Plugin Manager.
 """
 
 import os
+import shutil
 import sys
+
+# Folder created inside Maya's user modules directory.
+_INSTALL_DIR_NAME = "RawKee"
+
+# Files and folders copied from the repo root into the install folder.
+_PAYLOAD = [
+    "rawkee",
+    "rawkee4maya",
+    "LICENSE",
+    "Maya_RawKee_Python_X3D.py",
+    "README.md",
+]
 
 
 def _get_repo_root():
@@ -54,17 +71,33 @@ def _get_modules_dir():
     return os.path.join(maya_app_dir, "modules")
 
 
-def _write_mod_file(modules_dir, repo_root):
-    """Write RawKee.mod into modules_dir, pointing at repo_root."""
+def _copy_payload(repo_root, install_dir):
+    """Replace install_dir with a fresh copy of the plugin files from repo_root."""
+    if os.path.isdir(install_dir):
+        shutil.rmtree(install_dir)
+    os.makedirs(install_dir)
+
+    skip = shutil.ignore_patterns("__pycache__", "*.pyc")
+    for name in _PAYLOAD:
+        src = os.path.join(repo_root, name)
+        dst = os.path.join(install_dir, name)
+        if os.path.isdir(src):
+            shutil.copytree(src, dst, ignore=skip)
+        else:
+            shutil.copy2(src, dst)
+
+
+def _write_mod_file(modules_dir, install_dir):
+    """Write RawKee.mod into modules_dir, pointing at install_dir."""
     # .mod files accept forward slashes on all platforms.
-    repo_root_fwd = repo_root.replace("\\", "/")
+    install_dir_fwd = install_dir.replace("\\", "/")
 
     mod_content = (
         "+ RawKee_PythonEdition_X3D 2.1.0 {root}\n"
         "PYTHONPATH+:=.\n"
         "MAYA_PLUG_IN_PATH+:=.\n"
         "MAYA_SCRIPT_PATH+:=rawkee4maya/maya/mel\n"
-    ).format(root=repo_root_fwd)
+    ).format(root=install_dir_fwd)
 
     mod_path = os.path.join(modules_dir, "RawKee.mod")
     with open(mod_path, "w") as f:
@@ -210,31 +243,59 @@ def install():
 
     repo_root   = _get_repo_root()
     modules_dir = _get_modules_dir()
+    install_dir = os.path.join(modules_dir, _INSTALL_DIR_NAME)
 
     # Verify we're actually pointing at a RawKee repo before doing anything.
-    plugin_file = os.path.join(repo_root, "Maya_RawKee_Python_X3D.py")
-    if not os.path.isfile(plugin_file):
+    missing = [n for n in _PAYLOAD if not os.path.exists(os.path.join(repo_root, n))]
+    if missing:
         _notify(
             "RawKee Installer — Error",
-            "Could not locate Maya_RawKee_Python_X3D.py in:\n  {}\n\n"
+            "Could not locate the following in:\n  {}\n\n  {}\n\n"
             "Make sure you are running this script from inside the cloned "
-            "RawKee repository.".format(repo_root),
+            "RawKee repository.".format(repo_root, "\n  ".join(missing)),
+        )
+        return
+
+    # The install folder is deleted before copying, so never let it overlap the source.
+    repo_norm = os.path.normcase(os.path.realpath(repo_root))
+    inst_norm = os.path.normcase(os.path.realpath(install_dir))
+    if repo_norm == inst_norm or repo_norm.startswith(inst_norm + os.sep):
+        _notify(
+            "RawKee Installer — Error",
+            "This script is running from inside the install folder:\n  {}\n\n"
+            "Run it from the cloned RawKee repository instead.".format(install_dir),
         )
         return
 
     os.makedirs(modules_dir, exist_ok=True)
-    mod_path = _write_mod_file(modules_dir, repo_root)
+    try:
+        _copy_payload(repo_root, install_dir)
+    except OSError as exc:
+        _notify(
+            "RawKee Installer — Error",
+            "Could not copy files to:\n  {}\n\n{}\n\n"
+            "If the RawKee plugin is loaded, unload it in the Plug-in Manager "
+            "(or restart Maya) and try again.".format(install_dir, exc),
+        )
+        return
+    mod_path = _write_mod_file(modules_dir, install_dir)
 
     _notify(
         "RawKee Installer — Success",
         (
             "RawKee installation complete.\n\n"
-            "  Plugin source : {root}\n"
-            "  Module file   : {mod}\n\n"
+            "  Plugin files : {root}\n"
+            "  Module file  : {mod}\n\n"
             "Please restart Maya, then load the plugin through:\n"
             "  Windows > Settings/Preferences > Plug-in Manager"
-        ).format(root=repo_root, mod=mod_path),
+        ).format(root=install_dir, mod=mod_path),
     )
 
 
-install()
+def onMayaDroppedPythonFile(*args):
+    """Entry point Maya calls when this file is dropped into the viewport."""
+    install()
+
+
+if __name__ == "__main__":
+    install()
