@@ -1,6 +1,7 @@
 from rawkee.editor.RKXGraphicsNode  import RKXGraphicsNode 
 from rawkee.editor.RKXContentWidget import RKXContentWidget
 from rawkee.editor.RKXSocket        import *
+from PySide6.QtGui                  import QFont, QFontMetrics
 
 class RKXNode():
     @staticmethod
@@ -37,6 +38,7 @@ class RKXNode():
         n = max(n_in, n_out, 1)
         needed = top_start + (n - 1) * self.socket_spacing + bot_start
         self.grNode.height = max(needed, 100)
+        self.grNode.width  = self._min_width_for_fields()
         self.grNode.initContent()
 
         self.scene.add_eNode(self)
@@ -72,6 +74,20 @@ class RKXNode():
             y = (self.grNode.title_height * self.grNode._padding) + self.grNode.edge_size + (index * self.socket_spacing)
 
         return x, y
+
+    def _min_width_for_fields(self) -> int:
+        """Return the minimum node width so no field label is clipped."""
+        lbl_font = QFont('Arial')
+        lbl_font.setPixelSize(9)
+        lbl_font.setBold(True)
+        fm = QFontMetrics(lbl_font)
+        radius  = 6    # matches RKXGraphicsSocket.radius
+        padding = 4    # gap between socket dot and label start
+        gap     = 10   # minimum empty space between the two label columns
+        max_in  = max((fm.horizontalAdvance(n) for n, _ in self.input_fields),  default=0)
+        max_out = max((fm.horizontalAdvance(n) for n, _ in self.output_fields), default=0)
+        needed  = radius + padding + max_in + gap + max_out + padding + radius
+        return max(needed, 220)  # 220 is the existing default minimum
 
     def _resize_for_sockets(self):
         """Recompute node height from current socket counts; reposition input sockets."""
