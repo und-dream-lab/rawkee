@@ -154,12 +154,12 @@ def _check_pip_dependencies():
 
     # pip install-name → Python import-name
     PACKAGES = {
-        "numpy":         "numpy",
-        "imageio":       "imageio",
-        "opencv-python": "cv2",
-        "scipy":         "scipy",
-        "PySide6":       "PySide6",
-        "MaterialX":     "MaterialX",
+        "numpy":              "numpy",
+        "imageio":            "imageio",
+        "opencv-python":      "cv2",
+        "scipy":              "scipy",
+        "PySide6":            "PySide6",
+        "MaterialX":          "MaterialX",
     }
 
     def _importable(import_name):

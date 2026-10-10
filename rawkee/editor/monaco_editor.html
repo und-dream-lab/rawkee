@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: #1e1e1e; overflow: hidden; }
+  #editor { width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<div id="editor"></div>
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs/loader.js"></script>
+<script>
+'use strict';
+
+// Queue calls that arrive before Monaco's async AMD require callback fires
+window._monacoEditor  = null;
+window._pendingValue  = '';
+window._pendingNodeLib = null;
+
+window.monacoSetValue = function (text) {
+  if (window._monacoEditor) {
+    window._monacoEditor.setValue(text);
+    window._monacoEditor.setScrollPosition({ scrollTop: 0 });
+  } else {
+    window._pendingValue = text;
+  }
+};
+
+window.monacoGetValue = function () {
+  return window._monacoEditor ? window._monacoEditor.getValue() : window._pendingValue;
+};
+
+// Inject per-Script UDF type declarations so field names get IntelliSense
+window.monacoAddNodeLib = function (dts) {
+  if (window._monacoEditor) {
+    monaco.languages.typescript.javascriptDefaults.addExtraLib(dts, 'x3d-script-udfs.d.ts');
+  } else {
+    window._pendingNodeLib = dts;
+  }
+};
+
+require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs' } });
+require(['vs/editor/editor.main'], function () {
+
+  // ── X3D SAI type declarations ──────────────────────────────────────────
+  const _SAI_DTS = `
+interface SFVec2f {
+  x: number; y: number;
+  add(v: SFVec2f): SFVec2f; subtract(v: SFVec2f): SFVec2f;
+  multiply(n: number): SFVec2f; divide(n: number): SFVec2f;
+  length(): number; normalize(): SFVec2f; negate(): SFVec2f;
+  dot(v: SFVec2f): number; equals(v: SFVec2f, eps?: number): boolean; }
+
+interface SFVec3f {
+  x: number; y: number; z: number;
+  add(v: SFVec3f): SFVec3f; subtract(v: SFVec3f): SFVec3f;
+  multiply(n: number): SFVec3f; divide(n: number): SFVec3f;
+  length(): number; normalize(): SFVec3f; negate(): SFVec3f;
+  dot(v: SFVec3f): number; cross(v: SFVec3f): SFVec3f;
+  equals(v: SFVec3f, eps?: number): boolean; }
+
+interface SFVec4f {
+  x: number; y: number; z: number; w: number;
+  add(v: SFVec4f): SFVec4f; subtract(v: SFVec4f): SFVec4f;
+  multiply(n: number): SFVec4f; divide(n: number): SFVec4f;
+  length(): number; normalize(): SFVec4f; negate(): SFVec4f;
+  dot(v: SFVec4f): number; equals(v: SFVec4f, eps?: number): boolean; }
+
+interface SFVec2d extends SFVec2f {}
+interface SFVec3d extends SFVec3f {}
+interface SFVec4d extends SFVec4f {}
+
+interface SFColor {
+  r: number; g: number; b: number;
+  add(v: SFColor): SFColor; subtract(v: SFColor): SFColor;
+  multiply(n: number): SFColor; divide(n: number): SFColor;
+  getHSV(): [number, number, number];
+  setHSV(h: number, s: number, v: number): void;
+  equals(v: SFColor, eps?: number): boolean; }
+
+interface SFColorRGBA {
+  r: number; g: number; b: number; a: number;
+  add(v: SFColorRGBA): SFColorRGBA; subtract(v: SFColorRGBA): SFColorRGBA;
+  multiply(n: number): SFColorRGBA; divide(n: number): SFColorRGBA;
+  equals(v: SFColorRGBA, eps?: number): boolean; }
+
+interface SFRotation {
+  x: number; y: number; z: number; angle: number;
+  getAxis(): SFVec3f; getAngle(): number;
+  multiply(r: SFRotation): SFRotation;
+  inverse(): SFRotation;
+  slerp(dest: SFRotation, t: number): SFRotation;
+  equals(r: SFRotation, eps?: number): boolean; }
+
+interface SFMatrix3f {
+  [i: number]: number;
+  inverse(): SFMatrix3f; transpose(): SFMatrix3f;
+  multLeft(m: SFMatrix3f): SFMatrix3f; multRight(m: SFMatrix3f): SFMatrix3f;
+  multVecMatrix(v: SFVec3f): SFVec3f; multMatrixVec(v: SFVec3f): SFVec3f;
+  setTransform(t?: SFVec2f, r?: number, s?: SFVec2f): void; }
+
+interface SFMatrix4f {
+  [i: number]: number;
+  inverse(): SFMatrix4f; transpose(): SFMatrix4f;
+  multLeft(m: SFMatrix4f): SFMatrix4f; multRight(m: SFMatrix4f): SFMatrix4f;
+  multVecMatrix(v: SFVec3f): SFVec3f; multMatrixVec(v: SFVec3f): SFVec3f;
+  setTransform(t?: SFVec3f, r?: SFRotation, s?: SFVec3f, so?: SFRotation, c?: SFVec3f): void;
+  getTransform(t: SFVec3f, r: SFRotation, s: SFVec3f): void; }
+
+interface SFImage { width: number; height: number; comp: number; array: Uint8Array; }
+
+interface MFBool     extends Array<boolean>      {}
+interface MFInt32    extends Array<number>       {}
+interface MFFloat    extends Array<number>       {}
+interface MFDouble   extends Array<number>       {}
+interface MFString   extends Array<string>       {}
+interface MFTime     extends Array<number>       {}
+interface MFVec2f    extends Array<SFVec2f>      { [i: number]: SFVec2f; }
+interface MFVec3f    extends Array<SFVec3f>      { [i: number]: SFVec3f; }
+interface MFVec4f    extends Array<SFVec4f>      { [i: number]: SFVec4f; }
+interface MFVec2d    extends Array<SFVec2d>      { [i: number]: SFVec2d; }
+interface MFVec3d    extends Array<SFVec3d>      { [i: number]: SFVec3d; }
+interface MFVec4d    extends Array<SFVec4d>      { [i: number]: SFVec4d; }
+interface MFColor    extends Array<SFColor>      { [i: number]: SFColor; }
+interface MFColorRGBA extends Array<SFColorRGBA> { [i: number]: SFColorRGBA; }
+interface MFRotation extends Array<SFRotation>   { [i: number]: SFRotation; }
+interface MFNode     extends Array<X3DNode>      { [i: number]: X3DNode; }
+interface MFMatrix3f extends Array<SFMatrix3f>   {}
+interface MFMatrix4f extends Array<SFMatrix4f>   {}
+
+interface X3DNode {
+  [field: string]: any;
+  getType(): string[];
+  getTypeName(): string;
+  getDisplayName(): string;
+  toVRMLString(): string;
+  toXMLString(): string;
+  toJSONString(): string; }
+
+interface X3DRoute {
+  readonly sourceNode: X3DNode;
+  readonly sourceField: string;
+  readonly destinationNode: X3DNode;
+  readonly destinationField: string; }
+
+interface X3DExecutionContext {
+  readonly rootNodes: MFNode;
+  readonly specificationVersion: string;
+  readonly encoding: string;
+  readonly worldURL: string;
+  readonly routes: X3DRoute[];
+  getNamedNode(name: string): X3DNode;
+  addNamedNode(name: string, node: X3DNode): void;
+  removeNamedNode(name: string): void;
+  createNode(typeName: string): X3DNode;
+  createProto(name: string): X3DNode;
+  addRoute(srcNode: X3DNode, srcField: string, destNode: X3DNode, destField: string): X3DRoute;
+  deleteRoute(route: X3DRoute): void; }
+
+interface X3DScene extends X3DExecutionContext {
+  getMetaData(key: string): string[];
+  addMetaData(key: string, value: string): void;
+  removeMetaData(key: string): void;
+  setMetaData(key: string, value: string): void; }
+
+/** The X3D browser object — available as a global in Script nodes. */
+declare const Browser: {
+  readonly name: string;
+  readonly version: string;
+  readonly currentSpeed: number;
+  readonly currentFrameRate: number;
+  description: string;
+  readonly currentScene: X3DScene;
+  getExecutionContext(): X3DExecutionContext;
+  createScene(profile?: string, ...components: string[]): X3DScene;
+  replaceWorld(nodes: X3DNode[]): void;
+  loadURL(url: string[], parameter?: string[]): void;
+  createX3DFromString(x3dSource: string): X3DScene;
+  createX3DFromURL(url: string[]): X3DScene;
+  getRenderingProperty(name: string): any;
+  addBrowserListener(listener: { browserChanged?(event: object): void }): void;
+  removeBrowserListener(listener: object): void;
+  /** Write a string to the browser console. */
+  print(str: string): void;
+  /** Write a string + newline to the browser console. */
+  println(str: string): void;
+  getWorldURL(): string; };
+
+/** Shorthand for Browser.print(). */
+declare function print(str: string): void;
+/** Shorthand for Browser.println(). */
+declare function println(str: string): void;
+`;
+
+  monaco.languages.typescript.javascriptDefaults.addExtraLib(_SAI_DTS, 'x3d-sai.d.ts');
+  monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+    noSemanticValidation: true,
+    noSyntaxValidation: false,
+  });
+  monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+    target: monaco.languages.typescript.ScriptTarget.ES2020,
+    allowNonTsExtensions: true,
+    allowJs: true,
+    checkJs: false,
+  });
+
+  const editor = monaco.editor.create(document.getElementById('editor'), {
+    value: '',
+    language: 'javascript',
+    theme: 'vs-dark',
+    automaticLayout: true,
+    minimap: { enabled: false },
+    fontSize: 13,
+    fontFamily: "'Cascadia Code', 'Fira Code', Consolas, 'Courier New', monospace",
+    fontLigatures: true,
+    tabSize: 2,
+    insertSpaces: true,
+    wordWrap: 'off',
+    scrollBeyondLastLine: false,
+    contextmenu: true,
+    quickSuggestions: { other: true, comments: false, strings: false },
+    suggestOnTriggerCharacters: true,
+    parameterHints: { enabled: true },
+    lineNumbers: 'on',
+    renderWhitespace: 'none',
+    bracketPairColorization: { enabled: true },
+    scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
+  });
+
+  window._monacoEditor = editor;
+
+  if (window._pendingValue !== '') {
+    editor.setValue(window._pendingValue);
+    editor.setScrollPosition({ scrollTop: 0 });
+    window._pendingValue = '';
+  }
+
+  if (window._pendingNodeLib !== null) {
+    monaco.languages.typescript.javascriptDefaults.addExtraLib(window._pendingNodeLib, 'x3d-script-udfs.d.ts');
+    window._pendingNodeLib = null;
+  }
+
+  // Ctrl+S signals Python via document.title side-channel (unique timestamp prevents dedup)
+  editor.addCommand(
+    monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+    function () { document.title = '__APPLY__:' + Date.now(); }
+  );
+});
+</script>
+</body>
+</html>

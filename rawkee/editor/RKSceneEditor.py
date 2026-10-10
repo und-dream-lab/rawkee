@@ -253,8 +253,8 @@ class RKX3DTreeWidget(QTreeWidget):
                 self.setCursor(Qt.DragMoveCursor)
                 return
         item = self.itemAt(event.pos())
-        # Note deselect intent before super() changes selection state
-        self._deselect_on_release = (item is None or item in self.selectedItems())
+        # Deselect only when clicking empty space, not when re-clicking a selected item
+        self._deselect_on_release = (item is None)
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
@@ -375,8 +375,270 @@ class RKNodeEditorDropView(RKGraphicsView):
             super().dropEvent(event)
 
 
+class _RKFieldLineEdit(QLineEdit):
+    """QLineEdit that reverts to its pre-focus text on blur unless Enter was pressed."""
+    committed = Signal(str)
+
+    def __init__(self, text='', parent=None):
+        super().__init__(text, parent)
+        self._snapshot = text
+
+    def focusInEvent(self, event):
+        self._snapshot = self.text()
+        super().focusInEvent(event)
+
+    def focusOutEvent(self, event):
+        self.setText(self._snapshot)
+        self.setStyleSheet('')
+        super().focusOutEvent(event)
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self._snapshot = self.text()   # freeze so FocusOut won't revert
+            self.committed.emit(self.text())
+        super().keyPressEvent(event)
+
+
+class _JSEditorDialog(QDialog):
+    """Floating Monaco ECMAScript editor for a Script node."""
+
+    _HTML_PATH = os.path.join(os.path.dirname(__file__), 'monaco_editor.html')
+
+    # X3D field type → TypeScript type for UDF IntelliSense declarations
+    _X3D_TO_TS = {
+        'SFBool':       'boolean',    'MFBool':       'MFBool',
+        'SFInt32':      'number',     'MFInt32':      'MFInt32',
+        'SFFloat':      'number',     'MFFloat':      'MFFloat',
+        'SFDouble':     'number',     'MFDouble':     'MFDouble',
+        'SFTime':       'number',     'MFTime':       'MFTime',
+        'SFString':     'string',     'MFString':     'MFString',
+        'SFVec2f':      'SFVec2f',    'MFVec2f':      'MFVec2f',
+        'SFVec3f':      'SFVec3f',    'MFVec3f':      'MFVec3f',
+        'SFVec4f':      'SFVec4f',    'MFVec4f':      'MFVec4f',
+        'SFVec2d':      'SFVec2d',    'MFVec2d':      'MFVec2d',
+        'SFVec3d':      'SFVec3d',    'MFVec3d':      'MFVec3d',
+        'SFVec4d':      'SFVec4d',    'MFVec4d':      'MFVec4d',
+        'SFColor':      'SFColor',    'MFColor':      'MFColor',
+        'SFColorRGBA':  'SFColorRGBA','MFColorRGBA':  'MFColorRGBA',
+        'SFRotation':   'SFRotation', 'MFRotation':   'MFRotation',
+        'SFMatrix3f':   'SFMatrix3f', 'MFMatrix3f':   'MFMatrix3f',
+        'SFMatrix4f':   'SFMatrix4f', 'MFMatrix4f':   'MFMatrix4f',
+        'SFImage':      'SFImage',    'MFImage':      'Uint32Array',
+        'SFNode':       'X3DNode',    'MFNode':       'MFNode',
+    }
+
+    def __init__(self, node, on_apply, parent=None):
+        super().__init__(parent)
+        def_name = getattr(node, 'DEF', '') or 'Script'
+        self.setWindowTitle(f'Script Editor \u2014 {def_name}')
+        self.resize(820, 580)
+        self.setWindowFlags(
+            self.windowFlags() | Qt.WindowType.WindowMinMaxButtonsHint
+        )
+        self._on_apply = on_apply
+        self._node     = node
+
+        self._view = QWebEngineView()
+        # file:// pages can't load CDN scripts without this
+        self._view.settings().setAttribute(
+            QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True
+        )
+        self._view.load(QUrl.fromLocalFile(self._HTML_PATH))
+        self._view.loadFinished.connect(self._on_load_finished)
+        # Ctrl+S inside Monaco signals Apply via document.title
+        self._view.titleChanged.connect(self._on_title_changed)
+
+        apply_btn = QPushButton('Apply')
+        close_btn = QPushButton('Close')
+        apply_btn.setFixedWidth(80)
+        close_btn.setFixedWidth(80)
+        apply_btn.clicked.connect(self._apply)
+        close_btn.clicked.connect(self.close)
+
+        btn_bar = QWidget()
+        btn_lay = QHBoxLayout(btn_bar)
+        btn_lay.setContentsMargins(4, 4, 4, 4)
+        btn_lay.addStretch()
+        btn_lay.addWidget(apply_btn)
+        btn_lay.addWidget(close_btn)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self._view)
+        layout.addWidget(btn_bar)
+
+    def _on_load_finished(self, ok):
+        if ok:
+            src = getattr(self._node, 'sourceCode', '') or ''
+            self._view.page().runJavaScript(
+                f'window.monacoSetValue({json.dumps(src)})'
+            )
+            udf_dts = self._build_udf_dts()
+            if udf_dts:
+                self._view.page().runJavaScript(
+                    f'window.monacoAddNodeLib({json.dumps(udf_dts)})'
+                )
+
+    def _build_udf_dts(self):
+        lines = []
+        for fobj in getattr(self._node, 'field', []):
+            name    = getattr(fobj, 'name', None)
+            x3dtype = getattr(fobj, 'type', 'SFString')
+            access  = getattr(fobj, 'accessType', 'inputOutput')
+            if not name:
+                continue
+            ts_type = self._X3D_TO_TS.get(x3dtype, 'any')
+            lines.append(f'/** {x3dtype}  {access} */\ndeclare let {name}: {ts_type};')
+        return '\n'.join(lines)
+
+    def _on_title_changed(self, title):
+        if title.startswith('__APPLY__:'):
+            self._apply()
+
+    def _apply(self):
+        self._view.page().runJavaScript(
+            'window.monacoGetValue()',
+            lambda v: self._on_apply(v or '')
+        )
+
+
+class RKMFFieldRow(QWidget):
+    """One MF field row: read-only display of val[idx] + optional inline edit."""
+
+    committed = Signal(str, object)   # (field_name, new_full_list)
+
+    _MF_WIDTHS = {
+        'MFVec2f':2,'MFVec2d':2,
+        'MFVec3f':3,'MFVec3d':3,'MFColor':3,
+        'MFVec4f':4,'MFVec4d':4,'MFColorRGBA':4,'MFRotation':4,
+    }
+
+    def __init__(self, fname, ftype, parent=None):
+        super().__init__(parent)
+        self.fname    = fname
+        self.ftype    = ftype
+        self._width   = self._MF_WIDTHS.get(ftype, 1)
+        self._value   = []
+        self._idx     = 0
+        self._editing = False
+
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(3)
+
+        self._display = QLineEdit()
+        self._display.setReadOnly(True)
+        self._display.setPlaceholderText('—')
+        self._display.setStyleSheet('color:#aaa;')
+        self._display.returnPressed.connect(self._commit)
+        self._display.installEventFilter(self)
+
+        self._edit_btn = QPushButton('\u270f')  # ✏ pencil
+        self._edit_btn.setFixedSize(24, 24)
+        self._edit_btn.setCheckable(True)
+        self._edit_btn.setToolTip('Edit this value')
+        self._edit_btn.setStyleSheet(
+            'QPushButton{color:#4CAF50;font-size:13px;padding:0;'
+            'border:1px solid #555;border-radius:3px;background:#333;}'
+            'QPushButton:checked{background:#1a3a1a;border-color:#4CAF50;}'
+            'QPushButton:hover{border-color:#81C784;}'
+        )
+        self._edit_btn.clicked.connect(self._toggle_edit)
+
+        lay.addWidget(self._display, 1)
+        lay.addWidget(self._edit_btn)
+
+    def load(self, full_list, idx=0):
+        self._value   = full_list
+        self._idx     = idx
+        self._editing = False
+        self._edit_btn.setChecked(False)
+        self._display.setReadOnly(True)
+        self._display.setStyleSheet('color:#aaa;')
+        self._refresh()
+
+    def set_index(self, idx):
+        if self._editing:
+            self._cancel()
+        self._idx = idx
+        self._refresh()
+
+    def _refresh(self):
+        if not self._value or self._idx >= len(self._value):
+            self._display.setText('')
+            return
+        elem = self._value[self._idx]
+        if isinstance(elem, tuple):
+            self._display.setText(' '.join(str(v) for v in elem))
+        elif isinstance(elem, bool):
+            self._display.setText('true' if elem else 'false')
+        else:
+            self._display.setText(str(elem))
+
+    def _toggle_edit(self, checked):
+        if checked:
+            self._editing = True
+            self._display.setReadOnly(False)
+            self._display.setStyleSheet('')
+            self._display.setFocus()
+            self._display.selectAll()
+        else:
+            self._cancel()
+
+    def _commit(self):
+        if not self._editing or not self._value or self._idx >= len(self._value):
+            return
+        text = self._display.text().strip()
+        try:
+            if self.ftype == 'MFBool':
+                elem = text.lower() in ('true', '1', 'yes')
+            elif self.ftype == 'MFString':
+                elem = text.strip('"\'')
+            elif self.ftype == 'MFInt32':
+                elem = int(float(text))
+            elif self._width > 1:
+                parts = [float(p) for p in text.split()]
+                elem  = tuple(parts[:self._width])
+            else:
+                elem = float(text)
+        except Exception:
+            self._display.setStyleSheet('background:#5a1a1a;')
+            return
+        new_list = list(self._value)
+        new_list[self._idx] = elem
+        self._value = new_list
+        self._editing = False
+        self._edit_btn.setChecked(False)
+        self._display.setReadOnly(True)
+        self._display.setStyleSheet('color:#aaa;')
+        self._display.setStyleSheet('')
+        self.committed.emit(self.fname, list(self._value))
+
+    def _cancel(self):
+        self._editing = False
+        self._edit_btn.setChecked(False)
+        self._display.setReadOnly(True)
+        self._display.setStyleSheet('color:#aaa;')
+        self._refresh()
+
+    def eventFilter(self, obj, event):
+        if obj is self._display and event.type() == QEvent.Type.KeyPress:
+            if event.key() == Qt.Key.Key_Escape:
+                self._cancel()
+                return True
+        if obj is self._display and event.type() == QEvent.Type.FocusOut:
+            if self._editing:
+                self._cancel()
+        return super().eventFilter(obj, event)
+
+
 class RKNodeFieldEditor(QWidget):
-    """Attribute-editor-style panel for the non-node fields of a selected X3D node."""
+    """Attribute-editor panel for scalar/vector fields of a selected X3D node.
+
+    MF fields display one element at a time via a shared or per-field index spinbox.
+    Parallel MF arrays (same length) share a single index control at the top.
+    """
 
     _SF_WIDTHS = {
         'SFVec2f':2,'SFVec2d':2,
@@ -395,13 +657,34 @@ class RKNodeFieldEditor(QWidget):
         super().__init__(parent)
         self._node          = None
         self._sai_runner    = None
-        self._node_def_map  = {}  # id(pynode) -> registered DEF (real or synthetic)
+        self._node_def_map  = {}
         self._undo_push_fn  = None
-        self._widgets    = {}   # field_name -> (widget, ftype)
+        self._field_undo_fn = None
+        self._widgets         = {}    # fname -> (widget, ftype)  — SF fields only
+        self._mf_rows         = {}    # fname -> RKMFFieldRow
+        self._per_field_spins = []    # explicit Python refs so GC can't sever signal
+        self._graph_refresh_fn = None
+        self._udf_widgets = {}  # id(fobj) → (widget, ftype) for editable non-node UDFs
+        self._js_editor_ref  = None   # open _JSEditorDialog instance
 
         self._header = QLabel('No selection')
         self._header.setContentsMargins(4, 3, 4, 3)
         f = self._header.font(); f.setBold(True); self._header.setFont(f)
+
+        # Shared MF index bar — visible when ≥2 MF fields share the same length
+        self._idx_bar  = QWidget()
+        _ilay          = QHBoxLayout(self._idx_bar)
+        _ilay.setContentsMargins(4, 2, 4, 2)
+        _ilay.setSpacing(4)
+        self._idx_spin = QSpinBox()
+        self._idx_spin.setMinimum(0)
+        self._idx_spin.setMaximum(0)
+        self._idx_of   = QLabel('of 0')
+        _ilay.addWidget(self._idx_spin)
+        _ilay.addWidget(self._idx_of)
+        _ilay.addStretch()
+        self._idx_bar.setVisible(False)
+        self._idx_spin.valueChanged.connect(self._on_shared_idx)
 
         self._scroll    = QScrollArea()
         self._scroll.setWidgetResizable(True)
@@ -416,22 +699,30 @@ class RKNodeFieldEditor(QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
         lay.addWidget(self._header)
+        lay.addWidget(self._idx_bar)
         lay.addWidget(self._scroll)
 
-    def set_sai_runner(self, fn):
-        self._sai_runner = fn
+    # ── public interface ──────────────────────────────────────────────────────
 
-    def set_node_def_map(self, m):
-        self._node_def_map = m
-
-    def set_undo_push_fn(self, fn):
-        self._undo_push_fn = fn
+    def set_sai_runner(self, fn):      self._sai_runner      = fn
+    def set_node_def_map(self, m):     self._node_def_map    = m
+    def set_undo_push_fn(self, fn):    self._undo_push_fn    = fn
+    def set_field_undo_fn(self, fn):   self._field_undo_fn   = fn
+    def set_graph_refresh_fn(self, fn): self._graph_refresh_fn = fn
 
     def set_node(self, node):
         self._node = node
         self._widgets.clear()
+        self._mf_rows.clear()
+        self._per_field_spins.clear()
+        self._udf_widgets.clear()
+        self._js_editor_ref = None
         while self._form.rowCount():
             self._form.removeRow(0)
+        self._idx_bar.setVisible(False)
+        self._idx_spin.blockSignals(True)
+        self._idx_spin.setValue(0)
+        self._idx_spin.blockSignals(False)
 
         if node is None:
             self._header.setText('No selection')
@@ -447,7 +738,12 @@ class RKNodeFieldEditor(QWidget):
         if not hasattr(type(node), 'FIELD_DECLARATIONS'):
             return
 
-        _SKIP = frozenset({'DEF','USE','IS','class_','id_','style_','metadata'})
+        _is_script = (type(node).NAME() if hasattr(type(node), 'NAME') else '') == 'Script'
+        # sourceCode shown in the dedicated JS editor below, not as a text line
+        _SKIP = frozenset({'DEF','USE','IS','class_','id_','style_','metadata'}
+                          | ({'sourceCode'} if _is_script else set()))
+        sf_rows, mf_rows = [], []
+
         for decl in type(node).FIELD_DECLARATIONS():
             fname = decl[0]
             if fname in _SKIP:
@@ -456,13 +752,19 @@ class RKNodeFieldEditor(QWidget):
             except: ftype  = ''
             try:    access = decl[3]()
             except: access = ''
-            if ftype in ('SFNode','MFNode'):
+            if ftype in ('SFNode', 'MFNode'):
                 continue
             try:    val = getattr(node, fname)
             except: continue
-
             ro = (access == 'outputOnly')
-            w  = self._make_widget(fname, ftype, val, ro)
+            if ftype.startswith('MF'):
+                mf_rows.append((fname, ftype, val, ro))
+            else:
+                sf_rows.append((fname, ftype, val, ro))
+
+        # SF fields
+        for fname, ftype, val, ro in sf_rows:
+            w = self._make_sf_widget(fname, ftype, val, ro)
             if w is None:
                 continue
             self._widgets[fname] = (w, ftype)
@@ -471,9 +773,352 @@ class RKNodeFieldEditor(QWidget):
                 lbl.setStyleSheet('color:#888;')
             self._form.addRow(lbl, w)
 
-    # ── widget factory ────────────────────────────────────────────────────────
+        # MF fields
+        if mf_rows:
+            lengths     = [len(v) for _, _, v, _ in mf_rows if isinstance(v, list) and v]
+            use_shared  = len(lengths) >= 2 and len(set(lengths)) == 1
+            shared_len  = lengths[0] if use_shared else 0
 
-    def _make_widget(self, fname, ftype, val, ro):
+            if use_shared:
+                self._idx_spin.blockSignals(True)
+                self._idx_spin.setMaximum(max(0, shared_len - 1))
+                self._idx_spin.setValue(0)
+                self._idx_spin.blockSignals(False)
+                self._idx_of.setText(f'of {shared_len}')
+                self._idx_bar.setVisible(True)
+
+            for fname, ftype, val, ro in mf_rows:
+                row = RKMFFieldRow(fname, ftype)
+                row.load(val if isinstance(val, list) else [], 0)
+                row.committed.connect(self._mf_committed)
+                self._mf_rows[fname] = row
+                lbl = QLabel(fname)
+                if ro:
+                    lbl.setStyleSheet('color:#888;')
+                    row.setEnabled(False)
+
+                if use_shared:
+                    self._form.addRow(lbl, row)
+                else:
+                    # Per-field index spinbox
+                    length  = len(val) if isinstance(val, list) else 0
+                    wrapper = QWidget()
+                    wlay    = QHBoxLayout(wrapper)
+                    wlay.setContentsMargins(0, 0, 0, 0)
+                    wlay.setSpacing(3)
+                    spin    = QSpinBox()
+                    spin.setMinimum(0)
+                    spin.setMaximum(max(0, length - 1))
+                    spin.setFixedWidth(60)
+                    spin.valueChanged.connect(lambda v, r=row: r.set_index(v))
+                    self._per_field_spins.append(spin)  # prevent GC
+                    wlay.addWidget(spin)
+                    wlay.addWidget(row, 1)
+                    wlay.addWidget(QLabel(f'/{length}'))
+                    self._form.addRow(lbl, wrapper)
+
+        # User-defined fields section (Script nodes only)
+        ntype = type(node).NAME() if hasattr(type(node), 'NAME') else ''
+        if ntype == 'Script':
+            self._build_script_source_editor(node)
+            self._build_script_user_fields(node)
+
+    # ── source-code editor (Script only) ──────────────────────────────────
+
+    def _build_script_source_editor(self, node):
+        sep = QLabel('\u2500\u2500 Source Code \u2500\u2500')
+        sep.setAlignment(Qt.AlignCenter)
+        sep.setStyleSheet('color:#666; font-size:9px; padding:2px 0;')
+        self._form.addRow(sep)
+        btn = QPushButton('Edit Source Code\u2026')
+        btn.clicked.connect(lambda: self._open_js_editor(node))
+        self._form.addRow(btn)
+
+    def _open_js_editor(self, node):
+        if self._js_editor_ref is not None and not self._js_editor_ref.isHidden():
+            self._js_editor_ref.raise_()
+            self._js_editor_ref.activateWindow()
+            return
+        dlg = _JSEditorDialog(
+            node,
+            on_apply=lambda text: self._commit_source_code(text, node),
+        )
+        dlg.setModal(False)
+        dlg.show()
+        self._js_editor_ref = dlg
+
+    def _commit_source_code(self, text, node):
+        if getattr(node, 'sourceCode', '') == text:
+            return
+        if self._undo_push_fn:
+            self._undo_push_fn()
+        try:
+            node.sourceCode = text
+        except Exception:
+            return
+        self._push_sai('sourceCode', text, 'SFString')
+
+    # ── user-defined fields (Script only) ──────────────────────────────────
+
+    # SFNode/MFNode excluded here; managed via tree right-click menu
+    _UDF_FIELD_TYPES = [
+        'SFBool','MFBool','SFColor','MFColor','SFColorRGBA','MFColorRGBA',
+        'SFDouble','MFDouble','SFFloat','MFFloat','SFImage','MFImage',
+        'SFInt32','MFInt32','SFRotation','MFRotation',
+        'SFString','MFString','SFTime','MFTime',
+        'SFVec2d','MFVec2d','SFVec2f','MFVec2f',
+        'SFVec3d','MFVec3d','SFVec3f','MFVec3f',
+        'SFVec4d','MFVec4d','SFVec4f','MFVec4f',
+    ]
+    _UDF_ACCESS_TYPES = ['inputOnly', 'outputOnly', 'inputOutput', 'initializeOnly']
+
+    def _build_script_user_fields(self, node):
+        sep = QLabel('\u2500\u2500 User-Defined Fields \u2500\u2500')
+        sep.setAlignment(Qt.AlignCenter)
+        sep.setStyleSheet('color:#666; font-size:9px; padding:2px 0;')
+        self._form.addRow(sep)
+
+        for fobj in list(getattr(node, 'field', None) or []):
+            fname   = getattr(fobj, 'name',       '') or ''
+            ftype   = getattr(fobj, 'type',       '') or ''
+            faccess = getattr(fobj, 'accessType', '') or ''
+
+            if ftype in ('SFNode', 'MFNode'):
+                # Node-type UDFs: read-only label; managed via tree context menu
+                info = QLabel(f'{fname}  [{ftype}  {faccess}]')
+                info.setStyleSheet('color:#666; font-size:9px; font-style:italic;')
+                self._form.addRow(info)
+                continue
+
+            # Non-node UDF: editable value widget + remove button
+            ro = faccess in ('outputOnly', 'inputOnly')
+            fval = getattr(fobj, 'value', None)
+
+            if ftype.startswith('MF') and ftype != 'MFString':
+                row = RKMFFieldRow(fname, ftype)
+                val_list = fval if isinstance(fval, list) else []
+                row.load(val_list, 0)
+                row.committed.connect(
+                    lambda _fn, new_list, fo=fobj: self._udf_mf_committed(fo, new_list)
+                )
+                if ro:
+                    row.setEnabled(False)
+                self._udf_widgets[id(fobj)] = (row, ftype)
+                w_or_row = row
+            else:
+                w_or_row = self._make_udf_sf_widget(fobj, fval, ro)
+                self._udf_widgets[id(fobj)] = (w_or_row, ftype)
+
+            lbl = QLabel(fname)
+            if ro:
+                lbl.setStyleSheet('color:#888;')
+
+            rm_btn = QPushButton('\u2715')
+            rm_btn.setFixedSize(20, 18)
+            rm_btn.setStyleSheet('font-size:9px; padding:0;')
+            rm_btn.clicked.connect(lambda _c, fo=fobj: self._remove_user_field(fo))
+
+            cell = QWidget()
+            lay  = QHBoxLayout(cell)
+            lay.setContentsMargins(0, 0, 0, 0)
+            lay.setSpacing(2)
+            lay.addWidget(w_or_row, 1)
+            lay.addWidget(rm_btn)
+            self._form.addRow(lbl, cell)
+
+        # "Add" row (SFNode/MFNode excluded from combo)
+        name_e = QLineEdit()
+        name_e.setPlaceholderText('name')
+        name_e.setMinimumWidth(55)
+
+        type_cb = QComboBox()
+        type_cb.addItems(self._UDF_FIELD_TYPES)
+        type_cb.setMinimumWidth(80)
+
+        access_cb = QComboBox()
+        access_cb.addItems(self._UDF_ACCESS_TYPES)
+        access_cb.setMinimumWidth(90)
+
+        add_btn = QPushButton('+')
+        add_btn.setFixedSize(20, 18)
+        add_btn.setStyleSheet('font-size:11px; font-weight:bold; padding:0;')
+        add_btn.clicked.connect(
+            lambda: self._add_user_field_clicked(name_e, type_cb, access_cb)
+        )
+
+        add_row = QWidget()
+        add_lay = QHBoxLayout(add_row)
+        add_lay.setContentsMargins(0, 0, 0, 0)
+        add_lay.setSpacing(2)
+        add_lay.addWidget(name_e, 1)
+        add_lay.addWidget(type_cb)
+        add_lay.addWidget(access_cb)
+        add_lay.addWidget(add_btn)
+        add_lbl = QLabel('Add:')
+        add_lbl.setStyleSheet('color:#888; font-size:9px;')
+        self._form.addRow(add_lbl, add_row)
+
+    def _make_udf_sf_widget(self, fobj, fval, ro):
+        """Create an SF (or MFString) widget for a non-node UDF field."""
+        ftype = getattr(fobj, 'type', '') or ''
+        fname = getattr(fobj, 'name', '') or ''
+        if ftype == 'SFBool':
+            w = QCheckBox()
+            w.setChecked(bool(fval))
+            w.setEnabled(not ro)
+            if not ro:
+                w.toggled.connect(lambda _v, fo=fobj: self._udf_changed(fo))
+            return w
+        if ftype == 'MFString':
+            text = ', '.join(f'"{v}"' for v in (fval or []))
+        else:
+            text = self._val_to_str(fval)
+        if ro:
+            w = QLineEdit(text)
+            w.setReadOnly(True)
+            w.setStyleSheet('color:#888;')
+        else:
+            w = _RKFieldLineEdit(text)
+            w.committed.connect(lambda _t, fo=fobj: self._udf_changed(fo))
+        return w
+
+    def _udf_changed(self, fobj):
+        """Commit a value change for an editable non-node UDF field."""
+        if self._node is None:
+            return
+        fname = getattr(fobj, 'name', '') or ''
+        ftype = getattr(fobj, 'type', '') or ''
+        entry = self._udf_widgets.get(id(fobj))
+        if not entry:
+            return
+        w, _ = entry
+        try:
+            parsed = self._parse(w, ftype)
+        except Exception:
+            if isinstance(w, QLineEdit):
+                w.setStyleSheet('background:#5a1a1a;')
+            return
+        if isinstance(w, QLineEdit):
+            w.setStyleSheet('')
+        if self._undo_push_fn:
+            self._undo_push_fn()
+        try:
+            fobj.value = parsed
+        except Exception:
+            if isinstance(w, QLineEdit):
+                w.setStyleSheet('background:#5a1a1a;')
+            return
+        self._push_sai(fname, parsed, ftype)
+
+    def _udf_mf_committed(self, fobj, new_list):
+        """Commit an MF value change for a non-node UDF field."""
+        if self._node is None:
+            return
+        fname = getattr(fobj, 'name', '') or ''
+        ftype = getattr(fobj, 'type', '') or ''
+        if self._undo_push_fn:
+            self._undo_push_fn()
+        try:
+            fobj.value = new_list
+        except Exception:
+            return
+        self._push_sai(fname, new_list, ftype)
+
+    @staticmethod
+    def _script_field_names(node):
+        """All field names already taken on a Script node (declared + user-defined)."""
+        names = set()
+        if hasattr(type(node), 'FIELD_DECLARATIONS'):
+            for decl in type(node).FIELD_DECLARATIONS():
+                names.add(decl[0])
+        for fobj in list(getattr(node, 'field', None) or []):
+            fn = getattr(fobj, 'name', '') or ''
+            if fn:
+                names.add(fn)
+        return names
+
+    def _add_user_field_clicked(self, name_edit, type_combo, access_combo):
+        if self._node is None:
+            return
+        fname   = name_edit.text().strip()
+        ftype   = type_combo.currentText()
+        faccess = access_combo.currentText()
+        if not fname:
+            name_edit.setStyleSheet('background:#5a1a1a;')
+            name_edit.setToolTip('Field name is required')
+            return
+        if fname in self._script_field_names(self._node):
+            name_edit.setStyleSheet('background:#5a1a1a;')
+            name_edit.setToolTip(f'"{fname}" is already defined on this Script node')
+            return
+        name_edit.setStyleSheet('')
+        name_edit.setToolTip('')
+        import rawkee.io.RKx3d as _rkx
+        try:
+            f = _rkx.field()
+            f.name       = fname
+            f.type       = ftype
+            f.accessType = faccess
+        except Exception as e:
+            print(f'Error creating user-defined field: {e}', flush=True)
+            return
+        if self._undo_push_fn:
+            self._undo_push_fn()
+        if not isinstance(getattr(self._node, 'field', None), list):
+            self._node.field = []
+        self._node.field.append(f)
+        if self._graph_refresh_fn:
+            self._graph_refresh_fn(self._node)
+        self.set_node(self._node)
+
+    def _remove_user_field(self, field_obj):
+        if self._node is None:
+            return
+        existing = list(getattr(self._node, 'field', None) or [])
+        if field_obj not in existing:
+            return
+        if self._undo_push_fn:
+            self._undo_push_fn()
+        existing.remove(field_obj)
+        self._node.field = existing
+        if self._graph_refresh_fn:
+            self._graph_refresh_fn(self._node)
+        self.set_node(self._node)
+
+    # ── shared index ──────────────────────────────────────────────────────────
+
+    def _on_shared_idx(self, idx):
+        for row in self._mf_rows.values():
+            row.set_index(idx)
+
+    # ── MF commit ─────────────────────────────────────────────────────────────
+
+    def _mf_committed(self, fname, new_list):
+        if self._node is None:
+            return
+        if self._field_undo_fn:
+            try:    old = getattr(self._node, fname)
+            except: old = None
+            self._field_undo_fn(self._node, fname, old)
+        elif self._undo_push_fn:
+            self._undo_push_fn()
+        try:
+            setattr(self._node, fname, new_list)
+        except Exception:
+            return
+        ftype = ''
+        try:
+            for decl in type(self._node).FIELD_DECLARATIONS():
+                if decl[0] == fname:
+                    ftype = decl[2]()
+                    break
+        except Exception:
+            pass
+        self._push_sai(fname, new_list, ftype)
+
+    # ── SF widget factory ─────────────────────────────────────────────────────
+
+    def _make_sf_widget(self, fname, ftype, val, ro):
         if ftype == 'SFBool':
             w = QCheckBox()
             w.setChecked(bool(val))
@@ -485,14 +1130,16 @@ class RKNodeFieldEditor(QWidget):
             text = ', '.join(f'"{v}"' for v in (val or []))
         else:
             text = self._val_to_str(val)
-        w = QLineEdit(text)
-        w.setReadOnly(ro)
         if ro:
+            w = QLineEdit(text)
+            w.setReadOnly(True)
             w.setStyleSheet('color:#888;')
         else:
-            w.editingFinished.connect(lambda fn=fname: self._changed(fn))
+            w = _RKFieldLineEdit(text)
+            w.committed.connect(lambda _t, fn=fname: self._changed(fn))
         return w
 
+    # kept for SAI / undo helpers that call _val_to_str
     def _val_to_str(self, val):
         if isinstance(val, bool):   return 'true' if val else 'false'
         if isinstance(val, tuple):  return ' '.join(str(v) for v in val)
@@ -503,7 +1150,7 @@ class RKNodeFieldEditor(QWidget):
             return ' '.join(str(v) for v in val)
         return str(val) if val is not None else ''
 
-    # ── field change ──────────────────────────────────────────────────────────
+    # ── SF field change ───────────────────────────────────────────────────────
 
     def _changed(self, fname):
         if self._node is None:
@@ -518,7 +1165,11 @@ class RKNodeFieldEditor(QWidget):
             if isinstance(w, QLineEdit): w.setStyleSheet('background:#5a1a1a;')
             return
         if isinstance(w, QLineEdit): w.setStyleSheet('')
-        if self._undo_push_fn:
+        if self._field_undo_fn:
+            try:    old_val = getattr(self._node, fname)
+            except: old_val = None
+            self._field_undo_fn(self._node, fname, old_val)
+        elif self._undo_push_fn:
             self._undo_push_fn()
         try:
             setattr(self._node, fname, parsed)
@@ -561,10 +1212,8 @@ class RKNodeFieldEditor(QWidget):
             def_ = self._node_def_map.get(id(self._node), '')
         if not def_:
             return
-        js_val  = self._to_js(value, ftype, fname)
-        def_js  = json.dumps(def_)
-        fname_js = json.dumps(fname)
-        self._sai_runner(f'RK.setField({def_js},{fname_js},{js_val})')
+        js_val = self._to_js(value, ftype, fname)
+        self._sai_runner(f'RK.setField({json.dumps(def_)},{json.dumps(fname)},{js_val})')
 
     def _to_js(self, value, ftype, fname):
         if ftype == 'SFBool':   return 'true' if value else 'false'
@@ -573,7 +1222,6 @@ class RKNodeFieldEditor(QWidget):
         if ftype in ('SFFloat','SFDouble','SFTime'):
             return str(float(value) if value is not None else 0.0)
         if isinstance(value, tuple):
-            # Pass as array — RK.setField calls new field.constructor(...array)
             return '[' + ','.join(str(v) for v in value) + ']'
         if isinstance(value, list):
             if not value: return '[]'
@@ -740,6 +1388,18 @@ class RKSceneEditor(QMainWindow):
         trv.startExport(self._x3dObj, buf, 'x3d')
         return buf.getvalue() or None
 
+    def _push_field_undo(self, node, fname, old_val):
+        """Lightweight undo entry for a single field change — no scene serialization."""
+        if self._ai_batch:
+            return
+        entry = ('field', node, fname, old_val)
+        with self._undo_lock:
+            self._undo_stack.append(entry)
+            if len(self._undo_stack) > self._MAX_UNDO:
+                self._undo_stack.pop(0)
+            self._redo_stack.clear()
+        self._update_undo_actions()
+
     def _push_undo_snapshot(self):
         if self._ai_batch:
             return  # batch already pushed one snapshot at begin_ai_batch
@@ -754,6 +1414,17 @@ class RKSceneEditor(QMainWindow):
                 self._redo_stack.clear()
             self._update_undo_actions()
 
+    def _apply_field_entry(self, entry):
+        """Apply a lightweight field undo/redo entry and return the reverse entry."""
+        _, node, fname, old_val = entry
+        try:
+            cur_val = getattr(node, fname)
+            setattr(node, fname, old_val)
+        except Exception:
+            return None
+        self._sync_xite_via_sai()
+        return ('field', node, fname, cur_val)
+
     def _restore_snapshot(self, xml_str: str):
         from rawkee.io.RKLoadSceneFromFile import RKLoadSceneFromFile
         loader  = RKLoadSceneFromFile()
@@ -767,29 +1438,67 @@ class RKSceneEditor(QMainWindow):
         self.field_editor.set_node(None)
         self._sync_xite_via_sai()
         self._bind_first_nodes()
+        # Re-sync any Script nodes already in the graph so their sockets match restored state
+        self._refresh_script_nodes_after_restore()
+
+    def _refresh_script_nodes_after_restore(self):
+        """After snapshot restore, update Script eNodes in the graph with new Python objects."""
+        # The tree registry was rebuilt by setX3DScene; map DEF → new Script node
+        new_by_def = {}
+        for node in self.tree_widget._node_registry.values():
+            if hasattr(type(node), 'NAME') and type(node).NAME() == 'Script':
+                def_ = getattr(node, 'DEF', '') or ''
+                if def_:
+                    new_by_def[def_] = node
+        if not new_by_def:
+            return
+        for enode in list(self.node_editor_widget.scene.eNodes):
+            old_x3d = enode.x3d_node
+            if old_x3d is None:
+                continue
+            if not (hasattr(type(old_x3d), 'NAME') and type(old_x3d).NAME() == 'Script'):
+                continue
+            def_ = getattr(old_x3d, 'DEF', '') or ''
+            new_x3d = new_by_def.get(def_)
+            if new_x3d is None:
+                continue
+            enode.x3d_node = new_x3d
+            self.node_editor_widget.refreshScriptNodeSockets(new_x3d)
 
     def undo(self):
         if not self._undo_stack:
             return
         with self._undo_lock:
-            xml_before = self._undo_stack.pop()
-        current = self._serialize_scene()
-        if current:
-            with self._undo_lock:
-                self._redo_stack.append(current)
-        self._restore_snapshot(xml_before)
+            entry = self._undo_stack.pop()
+        if isinstance(entry, tuple) and entry[0] == 'field':
+            reverse = self._apply_field_entry(entry)
+            if reverse:
+                with self._undo_lock:
+                    self._redo_stack.append(reverse)
+        else:
+            current = self._serialize_scene()
+            if current:
+                with self._undo_lock:
+                    self._redo_stack.append(current)
+            self._restore_snapshot(entry)
         self._update_undo_actions()
 
     def redo(self):
         if not self._redo_stack:
             return
         with self._undo_lock:
-            xml_after = self._redo_stack.pop()
-        current = self._serialize_scene()
-        if current:
-            with self._undo_lock:
-                self._undo_stack.append(current)
-        self._restore_snapshot(xml_after)
+            entry = self._redo_stack.pop()
+        if isinstance(entry, tuple) and entry[0] == 'field':
+            reverse = self._apply_field_entry(entry)
+            if reverse:
+                with self._undo_lock:
+                    self._undo_stack.append(reverse)
+        else:
+            current = self._serialize_scene()
+            if current:
+                with self._undo_lock:
+                    self._undo_stack.append(current)
+            self._restore_snapshot(entry)
         self._update_undo_actions()
 
     @Slot()
@@ -866,7 +1575,10 @@ class RKSceneEditor(QMainWindow):
 
         # Recurse into child node fields using FIELD_DECLARATIONS
         if hasattr(type(node), 'FIELD_DECLARATIONS'):
-            _SKIP = {'class_', 'id_', 'style_', 'IS'}
+            # Skip Script.field — its UDF entries are shown directly by the block below
+            _SKIP = {'class_', 'id_', 'style_', 'IS'} | (
+                {'field'} if node_type == 'Script' else set()
+            )
             for decl in type(node).FIELD_DECLARATIONS():
                 field_name = decl[0]
                 if field_name in _SKIP:
@@ -899,6 +1611,25 @@ class RKSceneEditor(QMainWindow):
                     if child_item:
                         field_item.addChild(child_item)
                     item.addChild(field_item)
+
+        # Show SFNode/MFNode user-defined fields as persistent tree children
+        if node_type == 'Script':
+            for fobj in list(getattr(node, 'field', None) or []):
+                if getattr(fobj, 'type', '') not in ('SFNode', 'MFNode'):
+                    continue
+                fname   = getattr(fobj, 'name',       '') or ''
+                faccess = getattr(fobj, 'accessType', '') or ''
+                ftype   = getattr(fobj, 'type', '') or ''
+                udf_item = QTreeWidgetItem([f'{fname}  [{ftype}  {faccess}]'])
+                udf_item.setForeground(0, QBrush(QColor('#7a7a7a')))
+                udf_item.setData(0, Qt.UserRole + 1, fname)  # real field name for insertion
+                for child_node in list(getattr(fobj, 'children', None) or []):
+                    if hasattr(child_node, 'NAME'):
+                        child_item = self._make_tree_item(child_node)
+                        if child_item:
+                            udf_item.addChild(child_item)
+                item.addChild(udf_item)
+
         return item
 
     def centerNodeEditor(self, qpoint=QPointF(0,0)):
@@ -1125,6 +1856,13 @@ class RKSceneEditor(QMainWindow):
         self.tree_widget.set_bind_key_callback(self._bind_selected_node)
         self.field_editor.set_sai_runner(lambda js: self.browser.page().runJavaScript(js))
         self.field_editor.set_undo_push_fn(self._push_undo_snapshot)
+        self.field_editor.set_field_undo_fn(self._push_field_undo)
+        self.field_editor.set_graph_refresh_fn(
+            lambda node: (
+                self.node_editor_widget.refreshScriptNodeSockets(node),
+                self._sync_xite_via_sai(),
+            )
+        )
         self.toggleAIPanel.toggled.connect(self._ai_dock.setVisible)
         # Block toggleAIPanel signals when syncing check state to prevent minimize from hiding the dock
         self._ai_dock.visibilityChanged.connect(self._sync_ai_panel_action)
@@ -1212,8 +1950,15 @@ class RKSceneEditor(QMainWindow):
         selected = self.tree_widget.selectedItems()
         if not selected:
             return ['children']
-        key = selected[0].data(0, Qt.UserRole)
+        sel_item = selected[0]
+        key = sel_item.data(0, Qt.UserRole)
         parent_node = self.tree_widget.nodeForKey(key) if key else None
+        if parent_node is None:
+            # Field-group item selected — walk up to the owning node item
+            parent_item = sel_item.parent()
+            if parent_item is not None:
+                pk = parent_item.data(0, Qt.UserRole)
+                parent_node = self.tree_widget.nodeForKey(pk) if pk else None
         if parent_node is None:
             return []
 
@@ -1240,6 +1985,12 @@ class RKSceneEditor(QMainWindow):
                     continue
                 if ftype not in ('SFNode', 'MFNode'):
                     continue
+                try:
+                    access = decl[3]()
+                except Exception:
+                    access = ''
+                if access in ('inputOnly', 'outputOnly'):
+                    continue
                 # For fields with known broken setters, check abstract type directly
                 if fname in self._BROKEN_SETTER_FIELDS:
                     abs_name = self._BROKEN_SETTER_FIELDS[fname]
@@ -1262,6 +2013,19 @@ class RKSceneEditor(QMainWindow):
                     fields.append(fname)
                 except Exception:
                     pass
+
+        # Include user-defined SFNode/MFNode fields on Script nodes
+        # Only inputOutput/initializeOnly fields can carry child-node values
+        _CAN_HOLD_NODES = frozenset({'inputOutput', 'initializeOnly'})
+        if hasattr(type(parent_node), 'NAME') and type(parent_node).NAME() == 'Script':
+            for fobj in list(getattr(parent_node, 'field', None) or []):
+                if getattr(fobj, 'type', '') in ('SFNode', 'MFNode'):
+                    if getattr(fobj, 'accessType', '') not in _CAN_HOLD_NODES:
+                        continue
+                    fn = getattr(fobj, 'name', '') or ''
+                    if fn and fn not in fields:
+                        fields.append(fn)
+
         return sorted(fields)
 
     def _on_graph_selection_changed(self):
@@ -1295,15 +2059,129 @@ class RKSceneEditor(QMainWindow):
                 del_sub.setStyleSheet(_SEP_STYLE)
                 del_now_action = del_sub.addAction("Delete Now!")
 
+        # User-defined node-field management for Script nodes
+        add_sfnode_act = add_mfnode_act = None
+        remove_udf_acts = {}  # action → fobj
+        if (del_node is not None
+                and hasattr(type(del_node), 'NAME')
+                and type(del_node).NAME() == 'Script'):
+            menu.addSeparator()
+            udf_sub = menu.addMenu("User-Defined Node Fields")
+            udf_sub.setStyleSheet(_SEP_STYLE)
+            add_sfnode_act = udf_sub.addAction("Add SFNode field\u2026")
+            add_mfnode_act = udf_sub.addAction("Add MFNode field\u2026")
+            node_udfs = [
+                fo for fo in list(getattr(del_node, 'field', None) or [])
+                if getattr(fo, 'type', '') in ('SFNode', 'MFNode')
+            ]
+            if node_udfs:
+                udf_sub.addSeparator()
+                for fo in node_udfs:
+                    lbl = f"Remove '{fo.name}'  [{fo.type}  {fo.accessType}]"
+                    act = udf_sub.addAction(lbl)
+                    remove_udf_acts[act] = fo
+
         chosen = menu.exec(self.tree_widget.viewport().mapToGlobal(pos))
         if chosen is add_action:
             self._run_node_picker()
         elif del_now_action is not None and chosen is del_now_action:
             self._delete_node(del_node)
+        elif add_sfnode_act is not None and chosen is add_sfnode_act:
+            self._add_node_udf(del_node, 'SFNode')
+        elif add_mfnode_act is not None and chosen is add_mfnode_act:
+            self._add_node_udf(del_node, 'MFNode')
+        elif chosen in remove_udf_acts:
+            self._remove_node_udf(del_node, remove_udf_acts[chosen])
+
+    def _add_node_udf(self, script_node, field_type):
+        """Prompt for name/access-type and add an SFNode/MFNode UDF to a Script node."""
+        name, ok = QInputDialog.getText(
+            self, f'Add {field_type} Field', 'Field name:'
+        )
+        if not ok or not (name := name.strip()):
+            return
+        taken = RKNodeFieldEditor._script_field_names(script_node)
+        if name in taken:
+            QMessageBox.warning(
+                self, 'Duplicate Field Name',
+                f'"{name}" is already defined on this Script node.\n'
+                'Please choose a unique field name.'
+            )
+            return
+        access, ok = QInputDialog.getItem(
+            self, f'Add {field_type} Field', 'Access type:',
+            ['inputOnly', 'outputOnly', 'inputOutput', 'initializeOnly'], 0, False
+        )
+        if not ok:
+            return
+        import rawkee.io.RKx3d as _rkx
+        try:
+            f = _rkx.field()
+            f.name       = name
+            f.type       = field_type
+            f.accessType = access
+        except Exception as e:
+            print(f'Error creating user-defined field: {e}', flush=True)
+            return
+        self._push_undo_snapshot()
+        if not isinstance(getattr(script_node, 'field', None), list):
+            script_node.field = []
+        script_node.field.append(f)
+        self.node_editor_widget.refreshScriptNodeSockets(script_node)
+        self._sync_xite_via_sai()
+        expanded = self._capture_tree_expanded()
+        self.setX3DScene(self._x3dScene)
+        self._restore_tree_expanded(expanded)
+        self.field_editor.set_node(script_node)
+
+    def _remove_node_udf(self, script_node, field_obj):
+        """Remove an SFNode/MFNode UDF from a Script node."""
+        existing = list(getattr(script_node, 'field', None) or [])
+        if field_obj not in existing:
+            return
+        self._push_undo_snapshot()
+
+        # Collect all descendant nodes so routes and graph canvas entries can be cleaned up
+        subtree = []
+        for child in list(getattr(field_obj, 'children', None) or []):
+            RKSceneEditor._collect_subtree(child, subtree)
+        if subtree and self._x3dScene is not None:
+            subtree_defs = {getattr(n, 'DEF', '') for n in subtree} - {''}
+            if subtree_defs:
+                self._x3dScene.children = [
+                    c for c in self._x3dScene.children
+                    if not (hasattr(c, 'fromNode')
+                            and (c.fromNode in subtree_defs or c.toNode in subtree_defs))
+                ]
+            subtree_ids = {id(n) for n in subtree}
+            scene = self.node_editor_widget.scene
+            dead_ens = [en for en in scene.eNodes
+                        if id(getattr(en, 'x3d_node', None)) in subtree_ids]
+            if dead_ens:
+                dead_set = {id(en) for en in dead_ens}
+                for edge in list(scene.eEdges):
+                    ss, es = edge.start_socket, edge.end_socket
+                    if ((ss and id(ss.eNode) in dead_set)
+                            or (es and id(es.eNode) in dead_set)):
+                        if edge.grEdge is not None:
+                            scene.grScene.removeItem(edge.grEdge)
+                        scene.eEdges.remove(edge)
+                for en in dead_ens:
+                    if en.grNode is not None:
+                        scene.grScene.removeItem(en.grNode)
+                    scene.eNodes.remove(en)
+
+        existing.remove(field_obj)
+        script_node.field = existing
+        self.node_editor_widget.refreshScriptNodeSockets(script_node)
+        self._sync_xite_via_sai()
+        expanded = self._capture_tree_expanded()
+        self.setX3DScene(self._x3dScene)
+        self._restore_tree_expanded(expanded)
+        self.field_editor.set_node(script_node)
 
     @staticmethod
     def _collect_subtree(node, out=None):
-        """Collect node and all descendant X3D nodes into a list (identity-based)."""
         if out is None:
             out = []
         if not hasattr(node, 'NAME'):
@@ -1661,7 +2539,7 @@ class RKSceneEditor(QMainWindow):
                         QMessageBox.warning(self, "Cannot Add Node", err)
                         return
             else:
-                # Selection is a field-group header item → use that field explicitly
+                # Selection is a field-group header item — use that field explicitly
                 parent_item = sel_item.parent()
                 if parent_item is None:
                     QMessageBox.warning(self, "No Target",
@@ -1672,7 +2550,9 @@ class RKSceneEditor(QMainWindow):
                 if parent_node is None:
                     QMessageBox.warning(self, "No Target", "Could not resolve parent node.")
                     return
-                field_name = sel_item.text(0)
+                # UserRole+1 holds the real field name on UDF items; fall back to display text
+                stored = sel_item.data(0, Qt.UserRole + 1)
+                field_name = stored if stored else sel_item.text(0)
 
             ok, msg = self._insert_into_field(parent_node, field_name, new_node, node_name)
             if not ok:
@@ -1818,6 +2698,43 @@ class RKSceneEditor(QMainWindow):
     @staticmethod
     def _insert_into_field(parent_node, field_name, new_node, node_name):
         """Insert new_node into parent_node.field_name; return (ok, err_msg)."""
+        # Script user-defined SFNode/MFNode fields store their values in rkx.field.children
+        if hasattr(type(parent_node), 'NAME') and type(parent_node).NAME() == 'Script':
+            for fobj in list(getattr(parent_node, 'field', None) or []):
+                if (getattr(fobj, 'name', '') == field_name
+                        and getattr(fobj, 'type', '') in ('SFNode', 'MFNode')):
+                    if getattr(fobj, 'accessType', '') not in ('inputOutput', 'initializeOnly'):
+                        return False, (
+                            f"'{field_name}' has accessType '{fobj.accessType}' "
+                            f"and cannot hold an initial node value."
+                        )
+                    existing = list(getattr(fobj, 'children', None) or [])
+                    if getattr(fobj, 'type', '') == 'MFNode':
+                        fobj.children = existing + [new_node]
+                        return True, None
+                    # SFNode — reject if already occupied
+                    if existing:
+                        occ     = existing[0]
+                        occ_t   = type(occ).NAME() if hasattr(type(occ), 'NAME') else type(occ).__name__
+                        occ_def = getattr(occ, 'DEF', '')
+                        occ_ref = f"{occ_t} DEF='{occ_def}'" if occ_def else occ_t
+                        return False, f"'{field_name}' is already occupied by {occ_ref}."
+                    fobj.children = [new_node]
+                    return True, None
+        # Block inputOnly/outputOnly standard fields before attempting setattr
+        if hasattr(type(parent_node), 'FIELD_DECLARATIONS'):
+            for decl in type(parent_node).FIELD_DECLARATIONS():
+                if decl[0] == field_name:
+                    try:
+                        access = decl[3]()
+                    except Exception:
+                        access = ''
+                    if access in ('inputOnly', 'outputOnly'):
+                        return False, (
+                            f"'{field_name}' has accessType '{access}' "
+                            f"and cannot hold an initial node value."
+                        )
+                    break
         try:
             current = getattr(parent_node, field_name)
         except AttributeError:
@@ -1940,6 +2857,10 @@ class RKSceneEditor(QMainWindow):
         scene = getattr(self._x3dObj, 'Scene', None)
         if scene is None:
             return
+        # Script nodes with UDFs must be loaded from file; SAI cannot declare fields
+        if self._scene_has_script_udfs(scene):
+            self._sync_xite_via_file()
+            return
         self._auto_def_counter = 0
         self._node_def_map.clear()
         self.field_editor.set_node_def_map(self._node_def_map)
@@ -1969,6 +2890,57 @@ class RKSceneEditor(QMainWindow):
         except Exception as e:
             self.console_widget.appendPlainText(f'[ERROR] SAI sync: {e}')
 
+    @staticmethod
+    def _scene_has_script_udfs(scene):
+        """Return True if any Script node in the scene has user-defined fields."""
+        def _walk(nodes):
+            for n in (nodes or []):
+                if not hasattr(type(n), 'NAME'):
+                    continue
+                if type(n).NAME() == 'Script' and list(getattr(n, 'field', None) or []):
+                    return True
+                if hasattr(type(n), 'FIELD_DECLARATIONS'):
+                    for decl in type(n).FIELD_DECLARATIONS():
+                        try:
+                            if decl[2]() not in ('SFNode', 'MFNode'):
+                                continue
+                            val = getattr(n, decl[0], None)
+                            children = val if isinstance(val, list) else ([val] if val else [])
+                            if _walk(children):
+                                return True
+                        except Exception:
+                            pass
+            return False
+        return _walk(getattr(scene, 'children', []))
+
+    def _sync_xite_via_file(self):
+        """Sync X_ITE by writing the current scene to a temp file and loading via URL."""
+        import io, time as _time
+        from rawkee.io.RKSceneTraversal import RKSceneTraversal as _Trv
+        buf = io.StringIO()
+        trv = _Trv()
+        trv.collectProfileFromScene(self._x3dObj)
+        trv.startExport(self._x3dObj, buf, 'x3d')
+        xml = buf.getvalue()
+        if not xml:
+            return
+        temp_path = os.path.normpath(os.path.join(self.basePath, '_rk_live.x3d'))
+        with open(temp_path, 'w', encoding='utf-8') as f:
+            f.write(xml)
+        url = self._local_url(temp_path) + f'?t={int(_time.time() * 1000)}'
+        js = (
+            f'(async function(){{'  
+            f'  try {{'  
+            f'    var b=document.querySelector("x3d-canvas").browser;'  
+            f'    await b.loadURL(new X3D.MFString({json.dumps(url)}));'  
+            f'  }} catch(e){{console.log("RK loadURL: "+e);}}'  
+            f'}})();'
+        )
+        self.browser.page().runJavaScript(js)
+        self._node_def_map.clear()
+        self._auto_def_counter = 0
+        QTimer.singleShot(600, self._bind_first_nodes)
+
     def _collect_sai_cmds(self, nodes, parent_def, field_name, cmds, deferred_uses):
         """Recursively emit RK.addNode() calls for a list of X3D Python nodes."""
         import rawkee.io.RKx3d as _rkx
@@ -1978,6 +2950,9 @@ class RKSceneEditor(QMainWindow):
             node_type = type(node)
             type_name = node_type.NAME() if hasattr(node_type, 'NAME') else node_type.__name__
             if type_name in ('ROUTE', 'Scene', 'X3D'):
+                continue
+            # rkx.field is a statement object; X_ITE SAI has no addField API
+            if type_name == 'field':
                 continue
             def_ = getattr(node, 'DEF', '') or ''
             use_ = getattr(node, 'USE', '') or ''
@@ -2031,8 +3006,10 @@ class RKSceneEditor(QMainWindow):
             cmds.append(
                 f'RK.addNode({json.dumps(type_name)},{def_js},{parent_js},{field_js},{fields_json});'
             )
-            # Recurse into child node fields
+            # Recurse into child node fields (skip Script.field — SAI can't declare fields)
             for cf_name, cf_nodes in child_fields:
+                if type_name == 'Script' and cf_name == 'field':
+                    continue
                 self._collect_sai_cmds(cf_nodes, def_ or None, cf_name, cmds, deferred_uses)
 
     def _collect_routes(self, node, cmds):
@@ -2122,12 +3099,16 @@ class RKCustomWebEnginePage(QWebEnginePage):
 
     def javaScriptConsoleMessage(self, level, message, lineNumber, sourceId):
         if level == QWebEnginePage.JavaScriptConsoleMessageLevel.WarningMessageLevel:
-            level_str = "WARNING"
+            level_str = 'WARNING'
         elif level == QWebEnginePage.JavaScriptConsoleMessageLevel.ErrorMessageLevel:
-            level_str = "ERROR"
+            level_str = 'ERROR'
         else:
-            level_str = "INFO"
-        self._log(f"[{level_str}] {sourceId}:{lineNumber}: {message}")
+            level_str = 'INFO'
+        # Script node Browser.println() arrives pre-tagged; show cleanly
+        if message.startswith('[Script] '):
+            self._log('[Script] ' + message[len('[Script] '):])
+        else:
+            self._log(f'[{level_str}] {sourceId}:{lineNumber}: {message}')
 
 
 class RKBackgroundHost:
@@ -2242,6 +3223,19 @@ class RKCustomNodeEditor(QWidget):
             elif access == 'outputOnly' and fname not in existing_out:
                 outputs.append((fname, ftype))
 
+        # User-defined fields on Script nodes
+        if node_type == 'Script':
+            for udf in list(getattr(x3d_node, 'field', None) or []):
+                fn = getattr(udf, 'name', '') or ''
+                ft = getattr(udf, 'type', '') or ''
+                ac = getattr(udf, 'accessType', '') or ''
+                if not fn:
+                    continue
+                if ac in ('inputOnly', 'inputOutput'):
+                    inputs.append((fn, ft))
+                if ac in ('outputOnly', 'inputOutput'):
+                    outputs.append((fn, ft))
+
         new_node = RKXNode(self.scene, title, inputs=inputs, outputs=outputs, x3d_node=x3d_node, node_type=node_type)
         new_node.setPos(scene_pos.x(), scene_pos.y())
         self._sync_routes_to_edges()
@@ -2290,6 +3284,126 @@ class RKCustomNodeEditor(QWidget):
             from rawkee.editor.RKXEdge import RKXEdge
             RKXEdge(self.scene, start_sock, end_sock)
             existing_pairs.add(pair)
+
+    def refreshScriptNodeSockets(self, x3d_node):
+        """Rebuild all sockets for a Script node after user-defined fields changed."""
+        from rawkee.editor.RKXSocket import RKXSocket, LEFT_BOTTOM, RIGHT_TOP
+
+        target = None
+        for en in self.scene.eNodes:
+            if en.x3d_node is x3d_node:
+                target = en
+                break
+        if target is None:
+            return
+
+        # Collect all still-valid field names to prune orphaned routes
+        valid_names = set()
+        if hasattr(type(x3d_node), 'FIELD_DECLARATIONS'):
+            for decl in type(x3d_node).FIELD_DECLARATIONS():
+                valid_names.add(decl[0])
+        for udf in list(getattr(x3d_node, 'field', None) or []):
+            fn = getattr(udf, 'name', '') or ''
+            if fn:
+                valid_names.add(fn)
+
+        # Remove X3D routes that reference now-missing fields on this Script
+        script_def = getattr(x3d_node, 'DEF', '') or ''
+        if script_def and self.scene._x3d_scene is not None:
+            dead = [
+                c for c in self.scene._x3d_scene.children
+                if hasattr(c, 'fromNode') and (
+                    (c.fromNode == script_def and c.fromField not in valid_names) or
+                    (c.toNode   == script_def and c.toField   not in valid_names)
+                )
+            ]
+            for r in dead:
+                self.scene._x3d_scene.children.remove(r)
+                self.scene._run_sai(
+                    f"(function(){{var b=document.querySelector('x3d-canvas').browser;"
+                    f"var s=b.currentScene;"
+                    f"var fn=s.getNamedNode({r.fromNode!r});"
+                    f"var tn=s.getNamedNode({r.toNode!r});"
+                    f"b.endUpdate();"
+                    f"if(fn&&tn)b.deleteRoute(fn,{r.fromField!r},tn,{r.toField!r});"
+                    f"b.beginUpdate();}})()")
+
+        # Remove graph edges touching this node
+        for edge in list(self.scene.eEdges):
+            ss, es = edge.start_socket, edge.end_socket
+            if (ss and ss.eNode is target) or (es and es.eNode is target):
+                if edge.grEdge is not None:
+                    self.scene.grScene.removeItem(edge.grEdge)
+                self.scene.eEdges.remove(edge)
+
+        # Remove existing socket graphics items
+        for sock in target.inputs + target.outputs:
+            if sock.grSocket is not None:
+                self.scene.grScene.removeItem(sock.grSocket)
+
+        # Rebuild field lists from scratch
+        target.input_fields.clear()
+        target.output_fields.clear()
+        target.inputs.clear()
+        target.outputs.clear()
+
+        _NO = frozenset({'DEF', 'USE', 'IS', 'class_', 'id_', 'style_'})
+        if hasattr(type(x3d_node), 'FIELD_DECLARATIONS'):
+            for decl in type(x3d_node).FIELD_DECLARATIONS():
+                fn = decl[0]
+                try:  ft = decl[2]()
+                except Exception:  ft = ''
+                try:  ac = decl[3]()
+                except Exception:  ac = ''
+                if fn in _NO:
+                    continue
+                if ac in ('inputOnly', 'inputOutput'):
+                    target.input_fields.append((fn, ft))
+                if ac in ('outputOnly', 'inputOutput'):
+                    target.output_fields.append((fn, ft))
+
+        node_type = type(x3d_node).NAME()
+        for udf in list(getattr(x3d_node, 'field', None) or []):
+            fn = getattr(udf, 'name', '') or ''
+            ft = getattr(udf, 'type', '') or ''
+            ac = getattr(udf, 'accessType', '') or ''
+            if not fn:
+                continue
+            if ac in ('inputOnly', 'inputOutput'):
+                target.input_fields.append((fn, ft))
+            if ac in ('outputOnly', 'inputOutput'):
+                target.output_fields.append((fn, ft))
+
+        existing_in  = {fn for fn, _ in target.input_fields}
+        existing_out = {fn for fn, _ in target.output_fields}
+        for (fn, ft, ac) in _EXTRA_EVENT_FIELDS.get(node_type, []):
+            if ac == 'inputOnly' and fn not in existing_in:
+                target.input_fields.append((fn, ft))
+            elif ac == 'outputOnly' and fn not in existing_out:
+                target.output_fields.append((fn, ft))
+
+        # Resize node to fit new socket count
+        n = max(len(target.input_fields), len(target.output_fields), 1)
+        top_start = int(target.grNode.title_height * target.grNode._padding) + target.grNode.edge_size
+        bot_start = target.grNode.edge_size + int(target.grNode._padding)
+        new_h = max(top_start + (n - 1) * target.socket_spacing + bot_start, 100)
+        target.grNode.prepareGeometryChange()
+        target.grNode.height = new_h
+        target.grNode.width  = target._min_width_for_fields()
+        target.grNode.initContent()
+
+        for i, (fn, ft) in enumerate(target.input_fields):
+            s = RKXSocket(eNode=target, index=i, position=LEFT_BOTTOM,
+                          isOutput=False, field_type=ft, field_name=fn)
+            target.inputs.append(s)
+
+        for i, (fn, ft) in enumerate(target.output_fields):
+            s = RKXSocket(eNode=target, index=i, position=RIGHT_TOP,
+                          isOutput=True, field_type=ft, field_name=fn)
+            target.outputs.append(s)
+
+        target.grNode.update()
+        self._sync_routes_to_edges()
 
     def _add_dynamic_socket(self, enode, field_name, is_output):
         """Create a socket for a field not present in FIELD_DECLARATIONS (pure event field)."""
