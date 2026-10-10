@@ -284,6 +284,39 @@ class RKSceneTraversal():
         self.writeLine("ROUTE " + getattr(node, sFieldList[1]) + "." + getattr(node, sFieldList[0]) + " TO " + getattr(node, sFieldList[3]) + "." + getattr(node, sFieldList[2]))
 
 
+    @staticmethod
+    def _udfHasValue(node):
+        """True when a user-defined field carries an explicit default value."""
+        if node.type in ('SFNode', 'MFNode'):
+            return False
+        value = node.value
+        return value is not None and not (isinstance(value, (str, list, tuple)) and len(value) == 0)
+
+    @staticmethod
+    def _udfElement(value, upperBool, quoteStrings):
+        """Lexical form of one SF value or tuple."""
+        if isinstance(value, bool):
+            return ('TRUE' if value else 'FALSE') if upperBool else ('true' if value else 'false')
+        if isinstance(value, str):
+            return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"' if quoteStrings else value
+        if isinstance(value, (tuple, list)):
+            return ' '.join(RKSceneTraversal._udfElement(v, upperBool, quoteStrings) for v in value)
+        return str(value)
+
+    def _udfValueText(self, node, style):
+        """Serialize a user-defined field default per node.type; style is 'classic', 'xml' or 'json'."""
+        fType, value = node.type, node.value
+        upper = style == 'classic'
+        if fType.startswith('MF'):
+            items = list(value) if isinstance(value, (list, tuple)) else [value]
+            if fType == 'MFString':
+                text = ' '.join(self._udfElement(v, upper, True) for v in items)
+            else:
+                sep = ', ' if items and isinstance(items[0], (tuple, list)) else ' '
+                text = sep.join(self._udfElement(v, upper, False) for v in items)
+            return '[ ' + text + ' ]' if style == 'classic' else text
+        return self._udfElement(value, upper, style == 'classic')
+
     def processFieldAsClassic(self, node, sFieldList, mFieldList, isMulti):
         fieldText = node.accessType + " " + node.type + " " + node.name
         if node.type == "SFNode":
@@ -303,8 +336,8 @@ class RKSceneTraversal():
                 self.writeLine("]")
             
         else:
-            if node.value != '':
-                fieldText = fieldText + " " + str(node.value)
+            if self._udfHasValue(node):
+                fieldText = fieldText + " " + self._udfValueText(node, 'classic')
             if isMulti == True:
                 self.writeLine(fieldText)
             else:
@@ -335,6 +368,7 @@ class RKSceneTraversal():
         mflLen = len(mFieldList)
         snlLen = len(sNodeList)
         mnlLen = len(mNodeList)
+        scriptSrc = (getattr(node, 'sourceCode', '') or '') if nType == 'Script' else ''
         for fIdx in range(sflLen):
             tField = sFieldList[fIdx]
 
@@ -385,7 +419,11 @@ class RKSceneTraversal():
                 sValue = ', '.join('TRUE' if v else 'FALSE' for v in values)
                 
             elif isinstance(values[0], str):
-                sValue = ', '.join('"' + v + '"' for v in values)
+                strs = ['"' + v + '"' for v in values]
+                if nType == 'Script' and field == 'url' and scriptSrc:
+                    strs.insert(0, self._classicInlineScript(scriptSrc))
+                    scriptSrc = ''
+                sValue = ', '.join(strs)
                 
             else:
                 sValue = ', '.join(map(str, values))
@@ -393,6 +431,10 @@ class RKSceneTraversal():
             pVal = field + ' [ ' + sValue + ' ]'
             
             self.writeLine(pVal)
+
+        # Script with no external urls: emit the inline source as the only url entry
+        if scriptSrc:
+            self.writeLine('url [ ' + self._classicInlineScript(scriptSrc) + ' ]')
         
         for nIdx in range(snlLen):
             field = sNodeList[nIdx]
@@ -418,18 +460,16 @@ class RKSceneTraversal():
                 self.dtabs()
                 self.writeLine(']')
         
-        # Emit Script sourceCode as inline url field; indent content lines to match block
-        if nType == 'Script':
-            src = getattr(node, 'sourceCode', '') or ''
-            if src:
-                escaped = src.replace('"', '\\"')
-                tabs = '\t' * self.tabs
-                lines = escaped.split('\n')
-                indented = lines[0] + (('\n' + tabs).join([''] + lines[1:]) if len(lines) > 1 else '')
-                self.writeLine(f'url "{indented}"')
-
         self.dtabs()
         self.writeLine("}")
+
+    def _classicInlineScript(self, src):
+        """Quoted Classic url entry for inline Script source; continuation lines are indented to match the block."""
+        escaped = src.replace('\\', '\\\\').replace('"', '\\"')
+        tabs = '\t' * self.tabs
+        lines = escaped.split('\n')
+        indented = lines[0] + (('\n' + tabs).join([''] + lines[1:]) if len(lines) > 1 else '')
+        return '"ecmascript:' + indented + '"'
 
 
     def processROUTEAsJSON(self, node, sFieldList, isMulti, addComma):# 
@@ -470,17 +510,19 @@ class RKSceneTraversal():
         self.itabs()
         fieldName  = '"@name": "' + node.name + '",'
         fieldType  = '"@type": "' + node.type + '",'
+        has_sfnode_child    = node.type == 'SFNode' and bool(node.children)
         has_mfnode_children = node.type == 'MFNode' and bool(node.children)
-        has_scalar_value    = node.type not in ('SFNode', 'MFNode') and bool(node.value)
-        needs_comma = node.type == 'SFNode' or has_mfnode_children or has_scalar_value
+        has_scalar_value    = self._udfHasValue(node)
+        needs_comma = has_sfnode_child or has_mfnode_children or has_scalar_value
         fieldAType = '"@accessType": "' + node.accessType + ('",' if needs_comma else '"')
         self.writeLine(fieldName)
         self.writeLine(fieldType)
         self.writeLine(fieldAType)
         if node.type == 'SFNode':
-            sValue = '"-children":'
-            self.writePrefix(sValue)
-            self.processNode(node.children[0], False, False)
+            if has_sfnode_child:
+                sValue = '"-children":'
+                self.writePrefix(sValue)
+                self.processNode(node.children[0], False, False)
         elif node.type == 'MFNode':
             if node.children:
                 self.writeLine('"-children": [')
@@ -490,7 +532,7 @@ class RKSceneTraversal():
                 self.dtabs()
                 self.writeLine(']')
         elif has_scalar_value:
-            self.writeLine('"@value": "' + str(node.value) + '"')
+            self.writeLine('"@value": ' + json.dumps(self._udfValueText(node, 'json')))
         self.dtabs()
         if addComma:
             self.writeLine('},')
@@ -675,8 +717,10 @@ class RKSceneTraversal():
         #    self.writeLine("</field>")
             
         else:
-            if node.value != '':
-                fieldText += "' value='" + str(node.value) + "'/>"
+            if self._udfHasValue(node):
+                valueText = self._udfValueText(node, 'xml')
+                escaped = valueText.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace("'", '&apos;').replace('"', '&quot;').replace('\n', '&#10;').replace('\r', '&#13;').replace('\t', '&#9;')
+                fieldText += "' value='" + escaped + "'/>"
             else:
                 fieldText += "'/>"
             self.writeLine(fieldText)
@@ -774,7 +818,7 @@ class RKSceneTraversal():
         if src:
             tabs = '\t' * self.tabs
             self.iofile.write(f'{tabs}<![CDATA[\n')
-            for line in src.split('\n'):
+            for line in src.replace(']]>', ']]]]><![CDATA[>').split('\n'):
                 self.iofile.write(f'{tabs}{line}\n')
             self.iofile.write(f'{tabs}]]>\n')
 

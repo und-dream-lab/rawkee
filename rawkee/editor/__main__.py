@@ -29,10 +29,6 @@ else:
     os.environ.setdefault('QTWEBENGINE_CHROMIUM_FLAGS',
                           '--ignore-gpu-blacklist --ignore-gpu-blocklist')
 
-from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QIcon
-from PySide6.QtCore import Qt, QTimer, QtMsgType, qInstallMessageHandler
-from rawkee.editor.RKSceneEditor import RKSceneEditor, apply_dark_palette as _apply_dark_palette
 import signal
 
 _ICON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'x3d_interaction_editor3.ico')
@@ -43,7 +39,7 @@ _REQUIRED_PACKAGES = [
 ]
 
 def _check_dependencies():
-    import importlib, subprocess
+    import importlib.util
     missing = [pip for pip, imp, _ in _REQUIRED_PACKAGES
                if not importlib.util.find_spec(imp)]
     if missing:
@@ -58,6 +54,11 @@ def _qt_message_handler(msg_type, context, message):
 
 def main():
     _check_dependencies()
+    # Qt-dependent imports must follow the dependency check so a missing PySide6 is reported cleanly.
+    from PySide6.QtWidgets import QApplication
+    from PySide6.QtGui import QIcon
+    from PySide6.QtCore import Qt, QTimer, qInstallMessageHandler
+    from rawkee.editor.RKSceneEditor import RKSceneEditor, apply_dark_palette as _apply_dark_palette
     qInstallMessageHandler(_qt_message_handler)
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     app = QApplication.instance() or QApplication(sys.argv)

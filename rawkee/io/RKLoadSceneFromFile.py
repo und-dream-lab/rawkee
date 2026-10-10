@@ -111,7 +111,9 @@ class RKLoadSceneFromFile:
         rest   = [u for u in urls if not u.strip().lower().startswith(_PFX)]
         if inline:
             import textwrap
-            src = inline[0]
+            src = inline[0].strip()
+            # Canonical sourceCode is the scheme-free body; the scheme is re-added when writing Classic url
+            src = src[src.index(':') + 1:]
             # Strip block-level indentation added during Classic encoding (lines after first)
             nl = src.find('\n')
             if nl >= 0:
@@ -225,7 +227,7 @@ class RKLoadSceneFromFile:
             parts = strVal.split()
             return tuple(float(p) for p in parts[:3])
 
-        elif fType in ('SFVec4f', 'SFVec4d', 'SFRotation', 'SFColorRGBA'):
+        elif fType in ('SFVec4f', 'SFVec4d', 'SFRotation', 'SFColorRGBA', 'SFQuaternion'):
             parts = strVal.split()
             return tuple(float(p) for p in parts[:4])
 
@@ -298,7 +300,7 @@ class RKLoadSceneFromFile:
         # ---- SF tuple types ------------------------------------------------
         elif fType in ('SFVec2f', 'SFVec2d',
                        'SFVec3f', 'SFVec3d', 'SFColor',
-                       'SFVec4f', 'SFVec4d', 'SFRotation', 'SFColorRGBA',
+                       'SFVec4f', 'SFVec4d', 'SFRotation', 'SFColorRGBA', 'SFQuaternion',
                        'SFMatrix3f', 'SFMatrix3d',
                        'SFMatrix4f', 'SFMatrix4d'):
             if isinstance(val, list):
@@ -435,7 +437,7 @@ class RKLoadSceneFromFile:
                     except Exception: pass
             val = elem.get('value')
             if val is not None:
-                try:    fNode.value = val
+                try:    fNode.value = self._parseStrValue(val, fNode.type)
                 except Exception: pass
             for child in elem:
                 childNode = self._parseXMLNode(child)
@@ -739,7 +741,7 @@ class RKLoadSceneFromFile:
                     except Exception: pass
             val = nodeBody.get('@value')
             if val is not None:
-                try:    fNode.value = val
+                try:    fNode.value = self._parseJSONValue(val, fNode.type)
                 except Exception: pass
             for child_key, child_val in nodeBody.items():
                 if not child_key.startswith('-'):
@@ -790,8 +792,13 @@ class RKLoadSceneFromFile:
 
             # ---- #sourceCode / #sourceText (Script inline ECMAScript) -----
             elif key in ('#sourceCode', '#sourceText', '@sourceCode'):
-                if nodeType == 'Script' and isinstance(val, list):
-                    self._lift_inline_script(tNode, ['\n'.join(val)])
+                if nodeType == 'Script':
+                    if isinstance(val, list):
+                        body = '\n'.join(str(v) for v in val)
+                    else:
+                        body = str(val)
+                    try:    tNode.sourceCode = body
+                    except Exception: pass
 
             # ---- "field": [...] (Script UDF declarations, flat array) ------
             elif key == 'field' and nodeType == 'Script' and isinstance(val, list):
@@ -806,7 +813,7 @@ class RKLoadSceneFromFile:
                             except Exception: pass
                     v = fieldData.get('@value')
                     if v is not None:
-                        try: fobj.value = str(v)
+                        try: fobj.value = self._parseJSONValue(v, fobj.type)
                         except Exception: pass
                     for child_key, child_val in fieldData.items():
                         if not child_key.startswith('-'):
@@ -1067,13 +1074,23 @@ class RKLoadSceneFromFile:
                         if self._classicPeek() == ']':
                             self._classicConsume()
                     else:
-                        child = self._parseClassicNode()
-                        if child is not None:
-                            fobj.children.append(child)
+                        nxt = self._classicPeek()
+                        if nxt == 'NULL':
+                            self._classicConsume()
+                        elif nxt is not None and nxt != '}' and nxt not in _ACCESS_TYPES and nxt != 'field':
+                            child = self._parseClassicNode()
+                            if child is not None:
+                                fobj.children.append(child)
                 else:
-                    rawToks = self._readClassicSFTokens(fobj.type)
-                    try:    fobj.value = self._parseStrValue(rawToks, fobj.type)
-                    except Exception: pass
+                    if not self._classicNextIsValue():
+                        rawStr = ''
+                    elif fobj.type.startswith('MF'):
+                        rawStr = ' '.join(self._readClassicMFTokens())
+                    else:
+                        rawStr = self._readClassicSFTokens(fobj.type)
+                    if rawStr:
+                        try:    fobj.value = self._parseStrValue(rawStr, fobj.type)
+                        except Exception: pass
                 if not isinstance(getattr(tNode, 'field', None), list):
                     tNode.field = []
                 tNode.field.append(fobj)
@@ -1157,6 +1174,14 @@ class RKLoadSceneFromFile:
             routeNode.toField = tp[1]
         return routeNode
 
+    def _classicNextIsValue(self):
+        """True if the next token can begin a field value (rather than the next field/statement)."""
+        t = self._classicPeek()
+        if t is None:
+            return False
+        return (t[0] in '"[' or t.upper() in ('TRUE', 'FALSE')
+                or re.match(r'[+-]?(\d|\.\d)', t) is not None)
+
     def _readClassicMFTokens(self):
         """Collect all raw tokens that make up one MF field value."""
         tokens = []
@@ -1183,7 +1208,7 @@ class RKLoadSceneFromFile:
         _SF_WIDTHS = {
             'SFVec2f':    2, 'SFVec2d':    2,
             'SFVec3f':    3, 'SFVec3d':    3, 'SFColor':     3,
-            'SFVec4f':    4, 'SFVec4d':    4, 'SFRotation':  4, 'SFColorRGBA': 4,
+            'SFVec4f':    4, 'SFVec4d':    4, 'SFRotation':  4, 'SFColorRGBA': 4, 'SFQuaternion': 4,
             'SFMatrix3f': 9, 'SFMatrix3d': 9,
             'SFMatrix4f': 16,'SFMatrix4d': 16,
         }
